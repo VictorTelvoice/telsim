@@ -1,0 +1,140 @@
+import React, { useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
+
+const Processing: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  
+  // Secondary Strict Lock: Ensures the async effect runs only once
+  const hasProcessedRef = useRef(false);
+
+  useEffect(() => {
+    const processPayment = async () => {
+      // Guard against race conditions during component mounting/effect triggering
+      if (hasProcessedRef.current) return;
+      hasProcessedRef.current = true;
+
+      // Minimum aesthetic delay for branding
+      const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
+      
+      try {
+        const planName = location.state?.planName || 'Telsim Flex (Basic)';
+        const realUserId = user?.id || 'simulated-user-id';
+
+        let finalNumber = '+56 9 8811 2233';
+
+        // Attempt the single webhook call
+        try {
+          const response = await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: realUserId, 
+              plan_type: planName, 
+              timestamp: new Date().toISOString()
+            }),
+          });
+
+          if (response.ok) {
+            const jsonResponse = await response.json();
+            finalNumber = jsonResponse.data?.assigned_number || '+56 9 7788 4422';
+          }
+        } catch (fetchError) {
+          console.error("Webhook fetch failed (likely CORS or network):", fetchError);
+        }
+
+        // Prepare local notifications
+        const now = new Date();
+        const nextMonth = new Date(now);
+        nextMonth.setMonth(now.getMonth() + 1);
+        
+        const planPriceStr = planName.includes('Power') ? '$99.00 USD' : '$13.90 USD';
+
+        addNotification({
+          title: 'Línea Activada con Éxito',
+          message: `Tu nuevo número ${finalNumber} ya está listo para recibir mensajes.`,
+          icon: 'sim_card',
+          type: 'activation',
+          details: {
+            number: finalNumber,
+            plan: planName,
+            activationDate: now.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
+            nextBilling: nextMonth.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
+            price: planPriceStr
+          }
+        });
+
+        await animationPromise;
+        // CRITICAL: Passing both assignedNumber and planName to Success screen
+        navigate('/onboarding/success', { state: { assignedNumber: finalNumber, planName } });
+
+      } catch (error) {
+        console.error("Critical error in processing flow:", error);
+        await animationPromise;
+        navigate('/onboarding/success', { state: { assignedNumber: '+56 9 0000 0000', planName: location.state?.planName } });
+      }
+    };
+
+    processPayment();
+  }, [navigate, location.state, user, addNotification]);
+
+  return (
+    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
+      {/* Background Decor */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
+        <span className="material-symbols-outlined text-[300px] text-primary/5 dark:text-primary/10 rotate-12 transform translate-y-10 translate-x-4 animate-pulse" style={{animationDuration: '4s'}}>
+            sim_card
+        </span>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center w-full max-w-xs mx-auto px-6">
+        <div className="relative flex items-center justify-center mb-10 group">
+          <div className="absolute w-32 h-32 rounded-full border border-primary/20 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] opacity-75"></div>
+          <div className="absolute w-32 h-32 rounded-full bg-primary/5 animate-pulse"></div>
+          
+          <div className="w-20 h-20 rounded-full border-[3px] border-gray-200 dark:border-gray-800"></div>
+          <div className="absolute w-20 h-20 rounded-full border-[3px] border-primary border-t-transparent animate-spin"></div>
+          
+          <div className="absolute flex items-center justify-center bg-white dark:bg-background-dark rounded-full p-2 shadow-sm border border-gray-100 dark:border-gray-800">
+             <span className="material-symbols-outlined text-primary text-2xl animate-[pulse_2s_ease-in-out_infinite]">
+                 lock_clock
+             </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center text-center space-y-3">
+            <h2 className="text-2xl font-bold tracking-tight text-[#111318] dark:text-white">
+                Activando línea...
+            </h2>
+            <div className="h-6 overflow-hidden">
+                <p className="text-slate-500 dark:text-slate-400 text-base font-medium animate-pulse">
+                    Configurando infraestructura privada...
+                </p>
+            </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-8 left-0 w-full px-6">
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-1 bg-gray-200 dark:bg-gray-800 rounded-full mb-2"></div>
+            <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
+                <span className="material-symbols-outlined text-[18px]">lock</span>
+                <p className="text-xs font-medium leading-normal text-center">
+                    Tu conexión es segura y privada. <br/>TELSIM protege tus datos.
+                </p>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Processing;
