@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -236,7 +237,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
           {messages.map((msg, idx) => (
             <div 
                 key={msg.id} 
-                className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
+                className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
                 style={{ animationDelay: `${idx * 100}ms` }}
             >
                 {/* Visual pulse for new messages */}
@@ -244,35 +245,47 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                    <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
                 )}
 
-                <div className={`size-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${getServiceColor(msg.service_name)}`}>
-                    {getServiceIcon(msg.service_name)}
+                <div className="flex items-center gap-4 mb-3">
+                    <div className={`size-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${getServiceColor(msg.service_name)}`}>
+                        {getServiceIcon(msg.service_name)}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide truncate pr-2">
+                                {msg.service_name || msg.sender}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
+                                <Clock className="size-2.5" />
+                                {formatTime(msg.received_at)}
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide truncate pr-2">
-                            {msg.service_name || msg.sender}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
-                            <Clock className="size-2.5" />
-                            {formatTime(msg.received_at)}
-                        </span>
+                <div className="px-1 mb-4">
+                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 italic">
+                    {msg.content}
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO</span>
+                      <span className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
+                          {msg.verification_code}
+                      </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums">
-                            {msg.verification_code}
-                        </span>
-                        <button 
-                            onClick={() => handleCopy(msg.verification_code!, msg.id)}
-                            className={`size-8 rounded-lg flex items-center justify-center transition-all ${
-                                copyingId === msg.id 
-                                ? 'bg-emerald-500 text-white' 
-                                : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90'
-                            }`}
-                        >
-                            {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                        </button>
-                    </div>
+                    <button 
+                        onClick={() => handleCopy(msg.verification_code!, msg.id)}
+                        className={`size-10 rounded-lg flex items-center justify-center transition-all ${
+                            copyingId === msg.id 
+                            ? 'bg-emerald-500 text-white shadow-lg' 
+                            : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700'
+                        }`}
+                    >
+                        {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
+                    </button>
                 </div>
             </div>
           ))}
