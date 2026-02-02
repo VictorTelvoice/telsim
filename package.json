@@ -1,3 +1,4 @@
+
 {
   "name": "telsim-app",
   "private": true,
@@ -12,7 +13,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0",
-    "@supabase/supabase-js": "^2.47.10"
+    "@supabase/supabase-js": "^2.47.10",
+    "lucide-react": "^0.460.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
