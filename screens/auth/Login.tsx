@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase, isDemoMode } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Cpu, AlertCircle, Mail, Lock, Terminal } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ const Login: React.FC = () => {
     if (isDemoMode) {
       setTimeout(() => {
         setLoading(false);
-        devLogin(); // Also use devLogin if in demo mode for consistency
+        devLogin();
         navigate('/dashboard');
       }, 1000);
       return;
@@ -45,7 +47,6 @@ const Login: React.FC = () => {
 
   const handleDevLogin = async () => {
     setLoading(true);
-    // Simula login de desarrollador inyectando usuario en el contexto
     setTimeout(() => {
       devLogin();
       navigate('/dashboard');
@@ -60,62 +61,72 @@ const Login: React.FC = () => {
       
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white shadow-lg mb-6">
-            <span className="material-symbols-rounded text-[32px]">sim_card</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[2rem] bg-primary text-white shadow-xl shadow-primary/20 mb-8 transform -rotate-3">
+            <Cpu className="size-10" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Bienvenido a TELSIM</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Ingresa a tu panel de control</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Acceso Telsim</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Panel de Control de Infraestructura</p>
         </div>
 
         {isDemoMode && (
-          <div className="mb-6 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider text-center">
+          <div className="mb-6 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest text-center">
             Modo Demostración Activo
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium flex items-center gap-2">
-               <span className="material-symbols-rounded text-lg">error</span>
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-[11px] font-black uppercase tracking-widest flex items-center gap-3">
+               <AlertCircle className="size-5 shrink-0" />
               {error}
             </div>
           )}
           
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email</label>
-            <input 
-              type="email" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-14 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-              placeholder="tu@email.com"
-            />
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Email Corporativo</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Mail className="size-5" />
+              </div>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-14 pl-12 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary outline-none transition-all font-bold"
+                placeholder="usuario@telsim.pro"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Contraseña</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-14 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-              placeholder="••••••••"
-            />
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Clave de Acceso</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Lock className="size-5" />
+              </div>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-14 pl-12 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary outline-none transition-all font-bold"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           <button 
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-bold rounded-2xl shadow-button transition-all flex items-center justify-center gap-2 mt-4 active:scale-[0.98]"
+            className="w-full h-16 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-black rounded-2xl shadow-button transition-all flex items-center justify-center gap-2 mt-4 active:scale-[0.98] uppercase tracking-widest"
           >
-            {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div> : 'Iniciar Sesión'}
+            {loading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-white/30 border-t-white"></div> : 'Sincronizar Panel'}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-          ¿No tienes cuenta? <Link to="/register" className="text-primary font-bold hover:underline">Regístrate ahora</Link>
+        <p className="mt-8 text-center text-xs font-bold text-slate-500 dark:text-slate-400 tracking-tight">
+          ¿Nuevo en la red? <Link to="/register" className="text-primary dark:text-blue-400 font-black hover:underline uppercase tracking-widest">Crear Cuenta</Link>
         </p>
 
         {/* Developer Shortcut */}
@@ -123,10 +134,10 @@ const Login: React.FC = () => {
            <button 
             onClick={handleDevLogin}
             disabled={loading}
-            className="w-full h-12 flex items-center justify-center gap-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 active:scale-95"
+            className="w-full h-12 flex items-center justify-center gap-3 rounded-xl text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] transition-all border-2 border-dashed border-slate-100 dark:border-slate-800 hover:border-primary active:scale-95"
            >
-              <span className="material-symbols-rounded text-base">terminal</span>
-              {loading ? 'Accediendo...' : 'Acceso Desarrollador (Bypass)'}
+              <Terminal className="size-4" />
+              {loading ? 'ACCEDIENDO...' : 'Bypass Desarrollador'}
            </button>
         </div>
       </div>

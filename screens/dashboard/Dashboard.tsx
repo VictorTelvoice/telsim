@@ -393,11 +393,27 @@ const Dashboard: React.FC = () => {
     return 'cl';
   };
 
+  const showToast = (message: string) => {
+    const toast = document.createElement('div');
+    toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10";
+    toast.innerHTML = `
+        <div class="size-5 bg-emerald-500 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <span class="text-[11px] font-black uppercase tracking-widest">${message}</span>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  };
+
   const handleCopy = () => {
     if (!activeSlot) return;
     const formatted = formatPhoneNumber(activeSlot.phone_number);
     navigator.clipboard.writeText(formatted);
-    alert(`Número copiado: ${formatted}`);
+    showToast("Número Copiado");
   };
 
   return (
