@@ -21,6 +21,10 @@ import MyNumbers from './screens/dashboard/MyNumbers';
 import Profile from './screens/dashboard/Profile';
 import Messages from './screens/dashboard/Messages';
 import Notifications from './screens/dashboard/Notifications';
+import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
+import Vault2FA from './screens/use-cases/Vault2FA';
+import BypassAntibots from './screens/use-cases/BypassAntibots';
+import SniperBots from './screens/use-cases/SniperBots';
 
 const BottomNav = () => {
   const navigate = useNavigate();
@@ -126,6 +130,12 @@ const App: React.FC = () => {
                     
                     {/* Independient Notification Screen */}
                     <Route path="/dashboard/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+
+                    {/* Use Case Specific Screens */}
+                    <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></ProtectedRoute>} />
+                    <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
                   </Routes>
                 </div>
               </HashRouter>

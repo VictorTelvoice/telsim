@@ -24,12 +24,14 @@ import {
   Copy,
   CheckCircle2,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Target
 } from 'lucide-react';
 
 type CategoryId = 'privacy' | 'automation' | 'growth';
 
 interface UseCaseCardData {
+  id?: string;
   icon: React.ReactNode;
   title: string;
   desc: string;
@@ -40,6 +42,14 @@ interface UseCaseCardData {
 const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
   privacy: [
     {
+      id: 'vault-2fa',
+      icon: <Vault className="size-6" />,
+      title: "Bóveda 2FA",
+      desc: "Separa tus claves bancarias o Crypto de tu teléfono diario para evitar hackeos.",
+      tag: "Seguridad Alta"
+    },
+    {
+      id: 'anonymous',
       icon: <Lock className="size-6" />,
       title: "Registro Anónimo",
       desc: "Verifica WhatsApp, Telegram o Tinder sin revelar tu número personal.",
@@ -49,22 +59,19 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
       icon: <ShoppingBag className="size-6" />,
       title: "Compras Seguras",
       desc: "Ideal para MercadoLibre o Marketplace. Evita spam y estafas."
-    },
-    {
-      icon: <Vault className="size-6" />,
-      title: "Bóveda 2FA",
-      desc: "Separa tus claves bancarias o Crypto de tu teléfono diario."
     }
   ],
   automation: [
     {
+      id: 'bypass-antibots',
       icon: <Zap className="size-6" />,
       title: "Bypass Antibots",
       desc: "Nuestras SIMs reales superan validaciones bancarias (3D Secure) que bloquean a la competencia.",
       isPro: true
     },
     {
-      icon: <Ticket className="size-6" />,
+      id: 'sniper-bots',
+      icon: <Target className="size-6" />,
       title: "Sniper Bots",
       desc: "Compra ediciones limitadas (Nike, Ticketmaster) automatizando la recepción del SMS.",
       isPro: true
@@ -105,6 +112,20 @@ const UseCasesShowcase: React.FC = () => {
     { id: 'automation', label: "🤖 Automatización", icon: <Bot className="size-4" /> },
     { id: 'growth', label: "📈 Growth", icon: <TrendingUp className="size-4" /> }
   ];
+
+  const handleUseCaseClick = (useCase: UseCaseCardData) => {
+    if (useCase.id === 'anonymous') {
+      navigate('/use-case/anonymous');
+    } else if (useCase.id === 'vault-2fa') {
+      navigate('/use-case/vault-2fa');
+    } else if (useCase.id === 'bypass-antibots') {
+      navigate('/use-case/bypass-antibots');
+    } else if (useCase.id === 'sniper-bots') {
+      navigate('/use-case/sniper-bots');
+    } else {
+      navigate('/onboarding/region');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -163,7 +184,7 @@ const UseCasesShowcase: React.FC = () => {
             </p>
 
             <button 
-              onClick={() => navigate('/onboarding/region')}
+              onClick={() => handleUseCaseClick(useCase)}
               className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
                 useCase.isPro ? 'text-blue-400 hover:text-white' : 'text-primary hover:text-blue-700'
               }`}
