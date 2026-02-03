@@ -123,19 +123,91 @@ const App: React.FC = () => {
                     <Route path="/onboarding/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
 
                     {/* Protected Dashboard Flow */}
-                    <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/numbers" element={<ProtectedRoute><DashboardLayout><MyNumbers /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+                    <Route 
+                      path="/dashboard" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Dashboard />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/messages" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Messages />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/numbers" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <MyNumbers />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/profile" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Profile />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
                     
                     {/* Independent Notification Screen */}
                     <Route path="/dashboard/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
                     {/* Use Case Specific Screens */}
-                    <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
+                    <Route 
+                      path="/use-case/anonymous" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <AnonymousRegistration />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/vault-2fa" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Vault2FA />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/bypass-antibots" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <BypassAntibots />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/sniper-bots" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <SniperBots />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
                   </Routes>
                 </div>
               </HashRouter>
