@@ -6,7 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { Slot } from '../../types';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, ArrowLeft, Edit2, CheckCircle, LogOut, CreditCard, Shield, HelpCircle, Book } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -110,6 +110,12 @@ const Profile: React.FC = () => {
     }
   };
 
+  const getInitials = () => {
+    if (nombre) return nombre.charAt(0).toUpperCase();
+    if (user?.email) return user.email.charAt(0).toUpperCase();
+    return 'U';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
@@ -119,14 +125,14 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-24 relative overflow-hidden">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-32 relative overflow-hidden">
       
       {/* Success Toast */}
       {showToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 duration-300">
           <div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 font-bold text-sm">
-            <span className="material-symbols-rounded text-lg">check_circle</span>
-            {t('profile.update_success') || 'Perfil actualizado correctamente'}
+            <CheckCircle className="size-5" />
+            {t('profile.update_success') || 'Perfil actualizado'}
           </div>
         </div>
       )}
@@ -134,7 +140,7 @@ const Profile: React.FC = () => {
       {/* Header with Back */}
       <header className="px-6 py-6 flex items-center justify-between sticky top-0 z-40 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
         <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
-          <span className="material-icons-round">arrow_back</span>
+          <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('profile.title')}</h1>
         <div className="w-10"></div>
@@ -143,18 +149,18 @@ const Profile: React.FC = () => {
       <main className="px-6 space-y-6 max-w-md mx-auto">
         
         {/* SECTION 1: IDENTITY */}
-        <section className="bg-white dark:bg-surface-dark rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-soft">
+        <section className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-soft">
           <div className="flex items-center gap-5">
             <div className="relative shrink-0">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-primary/10 flex items-center justify-center text-primary overflow-hidden shadow-inner">
+              <div className="size-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-primary/10 flex items-center justify-center text-primary overflow-hidden shadow-inner font-black text-2xl">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="material-symbols-rounded text-[32px]">person</span>
+                  getInitials()
                 )}
               </div>
               <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-surface-dark flex items-center justify-center text-white shadow-sm">
-                <span className="material-symbols-rounded text-[12px] fill-1">verified</span>
+                <span className="material-symbols-rounded text-[12px]">verified</span>
               </div>
             </div>
 
@@ -173,7 +179,7 @@ const Profile: React.FC = () => {
                       {saving ? '...' : 'Guardar'}
                     </button>
                     <button onClick={() => setIsEditing(false)} className="h-8 px-4 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                      {t('profile.cancel') || 'Cancelar'}
+                      {t('profile.cancel')}
                     </button>
                   </div>
                 </div>
@@ -181,9 +187,9 @@ const Profile: React.FC = () => {
                 <div className="group cursor-pointer" onClick={() => setIsEditing(true)}>
                   <div className="flex items-center gap-2 mb-0.5">
                     <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">{nombre || 'Usuario Telsim'}</h2>
-                    <span className="material-symbols-rounded text-slate-300 group-hover:text-primary transition-colors text-base">edit</span>
+                    <Edit2 className="size-3.5 text-slate-300 group-hover:text-primary transition-colors" />
                   </div>
-                  <p className="text-slate-400 dark:text-slate-500 font-medium text-xs truncate flex items-center gap-1">
+                  <p className="text-slate-400 dark:text-slate-500 font-medium text-xs truncate">
                     {user?.email}
                   </p>
                 </div>
@@ -195,7 +201,7 @@ const Profile: React.FC = () => {
         {/* SECTION 2: SUBSCRIPTION & BILLING */}
         <div className="space-y-3">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{t('profile.subscription')}</h3>
-          <section className="bg-white dark:bg-surface-dark rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-soft">
+          <section className="bg-white dark:bg-surface-dark rounded-[2.5rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-soft">
             <div className="p-5 border-b border-slate-50 dark:border-slate-800">
                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Resumen de Facturación</p>
                
@@ -243,7 +249,8 @@ const Profile: React.FC = () => {
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300 font-mono">•••• 4242</span>
                   </div>
                   <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-colors shadow-sm">
-                    <span>💳 Cambiar Tarjeta</span>
+                    <CreditCard className="size-3" />
+                    <span>Cambiar Tarjeta</span>
                   </button>
                </div>
 
@@ -254,12 +261,6 @@ const Profile: React.FC = () => {
                 <span>Añadir nueva línea</span>
                 <span className="material-icons-round text-sm">add_circle</span>
                </button>
-
-               <div className="text-center">
-                  <button className="text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-primary transition-colors flex items-center justify-center gap-1 mx-auto">
-                    <span>📄 Descargar Facturas / Recibos</span>
-                  </button>
-               </div>
             </div>
           </section>
         </div>
@@ -268,8 +269,7 @@ const Profile: React.FC = () => {
         <div className="space-y-3">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Preferencias</h3>
           
-          <div className="bg-white dark:bg-surface-dark rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-soft space-y-6">
-            {/* Language Selection */}
+          <div className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-5 border border-slate-100 dark:border-slate-800 shadow-soft space-y-6">
             <div className="space-y-3">
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">{t('profile.lang')}</span>
               <div className="grid grid-cols-2 gap-3">
@@ -290,7 +290,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Theme Toggle */}
             <div className="space-y-3">
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Tema Visual</span>
               <div className="grid grid-cols-2 gap-3">
@@ -313,37 +312,16 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 5: SUPPORT */}
-        <div className="space-y-3">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Soporte</h3>
-          <div className="space-y-2">
-             <button className="w-full h-12 flex items-center justify-between px-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-surface-dark text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors group">
-                <div className="flex items-center gap-3">
-                   <span className="text-base">📚</span>
-                   <span className="text-[11px] font-bold uppercase tracking-wide">Guías de Conexión (Make/API)</span>
-                </div>
-                <span className="material-symbols-rounded text-slate-300 text-lg group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-             </button>
-             <button className="w-full h-12 flex items-center justify-between px-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-surface-dark text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors group">
-                <div className="flex items-center gap-3">
-                   <span className="text-base">💬</span>
-                   <span className="text-[11px] font-bold uppercase tracking-wide">Contactar Soporte</span>
-                </div>
-                <span className="material-symbols-rounded text-slate-300 text-lg group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-             </button>
-          </div>
-        </div>
-
         {/* SECTION 6: SECURITY & LOGOUT */}
-        <section className="bg-white dark:bg-surface-dark rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-soft">
+        <section className="bg-white dark:bg-surface-dark rounded-[2.5rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-soft">
           <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-50 dark:border-slate-800 group">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                <span className="material-symbols-rounded text-xl">security</span>
+                <Shield className="size-4" />
               </div>
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('profile.privacy')}</span>
             </div>
-            <span className="material-symbols-rounded text-slate-300 text-lg">chevron_right</span>
+            <span className="material-icons-round text-slate-300 text-lg">chevron_right</span>
           </button>
           
           <div className="p-3">
@@ -351,14 +329,14 @@ const Profile: React.FC = () => {
               onClick={handleLogout} 
               className="w-full h-12 flex items-center justify-center gap-2 rounded-xl border border-red-100 dark:border-red-900/20 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 transition-all text-[10px] uppercase tracking-widest active:scale-[0.98]"
             >
-              <span className="material-symbols-rounded text-base">logout</span>
+              <LogOut className="size-4" />
               {t('profile.logout')}
             </button>
           </div>
         </section>
 
         <div className="pt-4 text-center">
-          <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.4em]">Telsim Infrastructure v1.4.2</p>
+          <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.4em]">Telsim Infrastructure v1.5.0</p>
         </div>
 
       </main>
