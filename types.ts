@@ -1,3 +1,4 @@
+
 export interface Plan {
   id: string;
   name: string;
@@ -48,6 +49,7 @@ export interface Slot {
   created_at: string;
   status?: string;
   region?: string;
+  label?: string;
   is_forwarding_active?: boolean;
   forwarding_channel?: 'telegram' | 'discord' | 'webhook';
   forwarding_config?: string;

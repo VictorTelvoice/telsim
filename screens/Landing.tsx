@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ShieldCheck, ArrowRight, Check, Lock, Cpu } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Check, Lock } from 'lucide-react';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
@@ -20,23 +20,18 @@ const Landing: React.FC = () => {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 antialiased min-h-screen flex flex-col pb-12 relative">
-      {/* Navbar con Logo Corregido */}
+      {/* Navbar con Logotipo Oficial */}
       <nav className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
         <div className="px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-none">
-                <Cpu className="text-white size-5" />
-              </div>
-              <div className="flex flex-col">
-                <img 
-                  src="/logo.png" 
-                  alt="TELSIM" 
-                  className="h-6 w-auto object-contain block dark:hidden" 
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
-                <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white uppercase">Telsim</span>
-              </div>
+            <img 
+              src="/sim_card.png" 
+              alt="TELSIM Logo" 
+              className="w-10 h-10 object-contain drop-shadow-sm" 
+              onError={(e) => (e.currentTarget.style.display = 'none')}
+            />
+            <div className="flex flex-col">
+              <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white uppercase">Telsim</span>
             </div>
           </div>
           <button className="text-primary dark:text-blue-400 font-bold text-sm hover:opacity-80 transition-opacity" onClick={() => navigate('/login')}>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -16,7 +17,6 @@ const Register: React.FC = () => {
     setError(null);
     
     try {
-      // 1. Auth Sign Up
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -31,8 +31,6 @@ const Register: React.FC = () => {
         throw signUpError;
       }
 
-      // 2. Critical: Insert into public 'users' table if Auth was successful
-      // We map the form's fullName to the 'nombre' column in the database as requested.
       if (data.user) {
         const { error: insertError } = await supabase
           .from('users')
@@ -46,11 +44,9 @@ const Register: React.FC = () => {
 
         if (insertError) {
           console.error("Critical error: User auth created but public profile insert failed:", insertError);
-          // Providing specific feedback if the public table sync fails
           throw new Error("No se pudo sincronizar el perfil público (tabla 'users'). Contacta a soporte.");
         }
 
-        // Proceed to dashboard only if both steps succeeded
         navigate('/dashboard');
       }
     } catch (err: any) {
@@ -68,9 +64,13 @@ const Register: React.FC = () => {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-900/20 text-primary shadow-sm mb-6 relative group">
-            <div className="absolute inset-0 rounded-3xl bg-primary/10 animate-pulse scale-110"></div>
-            <span className="material-symbols-rounded text-[40px] relative z-10">how_to_reg</span>
+          <div className="inline-flex items-center justify-center mb-6 relative group">
+            <div className="absolute inset-0 rounded-3xl bg-primary/10 animate-pulse scale-125"></div>
+            <img 
+              src="/sim_card.png" 
+              alt="TELSIM" 
+              className="w-20 h-20 object-contain drop-shadow-lg relative z-10" 
+            />
           </div>
           
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">

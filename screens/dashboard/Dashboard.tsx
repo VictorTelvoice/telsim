@@ -153,10 +153,11 @@ const UseCasesShowcase: React.FC = () => {
         {USE_CASES[activeCategory].map((useCase, idx) => (
           <div
             key={idx}
-            className={`flex-shrink-0 w-64 rounded-3xl p-6 border transition-all duration-300 group relative overflow-hidden ${
+            onClick={() => handleUseCaseClick(useCase)}
+            className={`flex-shrink-0 w-64 rounded-3xl p-6 border transition-all duration-300 group relative overflow-hidden cursor-pointer active:scale-[0.98] ${
               useCase.isPro 
-              ? 'bg-slate-900 dark:bg-slate-800 border-blue-500/40 shadow-xl shadow-blue-500/10' 
-              : 'bg-white dark:bg-surface-dark border-slate-100 dark:border-slate-800 shadow-soft'
+              ? 'bg-slate-900 dark:bg-slate-800 border-blue-500/40 shadow-xl shadow-blue-500/10 hover:border-blue-400' 
+              : 'bg-white dark:bg-surface-dark border-slate-100 dark:border-slate-800 shadow-soft hover:border-primary/40'
             }`}
           >
             {useCase.isPro && (
@@ -183,15 +184,14 @@ const UseCasesShowcase: React.FC = () => {
               {useCase.desc}
             </p>
 
-            <button 
-              onClick={() => handleUseCaseClick(useCase)}
+            <div 
               className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
-                useCase.isPro ? 'text-blue-400 hover:text-white' : 'text-primary hover:text-blue-700'
+                useCase.isPro ? 'text-blue-400 group-hover:text-white' : 'text-primary group-hover:text-blue-700'
               }`}
             >
-              <span>{useCase.isPro ? 'Activar Pro' : 'Ver Tutorial'}</span>
+              <span>Ver Más</span>
               <ArrowRight className="size-3 transition-transform group-hover:translate-x-1" />
-            </button>
+            </div>
           </div>
         ))}
       </div>
@@ -298,7 +298,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                       </span>
                     </div>
                     <button 
-                        onClick={() => handleCopy(msg.verification_code!, msg.id)}
+                        onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
                         className={`size-10 rounded-lg flex items-center justify-center transition-all ${
                             copyingId === msg.id 
                             ? 'bg-emerald-500 text-white shadow-lg' 

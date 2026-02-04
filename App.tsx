@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate, Link } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationsProvider, useNotifications } from './contexts/NotificationsContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
@@ -21,6 +21,9 @@ import MyNumbers from './screens/dashboard/MyNumbers';
 import Profile from './screens/dashboard/Profile';
 import Messages from './screens/dashboard/Messages';
 import Notifications from './screens/dashboard/Notifications';
+import Billing from './screens/dashboard/Billing';
+import HelpCenter from './screens/dashboard/HelpCenter';
+import TermsPrivacy from './screens/dashboard/TermsPrivacy';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
@@ -29,70 +32,90 @@ import SniperBots from './screens/use-cases/SniperBots';
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
   const { unreadSmsCount } = useMessagesCount();
   const isActive = (path: string) => location.pathname === path;
 
-  return (
-    <nav className="fixed bottom-0 w-full bg-surface-light dark:bg-surface-dark border-t border-slate-200 dark:border-slate-800 pb-[env(safe-area-inset-bottom)] z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
-      <div className="relative flex items-center justify-between px-2 h-16 max-w-md mx-auto">
-        <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 pointer-events-none z-10">
-          <div className="w-16 h-16 bg-background-light dark:bg-background-dark rounded-full flex items-center justify-center">
-            <button 
-              onClick={() => navigate('/onboarding/region')}
-              className="pointer-events-auto w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-blue-500/40 flex items-center justify-center transform transition active:scale-95 hover:bg-blue-700"
-            >
-              <span className="material-icons-round text-3xl">add</span>
-            </button>
-          </div>
-        </div>
+  // Determinar si la pestaña de Ajustes debe estar activa (incluye sub-pantallas)
+  const isSettingsActive = isActive('/dashboard/profile') || isActive('/dashboard/help') || isActive('/dashboard/terms') || isActive('/dashboard/billing');
 
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe pt-2 px-2 max-w-md mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50">
+      <div className="flex justify-between items-center h-16">
+        {/* 1. Inicio */}
         <button 
           onClick={() => navigate('/dashboard')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition group ${isActive('/dashboard') ? 'text-primary dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className="material-icons-round text-2xl group-active:scale-90 transition-transform">home</span>
-          <span className="text-[10px] font-medium">{t('nav.home')}</span>
+          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard') && !isSettingsActive && location.pathname !== '/dashboard/messages' && location.pathname !== '/dashboard/numbers' ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
+            home
+          </span>
+          <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard') && !isSettingsActive && location.pathname !== '/dashboard/messages' && location.pathname !== '/dashboard/numbers' ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
+            Inicio
+          </span>
         </button>
 
+        {/* 2. Mensajes */}
         <button 
           onClick={() => navigate('/dashboard/messages')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition group relative ${isActive('/dashboard/messages') ? 'text-primary dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          className="flex-1 flex flex-col items-center justify-center gap-1 group relative"
         >
-          <span className="material-icons-round text-2xl group-active:scale-90 transition-transform">chat_bubble_outline</span>
-          <span className="text-[10px] font-medium">{t('nav.messages')}</span>
+          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard/messages') ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
+            chat_bubble
+          </span>
+          <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard/messages') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
+            Mensajes
+          </span>
           {unreadSmsCount > 0 && (
-            <span className="absolute top-2 right-4 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border border-white dark:border-surface-dark animate-in zoom-in">
-              {unreadSmsCount > 99 ? '99+' : unreadSmsCount}
+            <span className="absolute top-1 right-5 min-w-[14px] h-[14px] bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center px-1 border border-white dark:border-surface-dark">
+              {unreadSmsCount}
             </span>
           )}
         </button>
 
-        <div className="w-16 flex-shrink-0"></div>
+        {/* 3. Botón Central (+) */}
+        <div className="relative -top-5 px-2">
+          <button 
+            onClick={() => navigate('/onboarding/region')}
+            className="size-14 bg-primary rounded-full flex items-center justify-center text-white shadow-[0_4px_12px_rgba(17,82,212,0.4)] hover:scale-105 active:scale-95 transition-transform"
+          >
+            <span className="material-symbols-outlined text-[32px]">add</span>
+          </button>
+        </div>
 
+        {/* 4. Mis Números */}
         <button 
           onClick={() => navigate('/dashboard/numbers')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition group ${isActive('/dashboard/numbers') ? 'text-primary dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className="material-icons-round text-2xl group-active:scale-90 transition-transform">sim_card</span>
-          <span className="text-[10px] font-medium">{t('nav.numbers')}</span>
+          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard/numbers') ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
+            sim_card
+          </span>
+          <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard/numbers') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
+            Números
+          </span>
         </button>
 
+        {/* 5. Ajustes */}
         <button 
           onClick={() => navigate('/dashboard/profile')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition group relative ${isActive('/dashboard/profile') ? 'text-primary dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className="material-icons-round text-2xl group-active:scale-90 transition-transform">person</span>
-          <span className="text-[10px] font-medium">{t('nav.profile')}</span>
+          <span className={`material-symbols-outlined text-[24px] transition-colors ${isSettingsActive ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
+            settings
+          </span>
+          <span className={`text-[10px] font-medium transition-colors ${isSettingsActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
+            Ajustes
+          </span>
         </button>
       </div>
+      <div className="h-1 w-full"></div>
     </nav>
   );
 };
 
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark pb-20">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {children}
       <BottomNav />
     </div>
@@ -109,105 +132,27 @@ const App: React.FC = () => {
               <HashRouter>
                 <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                   <Routes>
-                    {/* Public Routes */}
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    
-                    {/* Protected Onboarding Flow */}
                     <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
                     <Route path="/onboarding/plan" element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} />
                     <Route path="/onboarding/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
                     <Route path="/onboarding/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
                     <Route path="/onboarding/processing" element={<ProtectedRoute><Processing /></ProtectedRoute>} />
                     <Route path="/onboarding/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
-
-                    {/* Protected Dashboard Flow */}
-                    <Route 
-                      path="/dashboard" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <Dashboard />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/messages" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <Messages />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/numbers" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <MyNumbers />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/profile" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <Profile />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    
-                    {/* Independent Notification Screen */}
+                    <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/numbers" element={<ProtectedRoute><DashboardLayout><MyNumbers /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/help" element={<ProtectedRoute><DashboardLayout><HelpCenter /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/dashboard/terms" element={<ProtectedRoute><DashboardLayout><TermsPrivacy /></DashboardLayout></ProtectedRoute>} />
                     <Route path="/dashboard/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-
-                    {/* Use Case Specific Screens */}
-                    <Route 
-                      path="/use-case/anonymous" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <AnonymousRegistration />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/use-case/vault-2fa" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <Vault2FA />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/use-case/bypass-antibots" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <BypassAntibots />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/use-case/sniper-bots" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardLayout>
-                            <SniperBots />
-                          </DashboardLayout>
-                        </ProtectedRoute>
-                      } 
-                    />
+                    <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></ProtectedRoute>} />
+                    <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
                   </Routes>
                 </div>
               </HashRouter>
