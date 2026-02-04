@@ -7,7 +7,7 @@ export interface Notification {
   user_id?: string;
   title: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
   is_read: boolean;
   created_at: string;
   link?: string;
@@ -53,7 +53,6 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     fetchNotifications();
     
-    // Suscripción en tiempo real
     if (!user) return;
     const channel = supabase
       .channel('notifications_realtime')
