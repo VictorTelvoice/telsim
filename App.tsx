@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { NotificationsProvider, useNotifications } from './contexts/NotificationsContext';
-import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -33,10 +33,18 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { unreadSmsCount } = useMessagesCount();
+  
   const isActive = (path: string) => location.pathname === path;
 
   // Determinar si la pestaña de Ajustes debe estar activa (incluye sub-pantallas)
-  const isSettingsActive = isActive('/dashboard/profile') || isActive('/dashboard/help') || isActive('/dashboard/terms') || isActive('/dashboard/billing');
+  const isSettingsActive = 
+    isActive('/dashboard/profile') || 
+    isActive('/dashboard/help') || 
+    isActive('/dashboard/terms') || 
+    isActive('/dashboard/billing');
+
+  const isHomeActive = 
+    isActive('/dashboard') && !isSettingsActive;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe pt-2 px-2 max-w-md mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50">
@@ -46,10 +54,10 @@ const BottomNav = () => {
           onClick={() => navigate('/dashboard')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard') && !isSettingsActive && location.pathname !== '/dashboard/messages' && location.pathname !== '/dashboard/numbers' ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
+          <span className={`material-symbols-outlined text-[24px] transition-colors ${isHomeActive ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
             home
           </span>
-          <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard') && !isSettingsActive && location.pathname !== '/dashboard/messages' && location.pathname !== '/dashboard/numbers' ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
+          <span className={`text-[10px] font-medium transition-colors ${isHomeActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Inicio
           </span>
         </button>
@@ -108,7 +116,6 @@ const BottomNav = () => {
           </span>
         </button>
       </div>
-      <div className="h-1 w-full"></div>
     </nav>
   );
 };
@@ -132,27 +139,182 @@ const App: React.FC = () => {
               <HashRouter>
                 <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                   <Routes>
+                    {/* Rutas Públicas */}
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
-                    <Route path="/onboarding/plan" element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} />
-                    <Route path="/onboarding/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
-                    <Route path="/onboarding/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
-                    <Route path="/onboarding/processing" element={<ProtectedRoute><Processing /></ProtectedRoute>} />
-                    <Route path="/onboarding/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
-                    <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/numbers" element={<ProtectedRoute><DashboardLayout><MyNumbers /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/help" element={<ProtectedRoute><DashboardLayout><HelpCenter /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/terms" element={<ProtectedRoute><DashboardLayout><TermsPrivacy /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/dashboard/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                    <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></ProtectedRoute>} />
-                    <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
+
+                    {/* Rutas Onboarding (Solo Protegidas) */}
+                    <Route 
+                      path="/onboarding/region" 
+                      element={
+                        <ProtectedRoute>
+                          <RegionSelect />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/onboarding/plan" 
+                      element={
+                        <ProtectedRoute>
+                          <PlanSelect />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/onboarding/summary" 
+                      element={
+                        <ProtectedRoute>
+                          <Summary />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/onboarding/payment" 
+                      element={
+                        <ProtectedRoute>
+                          <Payment />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/onboarding/processing" 
+                      element={
+                        <ProtectedRoute>
+                          <Processing />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/onboarding/success" 
+                      element={
+                        <ProtectedRoute>
+                          <Success />
+                        </ProtectedRoute>
+                      } 
+                    />
+
+                    {/* Rutas Dashboard (Protegidas + Layout) */}
+                    <Route 
+                      path="/dashboard" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Dashboard />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/messages" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Messages />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/numbers" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <MyNumbers />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/profile" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Profile />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/billing" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Billing />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/help" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <HelpCenter />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/terms" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <TermsPrivacy />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/notifications" 
+                      element={
+                        <ProtectedRoute>
+                          <Notifications />
+                        </ProtectedRoute>
+                      } 
+                    />
+
+                    {/* Casos de Uso (Protegidas + Layout) */}
+                    <Route 
+                      path="/use-case/anonymous" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <AnonymousRegistration />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/vault-2fa" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <Vault2FA />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/bypass-antibots" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <BypassAntibots />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/use-case/sniper-bots" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout>
+                            <SniperBots />
+                          </DashboardLayout>
+                        </ProtectedRoute>
+                      } 
+                    />
                   </Routes>
                 </div>
               </HashRouter>
