@@ -139,14 +139,12 @@ const MyNumbers: React.FC = () => {
         setIsFwdModalOpen(true);
     };
 
-    // FALLO 1 CORREGIDO: Cancelación de suscripción + Liberación de Slot
     const handleReleaseSlot = async () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         
         try {
-            // 1. Identificar y Cancelar la Suscripción Activa
-            const { data: subData, error: subFetchError } = await supabase
+            const { data: subData } = await supabase
                 .from('subscriptions')
                 .select('id')
                 .eq('user_id', user.id)
@@ -155,7 +153,7 @@ const MyNumbers: React.FC = () => {
                 .limit(1);
 
             if (subData && subData.length > 0) {
-                const { error: cancelError } = await supabase
+                await supabase
                     .from('subscriptions')
                     .update({ 
                         status: 'canceled',
@@ -163,12 +161,8 @@ const MyNumbers: React.FC = () => {
                         canceled_at: new Date().toISOString()
                     })
                     .eq('id', subData[0].id);
-
-                if (cancelError) throw cancelError;
-                console.log("Suscripción cancelada correctamente.");
             }
 
-            // 2. Liberar el Slot Físico
             const { error: releaseError } = await supabase
                 .from('slots')
                 .update({ 
@@ -182,12 +176,12 @@ const MyNumbers: React.FC = () => {
 
             if (releaseError) throw releaseError;
 
-            showToast("Número eliminado y suscripción cancelada correctamente.");
+            showToast("Número eliminado correctamente.");
             setIsReleaseModalOpen(false);
             fetchSlots();
         } catch (err: any) {
             console.error("Error en el proceso de liberación:", err);
-            showToast("Error al procesar la baja: " + err.message, "error");
+            showToast("Error al procesar la baja", "error");
         } finally {
             setReleasing(false);
         }
@@ -205,6 +199,11 @@ const MyNumbers: React.FC = () => {
             setIsFwdModalOpen(false);
             fetchSlots();
         } catch (err) { console.error(err); } finally { setSavingFwd(false); }
+    };
+
+    // Nueva función para navegar a mensajes con filtro
+    const goToMessagesWithFilter = (phoneNumber: string) => {
+      navigate(`/dashboard/messages?num=${encodeURIComponent(phoneNumber)}`);
     };
 
     return (
@@ -339,7 +338,7 @@ const MyNumbers: React.FC = () => {
 
                                     <div className="mt-5 flex items-center justify-center gap-3 px-1">
                                         <button 
-                                            onClick={() => navigate('/dashboard/messages')}
+                                            onClick={() => goToMessagesWithFilter(slot.phone_number)}
                                             className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-2px] transition-all active:scale-95 text-slate-600 dark:text-slate-300"
                                         >
                                             <Mail className="size-4 text-primary" />

@@ -1,25 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot, SMSLog } from '../../types';
+import { X, Filter, Smartphone } from 'lucide-react';
 
 const Messages: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { refreshUnreadCount } = useMessagesCount();
+  
   const [messages, setMessages] = useState<SMSLog[]>([]);
   const [slotMap, setSlotMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'verifications' | 'others'>('verifications');
 
+  // Obtener el número de filtro de la URL
+  const filterNum = searchParams.get('num');
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Obtener los slots (números) del usuario para mapear ID -> Número Real
+      // 1. Obtener los slots del usuario para mapear ID -> Número Real
       const { data: slotsData } = await supabase
         .from('slots')
         .select('port_id, phone_number')
@@ -33,7 +40,7 @@ const Messages: React.FC = () => {
         setSlotMap(mapping);
       }
 
-      // 2. Obtener los mensajes reales filtrados por user_id
+      // 2. Obtener los mensajes reales
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -105,7 +112,6 @@ const Messages: React.FC = () => {
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   };
 
-  // Sistema de Iconos Robusto (Local)
   const renderServiceIcon = (serviceName: string | undefined, sender: string) => {
     const name = (serviceName || sender).toLowerCase();
     
@@ -131,12 +137,32 @@ const Messages: React.FC = () => {
     );
   };
 
-  // Filtrado por Tab
-  const filteredMessages = messages.filter(msg => {
-    const hasCode = msg.verification_code && msg.verification_code.trim() !== '';
-    if (activeTab === 'verifications') return hasCode;
-    return !hasCode;
-  });
+  // Lógica de Filtrado Premium
+  const filteredMessages = useMemo(() => {
+    return messages.filter(msg => {
+      // Filtro de Pestaña
+      const hasCode = msg.verification_code && msg.verification_code.trim() !== '';
+      const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
+      
+      if (!tabMatch) return false;
+
+      // Filtro de Número (si existe en URL)
+      if (filterNum) {
+        const msgNum = slotMap[msg.slot_id];
+        // Comparamos números limpios para evitar problemas de formato
+        const cleanFilter = filterNum.replace(/\D/g, '');
+        const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
+        return cleanMsgNum.includes(cleanFilter);
+      }
+
+      return true;
+    });
+  }, [messages, activeTab, filterNum, slotMap]);
+
+  const clearFilter = () => {
+    searchParams.delete('num');
+    setSearchParams(searchParams);
+  };
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-background-dark font-display pb-32">
@@ -158,7 +184,28 @@ const Messages: React.FC = () => {
           </button>
         </div>
 
-        {/* Tab System: Segmented Control Style */}
+        {/* Banner de Filtro Activo */}
+        {filterNum && (
+          <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-2.5 rounded-2xl mb-4 animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-primary flex items-center justify-center text-white">
+                <Smartphone className="size-4" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Filtrando por línea</p>
+                <p className="text-xs font-black text-slate-800 dark:text-white">{formatPhoneNumber(filterNum)}</p>
+              </div>
+            </div>
+            <button 
+              onClick={clearFilter}
+              className="size-8 rounded-lg bg-white dark:bg-slate-800 text-slate-400 hover:text-rose-500 shadow-sm flex items-center justify-center transition-colors"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Tab System */}
         <div className="bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl flex items-center mb-2">
             <button 
                 onClick={() => setActiveTab('verifications')}
@@ -187,17 +234,25 @@ const Messages: React.FC = () => {
           <div className="text-center py-32 px-12 animate-in fade-in zoom-in-95 duration-700">
             <div className="size-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm text-slate-200 dark:text-slate-700">
               <span className="material-symbols-rounded text-[40px] opacity-30">
-                  {activeTab === 'verifications' ? 'key' : 'mail'}
+                  {filterNum ? 'filter_alt_off' : (activeTab === 'verifications' ? 'key' : 'mail')}
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                {activeTab === 'verifications' ? 'No hay códigos' : 'Bandeja de otros vacía'}
+                {filterNum ? 'Sin mensajes para este número' : (activeTab === 'verifications' ? 'No hay códigos' : 'Bandeja vacía')}
             </h3>
             <p className="text-sm text-slate-400 font-medium leading-relaxed">
-                {activeTab === 'verifications' 
-                    ? 'Cuando solicites códigos de verificación, aparecerán aquí.' 
-                    : 'Mensajes publicitarios o notificaciones generales llegarán a esta pestaña.'}
+                {filterNum 
+                    ? `No hemos recibido mensajes en la línea ${formatPhoneNumber(filterNum)} todavía.` 
+                    : (activeTab === 'verifications' ? 'Cuando solicites códigos de verificación, aparecerán aquí.' : 'Notificaciones generales llegarán a esta pestaña.')}
             </p>
+            {filterNum && (
+              <button 
+                onClick={clearFilter}
+                className="mt-6 text-primary font-black text-xs uppercase tracking-widest hover:underline"
+              >
+                Ver todos los mensajes
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -215,7 +270,6 @@ const Messages: React.FC = () => {
                     isSpam ? 'opacity-40 grayscale' : ''
                   }`}
                 >
-                  {/* Header de la Notificación */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       {renderServiceIcon(msg.service_name, msg.sender)}
@@ -233,12 +287,10 @@ const Messages: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Cuerpo del Mensaje */}
                   <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400 font-medium mb-4">
                     {msg.content}
                   </p>
 
-                  {/* Código Destacado */}
                   {hasCode && !isSpam && (
                     <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-50 dark:border-blue-900/20 p-4 flex items-center justify-between group">
                        <div className="flex flex-col">
