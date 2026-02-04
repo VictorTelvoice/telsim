@@ -1,34 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * Safely retrieves environment variables from available global objects.
- */
-const getEnv = (key: string): string => {
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key];
-    }
-  } catch (e) {}
+// Credenciales de respaldo (Fallback)
+const FALLBACK_URL = 'https://blujavukpveehdkpwfsq.supabase.co';
+const FALLBACK_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
 
-  try {
-    const meta = import.meta as any;
-    if (meta && meta.env && meta.env[key]) {
-      return meta.env[key];
-    }
-  } catch (e) {}
+// En Vite, se debe usar import.meta.env para acceder a las variables VITE_*
+// Fix: Se usa casting a 'any' para evitar el error de TypeScript: Property 'env' does not exist on type 'ImportMeta'.
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || FALLBACK_URL;
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || FALLBACK_KEY;
 
-  return '';
-};
+// Log de depuración seguro (solo muestra el inicio de las claves)
+console.log("TELSIM Cloud Sync:");
+console.log("URL:", supabaseUrl ? `${supabaseUrl.substring(0, 12)}...` : "MISSING");
+console.log("Key:", supabaseAnonKey ? `${supabaseAnonKey.substring(0, 5)}...` : "MISSING");
 
-// Real Credentials provided by user
-const REAL_URL = 'https://blujavukpveehdkpwfsq.supabase.co';
-const REAL_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
-
-const supabaseUrl = getEnv('VITE_SUPABASE_URL') || REAL_URL;
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || REAL_KEY;
-
-// Flag to check if we are still using placeholders
+// Flag para modo demo si no hay configuración válida
 export const isDemoMode = !supabaseUrl || supabaseUrl.includes('placeholder');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
