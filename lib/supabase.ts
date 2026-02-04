@@ -1,20 +1,61 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Credenciales de respaldo (Fallback)
-const FALLBACK_URL = 'https://blujavukpveehdkpwfsq.supabase.co';
-const FALLBACK_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
+/**
+ * Adaptador de almacenamiento personalizado para manejar QuotaExceededError.
+ * Si localStorage falla, los datos se mantienen en memoria durante la sesión.
+ */
+const memoryStorage: Record<string, string> = {};
 
-// En Vite, se debe usar import.meta.env para acceder a las variables VITE_*
-// Fix: Se usa casting a 'any' para evitar el error de TypeScript: Property 'env' does not exist on type 'ImportMeta'.
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || FALLBACK_URL;
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || FALLBACK_KEY;
+const customStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key) || memoryStorage[key] || null;
+    } catch {
+      return memoryStorage[key] || null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // Si el almacenamiento está lleno (QuotaExceededError), guardamos en memoria
+      console.warn("Storage quota exceeded, falling back to memory for key:", key);
+      memoryStorage[key] = value;
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // No hacer nada
+    }
+    delete memoryStorage[key];
+  },
+};
 
-// Log de depuración seguro (solo muestra el inicio de las claves)
-console.log("TELSIM Cloud Sync:");
-console.log("URL:", supabaseUrl ? `${supabaseUrl.substring(0, 12)}...` : "MISSING");
-console.log("Key:", supabaseAnonKey ? `${supabaseAnonKey.substring(0, 5)}...` : "MISSING");
+const env = (import.meta as any).env;
 
-// Flag para modo demo si no hay configuración válida
-export const isDemoMode = !supabaseUrl || supabaseUrl.includes('placeholder');
+const supabaseUrl = env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const DEFAULT_URL = 'https://blujavukpveehdkpwfsq.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
+
+const finalUrl = supabaseUrl || DEFAULT_URL;
+const finalKey = supabaseAnonKey || DEFAULT_KEY;
+
+console.log("--- TELSIM CONNECTION DIAGNOSTIC ---");
+console.log("Environment:", env ? "VITE_ENV_LOADED" : "NO_VITE_ENV");
+console.log("Storage Strategy: Resilient Hybrid (Local+Memory)");
+console.log("------------------------------------");
+
+export const isDemoMode = !supabaseUrl && window.location.hostname === 'localhost';
+
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    storage: customStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});

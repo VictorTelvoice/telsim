@@ -1,9 +1,8 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase, isDemoMode } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { AlertCircle, Mail, Lock, Terminal } from 'lucide-react';
+import { AlertCircle, Mail, Lock, Terminal, ShieldCheck } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +12,10 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    console.log("Login Screen Mounted. Auth Mode:", isDemoMode ? "DEMO" : "PRODUCTION");
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,80 +27,90 @@ const Login: React.FC = () => {
         setLoading(false);
         devLogin();
         navigate('/dashboard');
-      }, 1000);
+      }, 800);
       return;
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
 
-      if (error) {
-        setError(error.message);
+      if (signInError) {
+        setError(signInError.message === "Invalid login credentials" 
+          ? "Credenciales incorrectas. Verifica tu email y contraseña." 
+          : signInError.message);
         setLoading(false);
-      } else {
+      } else if (data.user) {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setError("Error de red. Verifica tus credenciales.");
+      console.error("Critical login error:", err);
+      if (err.message?.includes('quota')) {
+        setError("El almacenamiento de tu navegador está lleno. Intenta cerrar otras pestañas o borrar caché.");
+      } else {
+        setError("Error de conexión. Revisa tu conexión a internet.");
+      }
       setLoading(false);
     }
   };
 
-  const handleDevLogin = async () => {
+  const handleDevLogin = () => {
     setLoading(true);
-    setTimeout(() => {
-      devLogin();
-      navigate('/dashboard');
-      setLoading(false);
-    }, 500);
+    devLogin();
+    navigate('/dashboard');
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background-light dark:bg-background-dark font-display relative overflow-hidden">
-       {/* Elementos decorativos de fondo */}
       <div className="absolute top-[-5%] left-[-5%] w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center mb-8 transform -rotate-3">
+          <div className="inline-flex items-center justify-center mb-8 transform -rotate-3 relative">
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
             {!logoError ? (
               <img 
                 src="/logo.png" 
                 alt="TELSIM" 
-                className="w-24 h-24 object-contain drop-shadow-xl" 
+                className="w-24 h-24 object-contain drop-shadow-xl relative z-10" 
                 onError={() => setLogoError(true)}
               />
             ) : (
-              <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-2 border-white/20">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
                 <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
               </div>
             )}
           </div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Acceso Telsim</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Panel de Control de Infraestructura</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Panel Telsim</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Infraestructura de Simulación Física</p>
         </div>
-
-        {isDemoMode && (
-          <div className="mb-6 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest text-center">
-            Modo Demostración Activo
-          </div>
-        )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           {error && (
-            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-[11px] font-black uppercase tracking-widest flex items-center gap-3">
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-[11px] font-black uppercase tracking-widest flex items-center gap-3 animate-in slide-in-from-top-1">
                <AlertCircle className="size-5 shrink-0" />
-              {error}
+               <span className="flex-1">{error}</span>
+            </div>
+          )}
+
+          {!isDemoMode ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-2">
+              <ShieldCheck className="size-3 text-emerald-500" />
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Conexión Segura Cloud Activa</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 mb-2">
+              <AlertCircle className="size-3 text-amber-500" />
+              <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Modo Local / Demostración</span>
             </div>
           )}
           
           <div className="space-y-2">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Email Corporativo</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Correo Electrónico</label>
+            <div className="relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
                 <Mail className="size-5" />
               </div>
               <input 
@@ -106,15 +119,15 @@ const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full h-14 pl-12 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary outline-none transition-all font-bold"
-                placeholder="usuario@telsim.pro"
+                placeholder="tu@email.com"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Clave de Acceso</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Contraseña</label>
+            <div className="relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
                 <Lock className="size-5" />
               </div>
               <input 
@@ -138,18 +151,16 @@ const Login: React.FC = () => {
         </form>
 
         <p className="mt-8 text-center text-xs font-bold text-slate-500 dark:text-slate-400 tracking-tight">
-          ¿Nuevo en la red? <Link to="/register" className="text-primary dark:text-blue-400 font-black hover:underline uppercase tracking-widest">Crear Cuenta</Link>
+          ¿Problemas de acceso? <Link to="/register" className="text-primary dark:text-blue-400 font-black hover:underline uppercase tracking-widest">Crear Cuenta</Link>
         </p>
 
-        {/* Developer Shortcut */}
         <div className="mt-12 pt-6 border-t border-slate-100 dark:border-slate-800">
            <button 
             onClick={handleDevLogin}
-            disabled={loading}
             className="w-full h-12 flex items-center justify-center gap-3 rounded-xl text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] transition-all border-2 border-dashed border-slate-100 dark:border-slate-800 hover:border-primary active:scale-95"
            >
               <Terminal className="size-4" />
-              {loading ? 'ACCEDIENDO...' : 'Bypass Desarrollador'}
+              Entrar como Invitado
            </button>
         </div>
       </div>
