@@ -1,7 +1,9 @@
+
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { supabase } from '../../lib/supabase';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
@@ -9,48 +11,84 @@ const Processing: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   
-  // Secondary Strict Lock: Ensures the async effect runs only once
   const hasProcessedRef = useRef(false);
 
   useEffect(() => {
     const processPayment = async () => {
-      // Guard against race conditions during component mounting/effect triggering
       if (hasProcessedRef.current) return;
       hasProcessedRef.current = true;
 
-      // Minimum aesthetic delay for branding
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
         const planName = location.state?.planName || 'Telsim Flex (Basic)';
         const realUserId = user?.id || 'simulated-user-id';
 
-        let finalNumber = '+56 9 8811 2233';
+        let finalNumber = '';
+        let assignedPortId = '';
 
-        // Attempt the single webhook call
+        // FALLO 2 CORREGIDO: Provisionamiento Secuencial Determinista
+        // Buscamos el PRIMER slot libre siguiendo el orden de inventario (port_id ASC)
+        const { data: freeSlots, error: fetchError } = await supabase
+          .from('slots')
+          .select('port_id, phone_number')
+          .eq('status', 'libre')
+          .order('port_id', { ascending: true }) // Regla de Oro: Orden Secuencial
+          .limit(1);
+
+        if (fetchError) throw fetchError;
+
+        if (freeSlots && freeSlots.length > 0) {
+            const chosenSlot = freeSlots[0];
+            assignedPortId = chosenSlot.port_id;
+            finalNumber = chosenSlot.phone_number;
+
+            // Transacción: Asignar al usuario
+            const { error: updateError } = await supabase
+              .from('slots')
+              .update({ 
+                assigned_to: realUserId, 
+                status: 'activo',
+                plan_type: planName,
+                created_at: new Date().toISOString()
+              })
+              .eq('port_id', assignedPortId);
+
+            if (updateError) throw updateError;
+            
+            // Crear registro de suscripción
+            await supabase.from('subscriptions').insert([{
+                user_id: realUserId,
+                plan_type: planName,
+                status: 'active',
+                port_id: assignedPortId,
+                started_at: new Date().toISOString()
+            }]);
+
+        } else {
+            // Fallback de seguridad si no hay stock físico
+            console.warn("No hay slots físicos disponibles en el inventario.");
+            finalNumber = '+56 9 0000 0000'; 
+        }
+
+        // Enviar Webhook de notificación externa
         try {
-          const response = await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
+          await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
             mode: 'cors',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: realUserId, 
+              port_id: assignedPortId,
+              phone_number: finalNumber,
               plan_type: planName, 
               timestamp: new Date().toISOString()
             }),
           });
-
-          if (response.ok) {
-            const jsonResponse = await response.json();
-            finalNumber = jsonResponse.data?.assigned_number || '+56 9 7788 4422';
-          }
-        } catch (fetchError) {
-          console.error("Webhook fetch failed (likely CORS or network):", fetchError);
+        } catch (webhookErr) {
+          console.debug("Error silenciado en webhook:", webhookErr);
         }
 
-        // Prepare local notifications
         const now = new Date();
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
@@ -72,11 +110,10 @@ const Processing: React.FC = () => {
         });
 
         await animationPromise;
-        // CRITICAL: Passing both assignedNumber and planName to Success screen
         navigate('/onboarding/success', { state: { assignedNumber: finalNumber, planName } });
 
       } catch (error) {
-        console.error("Critical error in processing flow:", error);
+        console.error("Critical error in provisioning flow:", error);
         await animationPromise;
         navigate('/onboarding/success', { state: { assignedNumber: '+56 9 0000 0000', planName: location.state?.planName } });
       }
@@ -87,7 +124,6 @@ const Processing: React.FC = () => {
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
-      {/* Background Decor */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
         <span className="material-symbols-outlined text-[300px] text-primary/5 dark:text-primary/10 rotate-12 transform translate-y-10 translate-x-4 animate-pulse" style={{animationDuration: '4s'}}>
             sim_card
@@ -112,11 +148,11 @@ const Processing: React.FC = () => {
 
         <div className="flex flex-col items-center text-center space-y-3">
             <h2 className="text-2xl font-bold tracking-tight text-[#111318] dark:text-white">
-                Activando línea...
+                Sincronizando Rack...
             </h2>
             <div className="h-6 overflow-hidden">
-                <p className="text-slate-500 dark:text-slate-400 text-base font-medium animate-pulse">
-                    Configurando infraestructura privada...
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium animate-pulse uppercase tracking-widest">
+                    Provisionando puerto físico secuencial
                 </p>
             </div>
         </div>

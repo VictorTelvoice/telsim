@@ -27,12 +27,10 @@ const MyNumbers: React.FC = () => {
     const [slots, setSlots] = useState<Slot[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // States for labeling
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
     const [savingLabel, setSavingLabel] = useState(false);
 
-    // States for modals
     const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
     const [slotToRelease, setSlotToRelease] = useState<Slot | null>(null);
     const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
@@ -67,14 +65,18 @@ const MyNumbers: React.FC = () => {
         fetchSlots();
     }, [user]);
 
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-red-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
+        toast.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">${message}</span>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+
     const handleCopy = (num: string) => {
         const formatted = formatPhoneNumber(num);
         navigator.clipboard.writeText(formatted);
-        const toast = document.createElement('div');
-        toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10";
-        toast.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">Número Copiado</span>`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+        showToast("Número Copiado");
     };
 
     const handleStartEditLabel = (slot: Slot) => {
@@ -137,6 +139,74 @@ const MyNumbers: React.FC = () => {
         setIsFwdModalOpen(true);
     };
 
+    // FALLO 1 CORREGIDO: Cancelación de suscripción + Liberación de Slot
+    const handleReleaseSlot = async () => {
+        if (!slotToRelease || !user || !confirmReleaseCheck) return;
+        setReleasing(true);
+        
+        try {
+            // 1. Identificar y Cancelar la Suscripción Activa
+            const { data: subData, error: subFetchError } = await supabase
+                .from('subscriptions')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (subData && subData.length > 0) {
+                const { error: cancelError } = await supabase
+                    .from('subscriptions')
+                    .update({ 
+                        status: 'canceled',
+                        cancel_at_period_end: true,
+                        canceled_at: new Date().toISOString()
+                    })
+                    .eq('id', subData[0].id);
+
+                if (cancelError) throw cancelError;
+                console.log("Suscripción cancelada correctamente.");
+            }
+
+            // 2. Liberar el Slot Físico
+            const { error: releaseError } = await supabase
+                .from('slots')
+                .update({ 
+                    assigned_to: null, 
+                    status: 'libre',
+                    plan_type: null,
+                    label: null,
+                    is_forwarding_active: false
+                })
+                .eq('port_id', slotToRelease.port_id);
+
+            if (releaseError) throw releaseError;
+
+            showToast("Número eliminado y suscripción cancelada correctamente.");
+            setIsReleaseModalOpen(false);
+            fetchSlots();
+        } catch (err: any) {
+            console.error("Error en el proceso de liberación:", err);
+            showToast("Error al procesar la baja: " + err.message, "error");
+        } finally {
+            setReleasing(false);
+        }
+    };
+
+    const handleSaveFwd = async () => {
+        if (!slotToFwd) return;
+        setSavingFwd(true);
+        try {
+            await supabase.from('slots').update({ 
+                is_forwarding_active: fwdActive, 
+                forwarding_channel: fwdChannel, 
+                forwarding_config: fwdConfig 
+            }).eq('port_id', slotToFwd.port_id);
+            setIsFwdModalOpen(false);
+            fetchSlots();
+        } catch (err) { console.error(err); } finally { setSavingFwd(false); }
+    };
+
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
             <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
@@ -170,10 +240,7 @@ const MyNumbers: React.FC = () => {
                             
                             return (
                                 <div key={slot.port_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    {/* SIM CARD PHYSICAL WRAPPER */}
                                     <div className="relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500">
-                                        
-                                        {/* THE REAL SIM SHAPE (using clip-path only on inner layer to preserve shadow) */}
                                         <div 
                                             style={{ clipPath: 'polygon(0% 0%, 85% 0%, 100% 15%, 100% 100%, 0% 100%)' }}
                                             className={`relative aspect-[1.58/1] w-full p-7 flex flex-col justify-between transition-all duration-500 ${
@@ -182,11 +249,9 @@ const MyNumbers: React.FC = () => {
                                                 : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700'
                                             }`}
                                         >
-                                            {/* TEXTURAS REALISTAS */}
                                             <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
 
-                                            {/* TOP SECTION: BRANDING & LABEL */}
                                             <div className="flex justify-between items-start relative z-10">
                                                 <div className="flex flex-col gap-1 max-w-[70%]">
                                                     <div className="flex items-center gap-2">
@@ -196,7 +261,6 @@ const MyNumbers: React.FC = () => {
                                                         <div className={`size-1.5 rounded-full ${isPro ? 'bg-blue-400' : 'bg-emerald-500'} animate-pulse`}></div>
                                                     </div>
                                                     
-                                                    {/* EDITABLE LABEL */}
                                                     <div className="mt-1 min-h-[22px] flex items-center">
                                                         {isEditing ? (
                                                             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
@@ -235,9 +299,7 @@ const MyNumbers: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* MIDDLE SECTION: MICROCHIP & PHONE NUMBER */}
                                             <div className="flex items-center gap-6 relative z-10">
-                                                {/* MICROCHIP ULTRA REALISTA */}
                                                 <div className={`relative w-16 h-11 rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-black/10 shadow-inner group-hover/sim:scale-[1.02] transition-transform duration-500 ${
                                                     isPro 
                                                     ? 'bg-gradient-to-br from-slate-200 via-slate-400 to-slate-500' 
@@ -260,7 +322,6 @@ const MyNumbers: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* BOTTOM SECTION: PLAN & METADATA */}
                                             <div className="flex justify-between items-end relative z-10">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
@@ -276,7 +337,6 @@ const MyNumbers: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* ACCIONES DE LA TARJETA */}
                                     <div className="mt-5 flex items-center justify-center gap-3 px-1">
                                         <button 
                                             onClick={() => navigate('/dashboard/messages')}
@@ -313,7 +373,6 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODALS (Simplified for consistency) */}
             {isReleaseModalOpen && slotToRelease && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
@@ -323,16 +382,16 @@ const MyNumbers: React.FC = () => {
                             <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">Plan: {slotToRelease.plan_type}</p>
                         </div>
                         <div className="p-8 space-y-6">
-                            <p className="text-xs font-bold text-slate-500 leading-relaxed">Esta acción es definitiva. El número {formatPhoneNumber(slotToRelease.phone_number)} será eliminado de tu cuenta.</p>
+                            <p className="text-xs font-bold text-slate-500 leading-relaxed">Esta acción cancelará tu suscripción y liberará el número {formatPhoneNumber(slotToRelease.phone_number)} de tu cuenta.</p>
                             <div className="flex items-start gap-3 cursor-pointer" onClick={() => setConfirmReleaseCheck(!confirmReleaseCheck)}>
                                 <div className={`mt-0.5 size-5 shrink-0 rounded border-2 transition-all flex items-center justify-center ${confirmReleaseCheck ? 'bg-rose-500 border-rose-500 shadow-sm' : 'border-slate-200'}`}>
                                     {confirmReleaseCheck && <Check className="size-3 text-white" />}
                                 </div>
-                                <span className="text-[11px] font-bold text-slate-400 leading-tight">Entiendo los riesgos y he guardado mis respaldos.</span>
+                                <span className="text-[11px] font-bold text-slate-400 leading-tight">Entiendo los riesgos y confirmo la cancelación definitiva.</span>
                             </div>
                             <div className="flex flex-col gap-3">
                                 <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-500 text-white shadow-xl shadow-rose-500/20 active:scale-95' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>
-                                    {releasing ? 'PROCESANDO...' : 'ELIMINAR SIM'}
+                                    {releasing ? 'PROCESANDO BAJA...' : 'CONFIRMAR CANCELACIÓN'}
                                 </button>
                                 <button onClick={() => setIsReleaseModalOpen(false)} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
                             </div>
@@ -384,30 +443,6 @@ const MyNumbers: React.FC = () => {
             )}
         </div>
     );
-
-    async function handleReleaseSlot() {
-        if (!slotToRelease || !user || !confirmReleaseCheck) return;
-        setReleasing(true);
-        try {
-            await supabase.from('slots').update({ assigned_to: null, status: 'libre' }).eq('port_id', slotToRelease.port_id);
-            setIsReleaseModalOpen(false);
-            fetchSlots();
-        } catch (err) { console.error(err); } finally { setReleasing(false); }
-    }
-
-    async function handleSaveFwd() {
-        if (!slotToFwd) return;
-        setSavingFwd(true);
-        try {
-            await supabase.from('slots').update({ 
-                is_forwarding_active: fwdActive, 
-                forwarding_channel: fwdChannel, 
-                forwarding_config: fwdConfig 
-            }).eq('port_id', slotToFwd.port_id);
-            setIsFwdModalOpen(false);
-            fetchSlots();
-        } catch (err) { console.error(err); } finally { setSavingFwd(false); }
-    }
 };
 
 export default MyNumbers;
