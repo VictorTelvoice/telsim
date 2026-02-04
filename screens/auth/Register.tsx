@@ -10,6 +10,7 @@ const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,15 +63,22 @@ const Register: React.FC = () => {
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
 
-      <div className="w-full max-w-sm relative z-10">
+      <div className="w-full max-sm relative z-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-6 relative group">
             <div className="absolute inset-0 rounded-3xl bg-primary/10 animate-pulse scale-125"></div>
-            <img 
-              src="/sim_card.png" 
-              alt="TELSIM" 
-              className="w-20 h-20 object-contain drop-shadow-lg relative z-10" 
-            />
+            {!logoError ? (
+              <img 
+                src="/logo.png" 
+                alt="TELSIM" 
+                className="w-20 h-20 object-contain drop-shadow-lg relative z-10" 
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-xl relative z-10">
+                <span className="font-black text-xl uppercase tracking-tighter">TELSIM</span>
+              </div>
+            )}
           </div>
           
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">

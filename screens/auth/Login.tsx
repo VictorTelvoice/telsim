@@ -12,6 +12,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,11 +63,18 @@ const Login: React.FC = () => {
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-8 transform -rotate-3">
-            <img 
-              src="/sim_card.png" 
-              alt="TELSIM" 
-              className="w-24 h-24 object-contain drop-shadow-xl" 
-            />
+            {!logoError ? (
+              <img 
+                src="/logo.png" 
+                alt="TELSIM" 
+                className="w-24 h-24 object-contain drop-shadow-xl" 
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-2 border-white/20">
+                <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
+              </div>
+            )}
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Acceso Telsim</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Panel de Control de Infraestructura</p>
