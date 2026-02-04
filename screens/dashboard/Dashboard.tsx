@@ -5,6 +5,7 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
+import NotificationsMenu from '../../components/NotificationsMenu';
 import { 
   ShieldCheck, 
   Bot, 
@@ -323,7 +324,6 @@ const Dashboard: React.FC = () => {
   
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
   const { t } = useLanguage();
 
   const fetchData = async () => {
@@ -511,12 +511,9 @@ const Dashboard: React.FC = () => {
                 )}
             </div>
         </div>
-        <button onClick={() => navigate('/dashboard/notifications')} className="p-2 -mr-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition relative text-slate-800 dark:text-white flex-shrink-0">
-            <span className="material-icons-round">notifications</span>
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-background-light dark:border-background-dark shadow-sm animate-pulse"></span>
-            )}
-        </button>
+        <div className="flex-shrink-0">
+            <NotificationsMenu />
+        </div>
       </header>
 
       <main className="px-5 py-4 space-y-8 pb-32">
@@ -555,11 +552,17 @@ const Dashboard: React.FC = () => {
                     <span>{t('dashboard.copy')}</span>
                 </button>
                 <button 
-                  onClick={() => navigate('/dashboard/messages')}
+                  onClick={() => {
+                    if (activeSlot) {
+                      navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`);
+                    } else {
+                      navigate('/dashboard/messages');
+                    }
+                  }}
                   className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">chat_bubble</span>
-                    <span>{t('dashboard.inbox')}</span>
+                    <span>Bandeja</span>
                 </button>
               </div>
             ) : (
@@ -577,7 +580,7 @@ const Dashboard: React.FC = () => {
 
         <UseCasesShowcase />
 
-        <div className="bg-slate-900 dark:bg-blue-900/10 rounded-3xl p-6 text-white overflow-hidden relative group cursor-pointer" onClick={() => navigate('/onboarding/region')}>
+        <div className="bg-slate-900 dark:bg-blue-950/10 rounded-3xl p-6 text-white overflow-hidden relative group cursor-pointer" onClick={() => navigate('/onboarding/region')}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-colors"></div>
             <div className="relative z-10">
                 <h4 className="text-xl font-black mb-1">{t('dashboard.another')}</h4>

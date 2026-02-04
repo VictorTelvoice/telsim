@@ -17,18 +17,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Función para sincronizar datos con la tabla public.users
+  const syncUserToPublicTable = async (currentUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          nombre: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0],
+          avatar_url: currentUser.user_metadata?.avatar_url || null,
+        }, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
+
+      if (error) {
+        console.error("Error sincronizando usuario en tabla pública:", error.message);
+      }
+    } catch (err) {
+      console.error("Error crítico de sincronización:", err);
+    }
+  };
+
   useEffect(() => {
-    // Check active sessions and sets the user
+    // Verificar sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser(session.user);
+        syncUserToPublicTable(session.user);
+      }
       setLoading(false);
     });
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Escuchar cambios de estado de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (event === 'SIGNED_IN' && currentUser) {
+        syncUserToPublicTable(currentUser);
+      }
+      
       setLoading(false);
     });
 
@@ -42,13 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const devLogin = () => {
-    // Simulate a registered user for development
     const mockUser: any = {
       id: 'dev-user-id',
       email: 'dev@telsim.pro',
       user_metadata: {
         full_name: 'Dev User',
-        nombre: 'Dev User'
+        avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dev'
       }
     };
     setUser(mockUser);

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase, isDemoMode } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { AlertCircle, Mail, Lock, Terminal, ShieldCheck } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { devLogin } = useAuth();
+  const { addNotification } = useNotifications();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +27,12 @@ const Login: React.FC = () => {
       setTimeout(() => {
         setLoading(false);
         devLogin();
+        // Notificación de login simulada
+        addNotification({
+          title: 'Acceso Detectado',
+          message: 'Nuevo inicio de sesión detectado desde tu navegador actual.',
+          type: 'info'
+        });
         navigate('/dashboard');
       }, 800);
       return;
@@ -42,15 +50,17 @@ const Login: React.FC = () => {
           : signInError.message);
         setLoading(false);
       } else if (data.user) {
+        // Notificación de seguridad real
+        await addNotification({
+          title: 'Nuevo Inicio de Sesión',
+          message: 'Se ha accedido a tu cuenta TELSIM exitosamente.',
+          type: 'info'
+        });
         navigate('/dashboard');
       }
     } catch (err: any) {
       console.error("Critical login error:", err);
-      if (err.message?.includes('quota')) {
-        setError("El almacenamiento de tu navegador está lleno. Borra caché e intenta de nuevo.");
-      } else {
-        setError("Error de conexión. Revisa tu conexión a internet.");
-      }
+      setError("Error de conexión. Revisa tu conexión a internet.");
       setLoading(false);
     }
   };
@@ -79,6 +89,11 @@ const Login: React.FC = () => {
   const handleDevLogin = () => {
     setLoading(true);
     devLogin();
+    addNotification({
+      title: 'Modo Invitado Activo',
+      message: 'Has accedido al panel en modo demostración.',
+      type: 'info'
+    });
     navigate('/dashboard');
   };
 
@@ -193,7 +208,6 @@ const Login: React.FC = () => {
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Google</span>
             </button>
 
-            {/* Apple Button - Official Black Style with Original Logo */}
             <button 
               onClick={() => handleSocialLogin('apple')}
               disabled={loading}

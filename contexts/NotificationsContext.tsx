@@ -1,51 +1,147 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Notification } from '../types';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
+
+export interface Notification {
+  id: string;
+  user_id?: string;
+  title: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+  is_read: boolean;
+  created_at: string;
+  link?: string;
+}
 
 interface NotificationsContextType {
   notifications: Notification[];
-  addNotification: (notification: Omit<Notification, 'id' | 'time' | 'read'>) => void;
-  markAsRead: (id: string) => void;
-  clearAll: () => void;
   unreadCount: number;
+  loading: boolean;
+  addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'is_read'>) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  clearAll: () => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
 export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 'welcome-1',
-      title: 'Bienvenido a TELSIM',
-      message: 'Tu cuenta ha sido creada con éxito. Explora nuestros planes.',
-      time: 'Hace 1 hora',
-      icon: 'verified_user',
-      type: 'system',
-      read: false
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const addNotification = (notif: Omit<Notification, 'id' | 'time' | 'read'>) => {
-    const newNotif: Notification = {
-      ...notif,
-      id: Math.random().toString(36).substr(2, 9),
-      time: 'Ahora',
-      read: false
+  useEffect(() => {
+    fetchNotifications();
+    
+    // Suscripción en tiempo real
+    if (!user) return;
+    const channel = supabase
+      .channel('notifications_realtime')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    setNotifications(prev => [newNotif, ...prev]);
+  }, [user]);
+
+  const addNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'is_read'>) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert([{
+          ...notif,
+          user_id: user.id,
+          is_read: false
+        }]);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error adding notification:", err);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markAsRead = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+      if (error) throw error;
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error("Error marking as read:", err);
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+      if (error) throw error;
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const clearAll = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setNotifications([]);
+    } catch (err) {
+      console.error("Error clearing notifications:", err);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <NotificationsContext.Provider value={{ notifications, addNotification, markAsRead, clearAll, unreadCount }}>
+    <NotificationsContext.Provider value={{ 
+      notifications, 
+      unreadCount, 
+      loading,
+      addNotification, 
+      markAsRead, 
+      markAllAsRead,
+      clearAll 
+    }}>
       {children}
     </NotificationsContext.Provider>
   );
