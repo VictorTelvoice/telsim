@@ -11,7 +11,6 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     console.log("Login Screen Mounted. Auth Mode:", isDemoMode ? "DEMO" : "PRODUCTION");
@@ -48,7 +47,7 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error("Critical login error:", err);
       if (err.message?.includes('quota')) {
-        setError("El almacenamiento de tu navegador está lleno. Intenta cerrar otras pestañas o borrar caché.");
+        setError("El almacenamiento de tu navegador está lleno. Borra caché e intenta de nuevo.");
       } else {
         setError("Error de conexión. Revisa tu conexión a internet.");
       }
@@ -70,18 +69,19 @@ const Login: React.FC = () => {
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-8 transform -rotate-3 relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
-            {!logoError ? (
-              <img 
-                src="/logo.png" 
-                alt="TELSIM" 
-                className="w-24 h-24 object-contain drop-shadow-xl relative z-10" 
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
-                <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
-              </div>
-            )}
+            <img 
+              src="/logo.png" 
+              alt="TELSIM" 
+              className="w-24 h-24 object-contain drop-shadow-xl relative z-10" 
+              onError={(e) => {
+                // Fallback minimalista si falla la carga del PNG
+                (e.target as any).style.display = 'none';
+                (e.target as any).nextSibling.style.display = 'flex';
+              }}
+            />
+            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
+              <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
+            </div>
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Panel Telsim</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Infraestructura de Simulación Física</p>

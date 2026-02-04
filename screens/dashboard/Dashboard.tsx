@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -261,7 +260,6 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                 className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
                 style={{ animationDelay: `${idx * 100}ms` }}
             >
-                {/* Visual pulse for new messages */}
                 {idx === 0 && (
                    <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
                 )}
@@ -331,7 +329,6 @@ const Dashboard: React.FC = () => {
   const fetchData = async () => {
     if (!user) return;
     try {
-      // Fetch Slots
       const { data: slotsData } = await supabase
         .from('slots')
         .select('*')
@@ -343,7 +340,6 @@ const Dashboard: React.FC = () => {
         if (!activeSlot && slotsData.length > 0) setActiveSlot(slotsData[0]);
       }
 
-      // Fetch Recent OTP Messages
       const { data: smsData } = await supabase
         .from('sms_logs')
         .select('*')
@@ -365,7 +361,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchData();
 
-    // Subscribe to new SMS
     if (!user) return;
     const channel = supabase
       .channel('dashboard_feed')
@@ -452,7 +447,7 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-2 truncate flex-1">
                         <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
                             {loading ? (
-                                <span className="animate-pulse">Loading...</span>
+                                <span className="animate-pulse">Cargando...</span>
                             ) : activeSlot ? (
                                 <>
                                     <div className="size-5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
@@ -467,7 +462,7 @@ const Dashboard: React.FC = () => {
                                     </div>
                                 </>
                             ) : (
-                                <span className="text-slate-400 italic">No number</span>
+                                <span className="text-slate-400 italic">Sin número</span>
                             )}
                         </span>
                     </div>
@@ -533,9 +528,9 @@ const Dashboard: React.FC = () => {
                         {activeSlot ? t('dashboard.active') : t('dashboard.no_line')}
                     </span>
                 </div>
-                {activeSlot && (
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{activeSlot.plan_type}</div>
-                )}
+                <div className="flex-shrink-0">
+                   <img src="/logo.png" alt="TELSIM" className="h-6 w-auto object-contain opacity-80" />
+                </div>
             </div>
             <div className="text-center mb-6">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('dashboard.main_line')}</p>
@@ -578,13 +573,10 @@ const Dashboard: React.FC = () => {
             )}
         </div>
 
-        {/* Live OTP Feed (Replaced "Actividad Reciente") */}
         <LiveOTPFeed messages={recentMessages} />
 
-        {/* UseCasesShowcase */}
         <UseCasesShowcase />
 
-        {/* Support Section */}
         <div className="bg-slate-900 dark:bg-blue-900/10 rounded-3xl p-6 text-white overflow-hidden relative group cursor-pointer" onClick={() => navigate('/onboarding/region')}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-colors"></div>
             <div className="relative z-10">

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,12 +25,10 @@ const Profile: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   
-  // Estados para el modo edición
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estados del formulario (inicializados con metadata actual)
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [country, setCountry] = useState(user?.user_metadata?.country || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.user_metadata?.phone_number || '');
@@ -86,19 +83,16 @@ const Profile: React.FC = () => {
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white transition-colors duration-200">
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden pb-24 mx-auto max-w-md bg-background-light dark:bg-background-dark">
         
-        {/* Header */}
         <header className="flex items-center justify-between px-6 pt-12 pb-4 bg-background-light dark:bg-background-dark sticky top-0 z-10">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{t('profile.settings')}</h1>
-          <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg text-white">
-            <span className="material-symbols-outlined text-[24px]">sim_card</span>
+          <div className="flex items-center justify-center size-10 rounded-xl bg-white dark:bg-slate-800 shadow-md border border-slate-100 dark:border-slate-700">
+            <img src="/logo.png" alt="TELSIM" className="size-7 object-contain" />
           </div>
         </header>
 
-        {/* Tarjeta de Perfil / Formulario */}
         <section className="px-5 mb-6">
           <div className={`bg-surface-light dark:bg-surface-dark rounded-[2.5rem] p-6 shadow-soft transition-all duration-300 border ${isEditing ? 'border-primary ring-4 ring-primary/5' : 'border-slate-100 dark:border-slate-800'}`}>
             <div className="flex flex-col items-center">
-              {/* Foto de Perfil */}
               <div className="relative group mb-4">
                 <input 
                   type="file" 
@@ -256,7 +250,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Sección: Cuenta */}
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Cuenta</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
@@ -281,7 +274,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Sección: Finanzas */}
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Finanzas</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
@@ -300,11 +292,9 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Sección: Preferencias */}
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.settings')}</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
-            {/* Notificaciones */}
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
@@ -318,7 +308,6 @@ const Profile: React.FC = () => {
               </label>
             </div>
 
-            {/* Selector de Idioma */}
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <Languages className="size-5" />
@@ -342,7 +331,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Modo Oscuro */}
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <span className="material-symbols-outlined text-[20px]">dark_mode</span>
@@ -363,7 +351,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Sección: Soporte */}
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Soporte</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
@@ -403,7 +390,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Footer Actions */}
         <section className="px-5 mb-8 flex flex-col items-center">
           <button 
             onClick={handleLogout}

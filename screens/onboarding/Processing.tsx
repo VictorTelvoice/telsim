@@ -27,13 +27,12 @@ const Processing: React.FC = () => {
         let finalNumber = '';
         let assignedPortId = '';
 
-        // FALLO 2 CORREGIDO: Provisionamiento Secuencial Determinista
         // Buscamos el PRIMER slot libre siguiendo el orden de inventario (port_id ASC)
         const { data: freeSlots, error: fetchError } = await supabase
           .from('slots')
           .select('port_id, phone_number')
           .eq('status', 'libre')
-          .order('port_id', { ascending: true }) // Regla de Oro: Orden Secuencial
+          .order('port_id', { ascending: true }) 
           .limit(1);
 
         if (fetchError) throw fetchError;
@@ -43,12 +42,12 @@ const Processing: React.FC = () => {
             assignedPortId = chosenSlot.port_id;
             finalNumber = chosenSlot.phone_number;
 
-            // Transacción: Asignar al usuario
+            // Transacción: Asignar al usuario con estado 'ocupado'
             const { error: updateError } = await supabase
               .from('slots')
               .update({ 
                 assigned_to: realUserId, 
-                status: 'activo',
+                status: 'ocupado', // Cambio solicitado: de 'activo' a 'ocupado'
                 plan_type: planName,
                 created_at: new Date().toISOString()
               })
