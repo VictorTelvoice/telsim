@@ -285,7 +285,7 @@ const Profile: React.FC = () => {
           </section>
         )}
 
-        {/* SECCIONES INFERIORES (MANTENIDAS) */}
+        {/* SECCIONES INFERIORES */}
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Cuenta</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
@@ -298,18 +298,6 @@ const Profile: React.FC = () => {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Seguridad y Contraseña</p>
-              </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard/identity-verification')}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
-            >
-              <div className="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary shrink-0">
-                <span className="material-symbols-outlined text-[20px]">badge</span>
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Verificación de Identidad</p>
               </div>
               <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
             </button>

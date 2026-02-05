@@ -1,17 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-
-export interface Notification {
-  id: string;
-  user_id?: string;
-  title: string;
-  message: string;
-  type: 'success' | 'error' | 'info' | 'warning';
-  is_read: boolean;
-  created_at: string;
-  link?: string;
-}
+import { Notification } from '../types';
 
 interface NotificationsContextType {
   notifications: Notification[];

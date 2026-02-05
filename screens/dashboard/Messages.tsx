@@ -6,7 +6,6 @@ import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot, SMSLog } from '../../types';
 import { 
   X, 
-  Filter, 
   Smartphone, 
   MessageCircle, 
   Instagram, 
@@ -22,7 +21,8 @@ import {
   ShoppingCart,
   Landmark,
   User,
-  CreditCard
+  Search,
+  Filter
 } from 'lucide-react';
 
 const Messages: React.FC = () => {
@@ -32,6 +32,7 @@ const Messages: React.FC = () => {
   const { refreshUnreadCount } = useMessagesCount();
   
   const [messages, setMessages] = useState<SMSLog[]>([]);
+  const [userSlots, setUserSlots] = useState<Slot[]>([]);
   const [slotMap, setSlotMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [copyingId, setCopyingId] = useState<string | null>(null);
@@ -44,12 +45,14 @@ const Messages: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 1. Obtener los slots (números contratados) del usuario
       const { data: slotsData } = await supabase
         .from('slots')
-        .select('port_id, phone_number')
+        .select('*')
         .eq('assigned_to', user.id);
 
       if (slotsData) {
+        setUserSlots(slotsData);
         const mapping = slotsData.reduce((acc, s) => {
           acc[s.port_id] = s.phone_number;
           return acc;
@@ -57,6 +60,7 @@ const Messages: React.FC = () => {
         setSlotMap(mapping);
       }
 
+      // 2. Obtener los mensajes
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -112,6 +116,12 @@ const Messages: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
+  const getCountryCode = (num: string) => {
+    if (num.includes('56') || num.startsWith('+56')) return 'cl';
+    if (num.includes('54') || num.startsWith('+54')) return 'ar';
+    return 'cl';
+  };
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -130,8 +140,6 @@ const Messages: React.FC = () => {
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
     const originalName = serviceName || sender || '';
     const name = originalName.toLowerCase();
-    
-    // Heurística para detectar números de teléfono como remitente
     const isPhoneNumber = /^(\+?\d+){5,}$/.test(name.replace(/\s/g, ''));
     
     if (name.includes('whatsapp')) return {
@@ -201,7 +209,6 @@ const Messages: React.FC = () => {
       label: serviceName || 'Entidad Bancaria'
     };
 
-    // Fallback para números o desconocidos
     return {
       bg: isPhoneNumber ? 'bg-slate-200 dark:bg-slate-800' : 'bg-slate-100 dark:bg-slate-800',
       text: 'text-slate-600 dark:text-slate-400',
@@ -228,8 +235,12 @@ const Messages: React.FC = () => {
     });
   }, [messages, activeTab, filterNum, slotMap]);
 
-  const clearFilter = () => {
-    searchParams.delete('num');
+  const toggleFilter = (num: string | null) => {
+    if (num) {
+      searchParams.set('num', num);
+    } else {
+      searchParams.delete('num');
+    }
     setSearchParams(searchParams);
   };
 
@@ -253,25 +264,29 @@ const Messages: React.FC = () => {
           </button>
         </div>
 
-        {filterNum && (
-          <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-2.5 rounded-2xl mb-4 animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-3">
-              <div className="size-8 rounded-xl bg-primary flex items-center justify-center text-white">
-                <Smartphone className="size-4" />
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest leading-none mb-1">Puerto de escucha activo</p>
-                <p className="text-xs font-black text-slate-800 dark:text-white leading-none">{formatPhoneNumber(filterNum)}</p>
-              </div>
-            </div>
+        {/* Nuevo Selector de Puerto (Chips de Filtrado) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 -mx-6 px-6">
+          <button 
+            onClick={() => toggleFilter(null)}
+            className={`whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${!filterNum ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
+          >
+            Todos los Puertos
+          </button>
+          {userSlots.map((slot) => (
             <button 
-              onClick={clearFilter}
-              className="size-8 rounded-lg bg-white dark:bg-slate-800 text-slate-400 hover:text-rose-500 shadow-sm flex items-center justify-center transition-colors"
+              key={slot.port_id}
+              onClick={() => toggleFilter(slot.phone_number)}
+              className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
             >
-              <X className="size-4" />
+              <img 
+                src={`https://flagcdn.com/w40/${getCountryCode(slot.phone_number)}.png`} 
+                className="w-3.5 h-2.5 object-cover rounded-sm" 
+                alt="" 
+              />
+              {formatPhoneNumber(slot.phone_number)}
             </button>
-          </div>
-        )}
+          ))}
+        </div>
 
         <div className="bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl flex items-center mb-2">
             <button 
@@ -307,9 +322,17 @@ const Messages: React.FC = () => {
             </h3>
             <p className="text-sm text-slate-400 font-medium leading-relaxed italic">
                 {filterNum 
-                    ? `No hay registros entrantes para ${formatPhoneNumber(filterNum)}.` 
+                    ? `No hay registros entrantes para ${formatPhoneNumber(filterNum)} en esta categoría.` 
                     : 'Tus códigos SMS aparecerán aquí automáticamente.'}
             </p>
+            {filterNum && (
+              <button 
+                onClick={() => toggleFilter(null)}
+                className="mt-6 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-4 py-2 rounded-xl"
+              >
+                Limpiar Filtros
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

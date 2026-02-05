@@ -19,12 +19,14 @@ export interface NotificationDetails {
 
 export interface Notification {
   id: string;
+  user_id?: string;
   title: string;
   message: string;
-  time: string;
-  icon: string;
-  type: 'activation' | 'message' | 'security' | 'subscription' | 'system';
-  read: boolean;
+  created_at: string;
+  icon?: string;
+  type: 'activation' | 'message' | 'security' | 'subscription' | 'system' | 'success' | 'error' | 'info' | 'warning';
+  is_read: boolean;
+  link?: string;
   details?: NotificationDetails;
 }
 

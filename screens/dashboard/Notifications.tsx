@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -8,21 +9,26 @@ const Notifications: React.FC = () => {
   const { notifications, markAsRead, clearAll } = useNotifications();
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
+  // Added success/error/info/warning cases to match the consolidated type
   const getNotifConfig = (type: Notification['type']) => {
     switch (type) {
       case 'activation':
+      case 'success':
         return { 
           icon: 'sim_card', 
           color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
           accent: 'border-blue-200 dark:border-blue-800'
         };
       case 'message':
+      case 'info':
         return { 
           icon: 'chat_bubble', 
           color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400',
           accent: 'border-emerald-200 dark:border-emerald-800'
         };
       case 'security':
+      case 'error':
+      case 'warning':
         return { 
           icon: 'security', 
           color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400',
@@ -52,6 +58,18 @@ const Notifications: React.FC = () => {
   };
 
   const closeDetail = () => setSelectedNotif(null);
+
+  // Helper to format created_at date to a friendly time string
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInMin = Math.floor((now.getTime() - date.getTime()) / 60000);
+    
+    if (diffInMin < 1) return 'Ahora';
+    if (diffInMin < 60) return `${diffInMin}m`;
+    if (diffInMin < 1440) return `${Math.floor(diffInMin / 60)}h`;
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  };
 
   return (
     <div className="min-h-screen relative pb-20 bg-background-light dark:bg-background-dark font-display">
@@ -123,11 +141,11 @@ const Notifications: React.FC = () => {
                     key={notif.id}
                     onClick={() => handleNotifClick(notif)}
                     style={{ animationDelay: `${idx * 100}ms` }}
-                    className={`flex gap-4 p-5 rounded-[2rem] bg-white dark:bg-surface-dark shadow-soft border transition-all cursor-pointer relative overflow-hidden group active:scale-[0.98] animate-in fade-in slide-in-from-bottom-4 duration-500 ${notif.read ? 'border-slate-100 dark:border-slate-800 opacity-60' : `ring-1 ring-inset ${config.accent} shadow-sm shadow-blue-500/5`}`}
+                    className={`flex gap-4 p-5 rounded-[2rem] bg-white dark:bg-surface-dark shadow-soft border transition-all cursor-pointer relative overflow-hidden group active:scale-[0.98] animate-in fade-in slide-in-from-bottom-4 duration-500 ${notif.is_read ? 'border-slate-100 dark:border-slate-800 opacity-60' : `ring-1 ring-inset ${config.accent} shadow-sm shadow-blue-500/5`}`}
                   >
                     <div className="absolute top-5 right-5 flex flex-col items-end gap-2">
-                      <span className="text-[9px] font-bold text-slate-400">{notif.time}</span>
-                      {!notif.read && <span className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-blue-500/50 animate-pulse"></span>}
+                      <span className="text-[9px] font-bold text-slate-400">{formatTime(notif.created_at)}</span>
+                      {!notif.is_read && <span className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-blue-500/50 animate-pulse"></span>}
                     </div>
                     
                     <div className="flex-shrink-0">
@@ -137,7 +155,7 @@ const Notifications: React.FC = () => {
                     </div>
 
                     <div className="flex-1 pr-8">
-                      <h4 className={`text-base font-black mb-1 leading-tight tracking-tight ${notif.read ? 'text-slate-600 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>{notif.title}</h4>
+                      <h4 className={`text-base font-black mb-1 leading-tight tracking-tight ${notif.is_read ? 'text-slate-600 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>{notif.title}</h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2 font-medium">
                           {notif.message}
                       </p>

@@ -44,7 +44,6 @@ const BottomNav = () => {
     isActive('/dashboard/terms') || 
     isActive('/dashboard/security') ||
     isActive('/dashboard/support') ||
-    isActive('/dashboard/identity-verification') ||
     isActive('/dashboard/billing');
 
   const isHomeActive = 
