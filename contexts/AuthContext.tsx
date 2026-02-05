@@ -7,7 +7,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  devLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,21 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
   };
 
-  const devLogin = () => {
-    const mockUser: any = {
-      id: 'dev-user-id',
-      email: 'dev@telsim.pro',
-      user_metadata: {
-        full_name: 'Dev User',
-        avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dev'
-      }
-    };
-    setUser(mockUser);
-    setSession({ user: mockUser, access_token: 'mock', refresh_token: 'mock', expires_in: 3600, token_type: 'bearer' } as any);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut, devLogin }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {!loading && children}
     </AuthContext.Provider>
   );

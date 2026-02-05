@@ -1,43 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase, isDemoMode } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import { AlertCircle, Mail, Lock, Terminal, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Mail, Lock, ShieldCheck } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { devLogin } = useAuth();
   const { addNotification } = useNotifications();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    console.log("Login Screen Mounted. Auth Mode:", isDemoMode ? "DEMO" : "PRODUCTION");
-  }, []);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     
-    if (isDemoMode) {
-      setTimeout(() => {
-        setLoading(false);
-        devLogin();
-        // Notificación de login simulada
-        addNotification({
-          title: 'Acceso Detectado',
-          message: 'Nuevo inicio de sesión detectado desde tu navegador actual.',
-          type: 'info'
-        });
-        navigate('/dashboard');
-      }, 800);
-      return;
-    }
-
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -66,11 +46,6 @@ const Login: React.FC = () => {
   };
 
   const handleSocialLogin = async (provider: 'google' | 'apple') => {
-    if (isDemoMode) {
-      setError("OAuth no disponible en modo Demostración.");
-      return;
-    }
-    
     setLoading(true);
     try {
       const { error: authError } = await supabase.auth.signInWithOAuth({
@@ -84,17 +59,6 @@ const Login: React.FC = () => {
       setError(err.message);
       setLoading(false);
     }
-  };
-
-  const handleDevLogin = () => {
-    setLoading(true);
-    devLogin();
-    addNotification({
-      title: 'Modo Invitado Activo',
-      message: 'Has accedido al panel en modo demostración.',
-      type: 'info'
-    });
-    navigate('/dashboard');
   };
 
   return (
@@ -130,17 +94,10 @@ const Login: React.FC = () => {
             </div>
           )}
 
-          {!isDemoMode ? (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-2">
-              <ShieldCheck className="size-3 text-emerald-500" />
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Conexión Segura Cloud Activa</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 mb-2">
-              <AlertCircle className="size-3 text-amber-500" />
-              <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Modo Local / Demostración</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-2">
+            <ShieldCheck className="size-3 text-emerald-500" />
+            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Conexión Segura Cloud Activa</span>
+          </div>
           
           <div className="space-y-2">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Correo Electrónico</label>
@@ -224,16 +181,6 @@ const Login: React.FC = () => {
         <p className="mt-8 text-center text-xs font-bold text-slate-500 dark:text-slate-400 tracking-tight">
           ¿Problemas de acceso? <Link to="/register" className="text-primary dark:text-blue-400 font-black hover:underline uppercase tracking-widest">Crear Cuenta</Link>
         </p>
-
-        <div className="mt-12 pt-6 border-t border-slate-100 dark:border-slate-800">
-           <button 
-            onClick={handleDevLogin}
-            className="w-full h-12 flex items-center justify-center gap-3 rounded-xl text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] transition-all border-2 border-dashed border-slate-100 dark:border-slate-800 hover:border-primary active:scale-95"
-           >
-              <Terminal className="size-4" />
-              Entrar como Invitado
-           </button>
-        </div>
       </div>
     </div>
   );
