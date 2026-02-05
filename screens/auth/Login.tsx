@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { AlertCircle, Mail, Lock, ShieldCheck } from 'lucide-react';
 
@@ -30,7 +29,6 @@ const Login: React.FC = () => {
           : signInError.message);
         setLoading(false);
       } else if (data.user) {
-        // Notificación de seguridad real
         await addNotification({
           title: 'Nuevo Inicio de Sesión',
           message: 'Se ha accedido a tu cuenta TELSIM exitosamente.',
@@ -70,7 +68,7 @@ const Login: React.FC = () => {
           <div className="inline-flex items-center justify-center mb-8 transform -rotate-3 relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
             <img 
-              src="/logo.png" 
+              src="logo.svg" 
               alt="TELSIM" 
               className="w-24 h-24 object-contain drop-shadow-xl relative z-10" 
               onError={(e) => {
@@ -78,7 +76,8 @@ const Login: React.FC = () => {
                 (e.target as any).nextSibling.style.display = 'flex';
               }}
             />
-            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
+            {/* Logo Fallback UI */}
+            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10 flex">
               <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>
@@ -142,7 +141,6 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        {/* OAuth Section */}
         <div className="mt-8 space-y-4">
           <div className="flex items-center gap-4">
             <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
