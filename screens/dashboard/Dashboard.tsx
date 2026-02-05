@@ -14,7 +14,6 @@ import {
   ShoppingBag, 
   Vault, 
   Zap, 
-  Ticket, 
   CandlestickChart, 
   Terminal, 
   Megaphone, 
@@ -24,8 +23,15 @@ import {
   Copy,
   CheckCircle2,
   Clock,
-  ExternalLink,
-  Target
+  Target,
+  MessageCircle,
+  Instagram,
+  Facebook,
+  Chrome,
+  Smartphone,
+  Music,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 
 type CategoryId = 'privacy' | 'automation' | 'growth';
@@ -96,7 +102,7 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
       desc: "Crea múltiples cuentas de Facebook/Google Ads sin bloqueos por teléfono repetido."
     },
     {
-      icon: <Globe className="size-6" />,
+      icon: <Globe className="size-5" />,
       title: "Cuentas Globales",
       desc: "Accede a servicios de streaming o software geobloqueados en otros países."
     }
@@ -208,6 +214,60 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     setTimeout(() => setCopyingId(null), 2000);
   };
 
+  const getServiceStyle = (serviceName: string | undefined, sender: string) => {
+    const name = (serviceName || sender || '').toLowerCase();
+    
+    if (name.includes('whatsapp')) return {
+      bg: 'bg-[#25D366]',
+      text: 'text-white',
+      icon: <MessageCircle className="size-6" />,
+      label: 'WhatsApp'
+    };
+    if (name.includes('instagram')) return {
+      bg: 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]',
+      text: 'text-white',
+      icon: <Instagram className="size-6" />,
+      label: 'Instagram'
+    };
+    if (name.includes('facebook')) return {
+      bg: 'bg-[#1877F2]',
+      text: 'text-white',
+      icon: <Facebook className="size-6" />,
+      label: 'Facebook'
+    };
+    if (name.includes('google')) return {
+      bg: 'bg-white border-2 border-slate-100',
+      text: 'text-slate-900',
+      icon: <Chrome className="size-6 text-[#4285F4]" />,
+      label: 'Google'
+    };
+    if (name.includes('uber')) return {
+      bg: 'bg-black',
+      text: 'text-white',
+      icon: <Smartphone className="size-6" />,
+      label: 'Uber'
+    };
+    if (name.includes('tiktok')) return {
+      bg: 'bg-black border-l-4 border-cyan-400',
+      text: 'text-white',
+      icon: <Music className="size-6 text-[#ff0050]" />,
+      label: 'TikTok'
+    };
+    if (name.includes('telegram')) return {
+      bg: 'bg-[#0088cc]',
+      text: 'text-white',
+      icon: <Send className="size-6" />,
+      label: 'Telegram'
+    };
+
+    return {
+      bg: 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-900 dark:text-white',
+      icon: <MessageSquare className="size-6 text-slate-400" />,
+      label: serviceName || sender
+    };
+  };
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -215,25 +275,6 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     if (diffInMinutes < 1) return 'Ahora';
     if (diffInMinutes < 60) return `${diffInMinutes}m`;
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getServiceIcon = (name: string | undefined) => {
-    const s = (name || '').toLowerCase();
-    if (s.includes('google')) return 'G';
-    if (s.includes('whatsapp')) return 'W';
-    if (s.includes('uber')) return 'U';
-    if (s.includes('airbnb')) return 'A';
-    if (s.includes('amazon')) return 'A';
-    return (name || '?').charAt(0).toUpperCase();
-  };
-
-  const getServiceColor = (name: string | undefined) => {
-    const s = (name || '').toLowerCase();
-    if (s.includes('google')) return 'bg-blue-600';
-    if (s.includes('whatsapp')) return 'bg-emerald-500';
-    if (s.includes('uber')) return 'bg-black';
-    if (s.includes('telsim')) return 'bg-primary';
-    return 'bg-slate-400';
   };
 
   return (
@@ -255,60 +296,64 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          {messages.map((msg, idx) => (
-            <div 
-                key={msg.id} 
-                className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
-                style={{ animationDelay: `${idx * 100}ms` }}
-            >
-                {idx === 0 && (
-                   <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
-                )}
+          {messages.map((msg, idx) => {
+            const style = getServiceStyle(msg.service_name, msg.sender);
+            return (
+              <div 
+                  key={msg.id} 
+                  className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
+                  style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                  {idx === 0 && (
+                     <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
+                  )}
 
-                <div className="flex items-center gap-4 mb-3">
-                    <div className={`size-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${getServiceColor(msg.service_name)}`}>
-                        {getServiceIcon(msg.service_name)}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide truncate pr-2">
-                                {msg.service_name || msg.sender}
-                            </span>
-                            <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
-                                <Clock className="size-2.5" />
-                                {formatTime(msg.received_at)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div className="px-1 mb-4">
-                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 italic">
-                    {msg.content}
-                  </p>
-                </div>
+                  <div className="flex items-center gap-4 mb-3">
+                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ${style.bg} ${style.text}`}>
+                          {style.icon}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate pr-2">
+                                  {style.label}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
+                                  <Clock className="size-2.5" />
+                                  {formatTime(msg.received_at)}
+                              </span>
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-400 truncate">Vía Infraestructura TELSIM</p>
+                      </div>
+                  </div>
+                  
+                  <div className="px-1 mb-4">
+                    <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 italic font-medium">
+                      {msg.content}
+                    </p>
+                  </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO</span>
-                      <span className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
-                          {msg.verification_code}
-                      </span>
-                    </div>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
-                        className={`size-10 rounded-lg flex items-center justify-center transition-all ${
-                            copyingId === msg.id 
-                            ? 'bg-emerald-500 text-white shadow-lg' 
-                            : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700'
-                        }`}
-                    >
-                        {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                    </button>
-                </div>
-            </div>
-          ))}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DE ACCESO</span>
+                        <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
+                            {msg.verification_code}
+                        </span>
+                      </div>
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
+                          className={`size-10 rounded-lg flex items-center justify-center transition-all ${
+                              copyingId === msg.id 
+                              ? 'bg-emerald-500 text-white shadow-lg' 
+                              : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700 shadow-sm'
+                          }`}
+                      >
+                          {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
+                      </button>
+                  </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -325,33 +370,6 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
-
-  const getDeviceInfo = () => {
-    const ua = navigator.userAgent;
-    if (/iPhone/i.test(ua)) return 'iPhone';
-    if (/Android/i.test(ua)) return 'Android Device';
-    if (/Macintosh/i.test(ua)) return 'MacBook';
-    if (/Windows/i.test(ua)) return 'Windows PC';
-    return 'Web Access';
-  };
-
-  const registerSession = async () => {
-    if (!user) return;
-    try {
-      const device = getDeviceInfo();
-      // Solo registramos si no existe una sesión actual para este dispositivo en esta sesión de navegador
-      // Para efectos de demo/realidad, insertaremos siempre un registro al entrar si es necesario
-      await supabase.from('device_sessions').insert([{
-        user_id: user.id,
-        device_name: device,
-        location: 'Acceso Web Seguro',
-        last_active: new Date().toISOString(),
-        is_current: true
-      }]);
-    } catch (err) {
-      console.debug("Session registration ignored", err);
-    }
-  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -379,8 +397,6 @@ const Dashboard: React.FC = () => {
       if (smsData) {
         setRecentMessages(smsData);
       }
-
-      await registerSession();
     } catch (err) {
       console.debug("Dashboard fetch error", err);
     } finally {
@@ -446,7 +462,7 @@ const Dashboard: React.FC = () => {
         <div class="size-5 bg-emerald-500 rounded-full flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
-        <span class="text-[11px] font-black uppercase tracking-widest">${message}</span>
+        <span class="text-[10px] font-black uppercase tracking-widest">${message}</span>
     `;
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -556,17 +572,19 @@ const Dashboard: React.FC = () => {
                     </span>
                 </div>
                 <div className="flex-shrink-0 flex items-center justify-center">
-                   <img 
-                    src="/logo.png" 
-                    alt="TELSIM" 
-                    className="h-6 w-auto object-contain opacity-80" 
-                    onError={(e) => {
-                      (e.target as any).style.display = 'none';
-                      (e.target as any).nextSibling.style.display = 'flex';
-                    }}
-                   />
-                   <div style={{ display: 'none' }} className="size-8 bg-gradient-to-br from-primary to-blue-600 rounded-xl items-center justify-center text-white shadow-sm border border-white/10">
-                    <span className="material-symbols-outlined text-[18px]">sim_card</span>
+                   <div className="relative size-8">
+                     <img 
+                      src="/logo.svg" 
+                      alt="TELSIM" 
+                      className="size-full object-contain drop-shadow-sm z-10" 
+                      onError={(e) => {
+                        (e.target as any).style.display = 'none';
+                        (e.target as any).nextSibling.style.display = 'flex';
+                      }}
+                     />
+                     <div style={{ display: 'none' }} className="size-full bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
+                        <span className="material-symbols-outlined text-[18px]">sim_card</span>
+                     </div>
                    </div>
                 </div>
             </div>

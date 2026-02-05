@@ -1,11 +1,25 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot, SMSLog } from '../../types';
-import { X, Filter, Smartphone } from 'lucide-react';
+import { 
+  X, 
+  Filter, 
+  Smartphone, 
+  MessageCircle, 
+  Instagram, 
+  Facebook, 
+  Chrome, 
+  Music, 
+  Send, 
+  MessageSquare,
+  Copy,
+  Check,
+  RefreshCw,
+  Shield
+} from 'lucide-react';
 
 const Messages: React.FC = () => {
   const navigate = useNavigate();
@@ -26,7 +40,6 @@ const Messages: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Obtener los slots del usuario para mapear ID -> Número Real
       const { data: slotsData } = await supabase
         .from('slots')
         .select('port_id, phone_number')
@@ -40,7 +53,6 @@ const Messages: React.FC = () => {
         setSlotMap(mapping);
       }
 
-      // 2. Obtener los mensajes reales
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -50,7 +62,6 @@ const Messages: React.FC = () => {
       if (error) throw error;
       setMessages(data || []);
 
-      // 3. Marcar como leídos
       await markAllAsRead();
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -112,44 +123,69 @@ const Messages: React.FC = () => {
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   };
 
-  const renderServiceIcon = (serviceName: string | undefined, sender: string) => {
-    const name = (serviceName || sender).toLowerCase();
+  const getServiceStyle = (serviceName: string | undefined, sender: string) => {
+    const name = (serviceName || sender || '').toLowerCase();
     
-    const configs: Record<string, { bg: string, text: string, char: string }> = {
-      'google': { bg: 'bg-blue-100', text: 'text-blue-600', char: 'G' },
-      'whatsapp': { bg: 'bg-emerald-100', text: 'text-emerald-600', char: 'W' },
-      'uber': { bg: 'bg-slate-900', text: 'text-white', char: 'U' },
-      'airbnb': { bg: 'bg-rose-100', text: 'text-rose-500', char: 'A' },
-      'amazon': { bg: 'bg-amber-100', text: 'text-amber-700', char: 'A' },
-      'telsim': { bg: 'bg-primary', text: 'text-white', char: 'T' },
-      'facebook': { bg: 'bg-blue-600', text: 'text-white', char: 'F' },
-      'instagram': { bg: 'bg-pink-100', text: 'text-pink-600', char: 'I' },
-      'apple': { bg: 'bg-slate-200', text: 'text-slate-800', char: 'A' }
+    if (name.includes('whatsapp')) return {
+      bg: 'bg-[#25D366]',
+      text: 'text-white',
+      icon: <MessageCircle className="size-6" />,
+      label: 'WhatsApp'
+    };
+    if (name.includes('instagram')) return {
+      bg: 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]',
+      text: 'text-white',
+      icon: <Instagram className="size-6" />,
+      label: 'Instagram'
+    };
+    if (name.includes('facebook')) return {
+      bg: 'bg-[#1877F2]',
+      text: 'text-white',
+      icon: <Facebook className="size-6" />,
+      label: 'Facebook'
+    };
+    if (name.includes('google')) return {
+      bg: 'bg-white border-2 border-slate-100',
+      text: 'text-slate-900',
+      icon: <Chrome className="size-6 text-[#4285F4]" />,
+      label: 'Google'
+    };
+    if (name.includes('uber')) return {
+      bg: 'bg-black',
+      text: 'text-white',
+      icon: <Smartphone className="size-6" />,
+      label: 'Uber'
+    };
+    if (name.includes('tiktok')) return {
+      bg: 'bg-black border-l-4 border-cyan-400',
+      text: 'text-white',
+      icon: <Music className="size-6 text-[#ff0050]" />,
+      label: 'TikTok'
+    };
+    if (name.includes('telegram')) return {
+      bg: 'bg-[#0088cc]',
+      text: 'text-white',
+      icon: <Send className="size-6" />,
+      label: 'Telegram'
     };
 
-    const key = Object.keys(configs).find(k => name.includes(k));
-    const config = key ? configs[key] : { bg: 'bg-slate-100', text: 'text-slate-500', char: (serviceName || sender).charAt(0).toUpperCase() };
-
-    return (
-      <div className={`size-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${config.bg} ${config.text}`}>
-        {config.char}
-      </div>
-    );
+    return {
+      bg: 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-900 dark:text-white',
+      icon: <MessageSquare className="size-6 text-slate-400" />,
+      label: serviceName || sender
+    };
   };
 
-  // Lógica de Filtrado Premium
   const filteredMessages = useMemo(() => {
     return messages.filter(msg => {
-      // Filtro de Pestaña
       const hasCode = msg.verification_code && msg.verification_code.trim() !== '';
       const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
       
       if (!tabMatch) return false;
 
-      // Filtro de Número (si existe en URL)
       if (filterNum) {
         const msgNum = slotMap[msg.slot_id];
-        // Comparamos números limpios para evitar problemas de formato
         const cleanFilter = filterNum.replace(/\D/g, '');
         const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
         return cleanMsgNum.includes(cleanFilter);
@@ -173,18 +209,18 @@ const Messages: React.FC = () => {
               <span className="material-icons-round text-lg">chevron_left</span>
               Atrás
             </button>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Recibidos</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Mensajería</h1>
           </div>
           <button 
             onClick={fetchData} 
             disabled={loading}
-            className="bg-white dark:bg-slate-800 size-10 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 mb-1"
+            className="bg-white dark:bg-slate-800 size-10 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 mb-1 border border-slate-100 dark:border-slate-700"
           >
-            <span className={`material-icons-round text-xl text-slate-400 ${loading ? 'animate-spin' : ''}`}>refresh</span>
+            {/* Fix: use RefreshCw component instead of incorrect refresh-cw tag */}
+            <RefreshCw className={`size-5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Banner de Filtro Activo */}
         {filterNum && (
           <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-2.5 rounded-2xl mb-4 animate-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
@@ -192,8 +228,8 @@ const Messages: React.FC = () => {
                 <Smartphone className="size-4" />
               </div>
               <div>
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Filtrando por línea</p>
-                <p className="text-xs font-black text-slate-800 dark:text-white">{formatPhoneNumber(filterNum)}</p>
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest leading-none mb-1">Puerto de escucha activo</p>
+                <p className="text-xs font-black text-slate-800 dark:text-white leading-none">{formatPhoneNumber(filterNum)}</p>
               </div>
             </div>
             <button 
@@ -205,21 +241,18 @@ const Messages: React.FC = () => {
           </div>
         )}
 
-        {/* Tab System */}
         <div className="bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl flex items-center mb-2">
             <button 
                 onClick={() => setActiveTab('verifications')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-black transition-all ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             >
-                <span className="material-icons-round text-sm">verified</span>
                 Verificaciones
             </button>
             <button 
                 onClick={() => setActiveTab('others')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-black transition-all ${activeTab === 'others' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'others' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             >
-                <span className="material-icons-round text-sm">more_horiz</span>
-                Otros / Spam
+                Otros
             </button>
         </div>
       </header>
@@ -228,38 +261,29 @@ const Messages: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Bandeja...</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Infraestructura...</p>
           </div>
         ) : filteredMessages.length === 0 ? (
           <div className="text-center py-32 px-12 animate-in fade-in zoom-in-95 duration-700">
-            <div className="size-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm text-slate-200 dark:text-slate-700">
-              <span className="material-symbols-rounded text-[40px] opacity-30">
+            <div className="size-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm text-slate-200 dark:text-slate-700 border border-slate-100 dark:border-slate-700">
+              <span className="material-symbols-rounded text-[40px] opacity-20">
                   {filterNum ? 'filter_alt_off' : (activeTab === 'verifications' ? 'key' : 'mail')}
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                {filterNum ? 'Sin mensajes para este número' : (activeTab === 'verifications' ? 'No hay códigos' : 'Bandeja vacía')}
+                {filterNum ? 'Sin tráfico de red' : (activeTab === 'verifications' ? 'Esperando códigos' : 'Bandeja vacía')}
             </h3>
-            <p className="text-sm text-slate-400 font-medium leading-relaxed">
+            <p className="text-sm text-slate-400 font-medium leading-relaxed italic">
                 {filterNum 
-                    ? `No hemos recibido mensajes en la línea ${formatPhoneNumber(filterNum)} todavía.` 
-                    : (activeTab === 'verifications' ? 'Cuando solicites códigos de verificación, aparecerán aquí.' : 'Notificaciones generales llegarán a esta pestaña.')}
+                    ? `No hay registros entrantes para ${formatPhoneNumber(filterNum)}.` 
+                    : 'Tus códigos SMS aparecerán aquí automáticamente.'}
             </p>
-            {filterNum && (
-              <button 
-                onClick={clearFilter}
-                className="mt-6 text-primary font-black text-xs uppercase tracking-widest hover:underline"
-              >
-                Ver todos los mensajes
-              </button>
-            )}
           </div>
         ) : (
           <div className="space-y-4">
             {filteredMessages.map((msg, idx) => {
-              const hasCode = msg.verification_code && msg.verification_code.trim() !== '';
+              const style = getServiceStyle(msg.service_name, msg.sender);
               const isSpam = msg.is_spam === true;
-              const displayTitle = (msg.service_name && msg.service_name !== 'Unknown') ? msg.service_name : msg.sender;
               const realNumber = slotMap[msg.slot_id] || msg.slot_id;
               
               return (
@@ -272,52 +296,53 @@ const Messages: React.FC = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
-                      {renderServiceIcon(msg.service_name, msg.sender)}
+                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-inner ${style.bg} ${style.text}`}>
+                         {style.icon}
+                      </div>
                       <div>
-                        <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white leading-tight">
-                          {displayTitle}
+                        <h3 className="text-[15px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">
+                          {style.label}
                         </h3>
-                        <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
-                           Para: {formatPhoneNumber(realNumber)}
+                        <p className="text-[9px] font-black text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-widest">
+                           Línea: {formatPhoneNumber(realNumber)}
                         </p>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-slate-400">
+                    <span className="text-[10px] font-bold text-slate-300 tabular-nums">
                       {formatTime(msg.received_at)}
                     </span>
                   </div>
 
-                  <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400 font-medium mb-4">
-                    {msg.content}
+                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 font-medium mb-5 px-1 italic">
+                    "{msg.content}"
                   </p>
 
-                  {hasCode && !isSpam && (
-                    <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-50 dark:border-blue-900/20 p-4 flex items-center justify-between group">
-                       <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">CÓDIGO DE SEGURIDAD</span>
-                          <span className="text-2xl font-black font-mono tracking-[0.3em] text-blue-600 dark:text-blue-400 tabular-nums">
+                  {msg.verification_code && !isSpam && (
+                    <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700/50 p-4 flex items-center justify-between group overflow-hidden relative">
+                       <div className="absolute inset-0 bg-blue-500/5 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                       <div className="flex flex-col relative z-10">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DETECTADO</span>
+                          <span className="text-3xl font-black font-mono tracking-[0.2em] text-slate-900 dark:text-white tabular-nums leading-none">
                             {msg.verification_code}
                           </span>
                        </div>
                        <button 
                         onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)}
-                        className={`size-10 rounded-xl flex items-center justify-center transition-all ${
+                        className={`size-12 rounded-xl flex items-center justify-center transition-all relative z-10 ${
                           copyingId === msg.id 
                             ? 'bg-emerald-500 text-white shadow-lg' 
-                            : 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-700 active:scale-90'
+                            : 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm border border-slate-100 dark:border-slate-600 active:scale-90'
                         }`}
                        >
-                         <span className="material-icons-round text-lg">
-                           {copyingId === msg.id ? 'check' : 'content_copy'}
-                         </span>
+                         {copyingId === msg.id ? <Check className="size-5" /> : <Copy className="size-5" />}
                        </button>
                     </div>
                   )}
 
                   {isSpam && (
-                    <div className="mt-2 text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
-                       <span className="material-icons-round text-sm">block</span>
-                       Filtrado por Sistema Anti-Spam
+                    <div className="mt-2 text-[9px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5 p-2 bg-rose-50/50 rounded-lg">
+                       <X className="size-3" />
+                       Procesado como tráfico no deseado
                     </div>
                   )}
                 </div>
@@ -326,9 +351,10 @@ const Messages: React.FC = () => {
           </div>
         )}
 
-        <div className="py-12 flex flex-col items-center text-center opacity-20">
-            <span className="material-symbols-rounded text-3xl mb-2 text-slate-400">security</span>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">END-TO-END ENCRYPTED INBOX</p>
+        <div className="py-16 flex flex-col items-center text-center opacity-10">
+            {/* Fix: Added missing Shield component import and usage */}
+            <Shield className="size-10 mb-2 text-slate-400" />
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">PRIVACY CORE INFRASTRUCTURE</p>
         </div>
       </main>
     </div>
