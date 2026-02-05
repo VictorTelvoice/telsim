@@ -14,6 +14,7 @@ import {
   ShoppingBag, 
   Vault, 
   Zap, 
+  Ticket, 
   CandlestickChart, 
   Terminal, 
   Megaphone, 
@@ -23,6 +24,7 @@ import {
   Copy,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Target
 } from 'lucide-react';
 
@@ -94,7 +96,7 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
       desc: "Crea múltiples cuentas de Facebook/Google Ads sin bloqueos por teléfono repetido."
     },
     {
-      icon: <Globe className="size-5" />,
+      icon: <Globe className="size-6" />,
       title: "Cuentas Globales",
       desc: "Accede a servicios de streaming o software geobloqueados en otros países."
     }
@@ -324,6 +326,33 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
 
+  const getDeviceInfo = () => {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/Android/i.test(ua)) return 'Android Device';
+    if (/Macintosh/i.test(ua)) return 'MacBook';
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    return 'Web Access';
+  };
+
+  const registerSession = async () => {
+    if (!user) return;
+    try {
+      const device = getDeviceInfo();
+      // Solo registramos si no existe una sesión actual para este dispositivo en esta sesión de navegador
+      // Para efectos de demo/realidad, insertaremos siempre un registro al entrar si es necesario
+      await supabase.from('device_sessions').insert([{
+        user_id: user.id,
+        device_name: device,
+        location: 'Acceso Web Seguro',
+        last_active: new Date().toISOString(),
+        is_current: true
+      }]);
+    } catch (err) {
+      console.debug("Session registration ignored", err);
+    }
+  };
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -350,6 +379,8 @@ const Dashboard: React.FC = () => {
       if (smsData) {
         setRecentMessages(smsData);
       }
+
+      await registerSession();
     } catch (err) {
       console.debug("Dashboard fetch error", err);
     } finally {
@@ -415,7 +446,7 @@ const Dashboard: React.FC = () => {
         <div class="size-5 bg-emerald-500 rounded-full flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
-        <span class="text-[10px] font-black uppercase tracking-widest">${message}</span>
+        <span class="text-[11px] font-black uppercase tracking-widest">${message}</span>
     `;
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -525,19 +556,17 @@ const Dashboard: React.FC = () => {
                     </span>
                 </div>
                 <div className="flex-shrink-0 flex items-center justify-center">
-                   <div className="relative size-8">
-                     <img 
-                      src="/logo.svg" 
-                      alt="TELSIM" 
-                      className="size-full object-contain drop-shadow-sm z-10" 
-                      onError={(e) => {
-                        (e.target as any).style.display = 'none';
-                        (e.target as any).nextSibling.style.display = 'flex';
-                      }}
-                     />
-                     <div style={{ display: 'none' }} className="size-full bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
-                        <span className="material-symbols-outlined text-[18px]">sim_card</span>
-                     </div>
+                   <img 
+                    src="/logo.png" 
+                    alt="TELSIM" 
+                    className="h-6 w-auto object-contain opacity-80" 
+                    onError={(e) => {
+                      (e.target as any).style.display = 'none';
+                      (e.target as any).nextSibling.style.display = 'flex';
+                    }}
+                   />
+                   <div style={{ display: 'none' }} className="size-8 bg-gradient-to-br from-primary to-blue-600 rounded-xl items-center justify-center text-white shadow-sm border border-white/10">
+                    <span className="material-symbols-outlined text-[18px]">sim_card</span>
                    </div>
                 </div>
             </div>

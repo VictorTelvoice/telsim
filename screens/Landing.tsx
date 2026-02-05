@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -8,6 +9,7 @@ const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { t } = useLanguage();
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -19,24 +21,22 @@ const Landing: React.FC = () => {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 antialiased min-h-screen flex flex-col pb-12 relative">
-      {/* Navbar con Logotipo Unificado */}
+      {/* Navbar con Logotipo Oficial */}
       <nav className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
         <div className="px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative size-10 flex items-center justify-center">
+            {!logoError ? (
               <img 
-                src="/logo.svg" 
-                alt="TELSIM" 
-                className="size-full object-contain drop-shadow-sm z-10" 
-                onError={(e) => {
-                  (e.target as any).style.display = 'none';
-                  (e.target as any).nextSibling.style.display = 'flex';
-                }}
+                src="/logo.png" 
+                alt="TELSIM Logo" 
+                className="w-10 h-10 object-contain drop-shadow-sm" 
+                onError={() => setLogoError(true)}
               />
-              <div style={{ display: 'none' }} className="size-full bg-primary rounded-xl items-center justify-center text-white flex shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">sim_card</span>
+            ) : (
+              <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
+                <span className="material-symbols-outlined text-[24px]">sim_card</span>
               </div>
-            </div>
+            )}
             <div className="flex flex-col">
               <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white uppercase">Telsim</span>
             </div>

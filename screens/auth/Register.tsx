@@ -61,19 +61,18 @@ const Register: React.FC = () => {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-8 transform -rotate-2 relative">
-            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
+          <div className="inline-flex items-center justify-center mb-6 transform -rotate-2 relative">
+            <div className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl animate-pulse scale-110"></div>
             <img 
-              src="/logo.svg" 
+              src="/logo.png" 
               alt="TELSIM" 
-              className="w-24 h-24 object-contain drop-shadow-xl relative z-10" 
+              className="w-24 h-24 object-contain drop-shadow-2xl relative z-10" 
               onError={(e) => {
                 (e.target as any).style.display = 'none';
                 (e.target as any).nextSibling.style.display = 'flex';
               }}
             />
-            {/* Logo Fallback UI */}
-            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10 flex">
+            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
               <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>
@@ -81,7 +80,7 @@ const Register: React.FC = () => {
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
             Únete a TELSIM
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic leading-relaxed text-center">
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic leading-relaxed">
             Tu Infraestructura de <br/>Comunicaciones Privada
           </p>
         </div>
