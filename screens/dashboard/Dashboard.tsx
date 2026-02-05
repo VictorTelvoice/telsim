@@ -525,8 +525,19 @@ const Dashboard: React.FC = () => {
                         {activeSlot ? t('dashboard.active') : t('dashboard.no_line')}
                     </span>
                 </div>
-                <div className="flex-shrink-0">
-                   <img src="/logo.png" alt="TELSIM" className="h-6 w-auto object-contain opacity-80" />
+                <div className="flex-shrink-0 flex items-center justify-center">
+                   <img 
+                    src="/logo.png" 
+                    alt="TELSIM" 
+                    className="h-6 w-auto object-contain opacity-80" 
+                    onError={(e) => {
+                      (e.target as any).style.display = 'none';
+                      (e.target as any).nextSibling.style.display = 'flex';
+                    }}
+                   />
+                   <div style={{ display: 'none' }} className="size-6 bg-primary rounded-lg items-center justify-center text-white shadow-sm border border-white/10">
+                    <span className="font-black text-[10px] tracking-tighter uppercase leading-none">TS</span>
+                   </div>
                 </div>
             </div>
             <div className="text-center mb-6">

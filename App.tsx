@@ -21,6 +21,9 @@ import Profile from './screens/dashboard/Profile';
 import Messages from './screens/dashboard/Messages';
 import Notifications from './screens/dashboard/Notifications';
 import Billing from './screens/dashboard/Billing';
+import Security from './screens/dashboard/Security';
+import IdentityVerification from './screens/dashboard/IdentityVerification';
+import Support from './screens/dashboard/Support';
 import HelpCenter from './screens/dashboard/HelpCenter';
 import TermsPrivacy from './screens/dashboard/TermsPrivacy';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
@@ -39,6 +42,9 @@ const BottomNav = () => {
     isActive('/dashboard/profile') || 
     isActive('/dashboard/help') || 
     isActive('/dashboard/terms') || 
+    isActive('/dashboard/security') ||
+    isActive('/dashboard/support') ||
+    isActive('/dashboard/identity-verification') ||
     isActive('/dashboard/billing');
 
   const isHomeActive = 
@@ -178,6 +184,18 @@ const App: React.FC = () => {
                     <Route 
                       path="/dashboard/billing" 
                       element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} 
+                    />
+                    <Route 
+                      path="/dashboard/security" 
+                      element={<ProtectedRoute><DashboardLayout><Security /></DashboardLayout></ProtectedRoute>} 
+                    />
+                    <Route 
+                      path="/dashboard/identity-verification" 
+                      element={<ProtectedRoute><DashboardLayout><IdentityVerification /></DashboardLayout></ProtectedRoute>} 
+                    />
+                    <Route 
+                      path="/dashboard/support" 
+                      element={<ProtectedRoute><DashboardLayout><Support /></DashboardLayout></ProtectedRoute>} 
                     />
                     <Route 
                       path="/dashboard/help" 

@@ -85,8 +85,19 @@ const Profile: React.FC = () => {
         
         <header className="flex items-center justify-between px-6 pt-12 pb-4 bg-background-light dark:bg-background-dark sticky top-0 z-10">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{t('profile.settings')}</h1>
-          <div className="flex items-center justify-center size-10 rounded-xl bg-white dark:bg-slate-800 shadow-md border border-slate-100 dark:border-slate-700">
-            <img src="/logo.png" alt="TELSIM" className="size-7 object-contain" />
+          <div className="flex items-center justify-center size-10 rounded-xl bg-white dark:bg-slate-800 shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <img 
+              src="/logo.png" 
+              alt="TELSIM" 
+              className="size-7 object-contain" 
+              onError={(e) => {
+                (e.target as any).style.display = 'none';
+                (e.target as any).nextSibling.style.display = 'flex';
+              }}
+            />
+            <div style={{ display: 'none' }} className="size-full bg-gradient-to-br from-primary to-blue-600 items-center justify-center text-white">
+              <span className="font-black text-sm tracking-tighter uppercase">TS</span>
+            </div>
           </div>
         </header>
 
@@ -252,8 +263,11 @@ const Profile: React.FC = () => {
 
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Cuenta</h4>
-          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
-            <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
+            <button 
+              onClick={() => navigate('/dashboard/security')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
               <div className="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary shrink-0">
                 <span className="material-symbols-outlined text-[20px]">lock</span>
               </div>
@@ -262,7 +276,10 @@ const Profile: React.FC = () => {
               </div>
               <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
             </button>
-            <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+            <button 
+              onClick={() => navigate('/dashboard/identity-verification')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
               <div className="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary shrink-0">
                 <span className="material-symbols-outlined text-[20px]">badge</span>
               </div>
@@ -276,7 +293,7 @@ const Profile: React.FC = () => {
 
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Finanzas</h4>
-          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <button 
               onClick={() => navigate('/dashboard/billing')}
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
@@ -294,7 +311,7 @@ const Profile: React.FC = () => {
 
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.settings')}</h4>
-          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
@@ -352,8 +369,8 @@ const Profile: React.FC = () => {
         </section>
 
         <section className="px-5 mb-6">
-          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Soporte</h4>
-          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
+          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.help')}</h4>
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <button 
               onClick={() => navigate('/dashboard/help')}
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
@@ -366,7 +383,10 @@ const Profile: React.FC = () => {
               </div>
               <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
             </button>
-            <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+            <button 
+              onClick={() => navigate('/dashboard/support')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <span className="material-symbols-outlined text-[20px]">support_agent</span>
               </div>
