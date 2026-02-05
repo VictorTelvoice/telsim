@@ -72,8 +72,8 @@ const Register: React.FC = () => {
                 (e.target as any).nextSibling.style.display = 'flex';
               }}
             />
-            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
-              <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
+            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
+              <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>
           

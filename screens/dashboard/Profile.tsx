@@ -121,10 +121,19 @@ const Profile: React.FC = () => {
         
         {/* HEADER REDISEÑADO E INTEGRADO */}
         <div className="pt-16 pb-10 px-6 flex flex-col items-center text-center relative">
-          {/* Logo sutil en esquina */}
-          <div className="absolute top-8 right-6 size-10 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden opacity-40">
-             <div className="size-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white">
-                <span className="font-black text-[10px] uppercase">TS</span>
+          {/* Logo sutil en esquina con nuevo icono SIM */}
+          <div className="absolute top-8 right-6 size-10 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden opacity-60">
+             <img 
+               src="/logo.png" 
+               alt="TELSIM" 
+               className="size-7 object-contain" 
+               onError={(e) => {
+                 (e.target as any).style.display = 'none';
+                 (e.target as any).nextSibling.style.display = 'flex';
+               }}
+             />
+             <div style={{ display: 'none' }} className="size-full bg-gradient-to-br from-primary to-blue-600 items-center justify-center text-white">
+                <span className="material-symbols-outlined text-[20px]">sim_card</span>
              </div>
           </div>
 

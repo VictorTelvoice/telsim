@@ -98,7 +98,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background-light dark:bg-background-dark font-display relative overflow-hidden">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display relative overflow-hidden flex flex-col items-center justify-center p-6">
       <div className="absolute top-[-5%] left-[-5%] w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       
       <div className="w-full max-w-sm relative z-10">
@@ -114,8 +114,8 @@ const Login: React.FC = () => {
                 (e.target as any).nextSibling.style.display = 'flex';
               }}
             />
-            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-3xl items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
-              <span className="font-black text-2xl tracking-tighter uppercase">TS</span>
+            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
+              <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Panel Telsim</h1>

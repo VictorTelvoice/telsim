@@ -565,8 +565,8 @@ const Dashboard: React.FC = () => {
                       (e.target as any).nextSibling.style.display = 'flex';
                     }}
                    />
-                   <div style={{ display: 'none' }} className="size-6 bg-primary rounded-lg items-center justify-center text-white shadow-sm border border-white/10">
-                    <span className="font-black text-[10px] tracking-tighter uppercase leading-none">TS</span>
+                   <div style={{ display: 'none' }} className="size-8 bg-gradient-to-br from-primary to-blue-600 rounded-xl items-center justify-center text-white shadow-sm border border-white/10">
+                    <span className="material-symbols-outlined text-[18px]">sim_card</span>
                    </div>
                 </div>
             </div>
