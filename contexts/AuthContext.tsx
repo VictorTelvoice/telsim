@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
+import { useDeviceSession } from '../hooks/useDeviceSession';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +16,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { registerOrUpdateSession } = useDeviceSession();
 
   // Función para sincronizar datos con la tabla public.users
   const syncUserToPublicTable = async (currentUser: User) => {
@@ -34,6 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error("Error sincronizando usuario en tabla pública:", error.message);
       }
+      
+      // Registrar o actualizar la sesión del dispositivo de forma persistente
+      await registerOrUpdateSession(currentUser.id);
+      
     } catch (err) {
       console.error("Error crítico de sincronización:", err);
     }
@@ -67,6 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
+    // Limpiar ID de sesión local al cerrar sesión
+    localStorage.removeItem('telsim_device_session_id');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

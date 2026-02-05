@@ -18,7 +18,11 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Shield
+  Shield,
+  ShoppingCart,
+  Landmark,
+  User,
+  CreditCard
 } from 'lucide-react';
 
 const Messages: React.FC = () => {
@@ -124,7 +128,11 @@ const Messages: React.FC = () => {
   };
 
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
-    const name = (serviceName || sender || '').toLowerCase();
+    const originalName = serviceName || sender || '';
+    const name = originalName.toLowerCase();
+    
+    // Heurística para detectar números de teléfono como remitente
+    const isPhoneNumber = /^(\+?\d+){5,}$/.test(name.replace(/\s/g, ''));
     
     if (name.includes('whatsapp')) return {
       bg: 'bg-[#25D366]',
@@ -168,12 +176,37 @@ const Messages: React.FC = () => {
       icon: <Send className="size-6" />,
       label: 'Telegram'
     };
+    if (name.includes('ebay')) return {
+      bg: 'bg-white border-2 border-blue-500 shadow-sm',
+      text: 'text-slate-900',
+      icon: <ShoppingCart className="size-6 text-blue-600" />,
+      label: 'eBay'
+    };
+    if (name.includes('wechat')) return {
+      bg: 'bg-[#7BB32E]',
+      text: 'text-white',
+      icon: <MessageCircle className="size-6" />,
+      label: 'WeChat'
+    };
+    if (name.includes('nike')) return {
+      bg: 'bg-black',
+      text: 'text-white',
+      icon: <Check className="size-6 stroke-[3px]" />,
+      label: 'Nike'
+    };
+    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return {
+      bg: 'bg-slate-700 dark:bg-slate-900',
+      text: 'text-white',
+      icon: <Landmark className="size-6 text-blue-300" />,
+      label: serviceName || 'Entidad Bancaria'
+    };
 
+    // Fallback para números o desconocidos
     return {
-      bg: 'bg-slate-100 dark:bg-slate-800',
-      text: 'text-slate-900 dark:text-white',
-      icon: <MessageSquare className="size-6 text-slate-400" />,
-      label: serviceName || sender
+      bg: isPhoneNumber ? 'bg-slate-200 dark:bg-slate-800' : 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-600 dark:text-slate-400',
+      icon: isPhoneNumber ? <User className="size-6" /> : <MessageSquare className="size-6" />,
+      label: originalName
     };
   };
 
@@ -216,7 +249,6 @@ const Messages: React.FC = () => {
             disabled={loading}
             className="bg-white dark:bg-slate-800 size-10 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 mb-1 border border-slate-100 dark:border-slate-700"
           >
-            {/* Fix: use RefreshCw component instead of incorrect refresh-cw tag */}
             <RefreshCw className={`size-5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -296,7 +328,7 @@ const Messages: React.FC = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
-                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-inner ${style.bg} ${style.text}`}>
+                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-105 ${style.bg} ${style.text}`}>
                          {style.icon}
                       </div>
                       <div>
@@ -352,7 +384,6 @@ const Messages: React.FC = () => {
         )}
 
         <div className="py-16 flex flex-col items-center text-center opacity-10">
-            {/* Fix: Added missing Shield component import and usage */}
             <Shield className="size-10 mb-2 text-slate-400" />
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">PRIVACY CORE INFRASTRUCTURE</p>
         </div>

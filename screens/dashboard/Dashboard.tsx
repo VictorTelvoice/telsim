@@ -31,7 +31,12 @@ import {
   Smartphone,
   Music,
   Send,
-  MessageSquare
+  MessageSquare,
+  ShoppingCart,
+  Check,
+  Landmark,
+  User,
+  CreditCard
 } from 'lucide-react';
 
 type CategoryId = 'privacy' | 'automation' | 'growth';
@@ -215,7 +220,11 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
   };
 
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
-    const name = (serviceName || sender || '').toLowerCase();
+    const originalName = serviceName || sender || '';
+    const name = originalName.toLowerCase();
+    
+    // Heurística para detectar números de teléfono como remitente
+    const isPhoneNumber = /^(\+?\d+){5,}$/.test(name.replace(/\s/g, ''));
     
     if (name.includes('whatsapp')) return {
       bg: 'bg-[#25D366]',
@@ -259,12 +268,37 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
       icon: <Send className="size-6" />,
       label: 'Telegram'
     };
+    if (name.includes('ebay')) return {
+      bg: 'bg-white border-2 border-blue-500 shadow-sm',
+      text: 'text-slate-900',
+      icon: <ShoppingCart className="size-6 text-blue-600" />,
+      label: 'eBay'
+    };
+    if (name.includes('wechat')) return {
+      bg: 'bg-[#7BB32E]',
+      text: 'text-white',
+      icon: <MessageCircle className="size-6" />,
+      label: 'WeChat'
+    };
+    if (name.includes('nike')) return {
+      bg: 'bg-black',
+      text: 'text-white',
+      icon: <Check className="size-6 stroke-[3px]" />,
+      label: 'Nike'
+    };
+    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return {
+      bg: 'bg-slate-700 dark:bg-slate-900',
+      text: 'text-white',
+      icon: <Landmark className="size-6 text-blue-300" />,
+      label: serviceName || 'Entidad Bancaria'
+    };
 
+    // Caso por defecto (Desconocido o Número de teléfono)
     return {
-      bg: 'bg-slate-100 dark:bg-slate-800',
-      text: 'text-slate-900 dark:text-white',
-      icon: <MessageSquare className="size-6 text-slate-400" />,
-      label: serviceName || sender
+      bg: isPhoneNumber ? 'bg-slate-200 dark:bg-slate-800' : 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-600 dark:text-slate-400',
+      icon: isPhoneNumber ? <User className="size-6" /> : <MessageSquare className="size-6" />,
+      label: originalName
     };
   };
 
@@ -309,7 +343,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                   )}
 
                   <div className="flex items-center gap-4 mb-3">
-                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ${style.bg} ${style.text}`}>
+                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 transition-all group-hover:scale-105 ${style.bg} ${style.text}`}>
                           {style.icon}
                       </div>
                       

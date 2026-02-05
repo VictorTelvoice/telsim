@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -147,7 +146,7 @@ const Processing: React.FC = () => {
 
         <div className="flex flex-col items-center text-center space-y-3">
             <h2 className="text-2xl font-bold tracking-tight text-[#111318] dark:text-white">
-                Sincronizando Rack...
+                Activando tu Tarjeta SIM
             </h2>
             <div className="h-6 overflow-hidden">
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium animate-pulse uppercase tracking-widest">
