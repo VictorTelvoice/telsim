@@ -11,7 +11,12 @@ import {
   Settings2,
   History,
   ShieldCheck,
-  Smartphone
+  Smartphone,
+  X,
+  Info,
+  Clock,
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +28,7 @@ interface Subscription {
   amount: number;
   status: 'active' | 'canceled' | 'past_due' | 'expired';
   next_billing_date: string;
+  created_at: string;
   currency: string;
 }
 
@@ -41,6 +47,7 @@ const Billing: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
 
   const fetchData = async () => {
     if (!user) return;
@@ -88,11 +95,27 @@ const Billing: React.FC = () => {
     }).format(val);
   };
 
+  const formatFriendlyDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatShortDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-background-dark flex flex-col items-center justify-center p-6">
         <RefreshCw className="size-6 text-primary animate-spin mb-4" />
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cargando Facturación...</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sincronizando Facturación...</p>
       </div>
     );
   }
@@ -163,14 +186,21 @@ const Billing: React.FC = () => {
               </div>
             ) : (
               activeServices.map((sub) => (
-                <div key={sub.id} className="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div 
+                  key={sub.id} 
+                  onClick={() => setSelectedSub(sub)}
+                  className="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm cursor-pointer hover:scale-[1.01] hover:border-primary/20 transition-all active:scale-[0.98] group"
+                >
                    <div className="flex items-center gap-4">
-                      <div className="size-11 bg-primary/5 dark:bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/10">
+                      <div className="size-11 bg-primary/5 dark:bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
                          <Smartphone className="size-5" />
                       </div>
                       <div>
                          <h4 className="text-[13px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{sub.plan_name}</h4>
                          <p className="text-[12px] font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</p>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                            Próx. pago: {formatShortDate(sub.next_billing_date)}
+                         </p>
                       </div>
                    </div>
                    <div className="text-right">
@@ -220,10 +250,88 @@ const Billing: React.FC = () => {
               <ShieldCheck className="size-4 text-slate-400" />
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pago Seguro via Stripe Gateway</span>
            </div>
-           <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] text-center">Telsim Financial Infra v2.7</p>
+           <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] text-center">Telsim Financial Infra v2.8</p>
         </div>
 
       </main>
+
+      {/* MODAL DE DETALLES DE SUSCRIPCIÓN */}
+      {selectedSub && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setSelectedSub(null)}>
+          <div 
+            className="w-full max-w-sm bg-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="p-8 pb-4 flex justify-between items-start">
+               <div className="size-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+                  <Smartphone className="size-7" />
+               </div>
+               <button onClick={() => setSelectedSub(null)} className="size-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors">
+                  <X className="size-5" />
+               </button>
+            </div>
+
+            <div className="px-8 pb-10 space-y-8">
+               <div className="text-center space-y-2">
+                  <h2 className="text-white text-xl font-black uppercase tracking-tight">{selectedSub.plan_name}</h2>
+                  <div className="text-5xl font-black text-white tracking-tighter tabular-nums flex items-baseline justify-center gap-1">
+                     {formatCurrency(selectedSub.amount)}
+                     <span className="text-xs font-bold text-white/40">/mes</span>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-2 gap-px bg-white/5 rounded-3xl border border-white/5 overflow-hidden">
+                  <div className="p-5 bg-slate-900/40 space-y-1">
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Número</span>
+                     <p className="text-xs font-black text-white font-mono">{selectedSub.phone_number}</p>
+                  </div>
+                  <div className="p-5 bg-slate-900/40 space-y-1">
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Estado</span>
+                     <div className="flex items-center gap-1.5">
+                        <div className="size-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[9px] font-black text-emerald-500 uppercase">Activo</span>
+                     </div>
+                  </div>
+                  <div className="p-5 bg-slate-900/40 space-y-1">
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Inicio</span>
+                     <p className="text-[10px] font-bold text-white/80">{formatFriendlyDate(selectedSub.created_at)}</p>
+                  </div>
+                  <div className="p-5 bg-slate-900/40 space-y-1">
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Próximo Cobro</span>
+                     <p className="text-[10px] font-bold text-white/80">{formatFriendlyDate(selectedSub.next_billing_date)}</p>
+                  </div>
+               </div>
+
+               <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                     <div className="size-8 bg-white/5 rounded-lg flex items-center justify-center">
+                        <CreditCard className="size-4 text-white/40" />
+                     </div>
+                     <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Método de pago</span>
+                        <p className="text-[11px] font-bold text-white">{paymentMethod ? `${paymentMethod.brand} •••• ${paymentMethod.last4}` : 'No vinculado'}</p>
+                     </div>
+                  </div>
+                  <button className="text-[10px] font-black text-primary uppercase tracking-widest">Cambiar</button>
+               </div>
+
+               <div className="space-y-4">
+                  <button 
+                    onClick={() => setSelectedSub(null)}
+                    className="w-full h-14 bg-white text-slate-900 font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
+                  >
+                    Cerrar Detalle
+                  </button>
+                  <button className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white transition-colors">
+                     <ShieldAlert className="size-3" />
+                     Reportar problema con la línea
+                  </button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
