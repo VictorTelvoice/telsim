@@ -94,7 +94,7 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
       desc: "Crea múltiples cuentas de Facebook/Google Ads sin bloqueos por teléfono repetido."
     },
     {
-      icon: <Globe className="size-6" />,
+      icon: <Globe className="size-5" />,
       title: "Cuentas Globales",
       desc: "Accede a servicios de streaming o software geobloqueados en otros países."
     }
@@ -525,17 +525,19 @@ const Dashboard: React.FC = () => {
                     </span>
                 </div>
                 <div className="flex-shrink-0 flex items-center justify-center">
-                   <img 
-                    src="logo.svg" 
-                    alt="TELSIM" 
-                    className="h-8 w-8 object-contain" 
-                    onError={(e) => {
-                      (e.target as any).style.display = 'none';
-                      (e.target as any).nextSibling.style.display = 'flex';
-                    }}
-                   />
-                   <div style={{ display: 'none' }} className="h-8 w-8 bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
-                      <span className="material-symbols-outlined text-[18px]">sim_card</span>
+                   <div className="relative size-8">
+                     <img 
+                      src="/logo.svg" 
+                      alt="TELSIM" 
+                      className="size-full object-contain drop-shadow-sm z-10" 
+                      onError={(e) => {
+                        (e.target as any).style.display = 'none';
+                        (e.target as any).nextSibling.style.display = 'flex';
+                      }}
+                     />
+                     <div style={{ display: 'none' }} className="size-full bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
+                        <span className="material-symbols-outlined text-[18px]">sim_card</span>
+                     </div>
                    </div>
                 </div>
             </div>

@@ -134,10 +134,10 @@ const Profile: React.FC = () => {
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden pb-24 mx-auto max-w-md bg-background-light dark:bg-background-dark">
         
         <div className="pt-16 pb-10 px-6 flex flex-col items-center text-center relative">
-          {/* Logo Oficial SVG */}
+          {/* Logo Oficial Unificado con Fallback */}
           <div className="absolute top-8 right-6 size-10 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden opacity-60">
              <img 
-               src="logo.svg" 
+               src="/logo.svg" 
                alt="TELSIM" 
                className="size-7 object-contain" 
                onError={(e) => {
