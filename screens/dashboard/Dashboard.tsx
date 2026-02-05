@@ -326,8 +326,36 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
 
+  const getDeviceInfo = () => {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/Android/i.test(ua)) return 'Android Device';
+    if (/Macintosh/i.test(ua)) return 'MacBook';
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    return 'Web Access';
+  };
+
+  const registerSession = async () => {
+    if (!user) return;
+    try {
+      const device = getDeviceInfo();
+      // Solo registramos si no existe una sesión actual para este dispositivo en esta sesión de navegador
+      // Para efectos de demo/realidad, insertaremos siempre un registro al entrar si es necesario
+      await supabase.from('device_sessions').insert([{
+        user_id: user.id,
+        device_name: device,
+        location: 'Acceso Web Seguro',
+        last_active: new Date().toISOString(),
+        is_current: true
+      }]);
+    } catch (err) {
+      console.debug("Session registration ignored", err);
+    }
+  };
+
   const fetchData = async () => {
     if (!user) return;
+    setLoading(true);
     try {
       const { data: slotsData } = await supabase
         .from('slots')
@@ -351,6 +379,8 @@ const Dashboard: React.FC = () => {
       if (smsData) {
         setRecentMessages(smsData);
       }
+
+      await registerSession();
     } catch (err) {
       console.debug("Dashboard fetch error", err);
     } finally {

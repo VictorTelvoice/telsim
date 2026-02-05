@@ -16,26 +16,53 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+
+interface Session {
+  id: string;
+  device_name: string;
+  location: string;
+  last_active: string;
+  is_current: boolean;
+}
 
 const Security: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
 
-  // Sesiones simuladas para demostrar el UI de control de dispositivos
-  const sessions = [
-    { id: '1', device: 'iPhone 15 Pro', location: 'Santiago, CL', date: 'Activa ahora', current: true, type: 'mobile' },
-    { id: '2', device: 'MacBook Pro 14"', location: 'Viña del Mar, CL', date: 'Hace 2 horas', current: false, type: 'desktop' }
-  ];
+  const fetchSessions = async () => {
+    if (!user) return;
+    setFetching(true);
+    try {
+      const { data, error } = await supabase
+        .from('device_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('last_active', { ascending: false });
+      if (error) throw error;
+      setSessions(data || []);
+    } catch (err) {
+      console.error("Error fetching sessions", err);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, [user]);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +80,45 @@ const Security: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeSession = async (id: string) => {
+    try {
+      const { error } = await supabase.from('device_sessions').delete().eq('id', id);
+      if (error) throw error;
+      setSessions(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error("Error closing session", err);
+    }
+  };
+
+  const closeAllSessions = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // Borramos todas excepto la actual para no desloguear al usuario de inmediato
+      const { error } = await supabase
+        .from('device_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_current', false);
+      
+      if (error) throw error;
+      await fetchSessions();
+    } catch (err) {
+      console.error("Error closing all sessions", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatFriendlyDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = (now.getTime() - date.getTime()) / 1000;
+    if (diff < 60) return 'Hace un momento';
+    if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -102,7 +168,9 @@ const Security: React.FC = () => {
                      </div>
                      <div>
                         <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Contraseña</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actualizada hace 3 meses</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {user?.updated_at ? `Actualizada: ${new Date(user.updated_at).toLocaleDateString()}` : 'Actualizada recientemente'}
+                        </p>
                      </div>
                    </div>
                    <button 
@@ -172,36 +240,59 @@ const Security: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sesiones Iniciadas</h3>
-            <button className="text-[9px] font-black text-primary uppercase tracking-widest">Cerrar todas</button>
+            <button 
+              onClick={closeAllSessions}
+              disabled={loading || sessions.length <= 1}
+              className="text-[9px] font-black text-primary uppercase tracking-widest disabled:opacity-30"
+            >
+              Cerrar todas las remotas
+            </button>
           </div>
           
           <div className="space-y-3">
-            {sessions.map((session) => (
-              <div key={session.id} className="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
-                 <div className="flex items-center gap-4">
-                    <div className="size-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400">
-                       {session.type === 'mobile' ? <Smartphone className="size-5" /> : <Monitor className="size-5" />}
-                    </div>
-                    <div>
-                       <div className="flex items-center gap-2">
-                         <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{session.device}</h4>
-                         {session.current && (
-                           <span className="text-[7px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded uppercase">Actual</span>
-                         )}
-                       </div>
-                       <div className="flex items-center gap-1.5 mt-0.5">
-                         <Globe className="size-3 text-slate-300" />
-                         <span className="text-[10px] font-bold text-slate-400 uppercase">{session.location}</span>
-                       </div>
-                    </div>
-                 </div>
-                 {!session.current && (
-                   <button className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
-                      <LogOut className="size-4" />
-                   </button>
-                 )}
+            {fetching ? (
+              <div className="py-12 flex flex-col items-center gap-3">
+                <RefreshCw className="size-6 text-slate-300 animate-spin" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sincronizando sesiones...</span>
               </div>
-            ))}
+            ) : sessions.length === 0 ? (
+              <div className="p-10 text-center bg-white dark:bg-surface-dark rounded-3xl border border-dashed border-slate-200">
+                <p className="text-xs font-bold text-slate-400 italic">No hay sesiones activas registradas.</p>
+              </div>
+            ) : (
+              sessions.map((session) => {
+                const isMobile = session.device_name.includes('iPhone') || session.device_name.includes('Android');
+                return (
+                  <div key={session.id} className="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-4">
+                        <div className="size-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400">
+                          {isMobile ? <Smartphone className="size-5" /> : <Monitor className="size-5" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{session.device_name}</h4>
+                            {session.is_current && (
+                              <span className="text-[7px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded uppercase">Actual</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Globe className="size-3 text-slate-300" />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">{session.location} • {formatFriendlyDate(session.last_active)}</span>
+                          </div>
+                        </div>
+                    </div>
+                    {!session.is_current && (
+                      <button 
+                        onClick={() => closeSession(session.id)}
+                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                          <LogOut className="size-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
