@@ -5,6 +5,12 @@ const RegionSelect: React.FC = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string>('CL');
 
+  const regions = [
+    { id: 'CL', name: 'Chile', flag: '🇨🇱', available: true },
+    { id: 'AR', name: 'Arg', flag: '🇦🇷', available: false },
+    { id: 'PE', name: 'Perú', flag: '🇵🇪', available: false },
+  ];
+
   return (
     <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 p-6 pt-8">
       {/* Header */}
@@ -28,14 +34,14 @@ const RegionSelect: React.FC = () => {
           <div className="absolute top-0 right-10 bg-white dark:bg-slate-700 p-2 rounded-xl shadow-lg animate-bounce" style={{ animationDuration: '3s' }}>
             <span className="text-xl">🇨🇱</span>
           </div>
-          <div className="absolute bottom-4 left-6 bg-white dark:bg-slate-700 p-2 rounded-xl shadow-lg animate-bounce" style={{ animationDuration: '4s' }}>
+          <div className="absolute bottom-4 left-6 bg-white dark:bg-slate-700 p-2 rounded-xl shadow-lg opacity-40">
             <span className="text-xl">🇦🇷</span>
           </div>
           
           <span className="material-symbols-outlined text-[80px] text-primary">public</span>
           
           <div className="absolute top-1/3 left-1/3 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-          <div className="absolute bottom-1/3 right-1/4 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-3 h-3 bg-slate-400 rounded-full border-2 border-white"></div>
         </div>
 
         <div className="space-y-4 max-w-xs">
@@ -43,34 +49,33 @@ const RegionSelect: React.FC = () => {
             Paso 1: <br/>Elige tu región
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed">
-            Selecciona entre Chile, Argentina o Perú para obtener un número local físico y real.
+            Selecciona Chile para obtener un número local físico y real. Argentina y Perú estarán disponibles próximamente.
           </p>
         </div>
 
         <div className="w-full grid grid-cols-3 gap-3 mt-4">
-          <button 
-            onClick={() => setSelected('CL')}
-            className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${selected === 'CL' ? 'border-primary bg-blue-50/50 dark:bg-blue-900/20 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 opacity-60 hover:opacity-100'}`}
-          >
-            <span className="text-2xl">🇨🇱</span>
-            <span className="text-sm font-bold">Chile</span>
-          </button>
-          
-          <button 
-            onClick={() => setSelected('AR')}
-            className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${selected === 'AR' ? 'border-primary bg-blue-50/50 dark:bg-blue-900/20 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 opacity-60 hover:opacity-100'}`}
-          >
-            <span className="text-2xl">🇦🇷</span>
-            <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Arg</span>
-          </button>
-          
-          <button 
-            onClick={() => setSelected('PE')}
-            className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${selected === 'PE' ? 'border-primary bg-blue-50/50 dark:bg-blue-900/20 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 opacity-60 hover:opacity-100'}`}
-          >
-            <span className="text-2xl">🇵🇪</span>
-            <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Perú</span>
-          </button>
+          {regions.map((reg) => (
+            <button 
+              key={reg.id}
+              disabled={!reg.available}
+              onClick={() => reg.available && setSelected(reg.id)}
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${
+                !reg.available 
+                  ? 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 opacity-40 cursor-not-allowed' 
+                  : selected === reg.id 
+                    ? 'border-primary bg-blue-50/50 dark:bg-blue-900/20 text-primary shadow-lg shadow-blue-500/5' 
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-200'
+              }`}
+            >
+              {!reg.available && (
+                <div className="absolute top-0 right-0 bg-slate-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase tracking-tighter z-10">
+                  Pronto
+                </div>
+              )}
+              <span className={`text-2xl ${!reg.available ? 'grayscale' : ''}`}>{reg.flag}</span>
+              <span className={`text-sm font-bold ${!reg.available ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{reg.name}</span>
+            </button>
+          ))}
         </div>
       </div>
 
