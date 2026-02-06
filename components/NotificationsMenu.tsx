@@ -11,8 +11,8 @@ import {
   Info,
   AlertTriangle
 } from 'lucide-react';
-// Corrected imports: useNotifications from context, and Notification type from types.ts
 import { useNotifications } from '../contexts/NotificationsContext';
+// Fix: Notification type is defined in types.ts
 import { Notification } from '../types';
 
 const NotificationsMenu: React.FC = () => {

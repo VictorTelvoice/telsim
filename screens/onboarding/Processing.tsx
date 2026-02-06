@@ -20,8 +20,7 @@ const Processing: React.FC = () => {
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
-        const planName = location.state?.planName || 'Pro';
-        const monthlyLimit = location.state?.monthlyLimit || 400;
+        const planName = location.state?.planName || 'Telsim Flex (Basic)';
         const realUserId = user?.id || 'simulated-user-id';
 
         let finalNumber = '';
@@ -47,7 +46,7 @@ const Processing: React.FC = () => {
               .from('slots')
               .update({ 
                 assigned_to: realUserId, 
-                status: 'ocupado',
+                status: 'ocupado', // Cambio solicitado: de 'activo' a 'ocupado'
                 plan_type: planName,
                 created_at: new Date().toISOString()
               })
@@ -55,25 +54,22 @@ const Processing: React.FC = () => {
 
             if (updateError) throw updateError;
             
-            // Crear registro de suscripción incluyendo el límite mensual
+            // Crear registro de suscripción
             await supabase.from('subscriptions').insert([{
                 user_id: realUserId,
-                plan_name: planName,
+                plan_type: planName,
                 status: 'active',
                 port_id: assignedPortId,
-                amount: parseFloat(location.state?.price || '39.90'),
-                monthly_limit: monthlyLimit,
-                phone_number: finalNumber,
-                started_at: new Date().toISOString(),
-                next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                started_at: new Date().toISOString()
             }]);
 
         } else {
+            // Fallback de seguridad si no hay stock físico
             console.warn("No hay slots físicos disponibles en el inventario.");
             finalNumber = '+56 9 0000 0000'; 
         }
 
-        // Enviar Webhook de notificación externa con los nuevos parámetros de plan
+        // Enviar Webhook de notificación externa
         try {
           await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
@@ -84,7 +80,6 @@ const Processing: React.FC = () => {
               port_id: assignedPortId,
               phone_number: finalNumber,
               plan_type: planName, 
-              monthly_limit: monthlyLimit,
               timestamp: new Date().toISOString()
             }),
           });
@@ -96,11 +91,11 @@ const Processing: React.FC = () => {
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
-        const planPriceStr = `$${location.state?.price || '39.90'} USD`;
+        const planPriceStr = planName.includes('Power') ? '$99.00 USD' : '$13.90 USD';
 
         addNotification({
-          title: `Línea ${planName} Activada`,
-          message: `Tu nuevo puerto con límite de ${monthlyLimit} SMS ya está operativo.`,
+          title: 'Línea Activada con Éxito',
+          message: `Tu nuevo número ${finalNumber} ya está listo para recibir mensajes.`,
           icon: 'sim_card',
           type: 'activation',
           details: {
