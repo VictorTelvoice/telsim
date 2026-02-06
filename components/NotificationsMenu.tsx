@@ -11,7 +11,9 @@ import {
   Info,
   AlertTriangle
 } from 'lucide-react';
-import { useNotifications, Notification } from '../contexts/NotificationsContext';
+// Corrected imports: useNotifications from context, and Notification type from types.ts
+import { useNotifications } from '../contexts/NotificationsContext';
+import { Notification } from '../types';
 
 const NotificationsMenu: React.FC = () => {
   const navigate = useNavigate();
