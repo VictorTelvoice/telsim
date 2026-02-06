@@ -46,28 +46,29 @@ const PlanSelect: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // Llamada obligatoria al RPC de infraestructura con el parámetro p_monthly_limit
+      // LLAMADA RPC CON VALORES HARDCODED SEGÚN EL PLAN
+      // Esto asegura que el backend reciba exactamente los montos solicitados
       await supabase.rpc('purchase_subscription', {
         p_plan_name: selectedPlan.name,
         p_amount: selectedPlan.price,
         p_monthly_limit: selectedPlan.limit
       });
 
-      // Navegamos al resumen con los datos actualizados
+      // Navegamos al resumen pasando el objeto exacto para evitar re-calculos erróneos en Summary
       navigate('/onboarding/summary', { 
         state: { 
           planName: selectedPlan.name,
-          price: selectedPlan.price.toFixed(2),
+          price: selectedPlan.price,
           monthlyLimit: selectedPlan.limit
         } 
       });
     } catch (error) {
       console.error("Error al procesar suscripción:", error);
-      // En caso de error, permitimos avanzar al resumen para no bloquear el flujo de la demo
+      // Fallback para demo: permitir avanzar incluso con error de conexión
       navigate('/onboarding/summary', { 
         state: { 
           planName: selectedPlan.name,
-          price: selectedPlan.price.toFixed(2),
+          price: selectedPlan.price,
           monthlyLimit: selectedPlan.limit
         } 
       });
@@ -77,7 +78,7 @@ const PlanSelect: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 relative overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 relative overflow-x-hidden font-display">
         <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-900/10 pointer-events-none"></div>
         
         <main className="w-full max-w-md mx-auto px-6 py-4 flex flex-col h-full min-h-[100dvh] pb-32">

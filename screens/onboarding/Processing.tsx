@@ -20,7 +20,9 @@ const Processing: React.FC = () => {
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
-        const planName = location.state?.planName || 'Telsim Flex (Basic)';
+        const planName = location.state?.planName || 'Pro';
+        const planPrice = location.state?.price || 39.90;
+        const monthlyLimit = location.state?.monthlyLimit || 400;
         const realUserId = user?.id || 'simulated-user-id';
 
         let finalNumber = '';
@@ -46,7 +48,7 @@ const Processing: React.FC = () => {
               .from('slots')
               .update({ 
                 assigned_to: realUserId, 
-                status: 'ocupado', // Cambio solicitado: de 'activo' a 'ocupado'
+                status: 'ocupado', 
                 plan_type: planName,
                 created_at: new Date().toISOString()
               })
@@ -57,7 +59,8 @@ const Processing: React.FC = () => {
             // Crear registro de suscripción
             await supabase.from('subscriptions').insert([{
                 user_id: realUserId,
-                plan_type: planName,
+                plan_name: planName, // Actualizado de plan_type a plan_name para coincidir con la tabla
+                amount: planPrice,
                 status: 'active',
                 port_id: assignedPortId,
                 started_at: new Date().toISOString()
@@ -80,6 +83,8 @@ const Processing: React.FC = () => {
               port_id: assignedPortId,
               phone_number: finalNumber,
               plan_type: planName, 
+              amount: planPrice,
+              monthly_limit: monthlyLimit,
               timestamp: new Date().toISOString()
             }),
           });
@@ -91,7 +96,8 @@ const Processing: React.FC = () => {
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
-        const planPriceStr = planName.includes('Power') ? '$99.00 USD' : '$13.90 USD';
+        // CORRECCIÓN: El precio se genera dinámicamente desde el estado de navegación
+        const planPriceStr = `$${Number(planPrice).toFixed(2)} USD`;
 
         addNotification({
           title: 'Línea Activada con Éxito',
