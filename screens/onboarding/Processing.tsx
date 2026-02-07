@@ -10,31 +10,36 @@ const Processing: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const [currentStep, setCurrentStep] = useState('Iniciando activación...');
+  const [currentStep, setCurrentStep] = useState('Verificando credenciales...');
   
-  // LOCK PARA EVITAR DOBLE PROCESAMIENTO (REQUISITO CRÍTICO)
+  // 1. REFERENCIA DE BLOQUEO: Garantiza ejecución ÚNICA incluso en StrictMode
   const hasProcessedRef = useRef(false);
 
-  // Validar estado inicial para evitar suscripciones accidentales por defecto
+  // Validación previa de datos del estado para evitar disparos accidentales
   const planData = location.state;
-  if (!planData || !planData.planName) {
+  if (!planData || !planData.planName || !planData.price) {
+    console.warn("Acceso a Processing sin datos de plan válidos.");
     return <Navigate to="/onboarding/plan" replace />;
   }
 
   useEffect(() => {
     const processActivation = async () => {
-      // 1. GUARD: Evitar ejecución doble
+      // 2. CONTROL DE FLUJO: Si ya procesó, salir inmediatamente
       if (hasProcessedRef.current) return;
       hasProcessedRef.current = true;
 
-      // Tiempo mínimo de animación para feedback visual de UX
+      // Tiempo mínimo de animación para UX (3.8 segundos)
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3800));
       
       try {
-        // RECUPERACIÓN EXACTA DE DATOS (Sin fallbacks genéricos)
-        const planName = planData.planName;
+        // VALIDACIÓN ESTRICTA DE DATOS (No aceptamos 'started' o valores nulos)
+        const planName = planData.planName; 
         const planPrice = Number(planData.price);
         const monthlyLimit = Number(planData.monthlyLimit);
+
+        if (isNaN(planPrice) || planPrice <= 0) {
+          throw new Error("Monto de suscripción inválido.");
+        }
         
         const realUserId = user?.id;
         if (!realUserId) {
@@ -42,33 +47,35 @@ const Processing: React.FC = () => {
             return;
         }
 
-        setCurrentStep('Conectando con el Nodo TELSIM...');
+        setCurrentStep('Conectando con el Nodo Físico TELSIM...');
 
-        // 2. EJECUCIÓN DEL RPC (Monto y Plan reales)
+        // 3. EJECUCIÓN SINCRONIZADA DEL RPC
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
-            p_plan_name: planName,
-            p_amount: planPrice,
+            p_plan_name: planName, // 'Starter', 'Pro' o 'Power'
+            p_amount: planPrice,   // Ej: 19.90
             p_monthly_limit: monthlyLimit
         });
 
         if (rpcError) {
-          console.error("Fallo de comunicación en el Nodo:", rpcError);
+          console.error("Error retornado por el RPC:", rpcError);
           throw rpcError;
         }
 
-        // 3. CAPTURA DE DATOS RETORNADOS POR EL BACKEND
+        // 4. CAPTURA OBLIGATORIA DEL NÚMERO
+        // El RPC debe devolver el objeto { phoneNumber: '...' }
         const finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
         const assignedPortId = rpcResult?.portId || rpcResult?.port_id;
 
-        if (!finalNumber) {
-          throw new Error("El sistema no asignó una numeración válida.");
+        // Si el backend no devuelve un número, NO procedemos al éxito
+        if (!finalNumber || finalNumber === '') {
+          throw new Error("Sincronización fallida: El nodo no devolvió una numeración activa.");
         }
 
-        setCurrentStep('Línea activada: ' + finalNumber);
+        setCurrentStep('Sincronizando puerto: ' + finalNumber);
 
-        // 4. LOGÍSTICA (Webhook Externo)
+        // Webhook de logística (Opcional, no bloqueante)
         try {
-          await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
+          fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
@@ -78,21 +85,18 @@ const Processing: React.FC = () => {
               phone_number: finalNumber,
               plan_type: planName, 
               amount: planPrice,
-              monthly_limit: monthlyLimit,
               timestamp: new Date().toISOString()
             }),
           });
-        } catch (webhookErr) {
-          console.debug("Omitiendo notificación de logística");
-        }
+        } catch (e) {}
 
         const now = new Date();
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
         addNotification({
-          title: 'Línea Lista',
-          message: `Número ${finalNumber} activado correctamente.`,
+          title: 'Puerto Activado',
+          message: `Tu línea ${finalNumber} ya está en línea.`,
           icon: 'sim_card',
           type: 'activation',
           details: {
@@ -104,9 +108,10 @@ const Processing: React.FC = () => {
           }
         });
 
-        // Esperar a que la animación termine para una transición fluida
+        // Aseguramos que la animación visual se complete antes de la transición
         await animationPromise;
         
+        // NAVEGACIÓN SÓLO CON NÚMERO REAL
         navigate('/onboarding/success', { 
           state: { 
             assignedNumber: finalNumber, 
@@ -116,16 +121,16 @@ const Processing: React.FC = () => {
         });
 
       } catch (error: any) {
-        console.error("Error en flujo de activación:", error);
-        setCurrentStep('Error de configuración...');
+        console.error("Fallo crítico en Processing:", error);
+        setCurrentStep('Error de provisión...');
         await animationPromise;
         
-        // Redirigir a éxito con error explícito (No mostrar ceros)
+        // En caso de error, Success recibirá null y mostrará el estado de error, NO ceros.
         navigate('/onboarding/success', { 
           state: { 
             assignedNumber: null, 
             error: true,
-            errorMsg: error.message || "Error de red"
+            errorMsg: error.message
           } 
         });
       }
@@ -156,7 +161,7 @@ const Processing: React.FC = () => {
 
         <div className="flex flex-col items-center text-center space-y-4">
             <h2 className="text-2xl font-black tracking-tight text-[#111318] dark:text-white uppercase">
-                Activando
+                Aprovisionando
             </h2>
             <div className="flex flex-col items-center gap-2">
                 <p className="text-primary text-[10px] font-black uppercase tracking-[0.25em] h-5">
