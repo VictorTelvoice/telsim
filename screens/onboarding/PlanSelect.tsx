@@ -41,35 +41,47 @@ const PlanSelect: React.FC = () => {
   ];
 
   const handleNext = async () => {
-    const selectedPlan = plans.find(p => p.id === selected);
-    if (!selectedPlan) return;
-
     setIsSubmitting(true);
+    
+    // DEFINICIÓN DE VALORES LITERALES BLINDADOS (CORRECCIÓN URGENTE)
+    let p_plan_name = "Pro";
+    let p_amount = 39.90;
+    let p_monthly_limit = 400;
+
+    if (selected === 'Starter') {
+      p_plan_name = "Starter";
+      p_amount = 19.90;
+      p_monthly_limit = 150;
+    } else if (selected === 'Power') {
+      p_plan_name = "Power";
+      p_amount = 99.00;
+      p_monthly_limit = 1400;
+    }
+
     try {
-      // LLAMADA RPC CON VALORES HARDCODED SEGÚN EL PLAN
-      // Esto asegura que el backend reciba exactamente los montos solicitados
+      // LLAMADA RPC CON VALORES HARDCODED SEGÚN EL PLAN SELECCIONADO
       await supabase.rpc('purchase_subscription', {
-        p_plan_name: selectedPlan.name,
-        p_amount: selectedPlan.price,
-        p_monthly_limit: selectedPlan.limit
+        p_plan_name,
+        p_amount,
+        p_monthly_limit
       });
 
-      // Navegamos al resumen pasando el objeto exacto para evitar re-calculos erróneos en Summary
+      // Navegación al resumen con los mismos valores exactos
       navigate('/onboarding/summary', { 
         state: { 
-          planName: selectedPlan.name,
-          price: selectedPlan.price,
-          monthlyLimit: selectedPlan.limit
+          planName: p_plan_name,
+          price: p_amount,
+          monthlyLimit: p_monthly_limit
         } 
       });
     } catch (error) {
       console.error("Error al procesar suscripción:", error);
-      // Fallback para demo: permitir avanzar incluso con error de conexión
+      // Fallback para no bloquear el flujo
       navigate('/onboarding/summary', { 
         state: { 
-          planName: selectedPlan.name,
-          price: selectedPlan.price,
-          monthlyLimit: selectedPlan.limit
+          planName: p_plan_name,
+          price: p_amount,
+          monthlyLimit: p_monthly_limit
         } 
       });
     } finally {

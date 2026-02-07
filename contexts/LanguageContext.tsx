@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Language = 'en' | 'es';
@@ -16,7 +15,7 @@ const translations: Translations = {
     'landing.privacy': 'Privacy Guaranteed',
     'landing.offer': 'LIMITED OFFER',
     'landing.free_trial': 'FREE first 15 days',
-    'landing.then': 'Then only $13.90 USD/mo.',
+    'landing.then': 'Then only $19.90 USD/mo.',
     'landing.cta': 'Get my Free Number',
     'landing.lock': 'No binding contracts. Secure payment via Stripe.',
     'landing.feature1': 'Real Physical SIM Numbers (Non-VoIP)',
@@ -92,7 +91,7 @@ const translations: Translations = {
     'landing.privacy': 'Privacidad Garantizada',
     'landing.offer': 'OFERTA LIMITADA',
     'landing.free_trial': 'GRATIS primeros 15 días',
-    'landing.then': 'Luego solo $13.90 USD/mes.',
+    'landing.then': 'Luego solo $19.90 USD/mes.',
     'landing.cta': 'Obtener mi Número Gratis',
     'landing.lock': 'Sin contratos forzosos. Pago seguro via Stripe.',
     'landing.feature1': 'Números SIM de uso exclusivo',
@@ -140,7 +139,7 @@ const translations: Translations = {
     'profile.trial': 'PRUEBA ACTIVA',
     'profile.update': 'Actualizar',
     'profile.upgrade': 'Subir a Plan Power',
-    'profile.history': 'Historial de Pagos',
+    'profile.history': 'Pagos Anteriores',
     'profile.settings': 'Configuración',
     'profile.privacy': 'Privacidad y Seguridad',
     'profile.help': 'Centro de Ayuda',
