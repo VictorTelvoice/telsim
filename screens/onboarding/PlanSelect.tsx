@@ -41,25 +41,17 @@ const PlanSelect: React.FC = () => {
   ];
 
   const handleNext = async () => {
+    // BUSQUEDA DIRECTA DEL OBJETO DEL PLAN (SIN CONDICIONALES MANUALES)
+    const selectedPlan = plans.find(p => p.id === selected);
+    if (!selectedPlan) return;
+
+    const p_plan_name = selectedPlan.name;
+    const p_amount = selectedPlan.price;
+    const p_monthly_limit = selectedPlan.limit;
+
     setIsSubmitting(true);
-    
-    // DEFINICIÓN DE VALORES LITERALES BLINDADOS (CORRECCIÓN URGENTE)
-    let p_plan_name = "Pro";
-    let p_amount = 39.90;
-    let p_monthly_limit = 400;
-
-    if (selected === 'Starter') {
-      p_plan_name = "Starter";
-      p_amount = 19.90;
-      p_monthly_limit = 150;
-    } else if (selected === 'Power') {
-      p_plan_name = "Power";
-      p_amount = 99.00;
-      p_monthly_limit = 1400;
-    }
-
     try {
-      // LLAMADA RPC CON VALORES HARDCODED SEGÚN EL PLAN SELECCIONADO
+      // LLAMADA RPC CON VALORES GARANTIZADOS SEGÚN EL OBJETO DEL PLAN
       await supabase.rpc('purchase_subscription', {
         p_plan_name,
         p_amount,

@@ -9,7 +9,9 @@ const Payment: React.FC = () => {
   // Strict lock for the confirmation action (immediate protection)
   const isProcessingRef = useRef(false);
   
-  const planName = location.state?.planName || 'Telsim Flex (Basic)';
+  const planName = location.state?.planName || 'Pro';
+  const price = location.state?.price || 39.90;
+  const monthlyLimit = location.state?.monthlyLimit || 400;
 
   const handleSubscribe = () => {
     // 1. Strict guard: If already processing, stop execution immediately
@@ -22,15 +24,19 @@ const Payment: React.FC = () => {
     let success = false;
     try {
         // 3. Proceed to processing
-        // Note: The actual Webhook call happens in Processing.tsx.
-        // This lock prevents multiple mounts of that component.
-        navigate('/onboarding/processing', { state: { planName } });
+        // CORRECCIÓN: Se envía TODO el estado para evitar que el siguiente componente use fallbacks incorrectos
+        navigate('/onboarding/processing', { 
+            state: { 
+                planName,
+                price,
+                monthlyLimit
+            } 
+        });
         success = true;
     } catch (error) {
         console.error("Navigation error:", error);
     } finally {
         // 4. Only unlock if it wasn't successful (e.g. navigation failed)
-        // If successful, the component unmounts and the lock stays active for this instance.
         if (!success) {
             isProcessingRef.current = false;
             setIsProcessing(false);
@@ -58,7 +64,7 @@ const Payment: React.FC = () => {
                         <span className="text-[#111318] dark:text-white font-bold text-[15px]">{planName}</span>
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-[#111318] dark:text-white font-bold text-[15px]">$0.00 hoy</span>
+                        <span className="text-[#111318] dark:text-white font-bold text-[15px]">${Number(price).toFixed(2)} hoy</span>
                         <span className="text-emerald-600 dark:text-emerald-400 text-[11px] font-bold bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">Prueba de 15 días</span>
                     </div>
                 </div>
@@ -168,19 +174,20 @@ const Payment: React.FC = () => {
                     className={`relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40 ${isProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                     <div className="relative flex w-full items-center justify-center">
-                        {isProcessing && (
-                            <div className="absolute left-4 animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
-                        )}
-                        <span className="w-full text-center text-white text-[17px] font-bold tracking-wide">
-                            {isProcessing ? 'PROCESANDO PAGO...' : 'Suscribirse e Iniciar Prueba'}
+                        <span className="text-white text-[17px] font-bold tracking-wide">
+                            {isProcessing ? 'Procesando...' : 'Confirmar Suscripción'}
                         </span>
                         {!isProcessing && (
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
+                            <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
                                 <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
                             </div>
                         )}
                     </div>
                 </button>
+                <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">
+                    <span className="material-symbols-outlined text-gray-500 dark:text-gray-400" style={{fontSize: '14px'}}>lock</span>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center">Pagos procesados por Stripe. Conexión encriptada SSL.</p>
+                </div>
             </div>
         </div>
     </div>

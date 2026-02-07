@@ -20,9 +20,11 @@ const Processing: React.FC = () => {
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
+        // CORRECCIÓN: Se extraen los datos del estado priorizando la selección real del usuario
         const planName = location.state?.planName || 'Pro';
-        const planPrice = location.state?.price || 39.90;
-        const monthlyLimit = location.state?.monthlyLimit || 400;
+        const planPrice = location.state?.price || (planName === 'Power' ? 99.00 : (planName === 'Starter' ? 19.90 : 39.90));
+        const monthlyLimit = location.state?.monthlyLimit || (planName === 'Power' ? 1400 : (planName === 'Starter' ? 150 : 400));
+        
         const realUserId = user?.id || 'simulated-user-id';
 
         let finalNumber = '';
@@ -59,7 +61,7 @@ const Processing: React.FC = () => {
             // Crear registro de suscripción
             await supabase.from('subscriptions').insert([{
                 user_id: realUserId,
-                plan_name: planName, // Actualizado de plan_type a plan_name para coincidir con la tabla
+                plan_name: planName, 
                 amount: planPrice,
                 status: 'active',
                 port_id: assignedPortId,
@@ -96,7 +98,6 @@ const Processing: React.FC = () => {
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
-        // CORRECCIÓN: El precio se genera dinámicamente desde el estado de navegación
         const planPriceStr = `$${Number(planPrice).toFixed(2)} USD`;
 
         addNotification({
