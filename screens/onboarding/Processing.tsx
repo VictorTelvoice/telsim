@@ -57,8 +57,14 @@ const Processing: React.FC = () => {
         });
 
         if (rpcError) {
-            console.error("Error en purchase_subscription RPC:", rpcError);
-            // Si el error es por duplicidad (23505), lo ignoramos y seguimos con la activación del hardware
+            // CORRECCIÓN CRÍTICA: Si el error es 23505 (Unique Violation), la suscripción ya existe.
+            // Lo tratamos como éxito y procedemos a la activación del hardware.
+            if (rpcError.code === '23505') {
+                console.info("La suscripción ya existe (23505). Procediendo con la asignación de hardware.");
+            } else {
+                console.error("Error en purchase_subscription RPC:", rpcError);
+                // Si el error no es de duplicidad, registramos el fallo pero intentamos completar el flujo físico
+            }
         }
 
         let finalNumber = '';
