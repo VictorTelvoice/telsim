@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isNavigating, setIsNavigating] = useState(false);
   
   // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE OBLIGATORIOS
   const planName = location.state?.planName || 'Pro';
   
-  // LÓGICA DE PRECIO BLINDADA POR PLAN
+  // LÓGICA DE PRECIO BLINDADA POR PLAN (STARTER: 19.90, PRO: 39.90, POWER: 99.00)
   const getOfficialPrice = (name: string) => {
     if (name === 'Power') return 99.00;
     if (name === 'Starter') return 19.90;
@@ -27,6 +28,9 @@ const Summary: React.FC = () => {
   const priceString = `$${Number(planPrice).toFixed(2)}`;
 
   const handleNext = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    
     navigate('/onboarding/payment', { 
       state: { 
         planName,
@@ -41,8 +45,8 @@ const Summary: React.FC = () => {
         <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
             <div className="sticky top-0 z-20 flex items-center bg-background-light/90 dark:bg-background-dark/90 px-4 py-3 backdrop-blur-sm">
                 <div 
-                    onClick={() => navigate('/onboarding/plan')}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                    onClick={() => !isNavigating && navigate('/onboarding/plan')}
+                    className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer ${isNavigating ? 'opacity-30' : ''}`}
                 >
                     <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
                 </div>
@@ -115,13 +119,18 @@ const Summary: React.FC = () => {
             <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/80 dark:bg-[#101622]/85 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-5 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                 <button 
                     onClick={handleNext}
-                    className="relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40"
+                    disabled={isNavigating}
+                    className={`relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40 ${isNavigating ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                     <div className="relative flex w-full items-center justify-center">
-                        <span className="text-white text-[17px] font-bold tracking-wide">Iniciar Prueba Gratis</span>
-                        <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
-                            <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
-                        </div>
+                        <span className="text-white text-[17px] font-bold tracking-wide">
+                            {isNavigating ? 'Cargando Pasarela...' : 'Iniciar Prueba Gratis'}
+                        </span>
+                        {!isNavigating && (
+                            <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
+                                <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
+                            </div>
+                        )}
                     </div>
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">

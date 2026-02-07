@@ -6,7 +6,7 @@ const Payment: React.FC = () => {
   const location = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Strict lock for the confirmation action (immediate protection)
+  // Strict lock for the confirmation action (immediate protection at logic level)
   const isProcessingRef = useRef(false);
   
   const planName = location.state?.planName || 'Pro';
@@ -17,14 +17,12 @@ const Payment: React.FC = () => {
     // 1. Strict guard: If already processing, stop execution immediately
     if (isProcessingRef.current) return;
 
-    // 2. Lock the process and update UI state
+    // 2. Lock the process and update UI state IMMEDIATELY
     isProcessingRef.current = true;
     setIsProcessing(true);
 
-    let success = false;
     try {
-        // 3. Proceed to processing
-        // CORRECCIÓN: Se envía TODO el estado para evitar que el siguiente componente use fallbacks incorrectos
+        // 3. Proceed to processing screen which handles the DB logic
         navigate('/onboarding/processing', { 
             state: { 
                 planName,
@@ -32,15 +30,12 @@ const Payment: React.FC = () => {
                 monthlyLimit
             } 
         });
-        success = true;
+        // We don't set isProcessing to false here because navigation will unmount this component
     } catch (error) {
         console.error("Navigation error:", error);
-    } finally {
-        // 4. Only unlock if it wasn't successful (e.g. navigation failed)
-        if (!success) {
-            isProcessingRef.current = false;
-            setIsProcessing(false);
-        }
+        // 4. Only unlock if it wasn't successful (e.g. navigation failed for some reason)
+        isProcessingRef.current = false;
+        setIsProcessing(false);
     }
   };
 
@@ -175,7 +170,7 @@ const Payment: React.FC = () => {
                 >
                     <div className="relative flex w-full items-center justify-center">
                         <span className="text-white text-[17px] font-bold tracking-wide">
-                            {isProcessing ? 'Procesando...' : 'Confirmar Suscripción'}
+                            {isProcessing ? 'Procesando Suscripción...' : 'Confirmar Suscripción'}
                         </span>
                         {!isProcessing && (
                             <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
