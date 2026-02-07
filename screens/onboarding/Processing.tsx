@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
@@ -12,23 +12,29 @@ const Processing: React.FC = () => {
   const { addNotification } = useNotifications();
   const [currentStep, setCurrentStep] = useState('Iniciando activación...');
   
-  // LOCK PARA EVITAR DOBLE PROCESAMIENTO
+  // LOCK PARA EVITAR DOBLE PROCESAMIENTO (REQUISITO CRÍTICO)
   const hasProcessedRef = useRef(false);
+
+  // Validar estado inicial para evitar suscripciones accidentales por defecto
+  const planData = location.state;
+  if (!planData || !planData.planName) {
+    return <Navigate to="/onboarding/plan" replace />;
+  }
 
   useEffect(() => {
     const processActivation = async () => {
+      // 1. GUARD: Evitar ejecución doble
       if (hasProcessedRef.current) return;
       hasProcessedRef.current = true;
 
-      // Tiempo mínimo de animación para feedback visual (UX)
+      // Tiempo mínimo de animación para feedback visual de UX
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3800));
       
       try {
-        // PARÁMETROS DE NEGOCIO ACTUALIZADOS
-        const planName = location.state?.planName || 'Starter';
-        // Forzamos 19.9 si es Starter, de lo contrario usamos el precio del estado
-        const planPrice = planName === 'Starter' ? 19.9 : (location.state?.price || 19.9);
-        const monthlyLimit = location.state?.monthlyLimit || 150;
+        // RECUPERACIÓN EXACTA DE DATOS (Sin fallbacks genéricos)
+        const planName = planData.planName;
+        const planPrice = Number(planData.price);
+        const monthlyLimit = Number(planData.monthlyLimit);
         
         const realUserId = user?.id;
         if (!realUserId) {
@@ -36,34 +42,31 @@ const Processing: React.FC = () => {
             return;
         }
 
-        setCurrentStep('Sincronizando con el nodo físico...');
+        setCurrentStep('Conectando con el Nodo TELSIM...');
 
-        // 1. LLAMADA AL RPC RESILIENTE
-        // Este RPC ahora devuelve { success: true, phoneNumber: '...', portId: '...' }
+        // 2. EJECUCIÓN DEL RPC (Monto y Plan reales)
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
             p_plan_name: planName,
-            p_amount: Number(planPrice), // Enviamos 19.9 exacto
-            p_monthly_limit: Number(monthlyLimit)
+            p_amount: planPrice,
+            p_monthly_limit: monthlyLimit
         });
 
-        // Manejo de errores de red o base de datos
         if (rpcError) {
-          console.error("Error crítico en RPC:", rpcError);
+          console.error("Fallo de comunicación en el Nodo:", rpcError);
           throw rpcError;
         }
 
-        // 2. EXTRACCIÓN ESTRICTA DE LA RESPUESTA
+        // 3. CAPTURA DE DATOS RETORNADOS POR EL BACKEND
         const finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
         const assignedPortId = rpcResult?.portId || rpcResult?.port_id;
 
-        // VALIDACIÓN: Si no hay número, no podemos proceder al éxito
-        if (!finalNumber || finalNumber === '') {
-          throw new Error("El nodo no asignó una numeración válida.");
+        if (!finalNumber) {
+          throw new Error("El sistema no asignó una numeración válida.");
         }
 
-        setCurrentStep('Línea asignada: ' + finalNumber);
+        setCurrentStep('Línea activada: ' + finalNumber);
 
-        // 3. LOGÍSTICA EXTERNA (Webhook)
+        // 4. LOGÍSTICA (Webhook Externo)
         try {
           await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
@@ -80,17 +83,16 @@ const Processing: React.FC = () => {
             }),
           });
         } catch (webhookErr) {
-          console.debug("Error menor en webhook de logística");
+          console.debug("Omitiendo notificación de logística");
         }
 
         const now = new Date();
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
-        // Notificación persistente
         addNotification({
-          title: 'SIM Activada',
-          message: `Tu número ${finalNumber} está listo.`,
+          title: 'Línea Lista',
+          message: `Número ${finalNumber} activado correctamente.`,
           icon: 'sim_card',
           type: 'activation',
           details: {
@@ -102,8 +104,7 @@ const Processing: React.FC = () => {
           }
         });
 
-        // 4. TRANSICIÓN SEGURA
-        // Esperamos a que la animación termine para no romper la fluidez
+        // Esperar a que la animación termine para una transición fluida
         await animationPromise;
         
         navigate('/onboarding/success', { 
@@ -115,29 +116,28 @@ const Processing: React.FC = () => {
         });
 
       } catch (error: any) {
-        console.error("Fallo en la activación:", error);
-        setCurrentStep('Error de aprovisionamiento...');
+        console.error("Error en flujo de activación:", error);
+        setCurrentStep('Error de configuración...');
         await animationPromise;
         
-        // Redirigimos a éxito con flag de error para que la pantalla sepa qué mostrar
-        // EVITAMOS mostrar números con ceros.
+        // Redirigir a éxito con error explícito (No mostrar ceros)
         navigate('/onboarding/success', { 
           state: { 
             assignedNumber: null, 
-            error: true 
+            error: true,
+            errorMsg: error.message || "Error de red"
           } 
         });
       }
     };
 
     processActivation();
-  }, [navigate, user, addNotification, location.state]);
+  }, [navigate, user, addNotification, planData]);
 
   return (
-    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display transition-colors duration-700">
-      {/* Elementos decorativos de carga */}
+    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
-        <span className="material-symbols-outlined text-[320px] text-primary/5 dark:text-primary/10 rotate-12 animate-pulse" style={{animationDuration: '3s'}}>
+        <span className="material-symbols-outlined text-[320px] text-primary/5 dark:text-primary/10 rotate-12 animate-pulse">
             sim_card
         </span>
         <div className="absolute w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]"></div>
@@ -145,10 +145,9 @@ const Processing: React.FC = () => {
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-xs mx-auto px-6">
         <div className="relative flex items-center justify-center mb-12">
-          {/* Spinner perimetral */}
           <div className="absolute w-36 h-36 rounded-full border-2 border-primary/20 animate-ping opacity-50"></div>
           <div className="size-28 rounded-full border-[4px] border-slate-200 dark:border-slate-800"></div>
-          <div className="absolute size-28 rounded-full border-[4px] border-primary border-t-transparent animate-spin" style={{animationDuration: '0.8s'}}></div>
+          <div className="absolute size-28 rounded-full border-[4px] border-primary border-t-transparent animate-spin"></div>
           
           <div className="absolute flex items-center justify-center bg-white dark:bg-background-dark size-16 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 transform rotate-12">
              <Loader2 className="text-primary size-9 animate-spin" />
@@ -157,7 +156,7 @@ const Processing: React.FC = () => {
 
         <div className="flex flex-col items-center text-center space-y-4">
             <h2 className="text-2xl font-black tracking-tight text-[#111318] dark:text-white uppercase">
-                Aprovisionando
+                Activando
             </h2>
             <div className="flex flex-col items-center gap-2">
                 <p className="text-primary text-[10px] font-black uppercase tracking-[0.25em] h-5">
@@ -173,12 +172,8 @@ const Processing: React.FC = () => {
       </div>
 
       <div className="absolute bottom-16 w-full text-center px-10">
-          <div className="flex items-center justify-center gap-2 mb-2 opacity-40">
-            <span className="material-symbols-outlined text-sm">lock</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">Secure Handshake Protocol</span>
-          </div>
           <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] max-w-[200px] mx-auto leading-relaxed">
-              Infraestructura Física <br/>TELSIM v4.5 Active Node
+              Infraestructura Física <br/>TELSIM v4.5 Node
           </p>
       </div>
     </div>
