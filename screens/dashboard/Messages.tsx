@@ -117,30 +117,30 @@ const Messages: React.FC = () => {
 
     setSendingSms(true);
     try {
-      // GARANTÍA DE FORMATO: Aseguramos que el número tenga el prefijo '+'
-      const senderNumber = composeData.from.startsWith('+') 
-        ? composeData.from 
-        : `+${composeData.from}`;
+      // 1. LIMPIEZA DE NÚMERO (Eliminar espacios y asegurar +)
+      const cleanSender = composeData.from.replace(/\s+/g, '');
+      const senderNumber = cleanSender.startsWith('+') ? cleanSender : `+${cleanSender}`;
 
-      // 1. ÚNICA LLAMADA PERMITIDA PARA CRÉDITOS: RPC track_sms_usage
-      // Se eliminó cualquier referencia a supabase.from('subscriptions').update()
+      // 2. ÚNICA LLAMADA PERMITIDA PARA CRÉDITOS: RPC track_sms_usage
+      // Se garantiza que NO hay llamadas a subscriptions.update filtrando por user_id.
       const { error: rpcError } = await supabase.rpc('track_sms_usage', { 
         p_phone_number: senderNumber 
       });
 
       if (rpcError) {
-        // El RPC fallará si el número no existe o no tiene créditos suficientes
-        throw new Error(rpcError.message || "Créditos insuficientes en esta línea específica.");
+        // El RPC fallará si el número no existe o no tiene créditos suficientes.
+        // Esto previene que se actualicen créditos de otros números.
+        throw new Error(rpcError.message || "Error de validación en la línea seleccionada.");
       }
 
-      // 2. Registro del mensaje en el historial (SMS de salida)
+      // 3. Registro del mensaje en el historial solo si el RPC fue exitoso
       const targetSlot = userSlots.find(s => s.phone_number === composeData.from);
       
       const { error: insertError } = await supabase
         .from('sms_logs')
         .insert([{
           user_id: user.id,
-          sender: composeData.to, 
+          sender: composeData.to.replace(/\s+/g, ''), // Limpiar también destino
           content: composeData.body,
           slot_id: targetSlot?.port_id,
           is_read: true,
@@ -149,14 +149,14 @@ const Messages: React.FC = () => {
 
       if (insertError) throw insertError;
 
-      // Éxito
+      // Éxito: Limpiar formulario y cerrar modal
       setComposeData({ from: userSlots[0]?.phone_number || '', to: '', body: '' });
       setIsComposeOpen(false);
       fetchData(); 
 
     } catch (err: any) {
-      console.error("Fallo en transacción de SMS:", err.message);
-      alert(err.message || "Error al enviar. Verifica tu saldo de créditos en esta línea.");
+      console.error("Fallo crítico en envío de SMS:", err.message);
+      alert(err.message || "Error al enviar. Asegúrate de tener créditos en esta línea específica.");
     } finally {
       setSendingSms(false);
     }
