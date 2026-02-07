@@ -21,8 +21,6 @@ import {
   ShoppingCart,
   Landmark,
   User,
-  Search,
-  Filter,
   Plus,
   SendHorizontal,
   Loader2
@@ -119,13 +117,17 @@ const Messages: React.FC = () => {
 
     setSendingSms(true);
     try {
-      // 1. LLAMADA CRÍTICA RPC: Descontar crédito SOLO al número remitente seleccionado
-      // Esta llamada soluciona el bug de descuento masivo en todos los números
+      // 1. LLAMADA CRÍTICA RPC: track_sms_usage
+      // Se utiliza el número remitente específico para evitar el descuento masivo por user_id.
+      // Se ha ELIMINADO cualquier llamada a supabase.from('subscriptions').update().eq('user_id', user.id)
       const { error: rpcError } = await supabase.rpc('track_sms_usage', { 
         p_phone_number: composeData.from 
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        // Si el RPC falla (ej. créditos insuficientes), lanzamos el error para no registrar el log
+        throw rpcError;
+      }
 
       // 2. Registrar el mensaje saliente en sms_logs para el historial
       const targetSlot = userSlots.find(s => s.phone_number === composeData.from);
@@ -134,7 +136,7 @@ const Messages: React.FC = () => {
         .from('sms_logs')
         .insert([{
           user_id: user.id,
-          sender: composeData.to, // En un log de "enviado", guardamos el destino
+          sender: composeData.to, // Destino en logs de salida
           content: composeData.body,
           slot_id: targetSlot?.port_id,
           is_read: true,
@@ -146,11 +148,11 @@ const Messages: React.FC = () => {
       // Éxito: Limpiar y cerrar
       setComposeData({ from: userSlots[0]?.phone_number || '', to: '', body: '' });
       setIsComposeOpen(false);
-      fetchData(); // Refrescar lista
+      fetchData(); // Refrescar lista para ver el mensaje enviado
 
     } catch (err: any) {
-      console.error("Error al enviar SMS:", err);
-      alert("Error al enviar el mensaje. Verifica tu saldo de créditos.");
+      console.error("Error al enviar SMS (Créditos o Red):", err);
+      alert("Error al enviar el mensaje. Verifica que tu línea tenga créditos suficientes.");
     } finally {
       setSendingSms(false);
     }
