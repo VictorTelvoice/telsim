@@ -53,7 +53,7 @@ const PlanSelect: React.FC = () => {
     // EXTRACCIÓN DE DATOS DESDE LA CONFIGURACIÓN OFICIAL PARA EL PLAN SELECCIONADO
     const planConfig = OFFICIAL_PLANS[selected];
     
-    // DEFINICIÓN DE PARÁMETROS EXACTOS (NI UNO MÁS, NI UNO MENOS)
+    // DEFINICIÓN DE PARÁMETROS EXACTOS
     const rpcParams = {
       p_plan_name: selected,             // String
       p_amount: Number(planConfig.amount), // Number (Garantiza 99.00 para Power)
@@ -61,8 +61,9 @@ const PlanSelect: React.FC = () => {
     };
 
     try {
-      // LLAMADA RPC 'buy_plan' SIN USER_ID (ELIMINADO POR SEGURIDAD)
-      const { error } = await supabase.rpc('buy_plan', rpcParams);
+      // SE RESTAURA EL NOMBRE DE LA FUNCIÓN A 'purchase_subscription' SEGÚN LA SOLICITUD
+      // Se mantiene la eliminación del parámetro de usuario ya que el backend lo detecta por sesión
+      const { error } = await supabase.rpc('purchase_subscription', rpcParams);
 
       if (error) throw error;
 
@@ -75,8 +76,8 @@ const PlanSelect: React.FC = () => {
         } 
       });
     } catch (error) {
-      console.error("Error en buy_plan RPC:", error);
-      // Fallback UI para permitir flujo de navegación si el RPC tiene delay
+      console.error("Error en purchase_subscription RPC:", error);
+      // Fallback UI para permitir flujo de navegación si el RPC tiene delay o error momentáneo
       navigate('/onboarding/summary', { 
         state: { 
           planName: rpcParams.p_plan_name,
