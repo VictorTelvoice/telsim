@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
+// CONFIGURACIÓN DE PRECIOS OFICIALES Y OBLIGATORIOS
+const TELSIM_PLANS_CONFIG = {
+  Starter: { amount: 19.90, limit: 150 },
+  Pro:     { amount: 39.90, limit: 400 },
+  Power:   { amount: 99.00, limit: 1400 }
+};
+
 const PlanSelect: React.FC = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
@@ -12,8 +19,8 @@ const PlanSelect: React.FC = () => {
       id: 'Starter',
       name: 'Starter',
       subtitle: '150 Créditos SMS',
-      price: 19.90,
-      limit: 150,
+      price: TELSIM_PLANS_CONFIG.Starter.amount,
+      limit: TELSIM_PLANS_CONFIG.Starter.limit,
       icon: 'shield',
       features: ["Acceso API", "Webhooks", "Soporte Email"],
       recommended: false
@@ -22,8 +29,8 @@ const PlanSelect: React.FC = () => {
       id: 'Pro',
       name: 'Pro',
       subtitle: '400 Créditos SMS',
-      price: 39.90,
-      limit: 400,
+      price: TELSIM_PLANS_CONFIG.Pro.amount,
+      limit: TELSIM_PLANS_CONFIG.Pro.limit,
       icon: 'bolt',
       features: ["Todo lo del Starter", "Prioridad de Red", "Soporte Chat"],
       recommended: true
@@ -32,8 +39,8 @@ const PlanSelect: React.FC = () => {
       id: 'Power',
       name: 'Power',
       subtitle: '1,400 Créditos SMS',
-      price: 99.00,
-      limit: 1400,
+      price: TELSIM_PLANS_CONFIG.Power.amount,
+      limit: TELSIM_PLANS_CONFIG.Power.limit,
       icon: 'electric_bolt',
       features: ["Infraestructura Dedicada", "Soporte 24/7"],
       recommended: false
@@ -43,34 +50,22 @@ const PlanSelect: React.FC = () => {
   const handleNext = async () => {
     setIsSubmitting(true);
     
-    // DEFINICIÓN DE VALORES LITERALES BLINDADOS (CORRECCIÓN OBLIGATORIA)
-    let p_plan_name = '';
-    let p_amount = 0;
-    let p_monthly_limit = 0;
-
-    if (selected === 'Starter') {
-      p_plan_name = 'Starter';
-      p_amount = 19.90;
-      p_monthly_limit = 150;
-    } else if (selected === 'Pro') {
-      p_plan_name = 'Pro';
-      p_amount = 39.90;
-      p_monthly_limit = 400;
-    } else if (selected === 'Power') {
-      p_plan_name = 'Power';
-      p_amount = 99.00;
-      p_monthly_limit = 1400;
-    }
+    // EXTRACCIÓN DIRECTA DESDE LA CONFIGURACIÓN OFICIAL
+    // Esto garantiza que si selected === 'Power', el precio sea SIEMPRE 99.00
+    const config = TELSIM_PLANS_CONFIG[selected];
+    const p_plan_name = selected;
+    const p_amount = config.amount;
+    const p_monthly_limit = config.limit;
 
     try {
-      // ENVÍO DEL OBJETO EXACTO SOLICITADO A SUPABASE
+      // LLAMADA RPC CON EL OBJETO LITERAL SOLICITADO
       await supabase.rpc('purchase_subscription', {
         p_plan_name,
         p_amount,
         p_monthly_limit
       });
 
-      // Navegación al resumen inyectando el estado verificado
+      // Navegación al resumen inyectando el estado blindado
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,
@@ -80,7 +75,7 @@ const PlanSelect: React.FC = () => {
       });
     } catch (error) {
       console.error("Error al procesar suscripción:", error);
-      // Fallback: Mantener integridad de los datos en la UI aunque el RPC falle
+      // Fallback UI: Mantener la integridad de la selección aunque falle el registro inicial
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,

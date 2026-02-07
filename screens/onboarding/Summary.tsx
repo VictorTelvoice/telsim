@@ -5,10 +5,24 @@ const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE DE SEGURIDAD (MÍNIMO STARTER 19.90)
+  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE OBLIGATORIOS
   const planName = location.state?.planName || 'Pro';
-  const planPrice = location.state?.price || (planName === 'Power' ? 99.00 : (planName === 'Starter' ? 19.90 : 39.90));
-  const monthlyLimit = location.state?.monthlyLimit || (planName === 'Power' ? 1400 : (planName === 'Starter' ? 150 : 400));
+  
+  // LÓGICA DE PRECIO BLINDADA POR PLAN
+  const getOfficialPrice = (name: string) => {
+    if (name === 'Power') return 99.00;
+    if (name === 'Starter') return 19.90;
+    return 39.90; // Default Pro
+  };
+
+  const getOfficialLimit = (name: string) => {
+    if (name === 'Power') return 1400;
+    if (name === 'Starter') return 150;
+    return 400; // Default Pro
+  };
+
+  const planPrice = location.state?.price || getOfficialPrice(planName);
+  const monthlyLimit = location.state?.monthlyLimit || getOfficialLimit(planName);
   
   const priceString = `$${Number(planPrice).toFixed(2)}`;
 
