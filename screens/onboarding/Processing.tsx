@@ -10,40 +10,61 @@ const Processing: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   
+  // CERROJO DE SEGURIDAD: Evita múltiples llamadas concurrentes o por re-renderizado
   const hasProcessedRef = useRef(false);
 
   useEffect(() => {
-    const processPayment = async () => {
+    const processPaymentAndActivation = async () => {
+      // 1. GUARD: Si ya se está procesando o se procesó, abortamos
       if (hasProcessedRef.current) return;
       hasProcessedRef.current = true;
 
+      // Tiempo mínimo de animación para feedback visual de UX
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
-        // LÓGICA DE PRECIO BLINDADA POR PLAN (STARTER: 19.90, PRO: 39.90, POWER: 99.00)
-        const planName = location.state?.planName || 'Pro';
+        // PARÁMETROS OBLIGATORIOS (Starter por defecto para evitar confusiones de BD)
+        const planName = location.state?.planName || 'Starter';
         
         const getOfficialPrice = (name: string) => {
           if (name === 'Power') return 99.00;
           if (name === 'Starter') return 19.90;
-          return 39.90; // Default Pro
+          return 39.90;
         };
 
         const getOfficialLimit = (name: string) => {
           if (name === 'Power') return 1400;
           if (name === 'Starter') return 150;
-          return 400; // Default Pro
+          return 400;
         };
 
         const planPrice = location.state?.price || getOfficialPrice(planName);
         const monthlyLimit = location.state?.monthlyLimit || getOfficialLimit(planName);
         
-        const realUserId = user?.id || 'simulated-user-id';
+        const realUserId = user?.id;
+
+        if (!realUserId) {
+            console.error("No user authenticated during processing");
+            navigate('/login');
+            return;
+        }
+
+        // 2. PUNTO ÚNICO DE VERDAD: Creación de suscripción en Supabase
+        const { error: rpcError } = await supabase.rpc('purchase_subscription', {
+            p_plan_name: String(planName),
+            p_amount: Number(planPrice),
+            p_monthly_limit: Number(monthlyLimit)
+        });
+
+        if (rpcError) {
+            console.error("Error en purchase_subscription RPC:", rpcError);
+            // Si el error es por duplicidad (23505), lo ignoramos y seguimos con la activación del hardware
+        }
 
         let finalNumber = '';
         let assignedPortId = '';
 
-        // Buscamos el PRIMER slot libre siguiendo el orden de inventario (port_id ASC)
+        // 3. ASIGNACIÓN DE HARDWARE (SLOT)
         const { data: freeSlots, error: fetchError } = await supabase
           .from('slots')
           .select('port_id, phone_number')
@@ -58,7 +79,7 @@ const Processing: React.FC = () => {
             assignedPortId = chosenSlot.port_id;
             finalNumber = chosenSlot.phone_number;
 
-            // Transacción: Asignar al usuario con estado 'ocupado'
+            // Actualizar slot a ocupado por el usuario real
             const { error: updateError } = await supabase
               .from('slots')
               .update({ 
@@ -71,23 +92,20 @@ const Processing: React.FC = () => {
 
             if (updateError) throw updateError;
             
-            // Crear registro de suscripción con el precio exacto
-            await supabase.from('subscriptions').insert([{
-                user_id: realUserId,
-                plan_name: planName, 
-                amount: planPrice,
-                status: 'active',
-                port_id: assignedPortId,
-                started_at: new Date().toISOString()
-            }]);
+            // Sincronizar suscripción con el puerto asignado
+            await supabase
+              .from('subscriptions')
+              .update({ port_id: assignedPortId })
+              .eq('user_id', realUserId)
+              .eq('status', 'active')
+              .is('port_id', null);
 
         } else {
-            // Fallback de seguridad si no hay stock físico
-            console.warn("No hay slots físicos disponibles en el inventario.");
+            console.warn("Inventario de SIMs físicas agotado temporalmente.");
             finalNumber = '+56 9 0000 0000'; 
         }
 
-        // Enviar Webhook de notificación externa
+        // 4. NOTIFICACIÓN Y LOGÍSTICA
         try {
           await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
@@ -104,15 +122,13 @@ const Processing: React.FC = () => {
             }),
           });
         } catch (webhookErr) {
-          console.debug("Error silenciado en webhook:", webhookErr);
+          console.debug("Webhook ignore");
         }
 
         const now = new Date();
         const nextMonth = new Date(now);
         nextMonth.setMonth(now.getMonth() + 1);
         
-        const planPriceStr = `$${Number(planPrice).toFixed(2)} USD`;
-
         addNotification({
           title: 'Línea Activada con Éxito',
           message: `Tu nuevo número ${finalNumber} ya está listo para recibir mensajes.`,
@@ -123,10 +139,11 @@ const Processing: React.FC = () => {
             plan: planName,
             activationDate: now.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
             nextBilling: nextMonth.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
-            price: planPriceStr
+            price: `$${Number(planPrice).toFixed(2)} USD`
           }
         });
 
+        // Esperamos a que la animación termine para una transición suave
         await animationPromise;
         navigate('/onboarding/success', { state: { assignedNumber: finalNumber, planName } });
 
@@ -137,7 +154,7 @@ const Processing: React.FC = () => {
       }
     };
 
-    processPayment();
+    processPaymentAndActivation();
   }, [navigate, location.state, user, addNotification]);
 
   return (

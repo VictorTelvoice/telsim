@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
 
 const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
   
-  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE OBLIGATORIOS
-  const planName = location.state?.planName || 'Pro';
+  // EXTRAEMOS LOS DATOS O USAMOS LOS VALORES BASE
+  const planName = location.state?.planName || 'Starter';
   
-  // LÓGICA DE PRECIO BLINDADA POR PLAN (STARTER: 19.90, PRO: 39.90, POWER: 99.00)
   const getOfficialPrice = (name: string) => {
     if (name === 'Power') return 99.00;
     if (name === 'Starter') return 19.90;
@@ -28,43 +26,19 @@ const Summary: React.FC = () => {
   
   const priceString = `$${Number(planPrice).toFixed(2)}`;
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (isNavigating) return;
     setIsNavigating(true);
 
-    try {
-        // Lógica única de procesamiento de suscripción al hacer clic
-        const { error } = await supabase.rpc('purchase_subscription', {
-            p_plan_name: String(planName),
-            p_amount: Number(planPrice),
-            p_monthly_limit: Number(monthlyLimit)
-        });
-
-        if (error) {
-            console.error("Error en purchase_subscription RPC:", error);
-            // Si hay error de duplicidad o parámetros, lo registramos pero permitimos flujo
-        }
-
-        navigate('/onboarding/payment', { 
-            state: { 
-                planName,
-                price: planPrice,
-                monthlyLimit
-            } 
-        });
-    } catch (err) {
-        console.error("Critical error on handleNext:", err);
-        // Fallback de navegación ante errores inesperados
-        navigate('/onboarding/payment', { 
-            state: { 
-                planName,
-                price: planPrice,
-                monthlyLimit
-            } 
-        });
-    } finally {
-        setIsNavigating(false);
-    }
+    // FLUJO CORREGIDO: Navegamos al pago sin tocar la base de datos.
+    // La suscripción se creará únicamente en la pantalla de Processing.tsx tras el éxito del pago.
+    navigate('/onboarding/payment', { 
+        state: { 
+            planName,
+            price: planPrice,
+            monthlyLimit
+        } 
+    });
   };
 
   return (
@@ -147,17 +121,15 @@ const Summary: React.FC = () => {
                 <button 
                     onClick={handleNext}
                     disabled={isNavigating}
-                    className={`relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40 ${isNavigating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    className="relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40"
                 >
                     <div className="relative flex w-full items-center justify-center">
                         <span className="text-white text-[17px] font-bold tracking-wide">
-                            {isNavigating ? 'Procesando Suscripción...' : 'Iniciar Prueba Gratis'}
+                            Iniciar Prueba Gratis
                         </span>
-                        {!isNavigating && (
-                            <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
-                                <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
-                            </div>
-                        )}
+                        <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
+                            <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
+                        </div>
                     </div>
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">
