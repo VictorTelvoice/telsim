@@ -1,21 +1,23 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
+import { Loader2 } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  const [currentStep, setCurrentStep] = useState('Iniciando activación...');
   
   // CERROJO DE SEGURIDAD (Locking mechanism)
   const hasProcessedRef = useRef(false);
 
   useEffect(() => {
     const processActivation = async () => {
-      // 1. GUARD: Evitar ejecución doble al cargar o por re-renders
+      // 1. GUARD: Evitar ejecución doble al cargar o por re-renders (React 18 StrictMode)
       if (hasProcessedRef.current) return;
       hasProcessedRef.current = true;
 
@@ -24,7 +26,7 @@ const Processing: React.FC = () => {
       
       try {
         const planName = 'Starter';
-        const planPrice = 19.90; // Monto real actualizado
+        const planPrice = 19.90; // Monto real solicitado
         const monthlyLimit = 150;
         
         const realUserId = user?.id;
@@ -33,39 +35,33 @@ const Processing: React.FC = () => {
             return;
         }
 
-        // 2. EJECUCIÓN DEL RPC: Creamos la suscripción y obtenemos el número
+        setCurrentStep('Provisionando hardware físico...');
+
+        // 2. EJECUCIÓN DEL RPC: La función ahora devuelve success y phoneNumber de forma segura
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
             p_plan_name: planName,
             p_amount: planPrice,
             p_monthly_limit: monthlyLimit
         });
 
-        let finalNumber = '';
-        let assignedPortId = '';
-
-        // 3. MANEJO DE RESPUESTA / ERROR 23505
         if (rpcError) {
-            if (rpcError.code === '23505') {
-                console.info("Suscripción ya existente (23505). Recuperando número actual...");
-                // Si ya existe, intentamos recuperar el número asignado previamente
-                const { data: existingSlot } = await supabase
-                    .from('slots')
-                    .select('phone_number, port_id')
-                    .eq('assigned_to', realUserId)
-                    .single();
-                
-                finalNumber = existingSlot?.phone_number || '+56 9 0000 0000';
-                assignedPortId = existingSlot?.port_id || '';
-            } else {
-                throw rpcError;
-            }
-        } else {
-            // El RPC devolvió éxito y el objeto con phoneNumber
-            finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number || '';
-            assignedPortId = rpcResult?.portId || rpcResult?.port_id || '';
+          // El RPC ya no devuelve 23505 como error crítico, pero manejamos fallos de red
+          console.error("Fallo de comunicación con el Nodo:", rpcError);
+          throw rpcError;
         }
 
-        // 4. LOGÍSTICA EXTERNA Y NOTIFICACIÓN
+        // 3. CAPTURA DE RESULTADOS REALES
+        // El RPC devuelve un objeto: { success: boolean, phoneNumber: string, portId: string }
+        const finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
+        const assignedPortId = rpcResult?.portId || rpcResult?.port_id;
+
+        if (!finalNumber) {
+          throw new Error("El sistema no devolvió una numeración válida.");
+        }
+
+        setCurrentStep('Número asignado: ' + finalNumber);
+
+        // 4. LOGÍSTICA EXTERNA (Webhook Make.com)
         try {
           await fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
@@ -82,7 +78,7 @@ const Processing: React.FC = () => {
             }),
           });
         } catch (webhookErr) {
-          console.debug("Webhook omitido");
+          console.debug("Notificación logística omitida");
         }
 
         const now = new Date();
@@ -103,22 +99,38 @@ const Processing: React.FC = () => {
           }
         });
 
+        // Asegurar que la animación termine antes de navegar para una UX fluida
         await animationPromise;
-        navigate('/onboarding/success', { state: { assignedNumber: finalNumber, planName } });
+        
+        // NAVEGACIÓN SÍNCRONA CON LOS DATOS REALES
+        navigate('/onboarding/success', { 
+          state: { 
+            assignedNumber: finalNumber, 
+            planName: planName 
+          },
+          replace: true // Reemplazamos la ruta para que no puedan volver atrás a re-activar
+        });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error crítico en procesamiento:", error);
+        setCurrentStep('Error en la activación. Reintentando...');
         await animationPromise;
-        // Fallback para no bloquear al usuario si el proceso falló pero el número podría estar listo
-        navigate('/onboarding/success', { state: { assignedNumber: '+56 9 0000 0000', planName: 'Starter' } });
+        // Solo en caso de fallo absoluto redirigimos con un error visible en lugar de ceros
+        navigate('/onboarding/success', { 
+          state: { 
+            assignedNumber: 'ERROR_ACTIVACION', 
+            planName: 'Starter' 
+          } 
+        });
       }
     };
 
     processActivation();
-  }, [navigate, location.state, user, addNotification]);
+  }, [navigate, user, addNotification]);
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
+      {/* Background Ambience */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
         <span className="material-symbols-outlined text-[300px] text-primary/5 dark:text-primary/10 rotate-12 animate-pulse">
             sim_card
@@ -127,24 +139,35 @@ const Processing: React.FC = () => {
       </div>
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-xs mx-auto px-6">
-        <div className="relative flex items-center justify-center mb-10 group">
+        <div className="relative flex items-center justify-center mb-10">
           <div className="absolute w-32 h-32 rounded-full border border-primary/20 animate-ping opacity-75"></div>
-          <div className="w-20 h-20 rounded-full border-[3px] border-primary border-t-transparent animate-spin"></div>
-          <div className="absolute flex items-center justify-center bg-white dark:bg-background-dark rounded-full p-2 border border-gray-100 dark:border-gray-800">
-             <span className="material-symbols-outlined text-primary text-2xl animate-pulse">
-                 lock_clock
-             </span>
+          <div className="size-24 rounded-full border-[3px] border-primary border-t-transparent animate-spin"></div>
+          <div className="absolute flex items-center justify-center bg-white dark:bg-background-dark size-16 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 transition-transform duration-500 scale-110">
+             <Loader2 className="text-primary size-8 animate-spin" />
           </div>
         </div>
 
-        <div className="flex flex-col items-center text-center space-y-3">
-            <h2 className="text-2xl font-bold tracking-tight text-[#111318] dark:text-white">
-                Configurando tu línea
+        <div className="flex flex-col items-center text-center space-y-4">
+            <h2 className="text-2xl font-black tracking-tight text-[#111318] dark:text-white uppercase">
+                Activando Línea
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium animate-pulse uppercase tracking-widest">
-                Activando infraestructura física
-            </p>
+            <div className="flex flex-col items-center gap-2">
+                <p className="text-primary text-xs font-black uppercase tracking-[0.2em] animate-pulse">
+                    {currentStep}
+                </p>
+                <div className="flex gap-1">
+                  <div className="size-1 rounded-full bg-primary animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="size-1 rounded-full bg-primary animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="size-1 rounded-full bg-primary animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+            </div>
         </div>
+      </div>
+
+      <div className="absolute bottom-12 w-full text-center px-8">
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">
+              Puerto Físico TELSIM v4.2 Secure Node
+          </p>
       </div>
     </div>
   );
