@@ -5,10 +5,10 @@ const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE DE SEGURIDAD
+  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE DE SEGURIDAD (MÍNIMO STARTER 19.90)
   const planName = location.state?.planName || 'Pro';
-  const planPrice = location.state?.price || 39.90; // ACTUALIZADO: YA NO HAY 13.90
-  const monthlyLimit = location.state?.monthlyLimit || 400;
+  const planPrice = location.state?.price || (planName === 'Power' ? 99.00 : (planName === 'Starter' ? 19.90 : 39.90));
+  const monthlyLimit = location.state?.monthlyLimit || (planName === 'Power' ? 1400 : (planName === 'Starter' ? 150 : 400));
   
   const priceString = `$${Number(planPrice).toFixed(2)}`;
 

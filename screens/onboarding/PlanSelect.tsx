@@ -7,13 +7,12 @@ const PlanSelect: React.FC = () => {
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // DEFINICIÓN ÚNICA Y VERIFICADA DE PLANES TELSIM
   const plans = [
     {
       id: 'Starter',
       name: 'Starter',
       subtitle: '150 Créditos SMS',
-      price: 19.90, // PRECIO NUEVO
+      price: 19.90,
       limit: 150,
       icon: 'shield',
       features: ["Acceso API", "Webhooks", "Soporte Email"],
@@ -23,7 +22,7 @@ const PlanSelect: React.FC = () => {
       id: 'Pro',
       name: 'Pro',
       subtitle: '400 Créditos SMS',
-      price: 39.90, // PRECIO NUEVO
+      price: 39.90,
       limit: 400,
       icon: 'bolt',
       features: ["Todo lo del Starter", "Prioridad de Red", "Soporte Chat"],
@@ -33,7 +32,7 @@ const PlanSelect: React.FC = () => {
       id: 'Power',
       name: 'Power',
       subtitle: '1,400 Créditos SMS',
-      price: 99.00, // PRECIO NUEVO
+      price: 99.00,
       limit: 1400,
       icon: 'electric_bolt',
       features: ["Infraestructura Dedicada", "Soporte 24/7"],
@@ -42,25 +41,36 @@ const PlanSelect: React.FC = () => {
   ];
 
   const handleNext = async () => {
-    const selectedPlan = plans.find(p => p.id === selected);
-    if (!selectedPlan) return;
-
     setIsSubmitting(true);
     
-    // EXTRACCIÓN DE VALORES LITERALES PARA EL BACKEND
-    const p_plan_name = selectedPlan.name;
-    const p_amount = selectedPlan.price;
-    const p_monthly_limit = selectedPlan.limit;
+    // DEFINICIÓN DE VALORES LITERALES BLINDADOS (CORRECCIÓN OBLIGATORIA)
+    let p_plan_name = '';
+    let p_amount = 0;
+    let p_monthly_limit = 0;
+
+    if (selected === 'Starter') {
+      p_plan_name = 'Starter';
+      p_amount = 19.90;
+      p_monthly_limit = 150;
+    } else if (selected === 'Pro') {
+      p_plan_name = 'Pro';
+      p_amount = 39.90;
+      p_monthly_limit = 400;
+    } else if (selected === 'Power') {
+      p_plan_name = 'Power';
+      p_amount = 99.00;
+      p_monthly_limit = 1400;
+    }
 
     try {
-      // LLAMADA RPC CON VALORES GARANTIZADOS (19.90, 39.90, 99.00)
+      // ENVÍO DEL OBJETO EXACTO SOLICITADO A SUPABASE
       await supabase.rpc('purchase_subscription', {
-        p_plan_name: p_plan_name,
-        p_amount: p_amount,
-        p_monthly_limit: p_monthly_limit
+        p_plan_name,
+        p_amount,
+        p_monthly_limit
       });
 
-      // Navegación al resumen inyectando el estado exacto
+      // Navegación al resumen inyectando el estado verificado
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,
@@ -70,7 +80,7 @@ const PlanSelect: React.FC = () => {
       });
     } catch (error) {
       console.error("Error al procesar suscripción:", error);
-      // Fallback: Permitir avance visual pero manteniendo la integridad del dato seleccionado
+      // Fallback: Mantener integridad de los datos en la UI aunque el RPC falle
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,
