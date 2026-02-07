@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 
 const Summary: React.FC = () => {
   const navigate = useNavigate();
@@ -27,17 +28,43 @@ const Summary: React.FC = () => {
   
   const priceString = `$${Number(planPrice).toFixed(2)}`;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isNavigating) return;
     setIsNavigating(true);
-    
-    navigate('/onboarding/payment', { 
-      state: { 
-        planName,
-        price: planPrice,
-        monthlyLimit
-      } 
-    });
+
+    try {
+        // Lógica única de procesamiento de suscripción al hacer clic
+        const { error } = await supabase.rpc('purchase_subscription', {
+            p_plan_name: String(planName),
+            p_amount: Number(planPrice),
+            p_monthly_limit: Number(monthlyLimit)
+        });
+
+        if (error) {
+            console.error("Error en purchase_subscription RPC:", error);
+            // Si hay error de duplicidad o parámetros, lo registramos pero permitimos flujo
+        }
+
+        navigate('/onboarding/payment', { 
+            state: { 
+                planName,
+                price: planPrice,
+                monthlyLimit
+            } 
+        });
+    } catch (err) {
+        console.error("Critical error on handleNext:", err);
+        // Fallback de navegación ante errores inesperados
+        navigate('/onboarding/payment', { 
+            state: { 
+                planName,
+                price: planPrice,
+                monthlyLimit
+            } 
+        });
+    } finally {
+        setIsNavigating(false);
+    }
   };
 
   return (
@@ -124,7 +151,7 @@ const Summary: React.FC = () => {
                 >
                     <div className="relative flex w-full items-center justify-center">
                         <span className="text-white text-[17px] font-bold tracking-wide">
-                            {isNavigating ? 'Cargando Pasarela...' : 'Iniciar Prueba Gratis'}
+                            {isNavigating ? 'Procesando Suscripción...' : 'Iniciar Prueba Gratis'}
                         </span>
                         {!isNavigating && (
                             <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
 
 // CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM (PROHIBIDO 13.90)
 const OFFICIAL_PLANS = {
@@ -12,7 +11,6 @@ const OFFICIAL_PLANS = {
 const PlanSelect: React.FC = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const plans = [
     {
@@ -47,47 +45,18 @@ const PlanSelect: React.FC = () => {
     }
   ];
 
-  const handleNext = async () => {
-    setIsSubmitting(true);
-    
-    // EXTRACCIÓN DE DATOS DESDE LA CONFIGURACIÓN OFICIAL PARA EL PLAN SELECCIONADO
+  const handleNext = () => {
+    // Solo navegamos al resumen inyectando el estado. 
+    // La suscripción NO se procesa aquí para evitar el bug de ejecución automática.
     const planConfig = OFFICIAL_PLANS[selected];
     
-    // DEFINICIÓN DE PARÁMETROS EXACTOS
-    const rpcParams = {
-      p_plan_name: selected,             // String
-      p_amount: Number(planConfig.amount), // Number (Garantiza 99.00 para Power)
-      p_monthly_limit: Number(planConfig.limit) // Number
-    };
-
-    try {
-      // SE RESTAURA EL NOMBRE DE LA FUNCIÓN A 'purchase_subscription' SEGÚN LA SOLICITUD
-      // Se mantiene la eliminación del parámetro de usuario ya que el backend lo detecta por sesión
-      const { error } = await supabase.rpc('purchase_subscription', rpcParams);
-
-      if (error) throw error;
-
-      // Navegación al resumen inyectando el estado blindado
-      navigate('/onboarding/summary', { 
-        state: { 
-          planName: rpcParams.p_plan_name,
-          price: rpcParams.p_amount,
-          monthlyLimit: rpcParams.p_monthly_limit
-        } 
-      });
-    } catch (error) {
-      console.error("Error en purchase_subscription RPC:", error);
-      // Fallback UI para permitir flujo de navegación si el RPC tiene delay o error momentáneo
-      navigate('/onboarding/summary', { 
-        state: { 
-          planName: rpcParams.p_plan_name,
-          price: rpcParams.p_amount,
-          monthlyLimit: rpcParams.p_monthly_limit
-        } 
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    navigate('/onboarding/summary', { 
+      state: { 
+        planName: selected,
+        price: planConfig.amount,
+        monthlyLimit: planConfig.limit
+      } 
+    });
   };
 
   return (
@@ -175,19 +144,14 @@ const PlanSelect: React.FC = () => {
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 to-transparent z-40">
                 <button 
                     onClick={handleNext}
-                    disabled={isSubmitting}
                     className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.99] transition-all text-white font-black h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
                 >
                     <div className="w-12"></div>
                     <span className="text-lg tracking-wide z-10 uppercase text-[15px]">
-                      {isSubmitting ? 'Procesando...' : `Suscribirse al Plan ${selected}`}
+                      Configurar Plan {selected}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm z-10 group-hover:bg-white/30 transition-colors">
-                        {isSubmitting ? (
-                          <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        ) : (
-                          <span className="material-symbols-outlined text-white text-[24px]">arrow_forward</span>
-                        )}
+                        <span className="material-symbols-outlined text-white text-[24px]">arrow_forward</span>
                     </div>
                 </button>
             </div>
