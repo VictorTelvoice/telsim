@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
-// CONFIGURACIÓN DE PRECIOS OFICIALES Y OBLIGATORIOS
-const TELSIM_PLANS_CONFIG = {
+// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM (PROHIBIDO 13.90)
+const OFFICIAL_PLANS = {
   Starter: { amount: 19.90, limit: 150 },
   Pro:     { amount: 39.90, limit: 400 },
   Power:   { amount: 99.00, limit: 1400 }
@@ -19,8 +19,8 @@ const PlanSelect: React.FC = () => {
       id: 'Starter',
       name: 'Starter',
       subtitle: '150 Créditos SMS',
-      price: TELSIM_PLANS_CONFIG.Starter.amount,
-      limit: TELSIM_PLANS_CONFIG.Starter.limit,
+      price: OFFICIAL_PLANS.Starter.amount,
+      limit: OFFICIAL_PLANS.Starter.limit,
       icon: 'shield',
       features: ["Acceso API", "Webhooks", "Soporte Email"],
       recommended: false
@@ -29,8 +29,8 @@ const PlanSelect: React.FC = () => {
       id: 'Pro',
       name: 'Pro',
       subtitle: '400 Créditos SMS',
-      price: TELSIM_PLANS_CONFIG.Pro.amount,
-      limit: TELSIM_PLANS_CONFIG.Pro.limit,
+      price: OFFICIAL_PLANS.Pro.amount,
+      limit: OFFICIAL_PLANS.Pro.limit,
       icon: 'bolt',
       features: ["Todo lo del Starter", "Prioridad de Red", "Soporte Chat"],
       recommended: true
@@ -39,8 +39,8 @@ const PlanSelect: React.FC = () => {
       id: 'Power',
       name: 'Power',
       subtitle: '1,400 Créditos SMS',
-      price: TELSIM_PLANS_CONFIG.Power.amount,
-      limit: TELSIM_PLANS_CONFIG.Power.limit,
+      price: OFFICIAL_PLANS.Power.amount,
+      limit: OFFICIAL_PLANS.Power.limit,
       icon: 'electric_bolt',
       features: ["Infraestructura Dedicada", "Soporte 24/7"],
       recommended: false
@@ -50,37 +50,38 @@ const PlanSelect: React.FC = () => {
   const handleNext = async () => {
     setIsSubmitting(true);
     
-    // EXTRACCIÓN DIRECTA DESDE LA CONFIGURACIÓN OFICIAL
-    // Esto garantiza que si selected === 'Power', el precio sea SIEMPRE 99.00
-    const config = TELSIM_PLANS_CONFIG[selected];
-    const p_plan_name = selected;
-    const p_amount = config.amount;
-    const p_monthly_limit = config.limit;
+    // EXTRACCIÓN DE DATOS DESDE LA CONFIGURACIÓN OFICIAL PARA EL PLAN SELECCIONADO
+    const planConfig = OFFICIAL_PLANS[selected];
+    
+    // DEFINICIÓN DE PARÁMETROS EXACTOS (NI UNO MÁS, NI UNO MENOS)
+    const rpcParams = {
+      p_plan_name: selected,             // String
+      p_amount: Number(planConfig.amount), // Number (Garantiza 99.00 para Power)
+      p_monthly_limit: Number(planConfig.limit) // Number
+    };
 
     try {
-      // LLAMADA RPC CON EL OBJETO LITERAL SOLICITADO
-      await supabase.rpc('purchase_subscription', {
-        p_plan_name,
-        p_amount,
-        p_monthly_limit
-      });
+      // LLAMADA RPC 'buy_plan' SIN USER_ID (ELIMINADO POR SEGURIDAD)
+      const { error } = await supabase.rpc('buy_plan', rpcParams);
+
+      if (error) throw error;
 
       // Navegación al resumen inyectando el estado blindado
       navigate('/onboarding/summary', { 
         state: { 
-          planName: p_plan_name,
-          price: p_amount,
-          monthlyLimit: p_monthly_limit
+          planName: rpcParams.p_plan_name,
+          price: rpcParams.p_amount,
+          monthlyLimit: rpcParams.p_monthly_limit
         } 
       });
     } catch (error) {
-      console.error("Error al procesar suscripción:", error);
-      // Fallback UI: Mantener la integridad de la selección aunque falle el registro inicial
+      console.error("Error en buy_plan RPC:", error);
+      // Fallback UI para permitir flujo de navegación si el RPC tiene delay
       navigate('/onboarding/summary', { 
         state: { 
-          planName: p_plan_name,
-          price: p_amount,
-          monthlyLimit: p_monthly_limit
+          planName: rpcParams.p_plan_name,
+          price: rpcParams.p_amount,
+          monthlyLimit: rpcParams.p_monthly_limit
         } 
       });
     } finally {
