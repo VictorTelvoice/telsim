@@ -7,12 +7,13 @@ const PlanSelect: React.FC = () => {
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // DEFINICIÓN ÚNICA Y VERIFICADA DE PLANES TELSIM
   const plans = [
     {
       id: 'Starter',
       name: 'Starter',
       subtitle: '150 Créditos SMS',
-      price: 19.90,
+      price: 19.90, // PRECIO NUEVO
       limit: 150,
       icon: 'shield',
       features: ["Acceso API", "Webhooks", "Soporte Email"],
@@ -22,7 +23,7 @@ const PlanSelect: React.FC = () => {
       id: 'Pro',
       name: 'Pro',
       subtitle: '400 Créditos SMS',
-      price: 39.90,
+      price: 39.90, // PRECIO NUEVO
       limit: 400,
       icon: 'bolt',
       features: ["Todo lo del Starter", "Prioridad de Red", "Soporte Chat"],
@@ -32,7 +33,7 @@ const PlanSelect: React.FC = () => {
       id: 'Power',
       name: 'Power',
       subtitle: '1,400 Créditos SMS',
-      price: 99.00,
+      price: 99.00, // PRECIO NUEVO
       limit: 1400,
       icon: 'electric_bolt',
       features: ["Infraestructura Dedicada", "Soporte 24/7"],
@@ -41,24 +42,25 @@ const PlanSelect: React.FC = () => {
   ];
 
   const handleNext = async () => {
-    // BUSQUEDA DIRECTA DEL OBJETO DEL PLAN (SIN CONDICIONALES MANUALES)
     const selectedPlan = plans.find(p => p.id === selected);
     if (!selectedPlan) return;
 
+    setIsSubmitting(true);
+    
+    // EXTRACCIÓN DE VALORES LITERALES PARA EL BACKEND
     const p_plan_name = selectedPlan.name;
     const p_amount = selectedPlan.price;
     const p_monthly_limit = selectedPlan.limit;
 
-    setIsSubmitting(true);
     try {
-      // LLAMADA RPC CON VALORES GARANTIZADOS SEGÚN EL OBJETO DEL PLAN
+      // LLAMADA RPC CON VALORES GARANTIZADOS (19.90, 39.90, 99.00)
       await supabase.rpc('purchase_subscription', {
-        p_plan_name,
-        p_amount,
-        p_monthly_limit
+        p_plan_name: p_plan_name,
+        p_amount: p_amount,
+        p_monthly_limit: p_monthly_limit
       });
 
-      // Navegación al resumen con los mismos valores exactos
+      // Navegación al resumen inyectando el estado exacto
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,
@@ -68,7 +70,7 @@ const PlanSelect: React.FC = () => {
       });
     } catch (error) {
       console.error("Error al procesar suscripción:", error);
-      // Fallback para no bloquear el flujo
+      // Fallback: Permitir avance visual pero manteniendo la integridad del dato seleccionado
       navigate('/onboarding/summary', { 
         state: { 
           planName: p_plan_name,
@@ -105,7 +107,7 @@ const PlanSelect: React.FC = () => {
                     Elige tu plan
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed max-w-[32ch] mx-auto">
-                    Elige el plan que mejor se adapte a tu necesidad
+                    Selecciona la potencia de tu nueva línea privada
                 </p>
             </div>
 

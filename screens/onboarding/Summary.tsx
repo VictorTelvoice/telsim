@@ -5,9 +5,9 @@ const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Extraemos los datos del estado de navegación para evitar precios hardcoded
+  // EXTRAEMOS LOS DATOS O USAMOS LOS NUEVOS VALORES BASE DE SEGURIDAD
   const planName = location.state?.planName || 'Pro';
-  const planPrice = location.state?.price || 39.90;
+  const planPrice = location.state?.price || 39.90; // ACTUALIZADO: YA NO HAY 13.90
   const monthlyLimit = location.state?.monthlyLimit || 400;
   
   const priceString = `$${Number(planPrice).toFixed(2)}`;
@@ -74,7 +74,7 @@ const Summary: React.FC = () => {
                         <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3.5 flex items-start gap-3">
                             <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{fontSize: '20px'}}>check_circle</span>
                             <div className="flex flex-col">
-                                <p className="text-emerald-800 dark:text-emerald-300 text-sm font-bold leading-tight mb-1">Prueba Gatuita Activa</p>
+                                <p className="text-emerald-800 dark:text-emerald-300 text-sm font-bold leading-tight mb-1">Prueba Gratuita Activa</p>
                                 <p className="text-emerald-700 dark:text-emerald-400/80 text-xs font-medium leading-relaxed">No se te cobrará nada durante los primeros 15 días.</p>
                             </div>
                         </div>

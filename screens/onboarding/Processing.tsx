@@ -20,7 +20,7 @@ const Processing: React.FC = () => {
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3500));
       
       try {
-        // CORRECCIÓN: Se extraen los datos del estado priorizando la selección real del usuario
+        // CORRECCIÓN: SE ELIMINAN FALLBACKS ANTIGUOS. SOLO VALORES 19.90, 39.90 O 99.00
         const planName = location.state?.planName || 'Pro';
         const planPrice = location.state?.price || (planName === 'Power' ? 99.00 : (planName === 'Starter' ? 19.90 : 39.90));
         const monthlyLimit = location.state?.monthlyLimit || (planName === 'Power' ? 1400 : (planName === 'Starter' ? 150 : 400));
@@ -58,7 +58,7 @@ const Processing: React.FC = () => {
 
             if (updateError) throw updateError;
             
-            // Crear registro de suscripción
+            // Crear registro de suscripción con el precio exacto (NUEVO)
             await supabase.from('subscriptions').insert([{
                 user_id: realUserId,
                 plan_name: planName, 
