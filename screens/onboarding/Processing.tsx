@@ -10,35 +10,34 @@ const Processing: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const [currentStep, setCurrentStep] = useState('Verificando credenciales...');
+  const [currentStep, setCurrentStep] = useState('Verificando parámetros...');
   
-  // 1. REFERENCIA DE BLOQUEO: Garantiza ejecución ÚNICA incluso en StrictMode
-  const hasProcessedRef = useRef(false);
+  // 1. REFERENCIA DE BLOQUEO CRÍTICO
+  const isSubmitting = useRef(false);
 
-  // Validación previa de datos del estado para evitar disparos accidentales
+  // Validación de datos de entrada: Si no hay plan real, abortamos antes de cualquier efecto
   const planData = location.state;
   if (!planData || !planData.planName || !planData.price) {
-    console.warn("Acceso a Processing sin datos de plan válidos.");
+    console.error("Error: Intento de suscripción sin datos de plan válidos.");
     return <Navigate to="/onboarding/plan" replace />;
   }
 
   useEffect(() => {
     const processActivation = async () => {
-      // 2. CONTROL DE FLUJO: Si ya procesó, salir inmediatamente
-      if (hasProcessedRef.current) return;
-      hasProcessedRef.current = true;
+      // 2. VERIFICACIÓN DE BLOQUEO (Evita doble disparo por Re-renders)
+      if (isSubmitting.current) return;
 
-      // Tiempo mínimo de animación para UX (3.8 segundos)
+      // Tiempo de animación para feedback visual
       const animationPromise = new Promise(resolve => setTimeout(resolve, 3800));
       
       try {
-        // VALIDACIÓN ESTRICTA DE DATOS (No aceptamos 'started' o valores nulos)
+        // CAPTURA DE DATOS REALES (Sin fallbacks genéricos como 'started')
         const planName = planData.planName; 
         const planPrice = Number(planData.price);
         const monthlyLimit = Number(planData.monthlyLimit);
 
         if (isNaN(planPrice) || planPrice <= 0) {
-          throw new Error("Monto de suscripción inválido.");
+          throw new Error("Monto de suscripción inválido detectado.");
         }
         
         const realUserId = user?.id;
@@ -47,33 +46,35 @@ const Processing: React.FC = () => {
             return;
         }
 
-        setCurrentStep('Conectando con el Nodo Físico TELSIM...');
+        setCurrentStep('Sincronizando con el Nodo TELSIM...');
 
-        // 3. EJECUCIÓN SINCRONIZADA DEL RPC
+        // 3. BLOQUEO JUSTO ANTES DE LA LLAMADA RPC
+        if (isSubmitting.current) return; // Doble chequeo de seguridad
+        isSubmitting.current = true;
+
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
-            p_plan_name: planName, // 'Starter', 'Pro' o 'Power'
-            p_amount: planPrice,   // Ej: 19.90
+            p_plan_name: planName, 
+            p_amount: planPrice,   // Enviando valor real (ej. 19.9)
             p_monthly_limit: monthlyLimit
         });
 
         if (rpcError) {
-          console.error("Error retornado por el RPC:", rpcError);
+          isSubmitting.current = false; // Liberamos el lock solo si hay error para permitir reintento si el componente no se desmonta
+          console.error("Error en purchase_subscription:", rpcError);
           throw rpcError;
         }
 
-        // 4. CAPTURA OBLIGATORIA DEL NÚMERO
-        // El RPC debe devolver el objeto { phoneNumber: '...' }
+        // 4. VALIDACIÓN DE RESPUESTA REAL
         const finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
         const assignedPortId = rpcResult?.portId || rpcResult?.port_id;
 
-        // Si el backend no devuelve un número, NO procedemos al éxito
         if (!finalNumber || finalNumber === '') {
-          throw new Error("Sincronización fallida: El nodo no devolvió una numeración activa.");
+          throw new Error("El nodo no devolvió una numeración válida.");
         }
 
         setCurrentStep('Sincronizando puerto: ' + finalNumber);
 
-        // Webhook de logística (Opcional, no bloqueante)
+        // Notificación logística
         try {
           fetch('https://hook.us2.make.com/xd3rqv1okcxw8mpn5v2rdp6uu545l7m5', {
             method: 'POST',
@@ -95,8 +96,8 @@ const Processing: React.FC = () => {
         nextMonth.setMonth(now.getMonth() + 1);
         
         addNotification({
-          title: 'Puerto Activado',
-          message: `Tu línea ${finalNumber} ya está en línea.`,
+          title: 'SIM Activada',
+          message: `Línea ${finalNumber} aprovisionada correctamente.`,
           icon: 'sim_card',
           type: 'activation',
           details: {
@@ -108,10 +109,9 @@ const Processing: React.FC = () => {
           }
         });
 
-        // Aseguramos que la animación visual se complete antes de la transición
         await animationPromise;
         
-        // NAVEGACIÓN SÓLO CON NÚMERO REAL
+        // NAVEGACIÓN EXITOSA CON DATOS VERIFICADOS
         navigate('/onboarding/success', { 
           state: { 
             assignedNumber: finalNumber, 
@@ -121,11 +121,11 @@ const Processing: React.FC = () => {
         });
 
       } catch (error: any) {
-        console.error("Fallo crítico en Processing:", error);
+        isSubmitting.current = false;
+        console.error("Fallo crítico en flujo de activación:", error);
         setCurrentStep('Error de provisión...');
         await animationPromise;
         
-        // En caso de error, Success recibirá null y mostrará el estado de error, NO ceros.
         navigate('/onboarding/success', { 
           state: { 
             assignedNumber: null, 
