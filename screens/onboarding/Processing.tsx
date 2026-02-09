@@ -20,14 +20,14 @@ const Processing: React.FC = () => {
 
   const planData = location.state;
 
-  // Validación de integridad de datos de entrada
-  if (!planData || !planData.planName || !planData.price) {
-    return <Navigate to="/onboarding/plan" replace />;
+  // Validación preventiva: Aunque permitimos fallbacks, necesitamos una sesión de usuario
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   useEffect(() => {
     const startProvisioning = async () => {
-      // Protección contra múltiples señales de activación
+      // Protección contra múltiples señales de activación simultáneas
       if (isSubmitting.current) return;
       isSubmitting.current = true;
 
@@ -37,16 +37,20 @@ const Processing: React.FC = () => {
       }, 400);
 
       try {
-        const { planName, price, monthlyLimit } = planData;
+        // REGLA DE HIERRO: Valores por defecto si planData está vacío
+        const planName = planData?.planName || 'Starter';
+        const price = planData?.price || 39.90;
+        const monthlyLimit = planData?.monthlyLimit || 500;
         const userId = user?.id;
 
-        if (!userId) throw new Error("Sesión expirada. Por favor, re-autentícate.");
+        // LOG DE DEPURACIÓN EXIGIDO
+        console.log('Enviando:', planName);
 
         setCurrentStep('Sincronizando con el nodo físico...');
 
-        // LLAMADA RPC ESTRICTA (Sin plan_type, solo plan_name)
+        // LLAMADA RPC ESTRICTA (Coincidencia exacta con parámetros SQL)
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
-          p_plan_name: planName || 'Standard',
+          p_plan_name: planName,
           p_amount: Number(price),
           p_monthly_limit: Number(monthlyLimit)
         });
@@ -56,6 +60,7 @@ const Processing: React.FC = () => {
           throw rpcError;
         }
 
+        // Extracción de número asignado por el nodo
         const finalNumber = rpcResult?.phone_number || rpcResult?.phoneNumber;
 
         setProgress(100);
@@ -75,18 +80,18 @@ const Processing: React.FC = () => {
           }
         });
 
-        // Delay para confirmación visual
+        // Delay para confirmación visual del 100%
         await new Promise(resolve => setTimeout(resolve, 800));
         
-        // Redirección con parámetros limpios
+        // Redirección con parámetros limpios para Success.tsx
         const numberParam = finalNumber ? `&assignedNumber=${encodeURIComponent(finalNumber)}` : '';
         navigate(`/onboarding/success?planName=${encodeURIComponent(planName)}${numberParam}`, { 
           replace: true 
         });
 
       } catch (err: any) {
-        console.error("Fallo crítico de red:", err);
-        setErrorState(err.message || "Error de conexión con el nodo de red.");
+        console.error("Fallo crítico de red TELSIM:", err);
+        setErrorState(err.message || "Error de conexión con el nodo de red físico.");
         isSubmitting.current = false;
       } finally {
         clearInterval(progressInterval);
@@ -98,6 +103,7 @@ const Processing: React.FC = () => {
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
+      {/* Background Ambience */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
         <div className="w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-pulse"></div>
       </div>
@@ -129,7 +135,7 @@ const Processing: React.FC = () => {
               </div>
             </div>
 
-            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-4">Aprovisionando</h2>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-4">Sincronizando</h2>
             
             <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mb-6 overflow-hidden shadow-inner">
               <div 
@@ -149,7 +155,7 @@ const Processing: React.FC = () => {
 
       <div className="absolute bottom-12 w-full text-center opacity-30">
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">
-          TELSIM CORE INFRASTRUCTURE v7.2
+          TELSIM CORE INFRASTRUCTURE v7.5
         </p>
       </div>
     </div>

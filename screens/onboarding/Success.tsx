@@ -20,11 +20,11 @@ const Success: React.FC = () => {
 
   // Estados dinámicos para recuperación de datos
   const [assignedNumber, setAssignedNumber] = useState<string | null>(searchParams.get('assignedNumber'));
-  const [planName, setPlanName] = useState<string>(searchParams.get('planName') || 'Pro');
+  const [planName, setPlanName] = useState<string>(searchParams.get('planName') || 'Standard');
   const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(assignedNumber ? 'success' : 'syncing');
   const [showContent, setShowContent] = useState(false);
 
-  // PROTOCOLO DE RESCATE: Un solo intento de búsqueda directa en el ledger de suscripciones
+  // PROTOCOLO DE RESCATE: Búsqueda directa en el ledger de suscripciones si el número no está en URL
   const performRescueLookup = useCallback(async () => {
     if (!user) return;
 
@@ -88,7 +88,7 @@ const Success: React.FC = () => {
 
   const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
-  // UI: Sincronizando con el nodo físico...
+  // UI: Sincronizando con el nodo físico... (Intento de rescate)
   if (status === 'syncing') {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
@@ -117,7 +117,7 @@ const Success: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Fallo de Puerto</h1>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-10 leading-relaxed">
-          No se detectó un puerto activo en tu cuenta. Por favor, verifica tu panel en unos instantes.
+          No se detectó un puerto activo en tu cuenta. Por favor, verifica tu panel de control en unos instantes.
         </p>
         <button 
           onClick={() => navigate('/dashboard')}
@@ -202,7 +202,7 @@ const Success: React.FC = () => {
 
         <div className="mt-12 flex items-center gap-2 opacity-30">
           <ShieldCheck className="size-4" />
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v7.2</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v7.5</span>
         </div>
       </div>
     </div>
