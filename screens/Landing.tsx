@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,15 +6,16 @@ import { ShieldCheck, ArrowRight, Check, Lock } from 'lucide-react';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, hasActiveSubscription } = useAuth();
   const { t } = useLanguage();
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
-      navigate('/dashboard');
+    // Si el usuario está logueado y ya tiene una suscripción activa, va directo al dashboard
+    if (!loading && user && hasActiveSubscription) {
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, hasActiveSubscription, navigate]);
 
   if (loading) return null;
 
@@ -41,9 +41,15 @@ const Landing: React.FC = () => {
               <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white uppercase">Telsim</span>
             </div>
           </div>
-          <button className="text-primary dark:text-blue-400 font-bold text-sm hover:opacity-80 transition-opacity" onClick={() => navigate('/login')}>
-            Login
-          </button>
+          {!user ? (
+            <button className="text-primary dark:text-blue-400 font-bold text-sm hover:opacity-80 transition-opacity" onClick={() => navigate('/login')}>
+              Login
+            </button>
+          ) : (
+            <button className="text-primary dark:text-blue-400 font-bold text-sm hover:opacity-80 transition-opacity" onClick={() => navigate('/dashboard')}>
+              Dashboard
+            </button>
+          )}
         </div>
       </nav>
 
@@ -62,43 +68,45 @@ const Landing: React.FC = () => {
           </p>
         </div>
 
-        {/* Pricing/Trial Highlight Card */}
-        <div className="relative bg-white dark:bg-surface-dark rounded-[2.5rem] shadow-soft p-8 border border-slate-100 dark:border-slate-700/50 overflow-hidden transform transition hover:scale-[1.01]">
-          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-5 py-2.5 rounded-bl-[2rem] shadow-md uppercase tracking-widest">
-            {t('landing.offer')}
-          </div>
-          
-          <div className="mb-8 pt-2">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2">PRUEBA TELSIM</p>
-            <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-              <h2 className="text-4xl font-black text-emerald-500 tracking-tighter">{t('landing.free_trial')}</h2>
+        {/* Solo mostramos la oferta si no tiene suscripción activa */}
+        {!hasActiveSubscription && (
+          <div className="relative bg-white dark:bg-surface-dark rounded-[2.5rem] shadow-soft p-8 border border-slate-100 dark:border-slate-700/50 overflow-hidden transform transition hover:scale-[1.01]">
+            <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-5 py-2.5 rounded-bl-[2rem] shadow-md uppercase tracking-widest">
+              {t('landing.offer')}
             </div>
-            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 italic">{t('landing.then')}</p>
-          </div>
-
-          <div className="space-y-5">
-            {[
-              t('landing.feature1'),
-              t('landing.feature2'),
-              t('landing.feature3')
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5 shadow-sm">
-                  <Check className="text-white size-4 stroke-[3px]" />
-                </div>
-                <span className="text-[15px] font-bold text-slate-700 dark:text-slate-200 tracking-tight">{item}</span>
+            
+            <div className="mb-8 pt-2">
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2">PRUEBA TELSIM</p>
+              <div className="flex items-baseline gap-2 mb-1 flex-wrap">
+                <h2 className="text-4xl font-black text-emerald-500 tracking-tighter">{t('landing.free_trial')}</h2>
               </div>
-            ))}
+              <p className="text-sm font-bold text-slate-400 dark:text-slate-500 italic">{t('landing.then')}</p>
+            </div>
+
+            <div className="space-y-5">
+              {[
+                t('landing.feature1'),
+                t('landing.feature2'),
+                t('landing.feature3')
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5 shadow-sm">
+                    <Check className="text-white size-4 stroke-[3px]" />
+                  </div>
+                  <span className="text-[15px] font-bold text-slate-700 dark:text-slate-200 tracking-tight">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* CTA Section */}
         <div className="flex flex-col gap-4">
           <button 
-            onClick={() => navigate('/onboarding/region')}
+            onClick={() => navigate(hasActiveSubscription ? '/dashboard' : '/onboarding/region')}
             className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black h-16 rounded-2xl shadow-button flex items-center justify-center gap-3 text-[17px] uppercase tracking-widest"
           >
-            {t('landing.cta')}
+            {hasActiveSubscription ? 'Ir a mi Panel' : t('landing.cta')}
             <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
           </button>
           <div className="flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM (PROHIBIDO 13.90)
 const OFFICIAL_PLANS = {
   Starter: { amount: 19.90, limit: 150 },
   Pro:     { amount: 39.90, limit: 400 },
@@ -10,6 +10,7 @@ const OFFICIAL_PLANS = {
 
 const PlanSelect: React.FC = () => {
   const navigate = useNavigate();
+  const { loading } = useAuth();
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
 
   const plans = [
@@ -46,10 +47,7 @@ const PlanSelect: React.FC = () => {
   ];
 
   const handleNext = () => {
-    // Solo navegamos al resumen inyectando el estado. 
-    // La suscripción NO se procesa aquí para evitar el bug de ejecución automática.
     const planConfig = OFFICIAL_PLANS[selected];
-    
     navigate('/onboarding/summary', { 
       state: { 
         planName: selected,
@@ -59,31 +57,25 @@ const PlanSelect: React.FC = () => {
     });
   };
 
+  if (loading) return null;
+
   return (
     <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 relative overflow-x-hidden font-display">
-        <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-900/10 pointer-events-none"></div>
-        
         <main className="w-full max-w-md mx-auto px-6 py-4 flex flex-col h-full min-h-[100dvh] pb-32">
             <header className="flex items-center justify-between mb-6 relative z-10 pt-2">
                 <button onClick={() => navigate('/onboarding/region')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                     <span className="material-symbols-outlined text-slate-900 dark:text-white">arrow_back</span>
                 </button>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Marketplace</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Suscripción</h2>
                 <div className="w-10"></div> 
             </header>
 
-            <div className="flex gap-2 mb-8 w-full px-1">
-                <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                <div className="h-1.5 flex-1 rounded-full bg-primary"></div>
-                <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-            </div>
-
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-3">
-                    Elige tu plan
+                    Elige el plan
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed max-w-[32ch] mx-auto">
-                    Selecciona la potencia de tu nueva línea privada
+                    Añade una nueva línea de alta potencia a tu panel.
                 </p>
             </div>
 
@@ -110,45 +102,28 @@ const PlanSelect: React.FC = () => {
                                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">{plan.subtitle}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                {plan.recommended && (
-                                  <span className="bg-primary/10 text-primary text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest">Recomendado</span>
-                                )}
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                                  selected === plan.id ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'
-                                }`}>
-                                    {selected === plan.id && <span className="material-symbols-outlined text-white text-[16px] font-black">check</span>}
-                                </div>
-                            </div>
+                            {plan.recommended && (
+                              <span className="bg-primary/10 text-primary text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest">Top Ventas</span>
+                            )}
                         </div>
-                        <div className="mb-5 border-b border-slate-100 dark:border-slate-700 pb-4">
+                        <div className="mb-2">
                             <div className="flex items-baseline gap-1">
                                 <span className="text-3xl font-extrabold text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
                                 <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">/mes</span>
                             </div>
                         </div>
-                        <ul className="space-y-3">
-                            {plan.features.map((feat, i) => (
-                                <li key={i} className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300 font-medium">
-                                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined text-primary dark:text-blue-400 text-[14px] font-black">check</span>
-                                    </div>
-                                    {feat}
-                                </li>
-                            ))}
-                        </ul>
                     </div>
                 ))}
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 to-transparent z-40">
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 dark:via-background-dark/90 to-transparent z-40">
                 <button 
                     onClick={handleNext}
                     className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.99] transition-all text-white font-black h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
                 >
                     <div className="w-12"></div>
                     <span className="text-lg tracking-wide z-10 uppercase text-[15px]">
-                      Configurar Plan {selected}
+                      Configurar Nueva Línea
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm z-10 group-hover:bg-white/30 transition-colors">
                         <span className="material-symbols-outlined text-white text-[24px]">arrow_forward</span>
