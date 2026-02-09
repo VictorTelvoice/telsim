@@ -1,21 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const Success: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t } = useLanguage();
   const [showContent, setShowContent] = useState(false);
   
-  // GUARD: Si no hay estado de navegación, algo rompió el flujo
-  if (!location.state) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const assignedNumber = location.state?.assignedNumber;
-  const isError = location.state?.error || !assignedNumber;
-  const planName = location.state?.planName || 'Flex';
+  // Leemos desde Query Params (más robusto que state)
+  const assignedNumber = searchParams.get('assignedNumber');
+  const planName = searchParams.get('planName') || 'Pro';
+  const isError = !assignedNumber;
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 150);
@@ -56,7 +52,7 @@ const Success: React.FC = () => {
 
   const handleCopy = () => {
     if (isError) return;
-    const formatted = formatPhoneNumber(assignedNumber);
+    const formatted = formatPhoneNumber(assignedNumber!);
     navigator.clipboard.writeText(formatted);
     showToast("Número Copiado");
   };
@@ -64,7 +60,7 @@ const Success: React.FC = () => {
   const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden transition-colors duration-500">
+    <div className="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
         
         {/* Decorative Ambience */}
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden select-none">
@@ -95,12 +91,12 @@ const Success: React.FC = () => {
                 </div>
                 <div className="space-y-3 px-4">
                     <h1 className="text-3xl font-black text-[#111318] dark:text-white tracking-tight uppercase">
-                        {isError ? 'Fallo en la línea' : '¡Línea Activa!'}
+                        {isError ? 'Fallo de Activación' : '¡Línea Activa!'}
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[30ch] mx-auto">
                         {isError 
-                          ? 'Hubo un problema al provisionar tu puerto físico. Por favor intenta de nuevo.' 
-                          : 'Tu nuevo puerto físico ha sido sincronizado exitosamente con la red 4G LTE.'}
+                          ? 'Hubo un problema al provisionar tu puerto físico. Inténtalo de nuevo o contacta a soporte.' 
+                          : 'Tu nuevo puerto físico ha sido sincronizado exitosamente con la red TELSIM.'}
                     </p>
                 </div>
             </div>
