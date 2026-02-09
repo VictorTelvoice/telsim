@@ -18,20 +18,20 @@ const Success: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
 
-  // Estados iniciales basados en parámetros de URL
+  // Estados dinámicos para recuperación de datos
   const [assignedNumber, setAssignedNumber] = useState<string | null>(searchParams.get('assignedNumber'));
-  const [planName] = useState(searchParams.get('planName') || 'Pro');
+  const [planName, setPlanName] = useState<string>(searchParams.get('planName') || 'Pro');
   const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(assignedNumber ? 'success' : 'syncing');
   const [showContent, setShowContent] = useState(false);
 
-  // PROTOCOLO DE RESCATE: Un solo intento de búsqueda directa en base de datos
+  // PROTOCOLO DE RESCATE: Un solo intento de búsqueda directa en el ledger de suscripciones
   const performRescueLookup = useCallback(async () => {
     if (!user) return;
 
     try {
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('phone_number')
+        .select('phone_number, plan_name')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -42,18 +42,19 @@ const Success: React.FC = () => {
 
       if (data?.phone_number) {
         setAssignedNumber(data.phone_number);
+        if (data.plan_name) setPlanName(data.plan_name);
         setStatus('success');
       } else {
-        setStatus('error'); // Si tras el intento único no hay nada, reportamos error de puerto
+        setStatus('error'); // Fallo definitivo tras el intento de rescate
       }
     } catch (err) {
-      console.error("Fallo en rescate de puerto:", err);
+      console.error("Fallo crítico en rescate de puerto:", err);
       setStatus('error');
     }
   }, [user]);
 
   useEffect(() => {
-    // Si entramos sin número, activamos el intento único de rescate
+    // Si entramos sin número en la URL, activamos el modo rescate de base de datos
     if (!assignedNumber && status === 'syncing') {
       performRescueLookup();
     }
@@ -77,7 +78,7 @@ const Success: React.FC = () => {
     if (!assignedNumber) return;
     navigator.clipboard.writeText(formatPhoneNumber(assignedNumber));
     
-    // Feedback visual rápido
+    // Toast visual minimalista
     const toast = document.createElement('div');
     toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest z-50 shadow-2xl animate-in fade-in slide-in-from-bottom-2";
     toast.innerText = "Número Copiado";
@@ -87,7 +88,7 @@ const Success: React.FC = () => {
 
   const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
-  // ESTADO: Sincronizando con el nodo físico... (Intento de rescate en curso)
+  // UI: Sincronizando con el nodo físico...
   if (status === 'syncing') {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
@@ -107,7 +108,7 @@ const Success: React.FC = () => {
     );
   }
 
-  // ESTADO: Fallo de Puerto (Tras intento único fallido)
+  // UI: Fallo de Puerto (Tras rescate fallido)
   if (status === 'error') {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
@@ -116,7 +117,7 @@ const Success: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Fallo de Puerto</h1>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-10 leading-relaxed">
-          No pudimos localizar un puerto activo en tu cuenta. Por favor, verifica tu panel en unos instantes.
+          No se detectó un puerto activo en tu cuenta. Por favor, verifica tu panel en unos instantes.
         </p>
         <button 
           onClick={() => navigate('/dashboard')}
@@ -128,10 +129,8 @@ const Success: React.FC = () => {
     );
   }
 
-  // ESTADO: ÉXITO (Muestra el número activado)
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className="absolute top-1/4 left-1/4 size-64 bg-primary/20 rounded-full blur-[100px] animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 size-64 bg-emerald-500/20 rounded-full blur-[100px] animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -141,7 +140,7 @@ const Success: React.FC = () => {
         <div className="mb-12">
           <div className="relative mb-6 flex justify-center">
             <div className="absolute size-28 bg-emerald-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transform transition-transform hover:scale-105 active:rotate-2">
+            <div className="relative size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transform transition-transform hover:scale-105">
               <CheckCircle2 className="size-12 text-emerald-500" />
             </div>
           </div>
@@ -151,7 +150,6 @@ const Success: React.FC = () => {
           </p>
         </div>
 
-        {/* Tarjeta de Número */}
         <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden group">
           <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
           
@@ -181,7 +179,6 @@ const Success: React.FC = () => {
           </div>
         </div>
 
-        {/* Botones de Acción */}
         <div className="w-full space-y-4">
           <button 
             onClick={() => navigate('/dashboard')}
@@ -205,7 +202,7 @@ const Success: React.FC = () => {
 
         <div className="mt-12 flex items-center gap-2 opacity-30">
           <ShieldCheck className="size-4" />
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v7.0</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v7.2</span>
         </div>
       </div>
     </div>
