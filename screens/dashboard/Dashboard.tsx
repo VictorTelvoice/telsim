@@ -357,7 +357,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                                   {formatTime(msg.received_at)}
                               </span>
                           </div>
-                          <p className="text-[11px] font-medium text-slate-400 truncate">Vía Infraestructura TELSIM</p>
+                          <p className="text-[11px] font-medium text-slate-400 truncate">Origen: {msg.sender}</p>
                       </div>
                   </div>
                   
