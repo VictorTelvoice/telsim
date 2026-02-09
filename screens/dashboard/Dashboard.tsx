@@ -155,7 +155,7 @@ const UseCasesShowcase: React.FC = () => {
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {categories.map((cat) => (
+        {categories?.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id as CategoryId)}
@@ -171,7 +171,7 @@ const UseCasesShowcase: React.FC = () => {
       </div>
 
       <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-5 px-5 pb-4">
-        {USE_CASES[activeCategory].map((useCase, idx) => (
+        {USE_CASES[activeCategory]?.map((useCase, idx) => (
           <div
             key={idx}
             onClick={() => handleUseCaseClick(useCase)}
@@ -244,8 +244,8 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [user]);
 
-  const getPlanStyle = (plan: string) => {
-    const p = (plan || 'STARTER').toUpperCase();
+  const getPlanStyle = (plan: string | undefined | null) => {
+    const p = (plan || 'STARTER').toString().toUpperCase();
     if (p.includes('POWER')) {
       return {
         card: 'border-amber-200 dark:border-amber-700/50 shadow-[0_8px_30px_rgb(245,158,11,0.1)]',
@@ -316,7 +316,7 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {allSlots.map((slot) => {
+              {allSlots?.map((slot) => {
                 const style = getPlanStyle(slot.plan_type);
                 return (
                   <div 
@@ -328,7 +328,7 @@ const Dashboard: React.FC = () => {
                       <div className="absolute top-0 right-0">
                          <div className={`px-4 py-1.5 rounded-bl-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badge}`}>
                             {style.icon}
-                            {slot.plan_type}
+                            {(slot.plan_type || 'Starter').toString().toUpperCase()}
                          </div>
                       </div>
 
@@ -353,7 +353,7 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
                           <div className="flex items-center gap-1.5">
-                              <Zap className={`size-3 ${slot.plan_type.toUpperCase() === 'POWER' ? 'text-amber-500' : 'text-emerald-500'}`} />
+                              <Zap className={`size-3 ${(slot.plan_type || '').toString().toUpperCase() === 'POWER' ? 'text-amber-500' : 'text-emerald-500'}`} />
                               <span className="text-[10px] font-bold text-slate-400 uppercase">Puerto de Alta Potencia</span>
                           </div>
                           <button 
@@ -389,14 +389,14 @@ const Dashboard: React.FC = () => {
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Últimos Códigos</h3>
             </div>
             <div className="space-y-3">
-              {recentMessages.map((msg) => (
+              {recentMessages?.map((msg) => (
                 <div key={msg.id} className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                    <div className="flex items-center gap-3 overflow-hidden">
                       <div className="size-10 bg-blue-50 dark:bg-blue-900/30 text-primary rounded-xl flex items-center justify-center shrink-0">
                          <MessageSquare className="size-5" />
                       </div>
                       <div className="overflow-hidden">
-                         <h5 className="text-xs font-black truncate uppercase tracking-tight">{msg.service_name || msg.sender}</h5>
+                         <h5 className="text-xs font-black truncate uppercase tracking-tight">{(msg.service_name || msg.sender || 'Servicio').toString().toUpperCase()}</h5>
                          <p className="text-[9px] font-bold text-slate-400 truncate">Vía {formatPhoneNumber(allSlots.find(s => s.port_id === msg.slot_id)?.phone_number || '')}</p>
                       </div>
                    </div>

@@ -27,6 +27,7 @@ interface SlotWithSub extends Slot {
     credits_used: number;
     monthly_limit: number;
     plan_name: string;
+    alias?: string;
   } | null;
 }
 
@@ -68,7 +69,7 @@ const MyNumbers: React.FC = () => {
             // Obtenemos las suscripciones para ver los créditos (Relación por phone_number)
             const { data: subsData, error: subsError } = await supabase
                 .from('subscriptions')
-                .select('phone_number, credits_used, monthly_limit, plan_name')
+                .select('phone_number, credits_used, monthly_limit, plan_name, alias')
                 .eq('user_id', user.id)
                 .eq('status', 'active');
 
@@ -111,7 +112,8 @@ const MyNumbers: React.FC = () => {
 
     const handleStartEditLabel = (slot: SlotWithSub) => {
         setEditingLabelId(slot.port_id);
-        setTempLabelValue(slot.label || '');
+        // Priorizar alias de suscripción si existe
+        setTempLabelValue(slot.subscription?.alias || slot.label || '');
     };
 
     const handleCancelEditLabel = () => {
@@ -122,14 +124,26 @@ const MyNumbers: React.FC = () => {
     const handleSaveLabel = async (portId: string) => {
         setSavingLabel(true);
         try {
-            const { error } = await supabase
+            const slot = slots.find(s => s.port_id === portId);
+            if (!slot) return;
+
+            // Actualizar en slots y también en subscriptions si existe
+            const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ label: tempLabelValue })
                 .eq('port_id', portId);
             
-            if (error) throw error;
+            if (slotErr) throw slotErr;
+
+            if (slot.phone_number) {
+                await supabase
+                    .from('subscriptions')
+                    .update({ alias: tempLabelValue })
+                    .eq('phone_number', slot.phone_number)
+                    .eq('user_id', user?.id);
+            }
             
-            setSlots(prev => prev.map(s => s.port_id === portId ? { ...s, label: tempLabelValue } : s));
+            setSlots(prev => prev.map(s => s.port_id === portId ? { ...s, label: tempLabelValue, subscription: s.subscription ? { ...s.subscription, alias: tempLabelValue } : null } : s));
             setEditingLabelId(null);
         } catch (err) {
             console.error("Error saving label:", err);
@@ -138,17 +152,17 @@ const MyNumbers: React.FC = () => {
         }
     };
 
-    const formatPhoneNumber = (num: string) => {
+    const formatPhoneNumber = (num: string | undefined | null) => {
         if (!num) return '---';
         const cleaned = ('' + num).replace(/\D/g, '');
         if (cleaned.startsWith('569') && cleaned.length === 11) {
             return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
         }
-        return num.startsWith('+') ? num : `+${num}`;
+        return num.toString().startsWith('+') ? num.toString() : `+${num}`;
     };
 
-    const getPlanBadge = (plan: string | undefined) => {
-        const p = (plan || 'STARTER').toUpperCase();
+    const getPlanBadge = (plan: string | undefined | null) => {
+        const p = (plan || 'STARTER').toString().toUpperCase();
         if (p.includes('POWER')) return { 
             bg: 'bg-amber-500', 
             text: 'text-amber-500',
@@ -241,13 +255,16 @@ const MyNumbers: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {slots.map((slot) => {
+                        {slots?.map((slot) => {
                             const badge = getPlanBadge(slot.subscription?.plan_name || slot.plan_type);
                             const creditsUsed = slot.subscription?.credits_used || 0;
                             const monthlyLimit = slot.subscription?.monthly_limit || 0;
                             const usagePercent = monthlyLimit > 0 ? (creditsUsed / monthlyLimit) * 100 : 0;
                             const isNearLimit = usagePercent >= 90;
                             const isEditing = editingLabelId === slot.port_id;
+
+                            // Definir nombre de visualización seguro
+                            const displayName = (slot.subscription?.alias || slot.label || 'Línea SIM').toString().toUpperCase();
 
                             return (
                                 <div key={slot.port_id} className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-8 shadow-soft border border-slate-100 dark:border-slate-800 transition-all hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2">
@@ -276,7 +293,7 @@ const MyNumbers: React.FC = () => {
                                                     className="flex items-center gap-2 hover:opacity-70 transition-opacity"
                                                 >
                                                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] italic">
-                                                        {slot.label || 'Sin nombre (click para editar)'}
+                                                        {displayName}
                                                     </span>
                                                     <Pencil className="size-3 text-slate-300 group-hover:text-primary transition-colors" />
                                                 </button>
