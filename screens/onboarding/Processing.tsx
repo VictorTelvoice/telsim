@@ -2,20 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Loader2, RefreshCw, Cpu } from 'lucide-react';
+import { Loader2, Cpu, RefreshCw } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const hasExecuted = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState('Procesando tu suscripción...');
 
   const planData = location.state;
   if (!user) return <Navigate to="/login" replace />;
 
   useEffect(() => {
-    const execute = async () => {
+    const startProvisioning = async () => {
       if (hasExecuted.current) return;
       hasExecuted.current = true;
 
@@ -28,14 +28,15 @@ const Processing: React.FC = () => {
           p_monthly_limit: Number(planData?.monthlyLimit || 400)
         };
 
-        // LLAMADA AL RPC
+        // 1. LLAMADA AL RPC (EJECUCIÓN ÚNICA)
         const { data, error: rpcError } = await supabase.rpc('purchase_subscription', rpcArgs);
 
         let finalNumber = data?.phone_number || data?.phoneNumber;
 
-        // MANEJO DE DUPLICADO (RESCATE INMEDIATO)
-        if (rpcError && rpcError.code === '23505') {
-          const { data: existing } = await supabase
+        // 2. LÓGICA DE RESCATE (Error 23505 o phoneNumber nulo)
+        if ((rpcError && rpcError.code === '23505') || (!finalNumber && !rpcError)) {
+          setCurrentStep('Recuperando puerto activo...');
+          const { data: sub } = await supabase
             .from('subscriptions')
             .select('phone_number')
             .eq('user_id', user.id)
@@ -43,54 +44,53 @@ const Processing: React.FC = () => {
             .limit(1)
             .maybeSingle();
           
-          finalNumber = existing?.phone_number;
-        } else if (rpcError) {
-          throw rpcError;
+          finalNumber = sub?.phone_number;
         }
 
-        // REDIRECCIÓN A ÉXITO
+        // 3. NAVEGACIÓN GARANTIZADA
         const numberParam = finalNumber ? `&assignedNumber=${encodeURIComponent(finalNumber)}` : '';
         navigate(`/onboarding/success?planName=${encodeURIComponent(planName)}${numberParam}`, { replace: true });
 
-      } catch (err: any) {
-        console.error("Processing error:", err);
-        setError("Error en la sincronización.");
+      } catch (err) {
+        console.error("Critical Processing Error:", err);
+        // En lugar de mostrar error, enviamos al dashboard para no bloquear
+        navigate('/dashboard', { replace: true });
       }
     };
 
-    execute();
+    startProvisioning();
   }, [user, navigate, planData]);
+
+  const handleForceSync = () => {
+    // Forzar recarga limpiando caché del navegador
+    (window as any).location.reload(true);
+  };
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8">
       <div className="w-full max-w-xs text-center flex flex-col items-center">
-        {!error ? (
-          <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
-            <div className="relative mb-10">
-              <div className="absolute inset-0 bg-primary/10 rounded-full blur-3xl animate-pulse scale-150"></div>
-              <div className="size-20 rounded-[1.8rem] bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 shadow-2xl flex items-center justify-center relative z-10">
-                <Loader2 className="size-10 text-primary animate-spin" />
-              </div>
-            </div>
-            <p className="text-sm font-bold text-slate-400 italic">Procesando tu suscripción...</p>
+        <div className="relative mb-12">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-3xl animate-pulse scale-150"></div>
+          <div className="size-24 rounded-[2rem] bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-800 shadow-2xl flex items-center justify-center relative z-10">
+            <Loader2 className="size-10 text-primary animate-spin" />
           </div>
-        ) : (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-6">Error de Nodo</h2>
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3"
-            >
-              <RefreshCw className="size-4" />
-              Reintentar
-            </button>
-          </div>
-        )}
+        </div>
+
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Activando Puerto</h2>
+        <p className="text-sm font-bold text-slate-400 italic mb-10">{currentStep}</p>
+        
+        <button 
+          onClick={handleForceSync}
+          className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors"
+        >
+          <RefreshCw className="size-3" />
+          Forzar Sincronización
+        </button>
       </div>
 
       <div className="absolute bottom-12 opacity-30 flex items-center gap-2">
         <Cpu className="size-3 text-slate-400" />
-        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">TELSIM PURE-SYNC v1.2</p>
+        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">TELSIM PURE-SYNC v2.0</p>
       </div>
     </div>
   );

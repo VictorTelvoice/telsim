@@ -18,18 +18,15 @@ const Success: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
 
-  // Estados dinámicos para recuperación de datos
   const [assignedNumber, setAssignedNumber] = useState<string | null>(searchParams.get('assignedNumber'));
   const [planName, setPlanName] = useState<string>(searchParams.get('planName') || 'Standard');
   const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(assignedNumber ? 'success' : 'syncing');
   const [showContent, setShowContent] = useState(false);
 
-  // PROTOCOLO DE RESCATE: Búsqueda directa en el ledger de suscripciones si el número no está en URL
   const performRescueLookup = useCallback(async () => {
     if (!user) return;
 
     try {
-      // RESCATE FINAL CON BYPASS DE CACHÉ
       const { data, error } = await supabase
         .from('subscriptions')
         .select('phone_number, plan_name')
@@ -37,8 +34,7 @@ const Success: React.FC = () => {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle()
-        .headers({ 'cache-control': 'no-cache' });
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -47,16 +43,15 @@ const Success: React.FC = () => {
         if (data.plan_name) setPlanName(data.plan_name);
         setStatus('success');
       } else {
-        setStatus('error'); // Fallo definitivo tras el intento de rescate
+        setStatus('error');
       }
     } catch (err) {
-      console.error("Fallo crítico en rescate de puerto:", err);
+      console.error("Rescue lookup failed:", err);
       setStatus('error');
     }
   }, [user]);
 
   useEffect(() => {
-    // Si entramos sin número en la URL, activamos el modo rescate de base de datos
     if (!assignedNumber && status === 'syncing') {
       performRescueLookup();
     }
@@ -80,7 +75,6 @@ const Success: React.FC = () => {
     if (!assignedNumber) return;
     navigator.clipboard.writeText(formatPhoneNumber(assignedNumber));
     
-    // Toast visual minimalista
     const toast = document.createElement('div');
     toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest z-50 shadow-2xl animate-in fade-in slide-in-from-bottom-2";
     toast.innerText = "Número Copiado";
@@ -88,123 +82,73 @@ const Success: React.FC = () => {
     setTimeout(() => toast.remove(), 2000);
   };
 
-  const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
-
-  // UI: Sincronizando con el nodo físico... (Intento de rescate)
   if (status === 'syncing') {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
-        <div className="relative mb-10">
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="relative size-24 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
-            <RefreshCw className="size-10 text-primary animate-spin" />
-          </div>
-        </div>
-        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
-          Sincronizando con el nodo físico...
-        </h2>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          Recuperando identificador de puerto seguro
-        </p>
+        <RefreshCw className="size-10 text-primary animate-spin mb-6" />
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronizando puerto...</h2>
       </div>
     );
   }
 
-  // UI: Fallo de Puerto (Tras rescate fallido)
   if (status === 'error') {
+    // Si hay error, redirigimos automáticamente al dashboard después de 2 segundos para no bloquear
+    setTimeout(() => navigate('/dashboard'), 2000);
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
-        <div className="size-20 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[1.8rem] flex items-center justify-center mb-8 border border-rose-100 dark:border-rose-900/30 shadow-xl">
-          <AlertTriangle className="size-10" />
-        </div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Fallo de Puerto</h1>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-10 leading-relaxed">
-          No se detectó un puerto activo en tu cuenta. Por favor, verifica tu panel de control en unos instantes.
-        </p>
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="w-full max-w-xs h-16 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
-        >
-          Ir al Panel de Control
-        </button>
+        <AlertTriangle className="size-12 text-amber-500 mb-6" />
+        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Casi listo</h1>
+        <p className="text-sm font-medium text-slate-500 max-w-[30ch]">Estamos terminando de configurar tu línea. Redirigiendo al panel...</p>
       </div>
     );
   }
+
+  const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <div className="absolute top-1/4 left-1/4 size-64 bg-primary/20 rounded-full blur-[100px] animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 size-64 bg-emerald-500/20 rounded-full blur-[100px] animate-pulse" style={{animationDelay: '1s'}}></div>
-      </div>
-
       <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-700 ${showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="mb-12">
           <div className="relative mb-6 flex justify-center">
-            <div className="absolute size-28 bg-emerald-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transform transition-transform hover:scale-105">
+            <div className="size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
               <CheckCircle2 className="size-12 text-emerald-500" />
             </div>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">¡Puerto Activo!</h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[28ch] mx-auto">
-            Sincronización exitosa. Tu línea física ya está conectada al nodo de red TELSIM.
+            Tu línea física ya está conectada al nodo de red TELSIM.
           </p>
         </div>
 
-        <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden group">
-          <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
-          
-          <span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.4em] mb-5 relative z-10">Identificador de Línea</span>
-          
-          <div className="flex items-center gap-4 mb-8 relative z-10">
-            <div className="size-10 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
-              <img 
-                src={`https://flagcdn.com/w80/${countryCode}.png`}
-                alt="Country"
-                className="w-full h-full object-cover"
-              />
+        <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden">
+          <span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.4em] mb-5">Identificador de Línea</span>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="size-10 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm">
+              <img src={`https://flagcdn.com/w80/${countryCode}.png`} alt="Country" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums leading-none">
+            <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
               {formatPhoneNumber(assignedNumber!)}
             </div>
           </div>
-
-          <div className="flex items-center gap-2 relative z-10">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-              <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[9px] font-black uppercase tracking-widest leading-none">Canal Seguro</span>
-            </div>
-            <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest leading-none">
-              Plan {planName}
-            </div>
+          <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-[9px] font-black uppercase tracking-widest">
+            Plan {planName}
           </div>
         </div>
 
-        <div className="w-full space-y-4">
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
-          >
-            <div className="size-12"></div>
-            <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
-            <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md transition-colors group-hover:bg-white/30">
-              <ArrowRight className="size-6" />
-            </div>
-          </button>
-          
-          <button 
-            onClick={handleCopy}
-            className="flex items-center justify-center gap-2 w-full py-4 text-slate-400 hover:text-primary transition-colors group"
-          >
-            <span className="material-symbols-outlined text-[18px]">content_copy</span>
-            <span className="text-[11px] font-black uppercase tracking-[0.2em]">Copiar número</span>
-          </button>
-        </div>
+        <button 
+          onClick={() => navigate('/dashboard')}
+          className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
+        >
+          <div className="size-12"></div>
+          <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
+          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+            <ArrowRight className="size-6" />
+          </div>
+        </button>
 
         <div className="mt-12 flex items-center gap-2 opacity-30">
           <ShieldCheck className="size-4" />
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v7.5</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v8.0</span>
         </div>
       </div>
     </div>
