@@ -155,7 +155,7 @@ const UseCasesShowcase: React.FC = () => {
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {categories?.map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id as CategoryId)}
@@ -171,7 +171,7 @@ const UseCasesShowcase: React.FC = () => {
       </div>
 
       <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-5 px-5 pb-4">
-        {(USE_CASES[activeCategory] || [])?.map((useCase, idx) => (
+        {USE_CASES[activeCategory].map((useCase, idx) => (
           <div
             key={idx}
             onClick={() => handleUseCaseClick(useCase)}
@@ -187,10 +187,10 @@ const UseCasesShowcase: React.FC = () => {
               {useCase.icon}
             </div>
             <h4 className={`text-base font-black mb-2 leading-tight ${useCase.isPro ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-              {(useCase.title || 'Uso').toString()}
+              {useCase.title}
             </h4>
             <p className={`text-[11px] font-medium leading-relaxed mb-6 line-clamp-3 ${useCase.isPro ? 'text-white/60' : 'text-slate-500 dark:text-slate-400'}`}>
-              {(useCase.desc || '').toString()}
+              {useCase.desc}
             </p>
             <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${useCase.isPro ? 'text-blue-400' : 'text-primary'}`}>
               <span>Ver más</span>
@@ -244,8 +244,8 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [user]);
 
-  const getPlanStyle = (plan: string | undefined | null) => {
-    const p = (plan || 'STARTER').toString().toUpperCase();
+  const getPlanStyle = (plan: string) => {
+    const p = (plan || 'STARTER').toUpperCase();
     if (p.includes('POWER')) {
       return {
         card: 'border-amber-200 dark:border-amber-700/50 shadow-[0_8px_30px_rgb(245,158,11,0.1)]',
@@ -286,7 +286,7 @@ const Dashboard: React.FC = () => {
         {/* LISTADO DE LÍNEAS ACTIVAS */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Mis Líneas Activas ({allSlots?.length || 0})</h3>
+             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Mis Líneas Activas ({allSlots.length})</h3>
              <button onClick={() => navigate('/onboarding/region')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1">
                 <Plus className="size-3" />
                 Añadir
@@ -298,7 +298,7 @@ const Dashboard: React.FC = () => {
                 <RefreshCw className="size-8 text-primary/30 animate-spin" />
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sincronizando puertos...</p>
              </div>
-          ) : allSlots?.length === 0 ? (
+          ) : allSlots.length === 0 ? (
             <div className="bg-white dark:bg-surface-dark rounded-3xl p-10 border-2 border-dashed border-slate-100 dark:border-slate-800 text-center space-y-6">
                 <div className="size-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-300">
                     <Smartphone className="size-8" />
@@ -316,7 +316,7 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {allSlots?.map((slot) => {
+              {allSlots.map((slot) => {
                 const style = getPlanStyle(slot.plan_type);
                 return (
                   <div 
@@ -328,7 +328,7 @@ const Dashboard: React.FC = () => {
                       <div className="absolute top-0 right-0">
                          <div className={`px-4 py-1.5 rounded-bl-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badge}`}>
                             {style.icon}
-                            {(slot.plan_type || 'Starter').toString().toUpperCase()}
+                            {slot.plan_type}
                          </div>
                       </div>
 
@@ -353,7 +353,7 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
                           <div className="flex items-center gap-1.5">
-                              <Zap className={`size-3 ${(slot.plan_type || '').toString().toUpperCase() === 'POWER' ? 'text-amber-500' : 'text-emerald-500'}`} />
+                              <Zap className={`size-3 ${slot.plan_type.toUpperCase() === 'POWER' ? 'text-amber-500' : 'text-emerald-500'}`} />
                               <span className="text-[10px] font-bold text-slate-400 uppercase">Puerto de Alta Potencia</span>
                           </div>
                           <button 
@@ -383,25 +383,25 @@ const Dashboard: React.FC = () => {
         </section>
 
         {/* FEED DE MENSAJES RECIENTES */}
-        {recentMessages?.length > 0 && (
+        {recentMessages.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Últimos Códigos</h3>
             </div>
             <div className="space-y-3">
-              {recentMessages?.map((msg) => (
+              {recentMessages.map((msg) => (
                 <div key={msg.id} className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                    <div className="flex items-center gap-3 overflow-hidden">
                       <div className="size-10 bg-blue-50 dark:bg-blue-900/30 text-primary rounded-xl flex items-center justify-center shrink-0">
                          <MessageSquare className="size-5" />
                       </div>
                       <div className="overflow-hidden">
-                         <h5 className="text-xs font-black truncate uppercase tracking-tight">{(msg.service_name || msg.sender || 'Servicio').toString().toUpperCase()}</h5>
-                         <p className="text-[9px] font-bold text-slate-400 truncate">Vía {formatPhoneNumber(allSlots?.find(s => s.port_id === msg.slot_id)?.phone_number || '')}</p>
+                         <h5 className="text-xs font-black truncate uppercase tracking-tight">{msg.service_name || msg.sender}</h5>
+                         <p className="text-[9px] font-bold text-slate-400 truncate">Vía {formatPhoneNumber(allSlots.find(s => s.port_id === msg.slot_id)?.phone_number || '')}</p>
                       </div>
                    </div>
                    <div className="text-right shrink-0">
-                      <p className="text-lg font-black font-mono tracking-widest text-primary">{(msg.verification_code || '').toString()}</p>
+                      <p className="text-lg font-black font-mono tracking-widest text-primary">{msg.verification_code}</p>
                    </div>
                 </div>
               ))}
