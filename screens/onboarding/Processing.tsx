@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
-import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
@@ -11,38 +11,26 @@ const Processing: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   
-  const [currentStep, setCurrentStep] = useState('Verificando pago...');
+  const [currentStep, setCurrentStep] = useState('Verificando parámetros...');
   const [errorState, setErrorState] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   
-  // 1. SEMÁFORO ATÓMICO: Bloqueo estricto contra ejecuciones duplicadas
+  // 1. BLOQUEO DE ESTADO CRÍTICO: useRef inicializado en false
   const isSubmitting = useRef(false);
 
   const planData = location.state;
-  if (!planData || !planData.planName || !planData.price) {
+
+  // Validación de Caja Blanca: Evitar valores por defecto como 'started'
+  if (!planData || !planData.planName || !planData.price || planData.planName === 'started') {
     return <Navigate to="/onboarding/plan" replace />;
   }
 
-  // Función de apoyo para recuperar el número si el RPC devuelve éxito pero número nulo (Colisión)
-  const verifyAssignedNumber = async (userId: string): Promise<string | null> => {
-    const { data, error } = await supabase
-      .from('slots')
-      .select('phone_number')
-      .eq('assigned_to', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    return data?.phone_number || null;
-  };
-
   useEffect(() => {
-    const startActivation = async () => {
-      // 2. GUARDIA DE ENTRADA: Si ya hay un proceso, no hacer nada
+    const processPurchase = async () => {
+      // 2. VERIFICACIÓN DE BLOQUEO: Antes de cualquier acción
       if (isSubmitting.current) return;
-      isSubmitting.current = true;
 
-      // Tiempo mínimo estético para sincronizar animaciones
-      const minWait = new Promise(resolve => setTimeout(resolve, 3500));
+      const animationPromise = new Promise(resolve => setTimeout(resolve, 3000));
 
       try {
         const { planName, price, monthlyLimit } = planData;
@@ -50,36 +38,65 @@ const Processing: React.FC = () => {
 
         if (!userId) throw new Error("Sesión de usuario no válida.");
 
-        setCurrentStep('Aprovisionando puerto físico...');
+        setCurrentStep('Preparando puerto seguro...');
 
-        // 3. LLAMADA RPC ROBUSTA
+        // 3. BLOQUEO ATÓMICO JUSTO ANTES DE LA LLAMADA RPC
+        isSubmitting.current = true;
+
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
           p_plan_name: planName,
           p_amount: Number(price),
           p_monthly_limit: Number(monthlyLimit)
         });
 
-        if (rpcError) throw rpcError;
+        // Manejo de errores de Supabase
+        if (rpcError) {
+          // Si es un error de red o de base de datos real, habilitamos para reintento
+          isSubmitting.current = false;
+          throw rpcError;
+        }
 
         let finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
-        
-        // 4. LÓGICA DE RECUPERACIÓN (Colisión evitada)
-        // Si el backend dice que fue exitoso pero no envió el número (por precaución de concurrencia)
+
+        // 4. PROTOCOLO DE RECUPERACIÓN: Si success pero phoneNumber es null
         if (!finalNumber) {
-          setCurrentStep('Verificando asignación...');
-          finalNumber = await verifyAssignedNumber(userId);
+          setIsVerifying(true);
+          setCurrentStep('Sincronizando con el nodo físico...');
           
+          // Retry: Timeout de 1 segundo antes de buscar en la tabla
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Consulta directa a la tabla subscriptions para recuperar el registro creado
+          const { data: subData, error: subError } = await supabase
+            .from('subscriptions')
+            .select('phone_number')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (subError) {
+            isSubmitting.current = false;
+            throw subError;
+          }
+
+          finalNumber = subData?.phone_number;
+
           if (!finalNumber) {
-            throw new Error("El sistema no pudo confirmar tu nueva línea. Contacta a soporte.");
+            // Si después del reintento sigue siendo null
+            isSubmitting.current = false;
+            throw new Error("El nodo no devolvió una numeración válida. Por favor, contacta a soporte.");
           }
         }
 
-        setCurrentStep('Línea lista: ' + finalNumber);
-
-        // Notificación de sistema
+        // Éxito en la recuperación o respuesta inicial
+        setCurrentStep('Línea activada: ' + finalNumber);
+        
+        // Notificación logística
         addNotification({
-          title: 'Activación Exitosa',
-          message: `Tu número ${finalNumber} ya está operando en la red TELSIM.`,
+          title: 'SIM Activada',
+          message: `Línea ${finalNumber} aprovisionada correctamente.`,
           type: 'activation',
           details: {
             number: finalNumber,
@@ -90,27 +107,27 @@ const Processing: React.FC = () => {
           }
         });
 
-        await minWait;
+        await animationPromise;
         
+        // Navegación final: isSubmitting se mantiene true para evitar dobles envíos al desmontar
         navigate('/onboarding/success', { 
           state: { assignedNumber: finalNumber, planName },
           replace: true 
         });
 
       } catch (err: any) {
-        console.error("Fallo en activación:", err);
-        isSubmitting.current = false; // LIBERAMOS EL LOCK SOLO EN ERROR PARA PERMITIR REINTENTO
-        setErrorState(err.message || "Error de red en el Nodo");
-        setCurrentStep('Error de sincronización');
+        console.error("Fallo crítico en flujo de compra:", err);
+        // CLEAN UP: Solo habilitamos el botón si hubo un error real (no un duplicado evitado por el ref)
+        setErrorState(err.message || "Error de conexión con la infraestructura.");
+        setCurrentStep('Error de provisión');
       }
     };
 
-    startActivation();
+    processPurchase();
   }, [user, navigate, planData, addNotification]);
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
-      {/* Fondo Ambientalc */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 dark:opacity-40">
         <div className="w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] animate-pulse"></div>
       </div>
@@ -121,11 +138,11 @@ const Processing: React.FC = () => {
             <div className="size-20 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-500 mb-6 border border-rose-500/20">
               <AlertCircle className="size-10" />
             </div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2">Error de Puerto</h2>
-            <p className="text-xs font-bold text-slate-500 mb-8 leading-relaxed">{errorState}</p>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Error de Puerto</h2>
+            <p className="text-[11px] font-bold text-slate-500 mb-8 leading-relaxed px-4">{errorState}</p>
             <button 
               onClick={() => navigate('/onboarding/plan')}
-              className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+              className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
             >
               Volver a intentarlo
             </button>
@@ -135,7 +152,11 @@ const Processing: React.FC = () => {
             <div className="relative flex items-center justify-center mb-12">
               <div className="absolute size-32 rounded-full border-2 border-primary/20 animate-ping opacity-30"></div>
               <div className="size-24 rounded-full border-[3px] border-slate-100 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 shadow-xl">
-                <Loader2 className="size-10 text-primary animate-spin" />
+                {isVerifying ? (
+                  <RefreshCw className="size-10 text-primary animate-spin" />
+                ) : (
+                  <Loader2 className="size-10 text-primary animate-spin" />
+                )}
               </div>
               <div className="absolute -bottom-2 -right-2 size-10 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
                 <ShieldCheck className="size-5" />
@@ -143,7 +164,7 @@ const Processing: React.FC = () => {
             </div>
 
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-4">
-              Sincronizando
+              {isVerifying ? 'Verificando' : 'Sincronizando'}
             </h2>
             
             <div className="flex flex-col items-center gap-3">
@@ -164,7 +185,7 @@ const Processing: React.FC = () => {
 
       <div className="absolute bottom-12 w-full text-center opacity-40">
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">
-          TELSIM PHYSICAL NODE v4.8
+          TELSIM PHYSICAL INFRASTRUCTURE v5.0
         </p>
       </div>
     </div>
