@@ -29,6 +29,7 @@ const Success: React.FC = () => {
     if (!user) return;
 
     try {
+      // RESCATE FINAL CON BYPASS DE CACHÉ
       const { data, error } = await supabase
         .from('subscriptions')
         .select('phone_number, plan_name')
@@ -36,7 +37,8 @@ const Success: React.FC = () => {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle()
+        .headers({ 'cache-control': 'no-cache' });
 
       if (error) throw error;
 
