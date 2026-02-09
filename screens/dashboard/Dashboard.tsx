@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -219,6 +219,20 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     setTimeout(() => setCopyingId(null), 2000);
   };
 
+  const formatSenderNumber = (num: string) => {
+    if (!num) return '---';
+    const cleaned = ('' + num).replace(/\D/g, '');
+    if (cleaned.startsWith('569') && cleaned.length === 11) {
+        return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
+    }
+    if (cleaned.startsWith('54') && cleaned.length >= 10) {
+        return `+54 ${cleaned.substring(2, 5)} ${cleaned.substring(5, 8)} ${cleaned.substring(8)}`;
+    }
+    // Si contiene letras (nombre de servicio), lo devolvemos tal cual
+    if (/[a-zA-Z]/.test(num)) return num;
+    return num.startsWith('+') ? num : `+${num}`;
+  };
+
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
     const originalName = serviceName || sender || '';
     const name = originalName.toLowerCase();
@@ -357,7 +371,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                                   {formatTime(msg.received_at)}
                               </span>
                           </div>
-                          <p className="text-[11px] font-medium text-slate-400 truncate">Origen: {msg.sender}</p>
+                          <p className="text-[11px] font-medium text-slate-400 truncate uppercase tracking-widest text-[9px]">From: {formatSenderNumber(msg.sender)}</p>
                       </div>
                   </div>
                   
@@ -402,6 +416,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useLanguage();
 
@@ -417,7 +432,19 @@ const Dashboard: React.FC = () => {
 
       if (slotsData) {
         setAllSlots(slotsData);
-        if (!activeSlot && slotsData.length > 0) setActiveSlot(slotsData[0]);
+        
+        // LÓGICA DE SELECCIÓN AUTOMÁTICA POST-COMPRA
+        const newLineParam = searchParams.get('new_line');
+        if (newLineParam) {
+          const matchingSlot = slotsData.find(s => s.phone_number === newLineParam);
+          if (matchingSlot) {
+            setActiveSlot(matchingSlot);
+          } else if (slotsData.length > 0) {
+            setActiveSlot(slotsData[0]);
+          }
+        } else if (!activeSlot && slotsData.length > 0) {
+          setActiveSlot(slotsData[0]);
+        }
       }
 
       const { data: smsData } = await supabase
