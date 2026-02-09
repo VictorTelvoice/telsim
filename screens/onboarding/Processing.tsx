@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
 import { Loader2, AlertCircle } from 'lucide-react';
 
@@ -8,6 +9,7 @@ const Processing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   
   const [error, setError] = useState<string | null>(null);
   const hasExecuted = useRef(false);
@@ -37,6 +39,21 @@ const Processing: React.FC = () => {
       // 3. MANEJO DE FLUJO DE ÉXITO
       if (!rpcError && data?.success) {
         const finalNumber = data.phoneNumber || data.phone_number;
+        
+        // Crear notificación de activación
+        await addNotification({
+          title: 'Puerto Activado',
+          message: `Tu nueva línea ${finalNumber} ha sido sincronizada con éxito en el nodo central.`,
+          type: 'activation',
+          details: {
+            number: finalNumber,
+            plan: planName,
+            activationDate: new Date().toLocaleDateString('es-ES'),
+            nextBilling: 'En 30 días',
+            price: price.toFixed(2)
+          }
+        });
+
         navigate(`/onboarding/success?planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(finalNumber)}`, { replace: true });
         return;
       }

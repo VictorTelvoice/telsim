@@ -90,32 +90,6 @@ const Notifications: React.FC = () => {
       </header>
       
       <main className="px-5 py-8 space-y-10 max-w-lg mx-auto">
-        <section className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl group">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/20 rounded-full blur-[80px] group-hover:bg-primary/30 transition-colors"></div>
-            <div className="relative z-10">
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Estado de Red</span>
-                        <div className="flex items-center gap-2">
-                            <div className="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className="text-lg font-black tracking-tight">Nodo Activo</span>
-                        </div>
-                    </div>
-                    <Activity className="size-8 text-white/20" />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                        <span className="text-[8px] font-black text-white/40 uppercase tracking-widest block mb-1">Puertos Físicos</span>
-                        <span className="text-xl font-black tabular-nums">Online</span>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                        <span className="text-[8px] font-black text-white/40 uppercase tracking-widest block mb-1">Sincronización</span>
-                        <span className="text-xl font-black text-emerald-400">99.9%</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
             <div className="size-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
