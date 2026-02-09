@@ -37,24 +37,21 @@ const Processing: React.FC = () => {
       }, 400);
 
       try {
-        // PREPARACIÓN DE PARÁMETROS CRÍTICOS (REGLA DE HIERRO)
-        // Usamos String() para asegurar que el nombre del plan sea un primitivo string
-        const p_plan_name = String(planData?.planName || 'Pro');
-        const p_amount = Number(planData?.price || 39.90);
-        const p_monthly_limit = Number(planData?.monthlyLimit || 500);
+        // CONSTRUCCIÓN DE rpcArgs SEGÚN ESPECIFICACIÓN CRÍTICA
+        const rpcArgs = {
+          p_plan_name: String(planData?.planName || 'Pro'),
+          p_amount: Number(planData?.price || 39.90),
+          p_monthly_limit: Number(planData?.monthlyLimit || 500)
+        };
 
-        // LOGS DE DIAGNÓSTICO EXIGIDOS
-        console.log('Enviando:', p_plan_name);
-        console.log('Payload RPC:', { p_plan_name, p_amount, p_monthly_limit });
+        // DIAGNÓSTICO EXIGIDO POR EL USUARIO
+        console.log('Enviando:', rpcArgs.p_plan_name);
+        console.log('Payload RPC:', JSON.stringify(rpcArgs));
 
         setCurrentStep('Sincronizando con el nodo físico...');
 
-        // LLAMADA RPC ESTRICTA (Coincidencia exacta con parámetros SQL: p_ minúscula)
-        const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
-          p_plan_name,
-          p_amount,
-          p_monthly_limit
-        });
+        // LLAMADA RPC LIMPIA (Sin parámetros extra, paso de objeto directo)
+        const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', rpcArgs);
 
         if (rpcError) {
           isSubmitting.current = false; // Liberar bloqueo para permitir reintento tras error
@@ -70,14 +67,14 @@ const Processing: React.FC = () => {
         // Registro en el ledger de notificaciones
         addNotification({
           title: 'SIM Activada',
-          message: `Puerto ${finalNumber || 'NUEVO'} sincronizado bajo el plan ${p_plan_name}.`,
+          message: `Puerto ${finalNumber || 'NUEVO'} sincronizado bajo el plan ${rpcArgs.p_plan_name}.`,
           type: 'activation',
           details: {
             number: finalNumber || 'Sincronizando...',
-            plan: p_plan_name,
+            plan: rpcArgs.p_plan_name,
             activationDate: new Date().toLocaleDateString(),
             nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-            price: `$${p_amount.toFixed(2)}`
+            price: `$${rpcArgs.p_amount.toFixed(2)}`
           }
         });
 
@@ -86,7 +83,7 @@ const Processing: React.FC = () => {
         
         // Redirección con parámetros limpios para Success.tsx
         const numberParam = finalNumber ? `&assignedNumber=${encodeURIComponent(finalNumber)}` : '';
-        navigate(`/onboarding/success?planName=${encodeURIComponent(p_plan_name)}${numberParam}`, { 
+        navigate(`/onboarding/success?planName=${encodeURIComponent(rpcArgs.p_plan_name)}${numberParam}`, { 
           replace: true 
         });
 
