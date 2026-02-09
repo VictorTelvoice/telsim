@@ -17,14 +17,17 @@ import {
   Globe, 
   Crown,
   Zap,
-  Diamond,
   Leaf
 } from 'lucide-react';
+
+interface SlotWithPlan extends Slot {
+  actual_plan_name?: string;
+}
 
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [slots, setSlots] = useState<Slot[]>([]);
+    const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
@@ -32,12 +35,12 @@ const MyNumbers: React.FC = () => {
     const [savingLabel, setSavingLabel] = useState(false);
 
     const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
-    const [slotToRelease, setSlotToRelease] = useState<Slot | null>(null);
+    const [slotToRelease, setSlotToRelease] = useState<SlotWithPlan | null>(null);
     const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
     const [releasing, setReleasing] = useState(false);
 
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
-    const [slotToFwd, setSlotToFwd] = useState<Slot | null>(null);
+    const [slotToFwd, setSlotToFwd] = useState<SlotWithPlan | null>(null);
     const [fwdActive, setFwdActive] = useState(false);
     const [fwdChannel, setFwdChannel] = useState<'telegram' | 'discord' | 'webhook'>('telegram');
     const [fwdConfig, setFwdConfig] = useState('');
@@ -47,15 +50,36 @@ const MyNumbers: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            // 1. Obtener los slots del usuario
+            const { data: slotsData, error: slotsError } = await supabase
                 .from('slots')
                 .select('*')
                 .eq('assigned_to', user.id)
                 .order('created_at', { ascending: false });
-            if (error) throw error;
-            setSlots(data || []);
+
+            if (slotsError) throw slotsError;
+
+            // 2. Obtener las suscripciones para cruzar el nombre del plan real
+            const { data: subsData, error: subsError } = await supabase
+                .from('subscriptions')
+                .select('phone_number, plan_name')
+                .eq('user_id', user.id)
+                .eq('status', 'active');
+
+            if (subsError) throw subsError;
+
+            // 3. Mapear el nombre del plan real a cada slot
+            const enrichedSlots = (slotsData || []).map(slot => {
+                const subscription = subsData?.find(s => s.phone_number === slot.phone_number);
+                return {
+                    ...slot,
+                    actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter'
+                };
+            });
+
+            setSlots(enrichedSlots);
         } catch (err) {
-            console.error("Error fetching slots:", err);
+            console.error("Error fetching slots and plans:", err);
         } finally {
             setLoading(false);
         }
@@ -79,7 +103,7 @@ const MyNumbers: React.FC = () => {
         showToast("Número Copiado");
     };
 
-    const handleStartEditLabel = (slot: Slot) => {
+    const handleStartEditLabel = (slot: SlotWithPlan) => {
         setEditingLabelId(slot.port_id);
         setTempLabelValue(slot.label || '');
     };
@@ -117,7 +141,7 @@ const MyNumbers: React.FC = () => {
         return num.startsWith('+') ? num : `+${num}`;
     };
 
-    const getCountryCode = (slot: Slot) => {
+    const getCountryCode = (slot: SlotWithPlan) => {
         if (slot.region && slot.region.length === 2) return slot.region.toLowerCase();
         const num = slot.phone_number || '';
         if (num.includes('56')) return 'cl';
@@ -162,13 +186,13 @@ const MyNumbers: React.FC = () => {
         };
     };
 
-    const openReleaseModal = (slot: Slot) => {
+    const openReleaseModal = (slot: SlotWithPlan) => {
         setSlotToRelease(slot);
         setConfirmReleaseCheck(false);
         setIsReleaseModalOpen(true);
     };
 
-    const openFwdModal = (slot: Slot) => {
+    const openFwdModal = (slot: SlotWithPlan) => {
         setSlotToFwd(slot);
         setFwdActive(slot.is_forwarding_active || false);
         setFwdChannel(slot.forwarding_channel || 'telegram');
@@ -252,8 +276,9 @@ const MyNumbers: React.FC = () => {
                         {slots?.map((slot) => {
                             const country = getCountryCode(slot);
                             const isEditing = editingLabelId === slot.port_id;
-                            const style = getPlanStyle(slot.plan_type);
-                            const isPower = (slot.plan_type || '').toUpperCase().includes('POWER');
+                            // USAMOS EL NOMBRE DEL PLAN REAL SINCRONIZADO
+                            const style = getPlanStyle(slot.actual_plan_name);
+                            const isPower = (slot.actual_plan_name || '').toUpperCase().includes('POWER');
                             
                             return (
                                 <div key={slot.port_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -339,7 +364,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end">
-                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower ? 'text-white' : ''}`}>TELSIM INFRA v2.8</span>
+                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower ? 'text-white' : ''}`}>TELSIM INFRA v2.8.6</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -364,7 +389,7 @@ const MyNumbers: React.FC = () => {
                                             className={`size-12 rounded-2xl flex items-center justify-center shadow-lg hover:translate-y-[-2px] transition-all active:scale-95 ${
                                               isPower 
                                               ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/20' 
-                                              : (slot.plan_type || '').toUpperCase().includes('PRO')
+                                              : (slot.actual_plan_name || '').toUpperCase().includes('PRO')
                                                 ? 'bg-blue-600 text-white shadow-blue-500/20'
                                                 : 'bg-emerald-500 text-white shadow-emerald-500/20'
                                             }`}
@@ -391,7 +416,7 @@ const MyNumbers: React.FC = () => {
                         <div className="bg-rose-500 p-8 text-white">
                             <AlertTriangle className="size-10 mb-4" />
                             <h2 className="text-2xl font-black leading-tight tracking-tight mb-2">¿Liberar Línea?</h2>
-                            <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">Plan: {(slotToRelease.plan_type || 'Starter').toString().toUpperCase()}</p>
+                            <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">Plan: {(slotToRelease.actual_plan_name || 'Starter').toString().toUpperCase()}</p>
                         </div>
                         <div className="p-8 space-y-6">
                             <p className="text-xs font-bold text-slate-500 leading-relaxed">Esta acción cancelará tu suscripción y liberará el número {formatPhoneNumber(slotToRelease.phone_number)} de tu cuenta.</p>
