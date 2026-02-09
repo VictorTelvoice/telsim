@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
-import { ShieldCheck, AlertCircle, Cpu, Loader2 } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Cpu, Loader2, RefreshCw } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ const Processing: React.FC = () => {
   const [currentStep, setCurrentStep] = useState('Inicializando protocolos...');
   const [errorState, setErrorState] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [showForceSync, setShowForceSync] = useState(false);
   
   // BLOQUEO ATÓMICO: Evita ejecuciones duplicadas
   const isSubmitting = useRef(false);
@@ -30,20 +31,21 @@ const Processing: React.FC = () => {
       isSubmitting.current = true;
 
       const progressInterval = setInterval(() => {
-        setProgress(prev => (prev < 90 ? prev + 2 : prev));
-      }, 150);
+        setProgress(prev => (prev < 90 ? prev + 1 : prev));
+      }, 300);
 
       try {
-        // PARÁMETROS LIMPIOS (Regla de oro para evitar NULL en RPC)
+        // PARÁMETROS LIMPIOS PARA EVITAR ERROR 23502
         const rpcArgs = {
           p_plan_name: String(planData?.planName || 'Pro'),
           p_amount: Number(planData?.price || 39.90),
-          p_monthly_limit: Number(planData?.monthlyLimit || 500)
+          p_monthly_limit: Number(planData?.monthlyLimit || 400)
         };
 
-        // LOGS DE DIAGNÓSTICO
-        console.log('Enviando:', rpcArgs.p_plan_name);
-        console.log('Payload RPC:', JSON.stringify(rpcArgs));
+        // DIAGNÓSTICO TELSIM
+        console.log('--- DIAGNÓSTICO DE ENVÍO ---');
+        console.log('Plan:', rpcArgs.p_plan_name);
+        console.log('Payload:', JSON.stringify(rpcArgs));
 
         setCurrentStep('Sincronizando con el nodo físico...');
 
@@ -57,44 +59,54 @@ const Processing: React.FC = () => {
           const isDuplicate = rpcError.code === '23505' || rpcError.message?.toLowerCase().includes('duplicate key');
           
           if (isDuplicate) {
-            console.log('Detección de Colisión (23505): ES UN ÉXITO. Iniciando Polling de rescate...');
-            setCurrentStep('Recuperando puerto existente...');
+            console.log('Detectado error 23505. Iniciando protocolo de polling (15 intentos)...');
             
-            // BÚSQUEDA CON REINTENTOS (Polling): 5 veces, 1 segundo entre intentos
             let existingSub = null;
-            for (let i = 0; i < 5; i++) {
-              console.log(`Intento de recuperación ${i + 1}/5...`);
-              
+            const MAX_ATTEMPTS = 15;
+            const POLL_INTERVAL = 2000;
+
+            for (let i = 0; i < MAX_ATTEMPTS; i++) {
+              setCurrentStep(`Recuperando puerto (${i + 1}/${MAX_ATTEMPTS})...`);
+              console.log(`Intento de recuperación ${i + 1}/${MAX_ATTEMPTS}...`);
+
+              // CONSULTA DE RESCATE SIN FILTROS (Solo user_id para máxima compatibilidad)
               const { data, error: fetchError } = await supabase
                 .from('subscriptions')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
 
               if (data?.phone_number) {
+                // ÉXITO EN EL RESCATE
+                console.log('REGISTRO ENCONTRADO:', data);
                 existingSub = data;
                 break;
               }
-              
-              if (i < 4) await new Promise(resolve => setTimeout(resolve, 1000));
+
+              // Esperar antes del siguiente intento
+              if (i < MAX_ATTEMPTS - 1) {
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+              }
             }
 
             if (!existingSub?.phone_number) {
-              throw new Error("No se pudo recuperar la suscripción existente después de varios reintentos. Contacte a soporte.");
+              setShowForceSync(true);
+              throw new Error("El puerto físico está tardando en sincronizarse con tu cuenta.");
             }
 
             finalNumber = existingSub.phone_number;
             finalPlan = existingSub.plan_name || rpcArgs.p_plan_name;
-            console.log('Puerto rescatado con éxito:', finalNumber);
           } else {
+            // Es un error distinto, lo tratamos como fallo
             throw rpcError;
           }
         }
 
-        // SALIDA FORZOSA: Redirigir si tenemos número
+        // ÉXITO FINAL
         setProgress(100);
-        setCurrentStep('¡Puerto activado con éxito!');
+        setCurrentStep('Puerto activado correctamente');
 
         addNotification({
           title: 'SIM Activada',
@@ -118,7 +130,7 @@ const Processing: React.FC = () => {
 
       } catch (err: any) {
         console.error("Fallo crítico TELSIM:", err);
-        setErrorState(err.message || "Error de sincronización con el nodo.");
+        setErrorState(err.message || "Error de sincronización con el nodo de red.");
         isSubmitting.current = false;
       } finally {
         clearInterval(progressInterval);
@@ -127,6 +139,10 @@ const Processing: React.FC = () => {
 
     startProvisioning();
   }, [user, navigate, planData, addNotification]);
+
+  const handleForceSync = () => {
+    window.location.reload();
+  };
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
@@ -140,14 +156,25 @@ const Processing: React.FC = () => {
             <div className="size-20 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6 border border-rose-500/20 shadow-xl">
               <AlertCircle className="size-10" />
             </div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Fallo de Nodo</h2>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Latencia de Red</h2>
             <p className="text-[11px] font-bold text-slate-500 mb-8 leading-relaxed px-4">{errorState}</p>
-            <button 
-              onClick={() => navigate('/onboarding/plan')}
-              className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
-            >
-              Reintentar Marketplace
-            </button>
+            
+            {showForceSync ? (
+              <button 
+                onClick={handleForceSync}
+                className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3"
+              >
+                <RefreshCw className="size-4" />
+                Forzar Sincronización
+              </button>
+            ) : (
+              <button 
+                onClick={() => navigate('/onboarding/plan')}
+                className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
+              >
+                Volver al Marketplace
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -182,7 +209,7 @@ const Processing: React.FC = () => {
 
       <div className="absolute bottom-12 w-full text-center opacity-30">
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">
-          TELSIM SURVIVAL CORE v8.0
+          TELSIM SURVIVAL CORE v8.5.1
         </p>
       </div>
     </div>
