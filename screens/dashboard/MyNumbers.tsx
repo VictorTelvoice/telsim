@@ -126,37 +126,39 @@ const MyNumbers: React.FC = () => {
     };
 
     const getPlanStyle = (planName: string | undefined | null) => {
-        const name = (planName || 'Starter').toString().toUpperCase();
+        const rawName = planName || 'Starter';
+        const name = rawName.toString().toUpperCase();
+        
         if (name.includes('POWER')) {
             return {
-                cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C] text-white',
+                cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C] text-white shadow-[0_15px_40px_-10px_rgba(180,146,72,0.3)]',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
                 accentText: 'text-amber-100',
                 indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
                 icon: <Crown className="size-3" />,
-                label: 'POWER'
+                label: name
             };
         }
         if (name.includes('PRO')) {
             return {
-                cardBg: 'bg-[#0f172a] text-white ring-1 ring-white/10',
+                cardBg: 'bg-slate-900 text-white ring-1 ring-white/10 shadow-2xl',
                 badgeBg: 'bg-blue-600 text-white shadow-lg shadow-blue-500/20',
                 accentText: 'text-blue-400',
                 indicator: 'bg-blue-400',
                 chip: 'bg-gradient-to-br from-slate-200 via-slate-400 to-slate-500',
                 icon: <Zap className="size-3" />,
-                label: 'PRO'
+                label: name
             };
         }
         return {
-            cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700',
-            badgeBg: 'bg-emerald-500 text-white',
+            cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 shadow-soft',
+            badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
             accentText: 'text-primary',
             indicator: 'bg-emerald-500',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
-            label: 'STARTER'
+            label: name
         };
     };
 
@@ -179,25 +181,6 @@ const MyNumbers: React.FC = () => {
         setReleasing(true);
         
         try {
-            const { data: subData } = await supabase
-                .from('subscriptions')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('status', 'active')
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (subData && subData.length > 0) {
-                await supabase
-                    .from('subscriptions')
-                    .update({ 
-                        status: 'canceled',
-                        cancel_at_period_end: true,
-                        canceled_at: new Date().toISOString()
-                    })
-                    .eq('id', subData[0].id);
-            }
-
             const { error: releaseError } = await supabase
                 .from('slots')
                 .update({ 
@@ -211,7 +194,7 @@ const MyNumbers: React.FC = () => {
 
             if (releaseError) throw releaseError;
 
-            showToast("Número eliminado correctamente.");
+            showToast("Número liberado con éxito.");
             setIsReleaseModalOpen(false);
             fetchSlots();
         } catch (err: any) {
@@ -256,9 +239,9 @@ const MyNumbers: React.FC = () => {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando SIMs...</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando puertos...</p>
                     </div>
-                ) : slots.length === 0 ? (
+                ) : slots?.length === 0 ? (
                     <div className="text-center py-20 px-10 bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
                         <Globe className="size-12 mx-auto mb-4 text-slate-300" />
                         <p className="text-slate-500 font-bold italic text-sm">No tienes numeraciones activas.</p>
@@ -266,7 +249,7 @@ const MyNumbers: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-14">
-                        {slots.map((slot) => {
+                        {slots?.map((slot) => {
                             const country = getCountryCode(slot);
                             const isEditing = editingLabelId === slot.port_id;
                             const style = getPlanStyle(slot.plan_type);
@@ -350,13 +333,13 @@ const MyNumbers: React.FC = () => {
 
                                             <div className="flex justify-between items-end relative z-10">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badgeBg}`}>
+                                                    <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badgeBg}`}>
                                                         {style.icon}
                                                         {style.label}
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end">
-                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower ? 'text-white' : ''}`}>TELSIM INFRA v2.0</span>
+                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower ? 'text-white' : ''}`}>TELSIM INFRA v2.8</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -408,7 +391,7 @@ const MyNumbers: React.FC = () => {
                         <div className="bg-rose-500 p-8 text-white">
                             <AlertTriangle className="size-10 mb-4" />
                             <h2 className="text-2xl font-black leading-tight tracking-tight mb-2">¿Liberar Línea?</h2>
-                            <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">Plan: {slotToRelease.plan_type}</p>
+                            <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">Plan: {(slotToRelease.plan_type || 'Starter').toString().toUpperCase()}</p>
                         </div>
                         <div className="p-8 space-y-6">
                             <p className="text-xs font-bold text-slate-500 leading-relaxed">Esta acción cancelará tu suscripción y liberará el número {formatPhoneNumber(slotToRelease.phone_number)} de tu cuenta.</p>
