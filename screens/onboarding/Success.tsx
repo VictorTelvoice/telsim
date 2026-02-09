@@ -8,7 +8,7 @@ const Success: React.FC = () => {
   const { t } = useLanguage();
   const [showContent, setShowContent] = useState(false);
   
-  // Leemos desde Query Params (más robusto que state)
+  // Lectura robusta de parámetros de la URL
   const assignedNumber = searchParams.get('assignedNumber');
   const planName = searchParams.get('planName') || 'Pro';
   const isError = !assignedNumber;
@@ -22,11 +22,9 @@ const Success: React.FC = () => {
     if (!num || isError) return '';
     const cleaned = ('' + num).replace(/\D/g, '');
     
-    // Formato Chileno: +56 9 XXXX XXXX
     if (cleaned.startsWith('569') && cleaned.length === 11) {
         return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
     }
-    // Formato Argentino: +54 ...
     if (cleaned.startsWith('54') && cleaned.length >= 10) {
         return `+54 ${cleaned.substring(2, 5)} ${cleaned.substring(5, 8)} ${cleaned.substring(8)}`;
     }
@@ -91,12 +89,12 @@ const Success: React.FC = () => {
                 </div>
                 <div className="space-y-3 px-4">
                     <h1 className="text-3xl font-black text-[#111318] dark:text-white tracking-tight uppercase">
-                        {isError ? 'Fallo de Activación' : '¡Línea Activa!'}
+                        {isError ? 'Error Crítico' : '¡Puerto Activo!'}
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[30ch] mx-auto">
                         {isError 
-                          ? 'Hubo un problema al provisionar tu puerto físico. Inténtalo de nuevo o contacta a soporte.' 
-                          : 'Tu nuevo puerto físico ha sido sincronizado exitosamente con la red TELSIM.'}
+                          ? 'No se detectó una asignación válida. Por favor, contacta con soporte técnico.' 
+                          : 'Tu nueva línea física ha sido sincronizada exitosamente con la red de TELSIM.'}
                     </p>
                 </div>
             </div>
@@ -106,7 +104,7 @@ const Success: React.FC = () => {
                   <div className="absolute inset-0 w-[50%] h-[200%] -top-[50%] opacity-20 pointer-events-none animate-scanner bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
                   
                   <div className="flex flex-col items-center space-y-3 relative z-10 w-full">
-                      <span className="text-[11px] uppercase font-black tracking-[0.25em] text-primary/70">PUERTO ASIGNADO</span>
+                      <span className="text-[11px] uppercase font-black tracking-[0.25em] text-primary/70">NÚMERO ASIGNADO</span>
                       <div className="flex items-center gap-4 animate-reveal-number">
                           <div className="size-10 rounded-full overflow-hidden border-2 shrink-0 border-slate-100 dark:border-slate-700 shadow-sm">
                                <img 
@@ -124,7 +122,7 @@ const Success: React.FC = () => {
                   <div className="flex items-center gap-2 relative z-10">
                       <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
                           <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-500"></div>
-                          <span className="text-[10px] font-black uppercase tracking-widest leading-none">CANAL SEGURO</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest leading-none">INFRAESTRUCTURA OK</span>
                       </div>
                       <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border bg-slate-50 dark:bg-slate-700 border-slate-100 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                           <span className="text-[10px] font-black uppercase tracking-widest leading-none">
