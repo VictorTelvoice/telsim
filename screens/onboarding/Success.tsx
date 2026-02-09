@@ -11,7 +11,8 @@ import {
   Loader2, 
   ShieldCheck, 
   RefreshCw,
-  AlertTriangle 
+  AlertTriangle,
+  Cpu
 } from 'lucide-react';
 
 const Success: React.FC = () => {
@@ -27,15 +28,16 @@ const Success: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [showContent, setShowContent] = useState(false);
 
-  // Requerimiento: 5 intentos (uno cada 2 segundos)
-  const maxRetries = 5;
+  // REGLA DE HIERRO: 10 intentos (uno cada 1.5 segundos)
+  const maxRetries = 10;
+  const pollingInterval = 1500;
 
-  // Lógica de Rescate: Polling directo a la base de datos
+  // Lógica de Rescate: Polling directo con Persistencia Extrema
   const pollForNumber = useCallback(async () => {
     if (!user) return;
 
     try {
-      // Requerimiento: Búsqueda activa en la tabla subscriptions
+      // BÚSQUEDA DIRECTA SEGÚN REQUERIMIENTO
       const { data, error } = await supabase
         .from('subscriptions')
         .select('phone_number')
@@ -50,18 +52,17 @@ const Success: React.FC = () => {
       if (data?.phone_number) {
         setAssignedNumber(data.phone_number);
         setStatus('success');
-      } else if (retryCount < maxRetries) {
-        // Requerimiento: Reintento cada 2 segundos
-        console.debug(`Intento de rescate ${retryCount + 1}/${maxRetries}...`);
-        setTimeout(() => setRetryCount(prev => prev + 1), 2000);
+      } else if (retryCount < maxRetries - 1) {
+        // Programar siguiente reintento cada 1.5 segundos
+        setTimeout(() => setRetryCount(prev => prev + 1), pollingInterval);
       } else {
-        // Requerimiento: Error de Fallo de Puerto tras agotar intentos
+        // Solo falla tras agotar los 10 intentos reales
         setStatus('error');
       }
     } catch (err) {
-      console.error("Error en polling de rescate:", err);
-      if (retryCount < maxRetries) {
-        setTimeout(() => setRetryCount(prev => prev + 1), 2000);
+      console.error("Fallo en sincronización de nodo:", err);
+      if (retryCount < maxRetries - 1) {
+        setTimeout(() => setRetryCount(prev => prev + 1), pollingInterval);
       } else {
         setStatus('error');
       }
@@ -69,7 +70,7 @@ const Success: React.FC = () => {
   }, [user, retryCount]);
 
   useEffect(() => {
-    // Si assignedNumber es null, activamos el modo rescate
+    // Solo inicia polling si no hay número en URL
     if (!assignedNumber && status === 'syncing') {
       pollForNumber();
     }
@@ -101,34 +102,46 @@ const Success: React.FC = () => {
 
   const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
-  // UI: MODO SINCRONIZACIÓN (Sincronizando con el nodo físico...)
+  // UI: MODO SINCRONIZACIÓN (Estableciendo conexión con el nodo físico...)
   if (status === 'syncing') {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center font-display">
-        <div className="relative mb-8">
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse"></div>
-          <div className="relative size-24 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
-            <RefreshCw className="size-10 text-primary animate-spin" />
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
+        <div className="relative mb-10">
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="relative size-28 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
+            <RefreshCw className="size-12 text-primary animate-spin" />
+          </div>
+          <div className="absolute -bottom-2 -right-2 size-10 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+            <Cpu className="size-5" />
           </div>
         </div>
-        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
+        
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">
           Sincronizando con el nodo físico...
         </h2>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-          Estableciendo enlace de puerto físico
-        </p>
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <div className="flex gap-1.5">
-            {[...Array(maxRetries)].map((_, i) => (
-              <div 
-                key={i} 
-                className={`size-2 rounded-full transition-all duration-700 ${retryCount >= i ? 'bg-primary scale-110' : 'bg-slate-200 dark:bg-slate-800'}`}
-              ></div>
-            ))}
+        
+        <div className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800/50 rounded-full border border-slate-200 dark:border-slate-700 mb-8">
+          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
+            Estableciendo conexión con el nodo físico... Intento {retryCount + 1} de {maxRetries}
+          </p>
+        </div>
+
+        <div className="w-full max-w-xs space-y-4">
+          <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary transition-all duration-700 ease-out"
+              style={{ width: `${((retryCount + 1) / maxRetries) * 100}%` }}
+            ></div>
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            Intento de conexión {retryCount + 1} de {maxRetries}
-          </span>
+          <div className="flex justify-between items-center px-1">
+             <span className="text-[9px] font-black text-slate-400 uppercase">Sincronización</span>
+             <span className="text-[9px] font-black text-primary uppercase">{Math.round(((retryCount + 1) / maxRetries) * 100)}%</span>
+          </div>
+        </div>
+        
+        <div className="mt-12 opacity-30 flex items-center gap-2">
+           <ShieldCheck className="size-4" />
+           <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE INFRASTRUCTURE v6.8</span>
         </div>
       </div>
     );
@@ -137,17 +150,17 @@ const Success: React.FC = () => {
   // UI: ERROR FINAL (Fallo de Puerto)
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center font-display">
-        <div className="size-20 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl flex items-center justify-center mb-6 border border-rose-100 dark:border-rose-900/20 shadow-xl">
-          <AlertTriangle className="size-10" />
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
+        <div className="size-24 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-[2rem] flex items-center justify-center mb-8 border border-rose-100 dark:border-rose-900/20 shadow-xl">
+          <AlertTriangle className="size-12" />
         </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-2">Fallo de Puerto</h2>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-10 leading-relaxed">
-          El nodo físico no pudo confirmar la activación del puerto tras 5 reintentos. Verifica tu panel de control o contacta a soporte.
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Fallo de Puerto</h1>
+        <p className="text-[15px] font-medium text-slate-500 dark:text-slate-400 max-w-[32ch] mb-10 leading-relaxed">
+          El nodo físico no pudo confirmar la activación del puerto tras 10 reintentos persistentes. La transacción se ha registrado, por favor verifica tu panel en unos minutos.
         </p>
         <button 
           onClick={() => navigate('/dashboard')}
-          className="w-full max-w-xs h-16 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
+          className="w-full max-w-xs h-16 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-xl hover:bg-black"
         >
           Regresar al Panel Principal
         </button>
@@ -168,7 +181,7 @@ const Success: React.FC = () => {
         <div className="mb-12">
           <div className="relative mb-6 flex justify-center">
             <div className="absolute size-28 bg-emerald-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative size-24 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
+            <div className="relative size-24 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
               <CheckCircle2 className="size-12 text-emerald-500" />
             </div>
           </div>
@@ -176,7 +189,7 @@ const Success: React.FC = () => {
             ¡Puerto Activo!
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[28ch] mx-auto">
-            Sincronización exitosa. Tu línea física está lista para recibir transmisiones.
+            Sincronización exitosa. Tu línea física está lista para recibir transmisiones de red.
           </p>
         </div>
 
@@ -221,7 +234,7 @@ const Success: React.FC = () => {
           >
             <div className="size-12"></div>
             <span className="text-[14px] uppercase tracking-widest">Ir al Panel de Control</span>
-            <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center transition-colors group-hover:bg-white/30">
+            <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-colors">
               <ArrowRight className="size-6" />
             </div>
           </button>
