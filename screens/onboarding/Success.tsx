@@ -71,12 +71,15 @@ const Success: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
-  const handleGoToDashboard = () => {
-    // Pasamos el número asignado en el state para que el Dashboard lo seleccione automáticamente
-    navigate('/dashboard', { 
-      state: { newlyActivatedNumber: assignedNumber },
-      replace: true 
-    });
+  const handleCopy = () => {
+    if (!assignedNumber) return;
+    navigator.clipboard.writeText(formatPhoneNumber(assignedNumber));
+    
+    const toast = document.createElement('div');
+    toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest z-50 shadow-2xl animate-in fade-in slide-in-from-bottom-2";
+    toast.innerText = "Número Copiado";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
   };
 
   if (status === 'syncing') {
@@ -89,6 +92,7 @@ const Success: React.FC = () => {
   }
 
   if (status === 'error') {
+    // Si hay error, redirigimos automáticamente al dashboard después de 2 segundos para no bloquear
     setTimeout(() => navigate('/dashboard'), 2000);
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
@@ -132,7 +136,7 @@ const Success: React.FC = () => {
         </div>
 
         <button 
-          onClick={handleGoToDashboard}
+          onClick={() => navigate('/dashboard')}
           className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="size-12"></div>
