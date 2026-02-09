@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 
 const RegionSelect: React.FC = () => {
   const navigate = useNavigate();
-  const { loading } = useAuth();
   const [selected, setSelected] = useState<string>('CL');
 
   const regions = [
@@ -12,12 +10,6 @@ const RegionSelect: React.FC = () => {
     { id: 'AR', name: 'Arg', flag: '🇦🇷', available: false },
     { id: 'PE', name: 'Perú', flag: '🇵🇪', available: false },
   ];
-
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
-    </div>
-  );
 
   return (
     <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 p-6 pt-8">
@@ -38,6 +30,7 @@ const RegionSelect: React.FC = () => {
         <div className="relative w-48 h-48 bg-blue-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 ring-1 ring-blue-100 dark:ring-slate-700">
           <div className="absolute inset-0 rounded-full border border-blue-100/50 scale-125"></div>
           
+          {/* Floating Flags */}
           <div className="absolute top-0 right-10 bg-white dark:bg-slate-700 p-2 rounded-xl shadow-lg animate-bounce" style={{ animationDuration: '3s' }}>
             <span className="text-xl">🇨🇱</span>
           </div>
@@ -46,14 +39,17 @@ const RegionSelect: React.FC = () => {
           </div>
           
           <span className="material-symbols-outlined text-[80px] text-primary">public</span>
+          
+          <div className="absolute top-1/3 left-1/3 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-3 h-3 bg-slate-400 rounded-full border-2 border-white"></div>
         </div>
 
         <div className="space-y-4 max-w-xs">
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Elige región <br/>para tu nueva línea
+            Paso 1: <br/>Elige tu región
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed">
-            Puedes tener múltiples numeraciones TELSIM activas simultáneamente en una misma cuenta.
+            Selecciona Chile para obtener un número local físico y real. Argentina y Perú estarán disponibles próximamente.
           </p>
         </div>
 
@@ -89,13 +85,13 @@ const RegionSelect: React.FC = () => {
           className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
         >
           <div className="w-12"></div> 
-          <span className="text-[17px] tracking-wide">Continuar</span>
+          <span className="text-[17px] tracking-wide">Siguiente</span>
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <span className="material-symbols-outlined text-white">arrow_forward</span>
           </div>
         </button>
         <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6 font-medium">
-          Selecciona un puerto físico real
+          Paso 1 de 3
         </p>
       </div>
     </div>

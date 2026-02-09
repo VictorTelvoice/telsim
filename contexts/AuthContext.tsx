@@ -7,8 +7,6 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  hasActiveSubscription: boolean;
-  checkSubscriptionStatus: () => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -18,28 +16,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { registerOrUpdateSession } = useDeviceSession();
 
-  const checkSubscriptionStatus = async (userId: string): Promise<boolean> => {
-    try {
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .limit(1)
-        .maybeSingle();
-      
-      const isActive = !!data;
-      setHasActiveSubscription(isActive);
-      return isActive;
-    } catch (err) {
-      console.error("Error checking subscription status:", err);
-      return false;
-    }
-  };
-
+  // Función para sincronizar datos con la tabla public.users
   const syncUserToPublicTable = async (currentUser: User) => {
     try {
       const { error } = await supabase
@@ -58,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error sincronizando usuario en tabla pública:", error.message);
       }
       
-      await checkSubscriptionStatus(currentUser.id);
+      // Registrar o actualizar la sesión del dispositivo de forma persistente
       await registerOrUpdateSession(currentUser.id);
       
     } catch (err) {
@@ -67,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Verificar sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -76,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
+    // Escuchar cambios de estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
@@ -83,8 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (event === 'SIGNED_IN' && currentUser) {
         syncUserToPublicTable(currentUser);
-      } else if (event === 'SIGNED_OUT') {
-        setHasActiveSubscription(false);
       }
       
       setLoading(false);
@@ -94,22 +73,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
+    // Limpiar ID de sesión local al cerrar sesión
     localStorage.removeItem('telsim_device_session_id');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setHasActiveSubscription(false);
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      hasActiveSubscription, 
-      checkSubscriptionStatus: () => user ? checkSubscriptionStatus(user.id) : Promise.resolve(false),
-      signOut 
-    }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {!loading && children}
     </AuthContext.Provider>
   );
