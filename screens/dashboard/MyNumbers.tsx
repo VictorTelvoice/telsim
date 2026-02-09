@@ -17,6 +17,7 @@ import {
   Globe, 
   Crown,
   Zap,
+  Diamond,
   Leaf
 } from 'lucide-react';
 
@@ -50,7 +51,6 @@ const MyNumbers: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            // 1. Obtener los slots del usuario
             const { data: slotsData, error: slotsError } = await supabase
                 .from('slots')
                 .select('*')
@@ -59,7 +59,6 @@ const MyNumbers: React.FC = () => {
 
             if (slotsError) throw slotsError;
 
-            // 2. Obtener las suscripciones para cruzar el nombre del plan real
             const { data: subsData, error: subsError } = await supabase
                 .from('subscriptions')
                 .select('phone_number, plan_name')
@@ -68,7 +67,6 @@ const MyNumbers: React.FC = () => {
 
             if (subsError) throw subsError;
 
-            // 3. Mapear el nombre del plan real a cada slot
             const enrichedSlots = (slotsData || []).map(slot => {
                 const subscription = subsData?.find(s => s.phone_number === slot.phone_number);
                 return {
@@ -153,6 +151,7 @@ const MyNumbers: React.FC = () => {
         const rawName = planName || 'Starter';
         const name = rawName.toString().toUpperCase();
         
+        // ESTILO DORADO PARA POWER
         if (name.includes('POWER')) {
             return {
                 cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C] text-white shadow-[0_15px_40px_-10px_rgba(180,146,72,0.3)]',
@@ -161,20 +160,24 @@ const MyNumbers: React.FC = () => {
                 indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
                 icon: <Crown className="size-3" />,
-                label: name
+                label: name,
+                numberColor: 'text-white'
             };
         }
+        // ESTILO AZUL FLÚOR PARA PRO (ACTUALIZADO)
         if (name.includes('PRO')) {
             return {
-                cardBg: 'bg-slate-900 text-white ring-1 ring-white/10 shadow-2xl',
-                badgeBg: 'bg-blue-600 text-white shadow-lg shadow-blue-500/20',
-                accentText: 'text-blue-400',
-                indicator: 'bg-blue-400',
-                chip: 'bg-gradient-to-br from-slate-200 via-slate-400 to-slate-500',
+                cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-[0_15px_40px_-10px_rgba(0,148,255,0.4)]',
+                badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
+                accentText: 'text-blue-50',
+                indicator: 'bg-white',
+                chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
                 icon: <Zap className="size-3" />,
-                label: name
+                label: name,
+                numberColor: 'text-white' // Texto en blanco solicitado
             };
         }
+        // ESTILO STARTER
         return {
             cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 shadow-soft',
             badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
@@ -182,7 +185,8 @@ const MyNumbers: React.FC = () => {
             indicator: 'bg-emerald-500',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
-            label: name
+            label: name,
+            numberColor: 'text-slate-900 dark:text-white'
         };
     };
 
@@ -276,9 +280,9 @@ const MyNumbers: React.FC = () => {
                         {slots?.map((slot) => {
                             const country = getCountryCode(slot);
                             const isEditing = editingLabelId === slot.port_id;
-                            // USAMOS EL NOMBRE DEL PLAN REAL SINCRONIZADO
                             const style = getPlanStyle(slot.actual_plan_name);
                             const isPower = (slot.actual_plan_name || '').toUpperCase().includes('POWER');
+                            const isPro = (slot.actual_plan_name || '').toUpperCase().includes('PRO');
                             
                             return (
                                 <div key={slot.port_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -301,7 +305,7 @@ const MyNumbers: React.FC = () => {
                                                     
                                                     <div className="mt-1 min-h-[22px] flex items-center">
                                                         {isEditing ? (
-                                                            <div className={`flex items-center gap-1.5 p-1 rounded-lg ${isPower ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
+                                                            <div className={`flex items-center gap-1.5 p-1 rounded-lg ${isPower || isPro ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
                                                                 <input 
                                                                     type="text"
                                                                     value={tempLabelValue}
@@ -321,17 +325,17 @@ const MyNumbers: React.FC = () => {
                                                                 onClick={() => handleStartEditLabel(slot)}
                                                                 className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
                                                             >
-                                                                <span className={`text-[10px] font-black uppercase tracking-widest italic truncate max-w-[120px] ${isPower ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}`}>
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest italic truncate max-w-[120px] ${isPower || isPro ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}`}>
                                                                     {(slot.label || 'Mi Línea').toString().toUpperCase()}
                                                                 </span>
-                                                                <Pencil className={`size-2.5 ${isPower ? 'text-white/40' : 'text-slate-300'}`} />
+                                                                <Pencil className={`size-2.5 ${isPower || isPro ? 'text-white/40' : 'text-slate-300'}`} />
                                                             </button>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 <div className="flex flex-col items-end gap-1.5">
-                                                    <div className={`size-8 rounded-full overflow-hidden border-2 shadow-sm ${isPower ? 'border-white/40' : 'border-slate-100 dark:border-slate-700'}`}>
+                                                    <div className={`size-8 rounded-full overflow-hidden border-2 shadow-sm ${isPower || isPro ? 'border-white/40' : 'border-slate-100 dark:border-slate-700'}`}>
                                                         <img src={`https://flagcdn.com/w80/${country}.png`} className="w-full h-full object-cover" alt="" />
                                                     </div>
                                                 </div>
@@ -349,8 +353,8 @@ const MyNumbers: React.FC = () => {
                                                 </div>
 
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className={`text-[8px] font-black uppercase tracking-[0.3em] mb-0.5 ${isPower ? 'text-white/40' : 'text-slate-400'}`}>Subscriber Number</span>
-                                                    <h3 className={`text-[24px] font-black font-mono tracking-tighter leading-none whitespace-nowrap overflow-hidden text-ellipsis ${isPower ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                                                    <span className={`text-[8px] font-black uppercase tracking-[0.3em] mb-0.5 ${isPower || isPro ? 'text-white/40' : 'text-slate-400'}`}>Subscriber Number</span>
+                                                    <h3 className={`text-[24px] font-black font-mono tracking-tighter leading-none whitespace-nowrap overflow-hidden text-ellipsis ${style.numberColor}`}>
                                                         {formatPhoneNumber(slot.phone_number)}
                                                     </h3>
                                                 </div>
@@ -364,7 +368,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end">
-                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower ? 'text-white' : ''}`}>TELSIM INFRA v2.8.6</span>
+                                                    <span className={`text-[7px] font-bold opacity-20 uppercase ${isPower || isPro ? 'text-white' : ''}`}>TELSIM INFRA v2.9.2</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -389,8 +393,8 @@ const MyNumbers: React.FC = () => {
                                             className={`size-12 rounded-2xl flex items-center justify-center shadow-lg hover:translate-y-[-2px] transition-all active:scale-95 ${
                                               isPower 
                                               ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/20' 
-                                              : (slot.actual_plan_name || '').toUpperCase().includes('PRO')
-                                                ? 'bg-blue-600 text-white shadow-blue-500/20'
+                                              : isPro
+                                                ? 'bg-gradient-to-br from-[#0047FF] to-[#00E0FF] text-white shadow-blue-500/30'
                                                 : 'bg-emerald-500 text-white shadow-emerald-500/20'
                                             }`}
                                         >
