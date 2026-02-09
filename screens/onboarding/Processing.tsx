@@ -5,6 +5,11 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
 import { Loader2, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 
+/**
+ * TELSIM INFRASTRUCTURE CORE v5.2
+ * Este componente es el cerebro de la activación. Maneja bloqueos atómicos
+ * y recuperación de datos en caso de colisiones de base de datos.
+ */
 const Processing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,60 +18,59 @@ const Processing: React.FC = () => {
   
   const [currentStep, setCurrentStep] = useState('Verificando parámetros...');
   const [errorState, setErrorState] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSelfHealing, setIsSelfHealing] = useState(false);
   
-  // 1. BLOQUEO DE ESTADO CRÍTICO: useRef inicializado en false
+  // 1. SEMÁFORO ATÓMICO: Impide dobles peticiones incluso con clics rápidos o re-renders.
   const isSubmitting = useRef(false);
 
   const planData = location.state;
 
-  // Validación de Caja Blanca: Evitar valores por defecto como 'started'
+  // Validación de integridad de datos de entrada
   if (!planData || !planData.planName || !planData.price || planData.planName === 'started') {
     return <Navigate to="/onboarding/plan" replace />;
   }
 
   useEffect(() => {
-    const processPurchase = async () => {
-      // 2. VERIFICACIÓN DE BLOQUEO: Antes de cualquier acción
+    const startProvisioning = async () => {
+      // 2. GUARDIA DE ENTRADA: Si ya hay un proceso, abortamos silenciosamente.
       if (isSubmitting.current) return;
+      isSubmitting.current = true;
 
-      const animationPromise = new Promise(resolve => setTimeout(resolve, 3000));
+      const minAnimationTime = new Promise(resolve => setTimeout(resolve, 3200));
 
       try {
         const { planName, price, monthlyLimit } = planData;
         const userId = user?.id;
 
-        if (!userId) throw new Error("Sesión de usuario no válida.");
+        if (!userId) throw new Error("Sesión de usuario expirada.");
 
-        setCurrentStep('Preparando puerto seguro...');
+        setCurrentStep('Conectando al puerto físico...');
 
-        // 3. BLOQUEO ATÓMICO JUSTO ANTES DE LA LLAMADA RPC
-        isSubmitting.current = true;
-
+        // 3. LLAMADA RPC (Purchase Subscription)
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
           p_plan_name: planName,
           p_amount: Number(price),
           p_monthly_limit: Number(monthlyLimit)
         });
 
-        // Manejo de errores de Supabase
         if (rpcError) {
-          // Si es un error de red o de base de datos real, habilitamos para reintento
+          // Si hay error, liberamos el semáforo para permitir reintento manual
           isSubmitting.current = false;
           throw rpcError;
         }
 
         let finalNumber = rpcResult?.phoneNumber || rpcResult?.phone_number;
 
-        // 4. PROTOCOLO DE RECUPERACIÓN: Si success pero phoneNumber es null
+        // 4. PROTOCOLO DE AUTOCURACIÓN (Self-Healing)
+        // Si el RPC fue exitoso (success: true) pero el número es null por latencia de réplica
         if (!finalNumber) {
-          setIsVerifying(true);
-          setCurrentStep('Sincronizando con el nodo físico...');
+          setIsSelfHealing(true);
+          setCurrentStep('Recuperando numeración del nodo...');
           
-          // Retry: Timeout de 1 segundo antes de buscar en la tabla
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Esperamos 1.2 segundos para que la DB se estabilice tras el commit
+          await new Promise(resolve => setTimeout(resolve, 1200));
 
-          // Consulta directa a la tabla subscriptions para recuperar el registro creado
+          // Consultamos directamente la tabla de suscripciones (ledger de verdad)
           const { data: subData, error: subError } = await supabase
             .from('subscriptions')
             .select('phone_number')
@@ -84,16 +88,15 @@ const Processing: React.FC = () => {
           finalNumber = subData?.phone_number;
 
           if (!finalNumber) {
-            // Si después del reintento sigue siendo null
             isSubmitting.current = false;
-            throw new Error("El nodo no devolvió una numeración válida. Por favor, contacta a soporte.");
+            throw new Error("El sistema no pudo confirmar la línea. Por favor, contacta a soporte.");
           }
         }
 
-        // Éxito en la recuperación o respuesta inicial
-        setCurrentStep('Línea activada: ' + finalNumber);
+        // 5. FINALIZACIÓN EXITOSA
+        setCurrentStep('Sincronización completa: ' + finalNumber);
         
-        // Notificación logística
+        // Registrar notificación en el ledger del usuario
         addNotification({
           title: 'SIM Activada',
           message: `Línea ${finalNumber} aprovisionada correctamente.`,
@@ -107,52 +110,53 @@ const Processing: React.FC = () => {
           }
         });
 
-        await animationPromise;
+        await minAnimationTime;
         
-        // Navegación final: isSubmitting se mantiene true para evitar dobles envíos al desmontar
+        // Navegación final: Mantenemos isSubmitting en true para evitar duplicados al desmontar
         navigate('/onboarding/success', { 
           state: { assignedNumber: finalNumber, planName },
           replace: true 
         });
 
       } catch (err: any) {
-        console.error("Fallo crítico en flujo de compra:", err);
-        // CLEAN UP: Solo habilitamos el botón si hubo un error real (no un duplicado evitado por el ref)
-        setErrorState(err.message || "Error de conexión con la infraestructura.");
+        console.error("Fallo crítico en infraestructura TELSIM:", err);
+        setErrorState(err.message || "Error de conexión con el nodo físico.");
         setCurrentStep('Error de provisión');
+        isSubmitting.current = false; // Solo aquí permitimos reintento manual
       }
     };
 
-    processPurchase();
+    startProvisioning();
   }, [user, navigate, planData, addNotification]);
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
+      {/* Background Decor */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 dark:opacity-40">
-        <div className="w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-pulse"></div>
       </div>
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-xs text-center px-6">
         {errorState ? (
           <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
-            <div className="size-20 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-500 mb-6 border border-rose-500/20">
+            <div className="size-20 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-500 mb-6 border border-rose-500/20 shadow-xl shadow-rose-500/5">
               <AlertCircle className="size-10" />
             </div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Error de Puerto</h2>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2 tracking-tight">Fallo de Puerto</h2>
             <p className="text-[11px] font-bold text-slate-500 mb-8 leading-relaxed px-4">{errorState}</p>
             <button 
               onClick={() => navigate('/onboarding/plan')}
               className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
             >
-              Volver a intentarlo
+              Volver al Mercado
             </button>
           </div>
         ) : (
           <>
             <div className="relative flex items-center justify-center mb-12">
               <div className="absolute size-32 rounded-full border-2 border-primary/20 animate-ping opacity-30"></div>
-              <div className="size-24 rounded-full border-[3px] border-slate-100 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 shadow-xl">
-                {isVerifying ? (
+              <div className="size-24 rounded-full border-[4px] border-slate-100 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 shadow-2xl">
+                {isSelfHealing ? (
                   <RefreshCw className="size-10 text-primary animate-spin" />
                 ) : (
                   <Loader2 className="size-10 text-primary animate-spin" />
@@ -164,28 +168,28 @@ const Processing: React.FC = () => {
             </div>
 
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-4">
-              {isVerifying ? 'Verificando' : 'Sincronizando'}
+              {isSelfHealing ? 'Verificando' : 'Sincronizando'}
             </h2>
             
             <div className="flex flex-col items-center gap-3">
-              <div className="px-4 py-1.5 bg-primary/5 dark:bg-primary/10 rounded-full border border-primary/10">
+              <div className="px-5 py-2 bg-primary/5 dark:bg-primary/10 rounded-full border border-primary/10">
                 <p className="text-primary text-[9px] font-black uppercase tracking-[0.2em]">
                   {currentStep}
                 </p>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 mt-2">
                 <div className="size-1.5 rounded-full bg-primary/30 animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="size-1.5 rounded-full bg-primary/60 animate-bounce" style={{animationDelay: '200ms'}}></div>
-                <div className="size-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay: '400ms'}}></div>
+                <div className="size-1.5 rounded-full bg-primary/60 animate-bounce" style={{animationDelay: '150ms'}}></div>
+                <div className="size-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay: '300ms'}}></div>
               </div>
             </div>
           </>
         )}
       </div>
 
-      <div className="absolute bottom-12 w-full text-center opacity-40">
+      <div className="absolute bottom-12 w-full text-center opacity-30">
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">
-          TELSIM PHYSICAL INFRASTRUCTURE v5.0
+          TELSIM PHYSICAL INFRASTRUCTURE CORE v5.2
         </p>
       </div>
     </div>
