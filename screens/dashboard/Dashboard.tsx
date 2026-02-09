@@ -371,7 +371,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                                   {formatTime(msg.received_at)}
                               </span>
                           </div>
-                          <p className="text-[9px] font-medium text-slate-400 truncate uppercase tracking-widest">de: {formatSenderNumber(msg.sender)}</p>
+                          <p className="text-[11px] font-medium text-slate-400 truncate uppercase tracking-widest text-[9px]">From: {formatSenderNumber(msg.sender)}</p>
                       </div>
                   </div>
                   
