@@ -20,20 +20,22 @@ const Success: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
 
-  // Estados de control
+  // Estados de control iniciales
   const [assignedNumber, setAssignedNumber] = useState<string | null>(searchParams.get('assignedNumber'));
   const [planName] = useState(searchParams.get('planName') || 'Pro');
   const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(assignedNumber ? 'success' : 'syncing');
   const [retryCount, setRetryCount] = useState(0);
   const [showContent, setShowContent] = useState(false);
 
-  const maxRetries = 3;
+  // Requerimiento: 5 intentos (uno cada 2 segundos)
+  const maxRetries = 5;
 
-  // Lógica de Rescate: Polling a la base de datos
+  // Lógica de Rescate: Polling directo a la base de datos
   const pollForNumber = useCallback(async () => {
     if (!user) return;
 
     try {
+      // Requerimiento: Búsqueda activa en la tabla subscriptions
       const { data, error } = await supabase
         .from('subscriptions')
         .select('phone_number')
@@ -49,9 +51,11 @@ const Success: React.FC = () => {
         setAssignedNumber(data.phone_number);
         setStatus('success');
       } else if (retryCount < maxRetries) {
-        // Reintentar en 2 segundos
+        // Requerimiento: Reintento cada 2 segundos
+        console.debug(`Intento de rescate ${retryCount + 1}/${maxRetries}...`);
         setTimeout(() => setRetryCount(prev => prev + 1), 2000);
       } else {
+        // Requerimiento: Error de Fallo de Puerto tras agotar intentos
         setStatus('error');
       }
     } catch (err) {
@@ -65,6 +69,7 @@ const Success: React.FC = () => {
   }, [user, retryCount]);
 
   useEffect(() => {
+    // Si assignedNumber es null, activamos el modo rescate
     if (!assignedNumber && status === 'syncing') {
       pollForNumber();
     }
@@ -87,7 +92,6 @@ const Success: React.FC = () => {
   const handleCopy = () => {
     if (!assignedNumber) return;
     navigator.clipboard.writeText(formatPhoneNumber(assignedNumber));
-    // Toast simple inline
     const toast = document.createElement('div');
     toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest z-50 animate-in fade-in slide-in-from-bottom-2";
     toast.innerText = "Número Copiado";
@@ -97,86 +101,95 @@ const Success: React.FC = () => {
 
   const countryCode = (assignedNumber?.includes('56')) ? 'cl' : 'ar';
 
+  // UI: MODO SINCRONIZACIÓN (Sincronizando con el nodo físico...)
   if (status === 'syncing') {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center font-display">
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse"></div>
-          <div className="relative size-24 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
+          <div className="relative size-24 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
             <RefreshCw className="size-10 text-primary animate-spin" />
           </div>
         </div>
         <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
-          Sincronizando Puerto
+          Sincronizando con el nodo físico...
         </h2>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
-          Estableciendo conexión con el nodo físico...
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+          Estableciendo enlace de puerto físico
         </p>
-        <div className="mt-8 flex gap-1">
-          {[...Array(3)].map((_, i) => (
-            <div 
-              key={i} 
-              className={`size-1.5 rounded-full transition-colors duration-500 ${retryCount >= i ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'}`}
-            ></div>
-          ))}
+        <div className="mt-10 flex flex-col items-center gap-4">
+          <div className="flex gap-1.5">
+            {[...Array(maxRetries)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`size-2 rounded-full transition-all duration-700 ${retryCount >= i ? 'bg-primary scale-110' : 'bg-slate-200 dark:bg-slate-800'}`}
+              ></div>
+            ))}
+          </div>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            Intento de conexión {retryCount + 1} de {maxRetries}
+          </span>
         </div>
       </div>
     );
   }
 
+  // UI: ERROR FINAL (Fallo de Puerto)
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center">
-        <div className="size-20 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl flex items-center justify-center mb-6 border border-rose-100 dark:border-rose-900/20">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center font-display">
+        <div className="size-20 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl flex items-center justify-center mb-6 border border-rose-100 dark:border-rose-900/20 shadow-xl">
           <AlertTriangle className="size-10" />
         </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-2">Fallo de Aprovisionamiento</h2>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-8">
-          No pudimos detectar tu puerto activo tras varios intentos. Esto puede deberse a un retraso en la red móvil.
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-2">Fallo de Puerto</h2>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mb-10 leading-relaxed">
+          El nodo físico no pudo confirmar la activación del puerto tras 5 reintentos. Verifica tu panel de control o contacta a soporte.
         </p>
         <button 
           onClick={() => navigate('/dashboard')}
-          className="w-full max-w-xs h-14 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all"
+          className="w-full max-w-xs h-16 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-xl"
         >
-          Ir al Panel y reintentar
+          Regresar al Panel Principal
         </button>
       </div>
     );
   }
 
+  // UI: ÉXITO (Muestra el número grande)
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 pointer-events-none opacity-30">
-        <div className="absolute top-1/4 left-1/4 size-64 bg-primary/10 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-1/4 right-1/4 size-64 bg-emerald-500/10 rounded-full blur-[100px]"></div>
+      {/* Decorative Elements */}
+      <div className="absolute inset-0 pointer-events-none opacity-20">
+        <div className="absolute top-1/4 left-1/4 size-64 bg-primary/20 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 size-64 bg-emerald-500/20 rounded-full blur-[100px] animate-pulse" style={{animationDelay: '1s'}}></div>
       </div>
 
       <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-700 ${showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="mb-10">
+        <div className="mb-12">
           <div className="relative mb-6 flex justify-center">
             <div className="absolute size-28 bg-emerald-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative size-24 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transform transition-transform duration-500 hover:rotate-3">
+            <div className="relative size-24 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
               <CheckCircle2 className="size-12 text-emerald-500" />
             </div>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">
             ¡Puerto Activo!
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[28ch] mx-auto">
-            Tu nueva línea física ha sido sincronizada exitosamente con la red TELSIM.
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[28ch] mx-auto">
+            Sincronización exitosa. Tu línea física está lista para recibir transmisiones.
           </p>
         </div>
 
         {/* Number Display Card */}
-        <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-8 flex flex-col items-center shadow-xl mb-10 relative overflow-hidden group">
+        <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-9 flex flex-col items-center shadow-card mb-10 relative overflow-hidden group">
           <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
+          <div className="absolute -right-4 -top-4 size-20 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-colors"></div>
           
-          <span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.3em] mb-4 relative z-10">
+          <span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.4em] mb-5 relative z-10">
             Identificador de Línea
           </span>
           
-          <div className="flex items-center gap-4 mb-6 relative z-10">
+          <div className="flex items-center gap-4 mb-8 relative z-10">
             <div className="size-10 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
               <img 
                 src={`https://flagcdn.com/w80/${countryCode}.png`}
@@ -184,7 +197,7 @@ const Success: React.FC = () => {
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
+            <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums leading-none">
               {formatPhoneNumber(assignedNumber!)}
             </div>
           </div>
@@ -192,7 +205,7 @@ const Success: React.FC = () => {
           <div className="flex items-center gap-2 relative z-10">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
               <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[9px] font-black uppercase tracking-widest">Canal Seguro</span>
+              <span className="text-[9px] font-black uppercase tracking-widest">Nodo Operativo</span>
             </div>
             <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">
               Plan {planName}
@@ -209,7 +222,7 @@ const Success: React.FC = () => {
             <div className="size-12"></div>
             <span className="text-[14px] uppercase tracking-widest">Ir al Panel de Control</span>
             <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center transition-colors group-hover:bg-white/30">
-              <ArrowRight className="size-5" />
+              <ArrowRight className="size-6" />
             </div>
           </button>
           
@@ -224,7 +237,7 @@ const Success: React.FC = () => {
 
         <div className="mt-12 flex items-center gap-2 opacity-30">
           <ShieldCheck className="size-4" />
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM INFRASTRUCTURE v6.5</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM INFRASTRUCTURE v6.8</span>
         </div>
       </div>
     </div>
