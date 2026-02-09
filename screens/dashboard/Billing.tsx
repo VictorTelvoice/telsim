@@ -54,7 +54,6 @@ const Billing: React.FC = () => {
     setLoading(true);
     
     try {
-      // Fetch Subscriptions
       const { data: subsData, error: subsError } = await supabase
         .from('subscriptions')
         .select('*')
@@ -63,7 +62,6 @@ const Billing: React.FC = () => {
       if (subsError) throw subsError;
       setSubscriptions(subsData || []);
 
-      // Fetch Payment Method
       const { data: pmData, error: pmError } = await supabase
         .from('payment_methods')
         .select('*')
@@ -84,15 +82,15 @@ const Billing: React.FC = () => {
     fetchData();
   }, [user]);
 
-  const activeServices = subscriptions.filter(s => s.status === 'active');
-  const previousServices = subscriptions.filter(s => s.status !== 'active');
+  const activeServices = (subscriptions || []).filter(s => s.status === 'active');
+  const previousServices = (subscriptions || []).filter(s => s.status !== 'active');
   const totalMonthlySpend = activeServices.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(val);
+    }).format(val || 0);
   };
 
   const formatFriendlyDate = (dateStr: string) => {
@@ -153,7 +151,7 @@ const Billing: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                    {paymentMethod.brand} •••• {paymentMethod.last4}
+                    {(paymentMethod.brand || 'Card').toString()} •••• {(paymentMethod.last4 || '0000').toString()}
                   </p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Expira: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
                 </div>
@@ -176,16 +174,16 @@ const Billing: React.FC = () => {
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus Servicios Activos</h3>
-            <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} Planes</span>
+            <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices?.length || 0} Planes</span>
           </div>
 
           <div className="space-y-3">
-            {activeServices.length === 0 ? (
+            {activeServices?.length === 0 ? (
               <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
                 <p className="text-xs font-bold text-slate-400 italic">No tienes servicios contratados.</p>
               </div>
             ) : (
-              activeServices.map((sub) => (
+              activeServices?.map((sub) => (
                 <div 
                   key={sub.id} 
                   onClick={() => setSelectedSub(sub)}
@@ -196,8 +194,8 @@ const Billing: React.FC = () => {
                          <Smartphone className="size-5" />
                       </div>
                       <div>
-                         <h4 className="text-[13px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{sub.plan_name}</h4>
-                         <p className="text-[12px] font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</p>
+                         <h4 className="text-[13px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{(sub.plan_name || 'Starter').toString()}</h4>
+                         <p className="text-[12px] font-bold text-slate-500 font-mono tracking-tighter">{(sub.phone_number || '').toString()}</p>
                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                             Próx. pago: {formatShortDate(sub.next_billing_date)}
                          </p>
@@ -217,7 +215,7 @@ const Billing: React.FC = () => {
         </section>
 
         {/* SECCIÓN C: HISTORIAL (COLAPSABLE) */}
-        {previousServices.length > 0 && (
+        {previousServices?.length > 0 && (
           <details className="group border-t border-slate-100 dark:border-slate-800 pt-6">
             <summary className="list-none cursor-pointer flex items-center justify-between px-1">
               <div className="flex items-center gap-2 text-slate-400">
@@ -228,11 +226,11 @@ const Billing: React.FC = () => {
             </summary>
             
             <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-2">
-              {previousServices.map((sub) => (
+              {previousServices?.map((sub) => (
                 <div key={sub.id} className="px-6 py-5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl flex items-center justify-between opacity-60">
                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase mb-0.5">{sub.plan_name}</span>
-                      <span className="text-xs font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase mb-0.5">{(sub.plan_name || 'Servicio').toString()}</span>
+                      <span className="text-xs font-bold text-slate-500 font-mono tracking-tighter">{(sub.phone_number || '').toString()}</span>
                    </div>
                    <div className="text-right">
                       <p className="text-xs font-bold text-slate-400 line-through">{formatCurrency(sub.amount)}</p>
@@ -274,7 +272,7 @@ const Billing: React.FC = () => {
 
             <div className="px-8 pb-10 space-y-8">
                <div className="text-center space-y-2">
-                  <h2 className="text-white text-xl font-black uppercase tracking-tight">{selectedSub.plan_name}</h2>
+                  <h2 className="text-white text-xl font-black uppercase tracking-tight">{(selectedSub.plan_name || 'Starter').toString().toUpperCase()}</h2>
                   <div className="text-5xl font-black text-white tracking-tighter tabular-nums flex items-baseline justify-center gap-1">
                      {formatCurrency(selectedSub.amount)}
                      <span className="text-xs font-bold text-white/40">/mes</span>
@@ -284,7 +282,7 @@ const Billing: React.FC = () => {
                <div className="grid grid-cols-2 gap-px bg-white/5 rounded-3xl border border-white/5 overflow-hidden">
                   <div className="p-5 bg-slate-900/40 space-y-1">
                      <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Número</span>
-                     <p className="text-xs font-black text-white font-mono">{selectedSub.phone_number}</p>
+                     <p className="text-xs font-black text-white font-mono">{(selectedSub.phone_number || '').toString()}</p>
                   </div>
                   <div className="p-5 bg-slate-900/40 space-y-1">
                      <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Estado</span>
@@ -310,7 +308,7 @@ const Billing: React.FC = () => {
                      </div>
                      <div className="flex flex-col">
                         <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Método de pago</span>
-                        <p className="text-[11px] font-bold text-white">{paymentMethod ? `${paymentMethod.brand} •••• ${paymentMethod.last4}` : 'No vinculado'}</p>
+                        <p className="text-[11px] font-bold text-white">{paymentMethod ? `${(paymentMethod.brand || 'Card').toString()} •••• ${(paymentMethod.last4 || '0000').toString()}` : 'No vinculado'}</p>
                      </div>
                   </div>
                   <button className="text-[10px] font-black text-primary uppercase tracking-widest">Cambiar</button>

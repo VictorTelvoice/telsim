@@ -57,7 +57,6 @@ const MyNumbers: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            // Obtenemos los slots
             const { data: slotsData, error: slotsError } = await supabase
                 .from('slots')
                 .select('*')
@@ -66,7 +65,6 @@ const MyNumbers: React.FC = () => {
             
             if (slotsError) throw slotsError;
 
-            // Obtenemos las suscripciones para ver los créditos (Relación por phone_number)
             const { data: subsData, error: subsError } = await supabase
                 .from('subscriptions')
                 .select('phone_number, credits_used, monthly_limit, plan_name, alias')
@@ -75,7 +73,6 @@ const MyNumbers: React.FC = () => {
 
             if (subsError) throw subsError;
 
-            // Mergear datos
             const merged: SlotWithSub[] = (slotsData || []).map(slot => {
                 const sub = subsData?.find(s => s.phone_number === slot.phone_number);
                 return {
@@ -112,7 +109,6 @@ const MyNumbers: React.FC = () => {
 
     const handleStartEditLabel = (slot: SlotWithSub) => {
         setEditingLabelId(slot.port_id);
-        // Priorizar alias de suscripción si existe
         setTempLabelValue(slot.subscription?.alias || slot.label || '');
     };
 
@@ -127,7 +123,6 @@ const MyNumbers: React.FC = () => {
             const slot = slots.find(s => s.port_id === portId);
             if (!slot) return;
 
-            // Actualizar en slots y también en subscriptions si existe
             const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ label: tempLabelValue })
@@ -247,7 +242,7 @@ const MyNumbers: React.FC = () => {
                         <Loader2 className="animate-spin size-8 text-primary" />
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando red móvil...</p>
                     </div>
-                ) : slots.length === 0 ? (
+                ) : slots?.length === 0 ? (
                     <div className="text-center py-20 px-10 bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
                         <Globe className="size-12 mx-auto mb-4 text-slate-300" />
                         <p className="text-slate-500 font-bold italic text-sm">No tienes numeraciones activas.</p>
@@ -263,8 +258,9 @@ const MyNumbers: React.FC = () => {
                             const isNearLimit = usagePercent >= 90;
                             const isEditing = editingLabelId === slot.port_id;
 
-                            // Definir nombre de visualización seguro
-                            const displayName = (slot.subscription?.alias || slot.label || 'Línea SIM').toString().toUpperCase();
+                            // Definir nombre de visualización seguro con los fallbacks requeridos
+                            const displayName = (slot.subscription?.alias || slot.label || 'Mi Línea').toString().toUpperCase();
+                            const planDisplayName = (slot.subscription?.plan_name || slot.plan_type || 'Starter').toString().toUpperCase();
 
                             return (
                                 <div key={slot.port_id} className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-8 shadow-soft border border-slate-100 dark:border-slate-800 transition-all hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2">
@@ -299,7 +295,7 @@ const MyNumbers: React.FC = () => {
                                                 </button>
                                                 <div className={`px-3 py-1 rounded-full border ${badge.border} flex items-center gap-1.5`}>
                                                     <span className={badge.text}>{badge.icon}</span>
-                                                    <span className={`text-[9px] font-black tracking-widest ${badge.text}`}>{badge.label}</span>
+                                                    <span className={`text-[9px] font-black tracking-widest ${badge.text}`}>{planDisplayName}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -322,7 +318,7 @@ const MyNumbers: React.FC = () => {
                                             <div className="flex justify-between items-end">
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Uso de Créditos SMS</span>
                                                 <span className={`text-[11px] font-black tabular-nums ${isNearLimit ? 'text-red-500' : 'text-primary'}`}>
-                                                    {creditsUsed} / {monthlyLimit}
+                                                    {(creditsUsed || 0).toString()} / {(monthlyLimit || 0).toString()}
                                                 </span>
                                             </div>
                                             <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
