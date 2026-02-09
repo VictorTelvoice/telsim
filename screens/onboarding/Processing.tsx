@@ -15,75 +15,92 @@ const Processing: React.FC = () => {
   const [errorState, setErrorState] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   
-  // BLOQUEO ATÓMICO: Impide ejecuciones duplicadas en la infraestructura física
+  // BLOQUEO ATÓMICO: Impide ejecuciones duplicadas
   const isSubmitting = useRef(false);
 
   const planData = location.state;
 
-  // Validación preventiva de sesión
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
   useEffect(() => {
     const startProvisioning = async () => {
-      // Protección contra múltiples señales de activación simultáneas
       if (isSubmitting.current) return;
       isSubmitting.current = true;
 
-      // Animación de barra de progreso técnica
       const progressInterval = setInterval(() => {
         setProgress(prev => (prev < 90 ? prev + 10 : prev));
       }, 400);
 
       try {
-        // CONSTRUCCIÓN DE rpcArgs SEGÚN ESPECIFICACIÓN CRÍTICA
         const rpcArgs = {
           p_plan_name: String(planData?.planName || 'Pro'),
           p_amount: Number(planData?.price || 39.90),
           p_monthly_limit: Number(planData?.monthlyLimit || 500)
         };
 
-        // DIAGNÓSTICO EXIGIDO POR EL USUARIO
+        // DIAGNÓSTICO EXIGIDO
         console.log('Enviando:', rpcArgs.p_plan_name);
         console.log('Payload RPC:', JSON.stringify(rpcArgs));
 
         setCurrentStep('Sincronizando con el nodo físico...');
 
-        // LLAMADA RPC LIMPIA (Sin parámetros extra, paso de objeto directo)
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', rpcArgs);
 
-        if (rpcError) {
-          isSubmitting.current = false; // Liberar bloqueo para permitir reintento tras error
-          throw rpcError;
-        }
+        let finalNumber = rpcResult?.phone_number || rpcResult?.phoneNumber;
+        let finalPlan = rpcArgs.p_plan_name;
 
-        // Extracción de número asignado por el nodo
-        const finalNumber = rpcResult?.phone_number || rpcResult?.phoneNumber;
+        // MANEJO CRÍTICO DEL ERROR 23505 (Duplicate Key)
+        if (rpcError) {
+          const isDuplicate = rpcError.code === '23505' || rpcError.message?.toLowerCase().includes('duplicate key');
+          
+          if (isDuplicate) {
+            console.log('Detectado registro existente (23505). Iniciando rescate de puerto...');
+            setCurrentStep('Recuperando puerto existente...');
+            
+            // Consultar el registro ya existente para este usuario
+            const { data: existingSub, error: fetchError } = await supabase
+              .from('subscriptions')
+              .select('phone_number, plan_name')
+              .eq('user_id', user.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (fetchError || !existingSub?.phone_number) {
+              throw new Error("No se pudo recuperar la suscripción existente.");
+            }
+
+            finalNumber = existingSub.phone_number;
+            finalPlan = existingSub.plan_name || rpcArgs.p_plan_name;
+          } else {
+            // Si es otro tipo de error, lo lanzamos normalmente
+            throw rpcError;
+          }
+        }
 
         setProgress(100);
         setCurrentStep('Puerto activado correctamente');
 
-        // Registro en el ledger de notificaciones
         addNotification({
           title: 'SIM Activada',
-          message: `Puerto ${finalNumber || 'NUEVO'} sincronizado bajo el plan ${rpcArgs.p_plan_name}.`,
+          message: `Puerto ${finalNumber} sincronizado bajo el plan ${finalPlan}.`,
           type: 'activation',
           details: {
             number: finalNumber || 'Sincronizando...',
-            plan: rpcArgs.p_plan_name,
+            plan: finalPlan,
             activationDate: new Date().toLocaleDateString(),
             nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
             price: `$${rpcArgs.p_amount.toFixed(2)}`
           }
         });
 
-        // Delay para confirmación visual del 100%
         await new Promise(resolve => setTimeout(resolve, 800));
         
-        // Redirección con parámetros limpios para Success.tsx
         const numberParam = finalNumber ? `&assignedNumber=${encodeURIComponent(finalNumber)}` : '';
-        navigate(`/onboarding/success?planName=${encodeURIComponent(rpcArgs.p_plan_name)}${numberParam}`, { 
+        navigate(`/onboarding/success?planName=${encodeURIComponent(finalPlan)}${numberParam}`, { 
           replace: true 
         });
 
@@ -101,7 +118,6 @@ const Processing: React.FC = () => {
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark font-display">
-      {/* Background Ambience */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
         <div className="w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-pulse"></div>
       </div>
@@ -153,7 +169,7 @@ const Processing: React.FC = () => {
 
       <div className="absolute bottom-12 w-full text-center opacity-30">
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">
-          TELSIM CORE INFRASTRUCTURE v7.5
+          TELSIM CORE INFRASTRUCTURE v7.8
         </p>
       </div>
     </div>
