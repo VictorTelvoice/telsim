@@ -20,7 +20,7 @@ const Processing: React.FC = () => {
 
   const planData = location.state;
 
-  // Validación preventiva: Aunque permitimos fallbacks, necesitamos una sesión de usuario
+  // Validación preventiva de sesión
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -37,22 +37,23 @@ const Processing: React.FC = () => {
       }, 400);
 
       try {
-        // REGLA DE HIERRO: Valores por defecto si planData está vacío
-        const planName = planData?.planName || 'Starter';
-        const price = planData?.price || 39.90;
-        const monthlyLimit = planData?.monthlyLimit || 500;
-        const userId = user?.id;
+        // PREPARACIÓN DE PARÁMETROS CRÍTICOS (REGLA DE HIERRO)
+        // Usamos String() para asegurar que el nombre del plan sea un primitivo string
+        const p_plan_name = String(planData?.planName || 'Pro');
+        const p_amount = Number(planData?.price || 39.90);
+        const p_monthly_limit = Number(planData?.monthlyLimit || 500);
 
-        // LOG DE DEPURACIÓN EXIGIDO
-        console.log('Enviando:', planName);
+        // LOGS DE DIAGNÓSTICO EXIGIDOS
+        console.log('Enviando:', p_plan_name);
+        console.log('Payload RPC:', { p_plan_name, p_amount, p_monthly_limit });
 
         setCurrentStep('Sincronizando con el nodo físico...');
 
-        // LLAMADA RPC ESTRICTA (Coincidencia exacta con parámetros SQL)
+        // LLAMADA RPC ESTRICTA (Coincidencia exacta con parámetros SQL: p_ minúscula)
         const { data: rpcResult, error: rpcError } = await supabase.rpc('purchase_subscription', {
-          p_plan_name: planName,
-          p_amount: Number(price),
-          p_monthly_limit: Number(monthlyLimit)
+          p_plan_name,
+          p_amount,
+          p_monthly_limit
         });
 
         if (rpcError) {
@@ -69,14 +70,14 @@ const Processing: React.FC = () => {
         // Registro en el ledger de notificaciones
         addNotification({
           title: 'SIM Activada',
-          message: `Puerto ${finalNumber || 'NUEVO'} sincronizado bajo el plan ${planName}.`,
+          message: `Puerto ${finalNumber || 'NUEVO'} sincronizado bajo el plan ${p_plan_name}.`,
           type: 'activation',
           details: {
             number: finalNumber || 'Sincronizando...',
-            plan: planName,
+            plan: p_plan_name,
             activationDate: new Date().toLocaleDateString(),
             nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-            price: `$${Number(price).toFixed(2)}`
+            price: `$${p_amount.toFixed(2)}`
           }
         });
 
@@ -85,7 +86,7 @@ const Processing: React.FC = () => {
         
         // Redirección con parámetros limpios para Success.tsx
         const numberParam = finalNumber ? `&assignedNumber=${encodeURIComponent(finalNumber)}` : '';
-        navigate(`/onboarding/success?planName=${encodeURIComponent(planName)}${numberParam}`, { 
+        navigate(`/onboarding/success?planName=${encodeURIComponent(p_plan_name)}${numberParam}`, { 
           replace: true 
         });
 
