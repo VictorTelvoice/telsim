@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM
+// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM VINCULADA A STRIPE
 const OFFICIAL_PLANS = {
-  Starter: { amount: 19.90, limit: 150 },
-  Pro:     { amount: 39.90, limit: 400 },
-  Power:   { amount: 99.00, limit: 1400 }
+  Starter: { amount: 19.90, limit: 150, stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' },
+  Pro:     { amount: 39.90, limit: 400, stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM' },
+  Power:   { amount: 99.00, limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe' }
 };
 
 const PlanSelect: React.FC = () => {
@@ -73,7 +73,8 @@ const PlanSelect: React.FC = () => {
       state: { 
         planName: selected,
         price: planConfig.amount,
-        monthlyLimit: planConfig.limit
+        monthlyLimit: planConfig.limit,
+        stripePriceId: planConfig.stripePriceId
       } 
     });
   };

@@ -6,7 +6,9 @@ const Summary: React.FC = () => {
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
   
-  const planName = location.state?.planName || 'Pro';
+  const planData = location.state || {};
+  const planName = planData.planName || 'Pro';
+  const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
   
   const planDetails = useMemo(() => {
     const plans: Record<string, { price: number; limit: number; features: string[] }> = {
@@ -46,7 +48,8 @@ const Summary: React.FC = () => {
         state: { 
             planName,
             price: planDetails.price,
-            monthlyLimit: planDetails.limit
+            monthlyLimit: planDetails.limit,
+            stripePriceId
         } 
     });
   };
