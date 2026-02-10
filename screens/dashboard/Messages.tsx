@@ -19,11 +19,7 @@ import {
   RefreshCw,
   Shield,
   ShoppingCart,
-  Landmark,
-  User,
-  Plus,
-  SendHorizontal,
-  Loader2
+  User
 } from 'lucide-react';
 
 const Messages: React.FC = () => {
@@ -39,15 +35,6 @@ const Messages: React.FC = () => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'verifications' | 'others'>('verifications');
 
-  // Estado para el modal de envío
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [sendingSms, setSendingSms] = useState(false);
-  const [composeData, setComposeData] = useState({
-    from: '',
-    to: '',
-    body: ''
-  });
-
   // Obtener el número de filtro de la URL
   const filterNum = searchParams.get('num');
 
@@ -62,9 +49,6 @@ const Messages: React.FC = () => {
 
       if (slotsData) {
         setUserSlots(slotsData);
-        if (slotsData.length > 0 && !composeData.from) {
-          setComposeData(prev => ({ ...prev, from: slotsData[0].phone_number }));
-        }
         const mapping = slotsData.reduce((acc, s) => {
           acc[s.port_id] = s.phone_number;
           return acc;
@@ -110,57 +94,6 @@ const Messages: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [user]);
-
-  const handleSendSms = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!composeData.from || !composeData.to || !composeData.body || !user) return;
-
-    setSendingSms(true);
-    try {
-      // 1. LIMPIEZA DE NÚMERO (Eliminar espacios y asegurar +)
-      const cleanSender = composeData.from.replace(/\s+/g, '');
-      const senderNumber = cleanSender.startsWith('+') ? cleanSender : `+${cleanSender}`;
-
-      // 2. ÚNICA LLAMADA PERMITIDA PARA CRÉDITOS: RPC track_sms_usage
-      // Se garantiza que NO hay llamadas a subscriptions.update filtrando por user_id.
-      const { error: rpcError } = await supabase.rpc('track_sms_usage', { 
-        p_phone_number: senderNumber 
-      });
-
-      if (rpcError) {
-        // El RPC fallará si el número no existe o no tiene créditos suficientes.
-        // Esto previene que se actualicen créditos de otros números.
-        throw new Error(rpcError.message || "Error de validación en la línea seleccionada.");
-      }
-
-      // 3. Registro del mensaje en el historial solo si el RPC fue exitoso
-      const targetSlot = userSlots.find(s => s.phone_number === composeData.from);
-      
-      const { error: insertError } = await supabase
-        .from('sms_logs')
-        .insert([{
-          user_id: user.id,
-          sender: composeData.to.replace(/\s+/g, ''), // Limpiar también destino
-          content: composeData.body,
-          slot_id: targetSlot?.port_id,
-          is_read: true,
-          service_name: 'SMS Enviado'
-        }]);
-
-      if (insertError) throw insertError;
-
-      // Éxito: Limpiar formulario y cerrar modal
-      setComposeData({ from: userSlots[0]?.phone_number || '', to: '', body: '' });
-      setIsComposeOpen(false);
-      fetchData(); 
-
-    } catch (err: any) {
-      console.error("Fallo crítico en envío de SMS:", err.message);
-      alert(err.message || "Error al enviar. Asegúrate de tener créditos en esta línea específica.");
-    } finally {
-      setSendingSms(false);
-    }
-  };
 
   const handleCopy = (e: React.MouseEvent, code: string, id: string) => {
     e.stopPropagation();
@@ -308,24 +241,23 @@ const Messages: React.FC = () => {
           <div className="space-y-4">
             {filteredMessages.map((msg, idx) => {
               const style = getServiceStyle(msg.service_name, msg.sender);
-              const isSent = msg.service_name === 'SMS Enviado';
               const realNumber = slotMap[msg.slot_id] || msg.slot_id;
               return (
-                <div key={msg.id} style={{ animationDelay: `${idx * 50}ms` }} className={`bg-white dark:bg-surface-dark rounded-[1.5rem] p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.98] animate-in fade-in slide-in-from-bottom-4 duration-500 ${isSent ? 'border-primary/20' : ''}`}>
+                <div key={msg.id} style={{ animationDelay: `${idx * 50}ms` }} className="bg-white dark:bg-surface-dark rounded-[1.5rem] p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.98] animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div className={`size-12 rounded-2xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-105 ${style.bg} ${style.text}`}>
-                         {isSent ? <SendHorizontal className="size-6" /> : style.icon}
+                         {style.icon}
                       </div>
                       <div>
-                        <h3 className="text-[15px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{isSent ? `Enviado a ${msg.sender}` : style.label}</h3>
-                        <p className="text-[9px] font-black text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-widest">{isSent ? 'Desde' : 'Línea'}: {formatPhoneNumber(realNumber)}</p>
+                        <h3 className="text-[15px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{style.label}</h3>
+                        <p className="text-[9px] font-black text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-widest">Línea: {formatPhoneNumber(realNumber)}</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold text-slate-300 tabular-nums">{formatTime(msg.received_at)}</span>
                   </div>
                   <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 font-medium mb-5 px-1 italic">"{msg.content}"</p>
-                  {msg.verification_code && !isSent && (
+                  {msg.verification_code && (
                     <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700/50 p-4 flex items-center justify-between group overflow-hidden relative">
                        <div className="flex flex-col relative z-10">
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DETECTADO</span>
@@ -346,45 +278,6 @@ const Messages: React.FC = () => {
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">PRIVACY CORE INFRASTRUCTURE</p>
         </div>
       </main>
-
-      {!loading && userSlots.length > 0 && (
-        <button onClick={() => setIsComposeOpen(true)} className="fixed bottom-24 right-6 size-16 bg-primary text-white rounded-full shadow-[0_12px_30px_rgba(29,78,216,0.4)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 group">
-          <Plus className="size-8 relative z-10" />
-        </button>
-      )}
-
-      {isComposeOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10 animate-in zoom-in-95">
-            <div className="bg-primary p-8 text-white relative">
-              <button onClick={() => setIsComposeOpen(false)} className="absolute top-6 right-6 size-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20"><X className="size-4" /></button>
-              <h2 className="text-2xl font-black tracking-tight">Nuevo Mensaje</h2>
-              <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-1">Envío vía puerto físico</p>
-            </div>
-            <form onSubmit={handleSendSms} className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Enviar desde</label>
-                <select value={composeData.from} onChange={(e) => setComposeData({...composeData, from: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-transparent text-sm font-bold outline-none focus:border-primary transition-all">
-                  {userSlots.map(slot => (
-                    <option key={slot.port_id} value={slot.phone_number}>{formatPhoneNumber(slot.phone_number)} ({slot.plan_type})</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Para (Número Destino)</label>
-                <input type="tel" value={composeData.to} onChange={(e) => setComposeData({...composeData, to: e.target.value})} placeholder="+56 9 ..." className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-transparent text-sm font-bold outline-none focus:border-primary transition-all" required />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contenido del SMS</label>
-                <textarea value={composeData.body} onChange={(e) => setComposeData({...composeData, body: e.target.value})} placeholder="Escribe tu mensaje..." className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-transparent text-sm font-medium outline-none focus:border-primary transition-all resize-none" required />
-              </div>
-              <button type="submit" disabled={sendingSms} className="w-full h-14 bg-primary text-white font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                {sendingSms ? <Loader2 className="size-5 animate-spin" /> : <><span className="text-[11px]">Enviar Mensaje</span><SendHorizontal className="size-4" /></>}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

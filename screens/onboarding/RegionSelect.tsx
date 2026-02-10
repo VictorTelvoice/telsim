@@ -85,7 +85,7 @@ const RegionSelect: React.FC = () => {
           className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
         >
           <div className="w-12"></div> 
-          <span className="text-[17px] tracking-wide">Siguiente</span>
+          <span className="text-[17px] tracking-wide uppercase font-bold">SIGUIENTE</span>
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <span className="material-symbols-outlined text-white">arrow_forward</span>
           </div>

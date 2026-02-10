@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Summary: React.FC = () => {
@@ -6,37 +6,47 @@ const Summary: React.FC = () => {
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
   
-  // EXTRAEMOS LOS DATOS O USAMOS LOS VALORES BASE
-  const planName = location.state?.planName || 'Starter';
+  const planName = location.state?.planName || 'Pro';
   
-  const getOfficialPrice = (name: string) => {
-    if (name === 'Power') return 99.00;
-    if (name === 'Starter') return 19.90;
-    return 39.90; // Default Pro
-  };
+  const planDetails = useMemo(() => {
+    const plans: Record<string, { price: number; limit: number; features: string[] }> = {
+      Starter: { 
+        price: 19.90, 
+        limit: 150,
+        features: ['Número SIM Real', 'Notificaciones tiempo real', 'Soporte vía Ticket']
+      },
+      Pro: { 
+        price: 39.90, 
+        limit: 400,
+        features: ['API & Webhooks', 'Automatización 100%', 'Soporte vía Chat']
+      },
+      Power: { 
+        price: 99.00, 
+        limit: 1400,
+        features: ['Seguridad Empresarial', 'Escalabilidad P2P', 'Soporte 24/7']
+      }
+    };
+    return plans[planName] || plans.Pro;
+  }, [planName]);
 
-  const getOfficialLimit = (name: string) => {
-    if (name === 'Power') return 1400;
-    if (name === 'Starter') return 150;
-    return 400; // Default Pro
-  };
-
-  const planPrice = location.state?.price || getOfficialPrice(planName);
-  const monthlyLimit = location.state?.monthlyLimit || getOfficialLimit(planName);
-  
-  const priceString = `$${Number(planPrice).toFixed(2)}`;
+  const billingDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  }, []);
 
   const handleNext = () => {
     if (isNavigating) return;
     setIsNavigating(true);
-
-    // FLUJO CORREGIDO: Navegamos al pago sin tocar la base de datos.
-    // La suscripción se creará únicamente en la pantalla de Processing.tsx tras el éxito del pago.
     navigate('/onboarding/payment', { 
         state: { 
             planName,
-            price: planPrice,
-            monthlyLimit
+            price: planDetails.price,
+            monthlyLimit: planDetails.limit
         } 
     });
   };
@@ -64,60 +74,79 @@ const Summary: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col px-6 pb-40 overflow-y-auto">
+            <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
                 <div className="pb-6 pt-2">
                     <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">Revisa tu suscripción</h1>
                     <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles antes de proceder al pago seguro.</p>
                 </div>
 
-                <div className="relative overflow-hidden rounded-xl bg-white dark:bg-[#1A2230] p-0 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-primary/40 mb-8 transition-transform hover:scale-[1.01] duration-300">
-                    <div className="flex items-center gap-4 p-5 border-b border-gray-100 dark:border-gray-700/50">
-                        <div className="relative size-12 shrink-0 rounded-full border border-gray-100 dark:border-gray-600 shadow-sm overflow-hidden bg-gray-100 flex items-center justify-center text-2xl">
+                <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#1A2230] p-0 shadow-soft border border-slate-100 dark:border-slate-800 mb-6">
+                    <div className="flex items-center gap-4 p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="size-12 shrink-0 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900 flex items-center justify-center text-2xl">
                            🇨🇱
                         </div>
                         <div className="flex flex-col justify-center">
-                            <p className="text-[#111318] dark:text-white text-base font-bold leading-tight">Número de Chile (+56)</p>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-normal mt-0.5">Infraestructura Física Real</p>
+                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">Línea Física Chile</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest mt-0.5 text-primary">Infraestructura Real (+56)</p>
                         </div>
                     </div>
-                    <div className="p-5 flex flex-col gap-5">
-                        <div className="flex justify-between items-start gap-4">
+                    
+                    <div className="p-6 space-y-5">
+                        <div className="flex justify-between items-start">
                             <div className="flex flex-col">
-                                <span className="text-[11px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 mb-1">Plan Seleccionado</span>
-                                <span className="text-[#111318] dark:text-white font-bold text-base">{planName} ({monthlyLimit} Créditos)</span>
+                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">Plan Seleccionado</span>
+                                <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+                                <span className="text-[10px] font-bold text-slate-500 mt-1">{planDetails.limit} Créditos Mensuales</span>
                             </div>
                             <div className="text-right">
-                                <span className="text-[#111318] dark:text-white font-bold text-base whitespace-nowrap">{priceString} / mes</span>
+                                <span className="text-[#111318] dark:text-white font-black text-xl">${planDetails.price.toFixed(2)}</span>
+                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest">/ Mes</span>
                             </div>
                         </div>
-                        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3.5 flex items-start gap-3">
-                            <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{fontSize: '20px'}}>check_circle</span>
-                            <div className="flex flex-col">
-                                <p className="text-emerald-800 dark:text-emerald-300 text-sm font-bold leading-tight mb-1">Prueba Gratuita Activa</p>
-                                <p className="text-emerald-700 dark:text-emerald-400/80 text-xs font-medium leading-relaxed">No se te cobrará nada durante los primeros 15 días.</p>
+
+                        <div className="space-y-2">
+                           {planDetails.features.map((f, i) => (
+                             <div key={i} className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                <span className="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span>
+                                {f}
+                             </div>
+                           ))}
+                        </div>
+
+                        <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-4">
+                            <div className="flex items-start gap-3 mb-3">
+                                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{fontSize: '20px'}}>verified_user</span>
+                                <div className="flex flex-col">
+                                    <p className="text-emerald-800 dark:text-emerald-300 text-sm font-black leading-tight uppercase tracking-tight">7 Días de Prueba Gratis</p>
+                                    <p className="text-emerald-700 dark:text-emerald-400/80 text-[11px] font-medium leading-relaxed mt-1">Disfruta de la potencia total de TELSIM sin cargos iniciales.</p>
+                                </div>
+                            </div>
+                            <div className="pt-3 border-t border-emerald-500/10 flex justify-between items-center">
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Primer cobro:</span>
+                                <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300">{billingDate}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 mb-6">
-                    <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 text-sm font-medium">
-                        <span>Subtotal Mensual</span>
-                        <span>{priceString}</span>
+                <div className="flex flex-col gap-3 mb-6 px-2">
+                    <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 text-[11px] font-black uppercase tracking-widest">
+                        <span>Subtotal</span>
+                        <span>${planDetails.price.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 text-sm font-semibold">
-                        <span>Descuento Trial (15 días)</span>
-                        <span>-{priceString}</span>
+                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 text-[11px] font-black uppercase tracking-widest">
+                        <span>Descuento Trial (7 días)</span>
+                        <span>-${planDetails.price.toFixed(2)}</span>
                     </div>
                     <div className="my-2 h-px w-full bg-gray-200 dark:bg-gray-800"></div>
                     <div className="flex justify-between items-center">
-                        <span className="text-[#111318] dark:text-white text-lg font-bold">Total hoy</span>
-                        <span className="text-[#111318] dark:text-white text-2xl font-extrabold tracking-tight">$0.00</span>
+                        <span className="text-[#111318] dark:text-white text-lg font-black uppercase tracking-tighter">Total a pagar hoy</span>
+                        <span className="text-[#111318] dark:text-white text-3xl font-black tracking-tighter">$0.00</span>
                     </div>
                 </div>
             </div>
 
-            <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/80 dark:bg-[#101622]/85 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-5 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10">
                 <button 
                     onClick={handleNext}
                     disabled={isNavigating}
@@ -131,9 +160,9 @@ const Summary: React.FC = () => {
                         <span className="material-symbols-outlined text-white">arrow_forward</span>
                     </div>
                 </button>
-                <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">
-                    <span className="material-symbols-outlined text-gray-500 dark:text-gray-400" style={{fontSize: '14px'}}>lock</span>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center">Pagos procesados por Stripe. Conexión encriptada SSL.</p>
+                <div className="mt-4 flex items-center justify-center gap-1.5 opacity-40">
+                    <span className="material-symbols-outlined text-gray-500" style={{fontSize: '14px'}}>lock</span>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">Pagos procesados por Stripe. Cifrado SSL.</p>
                 </div>
             </div>
         </div>

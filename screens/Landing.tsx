@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,9 +70,9 @@ const Landing: React.FC = () => {
           <div className="mb-8 pt-2">
             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2">PRUEBA TELSIM</p>
             <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-              <h2 className="text-4xl font-black text-emerald-500 tracking-tighter">{t('landing.free_trial')}</h2>
+              <h2 className="text-4xl font-black text-emerald-500 tracking-tighter">GRATIS primeros 7 días</h2>
             </div>
-            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 italic">{t('landing.then')}</p>
+            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 italic">Luego desde $19.90 USD/mes</p>
           </div>
 
           <div className="space-y-5">

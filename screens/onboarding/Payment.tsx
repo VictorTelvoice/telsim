@@ -58,7 +58,7 @@ const Payment: React.FC = () => {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                         <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
-                        <span className="text-emerald-500 text-[9px] font-black bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-wider">15 días Gratis</span>
+                        <span className="text-emerald-500 text-[9px] font-black bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-wider">7 días Gratis</span>
                     </div>
                 </div>
 
@@ -139,7 +139,7 @@ const Payment: React.FC = () => {
                 <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
                     <Lock className="size-3" />
                     <p className="text-[9px] text-center font-black uppercase tracking-widest">
-                        Sin cargos por 15 días. Cancela en cualquier momento.
+                        Sin cargos por 7 días. Cancela en cualquier momento.
                     </p>
                 </div>
             </div>

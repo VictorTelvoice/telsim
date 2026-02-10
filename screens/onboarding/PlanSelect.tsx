@@ -176,7 +176,7 @@ const PlanSelect: React.FC = () => {
                 >
                     <div className="w-12"></div>
                     <span className="text-[17px] tracking-wide uppercase">
-                      Configurar Plan {selected}
+                      Configurar {selected}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <span className="material-symbols-outlined text-white">arrow_forward</span>
