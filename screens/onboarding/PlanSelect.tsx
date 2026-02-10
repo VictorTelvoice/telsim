@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM (PROHIBIDO 13.90)
+// CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM
 const OFFICIAL_PLANS = {
   Starter: { amount: 19.90, limit: 150 },
   Pro:     { amount: 39.90, limit: 400 },
@@ -20,7 +20,14 @@ const PlanSelect: React.FC = () => {
       price: OFFICIAL_PLANS.Starter.amount,
       limit: OFFICIAL_PLANS.Starter.limit,
       icon: 'shield',
-      features: ["Acceso API", "Webhooks", "Soporte Email"],
+      idealFor: 'Usuarios individuales y Desarrolladores.',
+      features: [
+        'Número SIM Real (no VoIP baratos)',
+        'SMS 100% automatizados sin intervención humana',
+        'Acceso a API y Webhooks',
+        'Capacidad: 150 SMS mensuales',
+        'Soporte técnico vía Ticket'
+      ],
       recommended: false
     },
     {
@@ -30,7 +37,14 @@ const PlanSelect: React.FC = () => {
       price: OFFICIAL_PLANS.Pro.amount,
       limit: OFFICIAL_PLANS.Pro.limit,
       icon: 'bolt',
-      features: ["Todo lo del Starter", "Prioridad de Red", "Soporte Chat"],
+      idealFor: 'Equipos DevOps y Automatizadores.',
+      popularBadge: 'MÁS POPULAR',
+      features: [
+        'Numero SIM Real',
+        'Automatización avanzada para Bots y Growth',
+        'Capacidad: 400 SMS mensuales',
+        'Soporte técnico vía Ticket y Chat en vivo'
+      ],
       recommended: true
     },
     {
@@ -40,16 +54,19 @@ const PlanSelect: React.FC = () => {
       price: OFFICIAL_PLANS.Power.amount,
       limit: OFFICIAL_PLANS.Power.limit,
       icon: 'electric_bolt',
-      features: ["Infraestructura Dedicada", "Soporte 24/7"],
+      idealFor: 'Fintech, Corporativos y Plataformas P2P.',
+      features: [
+        'Seguridad y Control Empresarial',
+        'Integraciones Personalizadas y Escalabilidad',
+        'Soporte Prioritario 24/7',
+        'Capacidad: 1,400 SMS mensuales'
+      ],
       recommended: false
     }
   ];
 
   const handleNext = () => {
-    // Solo navegamos al resumen inyectando el estado. 
-    // La suscripción NO se procesa aquí para evitar el bug de ejecución automática.
     const planConfig = OFFICIAL_PLANS[selected];
-    
     navigate('/onboarding/summary', { 
       state: { 
         planName: selected,
@@ -92,48 +109,55 @@ const PlanSelect: React.FC = () => {
                     <div 
                         key={plan.id}
                         onClick={() => setSelected(plan.id as any)}
-                        className={`relative bg-white dark:bg-surface-dark rounded-2xl p-5 border-2 transition-all cursor-pointer ${
+                        className={`relative bg-white dark:bg-surface-dark rounded-3xl p-6 border-2 transition-all cursor-pointer ${
                           selected === plan.id 
-                          ? 'border-primary shadow-[0_4px_20px_-2px_rgba(29,78,216,0.15)]' 
-                          : 'border-slate-200 dark:border-slate-700'
+                          ? 'border-primary shadow-[0_10px_30px_-5px_rgba(29,78,216,0.15)] ring-1 ring-primary/20' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
                         }`}
                     >
-                        <div className="flex justify-between items-start mb-4">
+                        {plan.popularBadge && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-black px-4 py-1.5 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                            {plan.popularBadge}
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-start mb-2">
                             <div className="flex gap-3 items-center">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  selected === plan.id ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-colors ${
+                                  selected === plan.id ? 'bg-primary text-white shadow-inner' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
                                 }`}>
                                     <span className="material-symbols-outlined text-[20px]">{plan.icon}</span>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight uppercase tracking-tight">{plan.name}</h3>
+                                    <h3 className="font-black text-slate-900 dark:text-white text-xl leading-tight uppercase tracking-tight">{plan.name}</h3>
                                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">{plan.subtitle}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                {plan.recommended && (
-                                  <span className="bg-primary/10 text-primary text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest">Recomendado</span>
-                                )}
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                                  selected === plan.id ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'
-                                }`}>
-                                    {selected === plan.id && <span className="material-symbols-outlined text-white text-[16px] font-black">check</span>}
-                                </div>
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+                              selected === plan.id ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'
+                            }`}>
+                                {selected === plan.id && <span className="material-symbols-outlined text-white text-[16px] font-black">check</span>}
                             </div>
                         </div>
-                        <div className="mb-5 border-b border-slate-100 dark:border-slate-700 pb-4">
+
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic mb-4">
+                          Ideal para: {plan.idealFor}
+                        </p>
+
+                        <div className="mb-5 border-b border-slate-100 dark:border-slate-800 pb-4">
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
-                                <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">/mes</span>
+                                <span className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
+                                <span className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest ml-1">/mes</span>
                             </div>
                         </div>
-                        <ul className="space-y-3">
+
+                        <ul className="space-y-3.5">
                             {plan.features.map((feat, i) => (
-                                <li key={i} className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300 font-medium">
-                                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined text-primary dark:text-blue-400 text-[14px] font-black">check</span>
+                                <li key={i} className="flex items-start gap-3 text-[13px] text-slate-600 dark:text-slate-300 font-semibold leading-snug">
+                                    <div className="w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5 border border-blue-100 dark:border-blue-800">
+                                        <span className="material-symbols-outlined text-primary dark:text-blue-400 text-[14px] font-black">done</span>
                                     </div>
-                                    {feat}
+                                    <span>{feat}</span>
                                 </li>
                             ))}
                         </ul>
