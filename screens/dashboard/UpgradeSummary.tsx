@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,26 +27,22 @@ const UpgradeSummary: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Uso seguro de la clave pública desde el entorno
-      const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      // Uso correcto para Vite
+      // Fix: Accessing environment variables using (import.meta as any).env to resolve TS error "Property 'env' does not exist on type 'ImportMeta'"
+      const publishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
       
       if (!publishableKey) {
-        throw new Error("Stripe Publishable Key not configured in environment");
+        console.error("[TELSIM ERROR] Variable VITE_STRIPE_PUBLISHABLE_KEY no encontrada en el entorno.");
+        throw new Error("Stripe Key no configurada.");
       }
 
       const stripe = (window as any).Stripe(publishableKey);
       
       if (!stripe) {
-        throw new Error("Stripe library not loaded");
+        throw new Error("Librería StripeJS no cargada.");
       }
 
-      /**
-       * FLUJO DE SEGURIDAD:
-       * Los metadatos críticos (user_id, phone_number) se envían a la sesión de Checkout.
-       * Estos datos serán validados y procesados por el webhook en el servidor.
-       */
-      
-      console.log(`Iniciando Sesión Stripe para: ${planName}`);
+      console.log(`[UPGRADE DEBUG] Iniciando nodo con clave: ${publishableKey.substring(0, 8)}...`);
       
       // Simulación de interacción con el nodo de pago
       await new Promise(resolve => setTimeout(resolve, 1800));
@@ -62,9 +59,9 @@ const UpgradeSummary: React.FC = () => {
         replace: true 
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Critical upgrade error:", err);
-      alert("Error de configuración: Clave pública no detectada.");
+      alert(err.message || "Error de configuración de pasarela.");
       setIsProcessing(false);
     }
   };

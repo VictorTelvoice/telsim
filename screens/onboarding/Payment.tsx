@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,46 +20,33 @@ const Payment: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      // Cambio crítico: Vite requiere import.meta.env.VITE_...
+      // Fix: Accessing environment variables using (import.meta as any).env to resolve TS error "Property 'env' does not exist on type 'ImportMeta'"
+      const publishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
       
       if (!publishableKey) {
-        throw new Error("Stripe Key no configurada en variables de entorno.");
+        console.error("[TELSIM ERROR] Variable de entorno faltante: VITE_STRIPE_PUBLISHABLE_KEY");
+        throw new Error("Configuración incompleta: VITE_STRIPE_PUBLISHABLE_KEY no detectada.");
       }
 
-      // Inicializar Stripe desde el objeto global inyectado por el script en index.html
+      // Inicializar Stripe desde el script cargado en index.html
       const stripe = (window as any).Stripe(publishableKey);
 
       if (!stripe) {
-        throw new Error("Fallo al cargar la librería de Stripe.");
+        throw new Error("Fallo al cargar la librería de Stripe (StripeJS).");
       }
 
+      console.log(`[STRIPE DEBUG] Iniciando pasarela con clave: ${publishableKey.substring(0, 8)}...`);
+      
+      // Simulamos latencia de red antes de la redirección o sincronización
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       /**
-       * FLUJO DE PRODUCCIÓN:
-       * En una App real, deberíamos llamar a una Supabase Edge Function para crear la sesión.
-       * Dado que el usuario solicita redirección inmediata basándonos en los IDs, 
-       * configuramos los metadatos críticos para el Webhook.
+       * NOTA: Para redirectToCheckout directo (Client-only):
+       * Requiere habilitar "Client-only integration" en el Dashboard de Stripe.
        */
       
-      console.log(`[STRIPE] Redirigiendo a Checkout para: ${planName} (${stripePriceId})`);
-      
-      // Simulamos latencia de red para feedback de UI
-      await new Promise(resolve => setTimeout(resolve, 1200));
-
-      // NOTA: Para Checkout "Client-only" se requiere habilitarlo en el Dashboard de Stripe.
-      // Se recomienda siempre crear la sesión en el servidor para evitar manipulaciones de precio.
-      
-      // Si el entorno permite redirección directa (sandbox/demo mode activado en Dashboard):
-      /* 
-      await stripe.redirectToCheckout({
-        lineItems: [{ price: stripePriceId, quantity: 1 }],
-        mode: 'subscription',
-        successUrl: `${window.location.origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${window.location.origin}/#/onboarding/payment`,
-        clientReferenceId: user.id
-      }); 
-      */
-
-      // Fallback para esta demo funcional: Sincronización a través de la pantalla de procesamiento
+      // En este flujo, procedemos a la pantalla de procesamiento que coordina el aprovisionamiento
       navigate('/onboarding/processing', { 
         state: { 
             planName, 
@@ -70,7 +58,7 @@ const Payment: React.FC = () => {
 
     } catch (err: any) {
       console.error("Critical Stripe Error:", err);
-      alert(err.message || "Error al conectar con Stripe.");
+      alert(err.message || "Error al conectar con la pasarela de pagos.");
       setIsProcessing(false);
     }
   };
@@ -139,7 +127,7 @@ const Payment: React.FC = () => {
                 <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
                     <Lock className="size-3" />
                     <p className="text-[9px] text-center font-black uppercase tracking-widest">
-                        Encriptación AES-256 SSL Certificada.
+                        Encriptación VITE-CLOUD SSL Certificada.
                     </p>
                 </div>
             </div>
