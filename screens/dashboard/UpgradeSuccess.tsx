@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { CheckCircle2, ArrowRight, ShieldCheck, Zap, Loader2 } from 'lucide-react';
@@ -7,71 +7,46 @@ import { CheckCircle2, ArrowRight, ShieldCheck, Zap, Loader2 } from 'lucide-reac
 const UpgradeSuccess: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { addNotification } = useNotifications();
   const [isSyncing, setIsSyncing] = useState(true);
   const [showContent, setShowContent] = useState(false);
   const hasExecutedRef = useRef(false);
 
-  const data = location.state;
-  if (!data) return <Navigate to="/dashboard/numbers" replace />;
+  const sessionId = searchParams.get('session_id');
+  const numParam = searchParams.get('num');
+  const planParam = searchParams.get('plan');
 
-  const { phoneNumber, planName, price, limit, userId } = data;
+  // BLOQUEO: Si no hay session_id de Stripe, no se muestra el éxito
+  if (!sessionId && !location.state) {
+    return <Navigate to="/dashboard/numbers" replace />;
+  }
+
+  const data = location.state || {
+      phoneNumber: numParam,
+      planName: planParam,
+      userId: 'pending'
+  };
+
+  const { phoneNumber, planName } = data;
 
   useEffect(() => {
-    /**
-     * TAREA 2: LÓGICA DE WEBHOOK (Simulada en cliente para funcionalidad total en sandbox)
-     * Cuando el pago es exitoso:
-     * 1. Busca suscripción vieja -> status: 'actualizado'
-     * 2. Crea nueva fila -> status: 'active'
-     * 3. Marca slot -> status: 'ocupado'
-     * 4. Notificación -> ¡Plan Actualizado!
-     */
     const executePostPaymentLogic = async () => {
       if (hasExecutedRef.current) return;
       hasExecutedRef.current = true;
 
       try {
-        // Paso A: Marcar suscripción anterior
-        await supabase
-          .from('subscriptions')
-          .update({ status: 'actualizado' })
-          .eq('user_id', userId)
-          .eq('phone_number', phoneNumber)
-          .eq('status', 'active');
-
-        // Paso B: Insertar nueva suscripción 'active'
-        const { error: subError } = await supabase
-          .from('subscriptions')
-          .insert([{
-            user_id: userId,
-            phone_number: phoneNumber,
-            plan_name: planName,
-            amount: price,
-            monthly_limit: limit,
-            status: 'active',
-            currency: 'USD'
-          }]);
-
-        if (subError) throw subError;
-
-        // Paso C: Actualizar Slot (Asegurar estado ocupado y plan_type)
-        await supabase
-          .from('slots')
-          .update({ 
-            status: 'ocupado',
-            plan_type: planName
-          })
-          .eq('phone_number', phoneNumber);
-
-        // Paso D: Crear Notificación oficial
+        // En una implementación real con Webhooks, aquí solo consultaríamos el estado actualizado en la DB
+        // Para asegurar feedback inmediato en la UI tras el redirect de Stripe:
+        
         await addNotification({
           title: '¡Plan Actualizado!',
-          message: `La red ha validado tu pago. Tu línea ${formatPhoneNumber(phoneNumber)} ahora opera bajo el Plan ${planName}.`,
+          message: `El Ledger ha confirmado el pago. Tu línea ${phoneNumber} ahora opera bajo el Plan ${planName}.`,
           type: 'subscription'
         });
 
       } catch (err) {
-        console.error("Error en sincronización post-pago:", err);
+        console.error("Sync error:", err);
       } finally {
         setIsSyncing(false);
         setTimeout(() => setShowContent(true), 200);
@@ -94,7 +69,7 @@ const UpgradeSuccess: React.FC = () => {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 gap-6">
           <Loader2 className="size-12 text-primary animate-spin" />
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Validando Transacción...</h2>
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Confirmando Transacción...</h2>
       </div>
     );
   }
@@ -112,22 +87,20 @@ const UpgradeSuccess: React.FC = () => {
               <CheckCircle2 className="size-14 text-emerald-500" />
             </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">¡Pago Exitoso!</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[28ch] mx-auto">
-            El Ledger de TELSIM ha confirmado la recepción del pago vía Stripe.
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">¡Upgrade Exitoso!</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[28ch] mx-auto">
+            Stripe ha validado tu pago. La red se ha reconfigurado automáticamente.
           </p>
         </div>
 
-        {/* Success Card */}
-        <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 border-emerald-500/20 px-8 py-10 flex flex-col items-center shadow-card mb-12 relative overflow-hidden group">
+        <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 border-emerald-500/20 px-8 py-10 flex flex-col items-center shadow-card mb-12 relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-6 border border-emerald-500/10">
              <Zap className="size-3 text-emerald-500" />
-             <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Línea física potenciada</span>
+             <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Potencia de red actualizada</span>
           </div>
 
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">Puerto Sincronizado</span>
           <div className="text-[26px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums mb-8">
               {formatPhoneNumber(phoneNumber)}
           </div>
@@ -135,7 +108,7 @@ const UpgradeSuccess: React.FC = () => {
           <div className="flex items-center gap-2">
              <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
              <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
-               Plan {planName} • On-Air
+               {planName} Active • v3.0
              </span>
           </div>
         </div>
@@ -146,17 +119,10 @@ const UpgradeSuccess: React.FC = () => {
         >
           <div className="size-12"></div>
           <span className="text-[14px] uppercase tracking-widest">Volver al Panel</span>
-          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md transition-colors group-hover:bg-white/30">
+          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <ArrowRight className="size-6" />
           </div>
         </button>
-
-        <div className="mt-12 flex flex-col items-center gap-3 opacity-30">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4" />
-            <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM WEBHOOK LISTENER v1.5</span>
-          </div>
-        </div>
       </div>
     </div>
   );

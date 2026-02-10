@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,7 +7,8 @@ import {
   ShieldCheck, 
   Smartphone,
   Zap,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 
 const UpgradeSummary: React.FC = () => {
@@ -27,41 +27,39 @@ const UpgradeSummary: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Uso correcto para Vite
-      // Fix: Accessing environment variables using (import.meta as any).env to resolve TS error "Property 'env' does not exist on type 'ImportMeta'"
       const publishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
       
       if (!publishableKey) {
-        console.error("[TELSIM ERROR] Variable VITE_STRIPE_PUBLISHABLE_KEY no encontrada en el entorno.");
-        throw new Error("Stripe Key no configurada.");
+        console.error("[TELSIM ERROR] VITE_STRIPE_PUBLISHABLE_KEY faltante.");
+        throw new Error("Clave de Stripe no configurada.");
       }
 
       const stripe = (window as any).Stripe(publishableKey);
       
       if (!stripe) {
-        throw new Error("Librería StripeJS no cargada.");
+        throw new Error("No se pudo cargar la pasarela de pagos.");
       }
 
-      console.log(`[UPGRADE DEBUG] Iniciando nodo con clave: ${publishableKey.substring(0, 8)}...`);
-      
-      // Simulación de interacción con el nodo de pago
-      await new Promise(resolve => setTimeout(resolve, 1800));
+      console.log(`[UPGRADE] Redirigiendo a Stripe para Upgrade: ${planName} (${stripePriceId})`);
 
-      // Navegamos al éxito simulado para el usuario final mientras el webhook se procesa asíncronamente
-      navigate('/dashboard/upgrade-success', { 
-        state: { 
-          phoneNumber, 
-          planName, 
-          price, 
-          limit,
-          userId: user.id
-        },
-        replace: true 
+      // REDIRECCIÓN OBLIGATORIA (Sin bypass local)
+      const { error } = await stripe.redirectToCheckout({
+        lineItems: [{ price: stripePriceId, quantity: 1 }],
+        mode: 'subscription',
+        successUrl: `${window.location.origin}/#/dashboard/upgrade-success?session_id={CHECKOUT_SESSION_ID}&num=${phoneNumber}&plan=${planName}`,
+        cancelUrl: `${window.location.origin}/#/dashboard/numbers`,
+        clientReferenceId: user.id,
+        metadata: {
+            upgrade_phone: phoneNumber,
+            userId: user.id
+        }
       });
+
+      if (error) throw error;
 
     } catch (err: any) {
       console.error("Critical upgrade error:", err);
-      alert(err.message || "Error de configuración de pasarela.");
+      alert(err.message || "Error al procesar la mejora del plan.");
       setIsProcessing(false);
     }
   };
@@ -85,18 +83,18 @@ const UpgradeSummary: React.FC = () => {
                 >
                     <ArrowLeft className="size-5" />
                 </button>
-                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10 uppercase tracking-tighter">Paso 3: Confirmación</h2>
+                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10 uppercase tracking-tighter">Mejorar Plan</h2>
             </div>
 
             <div className="flex-1 flex flex-col px-6 pt-8 pb-40 overflow-y-auto no-scrollbar">
                 <div className="mb-8">
                     <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Resumen de Mejora</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Protección de claves activa. Redirigiendo a nodo seguro.</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Conexión directa con la infraestructura de Stripe.</p>
                 </div>
 
                 <div className="bg-white dark:bg-[#1A2230] rounded-[2rem] border border-gray-100 dark:border-gray-700/50 p-6 shadow-soft mb-6 relative overflow-hidden group">
                     <div className="flex flex-col gap-1 mb-4">
-                        <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Línea a Actualizar</span>
+                        <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Puerto a potenciar</span>
                         <span className="text-2xl font-mono font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
                             {formatPhoneNumber(phoneNumber)}
                         </span>
@@ -115,21 +113,14 @@ const UpgradeSummary: React.FC = () => {
 
                 <div className="bg-slate-50 dark:bg-slate-800/40 rounded-3xl p-6 space-y-4 border border-slate-100 dark:border-slate-800/50">
                     <div className="flex justify-between items-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                        <span>Servicio Mensual ({planName})</span>
+                        <span>Precio Mensual</span>
                         <span className="text-slate-900 dark:text-white font-mono text-sm">${Number(price).toFixed(2)}</span>
                     </div>
                     <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
                     <div className="flex justify-between items-center">
-                        <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Cobro hoy</span>
+                        <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">A pagar ahora</span>
                         <span className="text-3xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">${Number(price).toFixed(2)}</span>
                     </div>
-                </div>
-
-                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex gap-4">
-                    <AlertCircle className="size-5 text-primary shrink-0" />
-                    <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                        Cobro proporcional inmediato. Los beneficios se aplicarán al puerto GSM tras la validación de integridad del webhook.
-                    </p>
                 </div>
             </div>
 
@@ -143,15 +134,15 @@ const UpgradeSummary: React.FC = () => {
                         {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}
                     </div>
                     <span className="text-[17px] tracking-wide uppercase">
-                        {isProcessing ? 'Procesando...' : 'Pagar con Stripe'}
+                        {isProcessing ? 'Conectando...' : 'Pagar con Stripe'}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <ShieldCheck className="size-6 text-white" />
                     </div>
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-1.5 opacity-40">
-                    <span className="material-symbols-outlined text-gray-500" style={{fontSize: '14px'}}>lock</span>
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">Configuración Segura de Claves • TELSIM v2.9</p>
+                    <Lock className="size-3" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">Checkout Oficial Stripe v3.0</p>
                 </div>
             </div>
         </div>
