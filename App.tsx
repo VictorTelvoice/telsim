@@ -26,6 +26,8 @@ import IdentityVerification from './screens/dashboard/IdentityVerification';
 import Support from './screens/dashboard/Support';
 import HelpCenter from './screens/dashboard/HelpCenter';
 import TermsPrivacy from './screens/dashboard/TermsPrivacy';
+import UpgradeSummary from './screens/dashboard/UpgradeSummary';
+import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
@@ -207,6 +209,14 @@ const App: React.FC = () => {
                     <Route 
                       path="/dashboard/notifications" 
                       element={<ProtectedRoute><Notifications /></ProtectedRoute>} 
+                    />
+                    <Route 
+                      path="/dashboard/upgrade-summary" 
+                      element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} 
+                    />
+                    <Route 
+                      path="/dashboard/upgrade-success" 
+                      element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} 
                     />
                     <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
                     <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
