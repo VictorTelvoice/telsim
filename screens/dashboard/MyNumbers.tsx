@@ -17,13 +17,42 @@ import {
   Globe, 
   Crown,
   Zap,
-  Diamond,
-  Leaf
+  Leaf,
+  RefreshCw,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
   actual_plan_name?: string;
 }
+
+const OFFICIAL_PLANS = [
+  {
+    id: 'Starter',
+    name: 'Starter',
+    price: 19.90,
+    color: 'emerald',
+    icon: <Leaf className="size-5" />,
+    features: ['Acceso total vía App', 'Soporte vía Ticket', 'Notificaciones Push']
+  },
+  {
+    id: 'Pro',
+    name: 'Pro',
+    price: 39.90,
+    color: 'blue',
+    icon: <Zap className="size-5" />,
+    features: ['Acceso a API Telsim', 'Webhooks en tiempo real', 'Soporte vía Chat']
+  },
+  {
+    id: 'Power',
+    name: 'Power',
+    price: 99.00,
+    color: 'amber',
+    icon: <Crown className="size-5" />,
+    features: ['Infraestructura Dedicada', 'Soporte VIP 24/7', 'Escalabilidad P2P']
+  }
+];
 
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
@@ -46,6 +75,10 @@ const MyNumbers: React.FC = () => {
     const [fwdChannel, setFwdChannel] = useState<'telegram' | 'discord' | 'webhook'>('telegram');
     const [fwdConfig, setFwdConfig] = useState('');
     const [savingFwd, setSavingFwd] = useState(false);
+
+    // Nuevo estado para gestión de planes
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [slotForPlan, setSlotForPlan] = useState<SlotWithPlan | null>(null);
 
     const fetchSlots = async () => {
         if (!user) return;
@@ -87,9 +120,10 @@ const MyNumbers: React.FC = () => {
         fetchSlots();
     }, [user]);
 
-    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-red-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
+        const bgClass = type === 'success' ? 'bg-slate-900/95' : type === 'error' ? 'bg-rose-600' : 'bg-primary';
+        toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${bgClass} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
         toast.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">${message}</span>`;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
@@ -148,11 +182,9 @@ const MyNumbers: React.FC = () => {
     };
 
     const getPlanStyle = (planName: string | undefined | null) => {
-        const rawName = planName || 'Starter';
-        const name = rawName.toString().toUpperCase();
+        const rawName = (planName || 'Starter').toString().toUpperCase();
         
-        // ESTILO DORADO PARA POWER
-        if (name.includes('POWER')) {
+        if (rawName.includes('POWER')) {
             return {
                 cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C] text-white shadow-[0_15px_40px_-10px_rgba(180,146,72,0.3)]',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
@@ -160,12 +192,11 @@ const MyNumbers: React.FC = () => {
                 indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
                 icon: <Crown className="size-3" />,
-                label: name,
+                label: 'POWER',
                 numberColor: 'text-white'
             };
         }
-        // ESTILO AZUL FLÚOR PARA PRO (ACTUALIZADO)
-        if (name.includes('PRO')) {
+        if (rawName.includes('PRO')) {
             return {
                 cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-[0_15px_40px_-10px_rgba(0,148,255,0.4)]',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
@@ -173,11 +204,10 @@ const MyNumbers: React.FC = () => {
                 indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
                 icon: <Zap className="size-3" />,
-                label: name,
-                numberColor: 'text-white' // Texto en blanco solicitado
+                label: 'PRO',
+                numberColor: 'text-white'
             };
         }
-        // ESTILO STARTER
         return {
             cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 shadow-soft',
             badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
@@ -185,7 +215,7 @@ const MyNumbers: React.FC = () => {
             indicator: 'bg-emerald-500',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
-            label: name,
+            label: 'STARTER',
             numberColor: 'text-slate-900 dark:text-white'
         };
     };
@@ -202,6 +232,16 @@ const MyNumbers: React.FC = () => {
         setFwdChannel(slot.forwarding_channel || 'telegram');
         setFwdConfig(slot.forwarding_config || '');
         setIsFwdModalOpen(true);
+    };
+
+    const openPlanModal = (slot: SlotWithPlan) => {
+        setSlotForPlan(slot);
+        setIsPlanModalOpen(true);
+    };
+
+    const handleUpdatePlanClick = (planId: string) => {
+        console.log(`[Action Log] User requested to switch to: ${planId}`);
+        showToast("Módulo de pago en mantenimiento programado", "info");
     };
 
     const handleReleaseSlot = async () => {
@@ -307,7 +347,7 @@ const MyNumbers: React.FC = () => {
                                                         {isEditing ? (
                                                             <div className={`flex items-center gap-1.5 p-1 rounded-lg ${isPower || isPro ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
                                                                 <input 
-                                                                    type="text"
+                                                                    type="text" 
                                                                     value={tempLabelValue}
                                                                     onChange={(e) => setTempLabelValue(e.target.value)}
                                                                     className="bg-transparent border-none p-0 px-1 text-[10px] font-black w-24 outline-none uppercase placeholder:text-white/50"
@@ -388,17 +428,26 @@ const MyNumbers: React.FC = () => {
                                         >
                                             <Copy className="size-4 text-slate-400" />
                                         </button>
+                                        
+                                        {/* NUEVO BOTÓN: GESTIONAR PLAN */}
                                         <button 
-                                            onClick={() => openFwdModal(slot)}
+                                            onClick={() => openPlanModal(slot)}
                                             className={`size-12 rounded-2xl flex items-center justify-center shadow-lg hover:translate-y-[-2px] transition-all active:scale-95 ${
                                               isPower 
-                                              ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/20' 
+                                              ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600 border border-amber-500/30' 
                                               : isPro
-                                                ? 'bg-gradient-to-br from-[#0047FF] to-[#00E0FF] text-white shadow-blue-500/30'
-                                                : 'bg-emerald-500 text-white shadow-emerald-500/20'
+                                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-500/30'
+                                                : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-500/30'
                                             }`}
                                         >
-                                            <Settings className="size-4" />
+                                            <RefreshCw className="size-4" />
+                                        </button>
+
+                                        <button 
+                                            onClick={() => openFwdModal(slot)}
+                                            className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:translate-y-[-2px] transition-all active:scale-95"
+                                        >
+                                            <Settings className="size-4 text-slate-400" />
                                         </button>
                                         <button 
                                             onClick={() => openReleaseModal(slot)}
@@ -414,8 +463,130 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
+            {/* MODAL DE GESTIÓN DE PLANES (UI ONLY) */}
+            {isPlanModalOpen && slotForPlan && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-300">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 flex flex-col max-h-[90vh]">
+                        {/* Header Modal */}
+                        <div className="p-8 pb-4 flex justify-between items-start sticky top-0 bg-white dark:bg-slate-900 z-10">
+                           <div className="flex flex-col">
+                              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Gestionar Plan</h2>
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Línea: {formatPhoneNumber(slotForPlan.phone_number)}</p>
+                           </div>
+                           <button onClick={() => setIsPlanModalOpen(false)} className="size-10 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400">
+                              <X className="size-5" />
+                           </button>
+                        </div>
+
+                        {/* Contenido Scrollable */}
+                        <div className="p-6 pt-2 space-y-4 overflow-y-auto no-scrollbar">
+                            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                               <Info className="size-4 text-primary shrink-0" />
+                               <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-tight">
+                                  Al cambiar de plan, la nueva configuración de red se aplicará de forma instantánea al puerto físico.
+                               </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {OFFICIAL_PLANS.map((plan) => {
+                                    const isCurrent = (slotForPlan.actual_plan_name || 'Starter').toString().toLowerCase() === plan.id.toLowerCase();
+                                    const isDowngradeBlocked = (slotForPlan.actual_plan_name || '').toUpperCase().includes('POWER') && plan.id !== 'Power';
+                                    
+                                    // Dinamic Color Maps
+                                    const colorsMap: Record<string, any> = {
+                                        emerald: { 
+                                            bg: 'bg-emerald-500', 
+                                            lightBg: 'bg-emerald-50 dark:bg-emerald-900/20', 
+                                            text: 'text-emerald-500', 
+                                            border: 'border-emerald-100 dark:border-emerald-800' 
+                                        },
+                                        blue: { 
+                                            bg: 'bg-primary', 
+                                            lightBg: 'bg-blue-50 dark:bg-blue-900/20', 
+                                            text: 'text-primary', 
+                                            border: 'border-blue-100 dark:border-blue-800' 
+                                        },
+                                        amber: { 
+                                            bg: 'bg-amber-500', 
+                                            lightBg: 'bg-amber-50 dark:bg-amber-900/20', 
+                                            text: 'text-amber-500', 
+                                            border: 'border-amber-100 dark:border-amber-800' 
+                                        }
+                                    };
+                                    const c = colorsMap[plan.color];
+
+                                    return (
+                                        <div 
+                                            key={plan.id}
+                                            className={`p-5 rounded-3xl border-2 transition-all relative ${isCurrent ? 'border-primary ring-2 ring-primary/10' : 'border-slate-100 dark:border-slate-800'}`}
+                                        >
+                                            {isCurrent && (
+                                                <div className="absolute -top-3 right-6 bg-primary text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-md">
+                                                    Plan Actual
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`size-10 rounded-xl flex items-center justify-center ${c.lightBg} ${c.text}`}>
+                                                        {plan.icon}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase">{plan.name}</h4>
+                                                        <p className="text-[10px] font-bold text-slate-400">${plan.price.toFixed(2)} / mes</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <ul className="space-y-2 mb-6">
+                                                {plan.features.map((f, i) => (
+                                                    <li key={i} className="flex items-center gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                                        <Check className={`size-3 ${c.text}`} />
+                                                        {f}
+                                                    </li>
+                                                ))}
+                                            </ul>
+
+                                            <button 
+                                                disabled={isCurrent || isDowngradeBlocked}
+                                                onClick={() => handleUpdatePlanClick(plan.id)}
+                                                className={`w-full h-11 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                                    isCurrent 
+                                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
+                                                    : isDowngradeBlocked
+                                                        ? 'bg-slate-50 dark:bg-slate-800/50 text-slate-300 cursor-not-allowed'
+                                                        : `${c.bg} text-white shadow-lg active:scale-95`
+                                                }`}
+                                            >
+                                                {isCurrent 
+                                                  ? 'Tu Plan Actual' 
+                                                  : isDowngradeBlocked 
+                                                    ? 'Contactar Soporte para Downgrade' 
+                                                    : `Actualizar a ${plan.name}`
+                                                }
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Footer Modal */}
+                        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                           <button 
+                             onClick={() => setIsPlanModalOpen(false)}
+                             className="w-full h-12 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                           >
+                             Cerrar Ventana
+                           </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE LIBERACIÓN */}
             {isReleaseModalOpen && slotToRelease && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
                         <div className="bg-rose-500 p-8 text-white">
                             <AlertTriangle className="size-10 mb-4" />
@@ -441,8 +612,9 @@ const MyNumbers: React.FC = () => {
                 </div>
             )}
 
+            {/* MODAL DE REENVÍO */}
             {isFwdModalOpen && slotToFwd && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md">
+                <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 space-y-6 shadow-2xl">
                         <div className="flex items-center gap-3">
                             <div className="size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
