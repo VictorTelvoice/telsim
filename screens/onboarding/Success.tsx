@@ -73,7 +73,6 @@ const Success: React.FC = () => {
 
   const handleGoToDashboard = () => {
     if (assignedNumber) {
-      // Pasamos el número activado para que el Dashboard lo seleccione automáticamente
       navigate(`/dashboard?new_line=${encodeURIComponent(assignedNumber)}`);
     } else {
       navigate('/dashboard');
@@ -104,31 +103,46 @@ const Success: React.FC = () => {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
-      <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-700 ${showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="mb-12">
+      {/* Background decoration */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none"></div>
+
+      <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-1000 ease-out ${showContent ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
+        
+        <div className="mb-8">
           <div className="relative mb-6 flex justify-center">
-            <div className="size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
+             <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full scale-125 animate-pulse"></div>
+            <div className="size-24 rounded-[2.2rem] bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 shadow-2xl flex items-center justify-center relative z-10">
               <CheckCircle2 className="size-12 text-emerald-500" />
             </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">¡Puerto Activo!</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-3">¡Línea Activa!</h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed max-w-[28ch] mx-auto">
-            Tu línea física ya está conectada al nodo de red TELSIM.
+            Tu tarjeta SIM física ha sido asignada y conectada al nodo de red.
           </p>
         </div>
 
-        <div className="w-full bg-white dark:bg-surface-dark rounded-[2.5rem] border-2 border-primary/10 p-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden">
-          <span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.4em] mb-5">Identificador de Línea</span>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="size-10 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm">
+        {/* Card Contenedora del Número */}
+        <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 border-primary/10 px-4 py-10 min-[380px]:px-8 flex flex-col items-center shadow-card mb-10 relative overflow-hidden group">
+          {/* Subtle tech background inside card */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+          
+          <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6 opacity-60">Identificador TELSIM</span>
+          
+          <div className="flex items-center gap-3 min-[380px]:gap-4 mb-8">
+            <div className="size-10 min-[380px]:size-11 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
               <img src={`https://flagcdn.com/w80/${countryCode}.png`} alt="Country" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
+            {/* Ajuste responsivo de tipografía para el número */}
+            <div className="text-[22px] min-[380px]:text-[26px] min-[420px]:text-[30px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums whitespace-nowrap">
               {formatPhoneNumber(assignedNumber!)}
             </div>
           </div>
-          <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-[9px] font-black uppercase tracking-widest">
-            Plan {planName}
+          
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
+            <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+               Infraestructura {planName} • On-Air
+            </span>
           </div>
         </div>
 
@@ -137,15 +151,18 @@ const Success: React.FC = () => {
           className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="size-12"></div>
-          <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
-          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+          <span className="text-[14px] uppercase tracking-widest">Empezar a Recibir SMS</span>
+          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md transition-colors group-hover:bg-white/30">
             <ArrowRight className="size-6" />
           </div>
         </button>
 
-        <div className="mt-12 flex items-center gap-2 opacity-30">
-          <ShieldCheck className="size-4" />
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v8.0</span>
+        <div className="mt-12 flex flex-col items-center gap-3 opacity-30">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-4" />
+            <span className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM CORE SECURITY v8.0</span>
+          </div>
+          <p className="text-[7px] font-bold uppercase tracking-widest">Encriptación AES-256 Activa</p>
         </div>
       </div>
     </div>
