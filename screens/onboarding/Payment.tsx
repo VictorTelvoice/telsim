@@ -122,20 +122,18 @@ const Payment: React.FC = () => {
                 <button 
                     onClick={handleSubscribe}
                     disabled={isProcessing}
-                    className={`relative group w-full overflow-hidden rounded-[1.5rem] bg-primary h-16 shadow-button transition-all active:scale-[0.98] ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-dark'}`}
+                    className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                    <div className="relative flex w-full items-center justify-center gap-3">
-                        {isProcessing ? (
-                            <>
-                                <Loader2 className="size-5 animate-spin text-white/80" />
-                                <span className="text-white text-[15px] font-black uppercase tracking-[0.2em]">Sincronizando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="text-white text-[15px] font-black uppercase tracking-[0.2em]">Activar Puerto Físico</span>
-                                <span className="material-symbols-outlined text-white transition-transform group-hover:translate-x-1" style={{fontSize: '20px'}}>arrow_forward</span>
-                            </>
-                        )}
+                    <div className="w-12 flex items-center justify-center">
+                        {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}
+                    </div>
+                    <span className="text-[17px] tracking-wide uppercase">
+                        {isProcessing ? 'Sincronizando...' : 'Activar SIM'}
+                    </span>
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <span className="material-symbols-outlined text-white">
+                            {isProcessing ? 'sync' : 'arrow_forward'}
+                        </span>
                     </div>
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-2 opacity-40">

@@ -172,14 +172,14 @@ const PlanSelect: React.FC = () => {
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 to-transparent z-40">
                 <button 
                     onClick={handleNext}
-                    className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.99] transition-all text-white font-black h-16 rounded-[1.5rem] shadow-button flex items-center justify-between px-2 relative overflow-hidden"
+                    className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
                 >
                     <div className="w-12"></div>
-                    <span className="text-lg tracking-wide z-10 uppercase text-[15px]">
+                    <span className="text-[17px] tracking-wide uppercase">
                       Configurar Plan {selected}
                     </span>
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm z-10 group-hover:bg-white/30 transition-colors">
-                        <span className="material-symbols-outlined text-white text-[24px]">arrow_forward</span>
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <span className="material-symbols-outlined text-white">arrow_forward</span>
                     </div>
                 </button>
             </div>

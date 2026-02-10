@@ -121,15 +121,14 @@ const Summary: React.FC = () => {
                 <button 
                     onClick={handleNext}
                     disabled={isNavigating}
-                    className="relative group w-full overflow-hidden rounded-xl bg-primary p-4 shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-blue-500/40"
+                    className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
                 >
-                    <div className="relative flex w-full items-center justify-center">
-                        <span className="text-white text-[17px] font-bold tracking-wide">
-                            Iniciar Prueba Gratis
-                        </span>
-                        <div className="absolute right-0 flex items-center justify-center rounded-full bg-white/20 p-1 transition-transform group-hover:translate-x-1 mr-2">
-                            <span className="material-symbols-outlined text-white" style={{fontSize: '20px'}}>arrow_forward</span>
-                        </div>
+                    <div className="w-12"></div>
+                    <span className="text-[17px] tracking-wide uppercase">
+                        Iniciar Prueba Gratis
+                    </span>
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <span className="material-symbols-outlined text-white">arrow_forward</span>
                     </div>
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">
