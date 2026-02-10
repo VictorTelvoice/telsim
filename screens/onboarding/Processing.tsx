@@ -16,7 +16,7 @@ const Processing: React.FC = () => {
   const hasExecuted = useRef(false);
 
   const statusMessages = [
-    "Conectando al Nodo Central...",
+    "Conectando puerto GSM...",
     "Validando Infraestructura Física...",
     "Sincronizando Puerto en Red 4G...",
     "Generando Identificador Único...",
@@ -56,7 +56,7 @@ const Processing: React.FC = () => {
         
         await addNotification({
           title: 'Puerto Activado',
-          message: `Tu nueva línea ${finalNumber} ha sido sincronizada con éxito en el nodo central.`,
+          message: `Tu nueva línea ${finalNumber} ha sido sincronizada con éxito.`,
           type: 'activation',
           details: {
             number: finalNumber,
@@ -147,13 +147,13 @@ const Processing: React.FC = () => {
               </div>
             </div>
             
-            <div className="text-center space-y-6">
+            <div className="text-center space-y-4">
               <div className="space-y-2">
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">
-                  Asignando tarjeta SIM
+                  ASIGNANDO TARJETA SIM
                 </h1>
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">
-                  Nodo: CL-PROVISION-MAIN
+                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                  Puede tardar algunos segundos.
                 </p>
               </div>
 
@@ -164,7 +164,7 @@ const Processing: React.FC = () => {
                   className="animate-in slide-in-from-bottom-2 duration-500 flex items-center gap-2"
                 >
                    <Loader2 className="size-3 text-slate-400 animate-spin" />
-                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400 italic">
+                   <span className="text-xs font-bold text-slate-400 dark:text-slate-500 italic uppercase tracking-widest">
                      {statusMessages[statusIndex]}
                    </span>
                 </div>
