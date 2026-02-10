@@ -23,8 +23,8 @@ const PlanSelect: React.FC = () => {
       idealFor: 'Usuarios individuales y Desarrolladores.',
       features: [
         'Número SIM Real (no VoIP baratos)',
-        'SMS 100% automatizados sin intervención humana',
-        'Acceso a API y Webhooks',
+        'Notificaciones en tiempo real',
+        'Visualización en App',
         'Capacidad: 150 SMS mensuales',
         'Soporte técnico vía Ticket'
       ],
@@ -40,8 +40,9 @@ const PlanSelect: React.FC = () => {
       idealFor: 'Equipos DevOps y Automatizadores.',
       popularBadge: 'MÁS POPULAR',
       features: [
-        'Numero SIM Real',
-        'Automatización avanzada para Bots y Growth',
+        'Todo lo incluido en Starter',
+        'SMS 100% automatizados (Sin intervención)',
+        'Acceso a API y Webhooks',
         'Capacidad: 400 SMS mensuales',
         'Soporte técnico vía Ticket y Chat en vivo'
       ],
@@ -56,10 +57,11 @@ const PlanSelect: React.FC = () => {
       icon: 'electric_bolt',
       idealFor: 'Fintech, Corporativos y Plataformas P2P.',
       features: [
+        'Todo lo incluido en Pro',
         'Seguridad y Control Empresarial',
         'Integraciones Personalizadas y Escalabilidad',
-        'Soporte Prioritario 24/7',
-        'Capacidad: 1,400 SMS mensuales'
+        'Capacidad: 1,400 SMS mensuales',
+        'Soporte Prioritario 24/7'
       ],
       recommended: false
     }
@@ -104,15 +106,15 @@ const PlanSelect: React.FC = () => {
                 </p>
             </div>
 
-            <div className="flex flex-col gap-4 flex-1 mb-6">
+            <div className="flex flex-col gap-6 flex-1 mb-6">
                 {plans.map((plan) => (
                     <div 
                         key={plan.id}
                         onClick={() => setSelected(plan.id as any)}
-                        className={`relative bg-white dark:bg-surface-dark rounded-3xl p-6 border-2 transition-all cursor-pointer ${
+                        className={`relative bg-white dark:bg-surface-dark rounded-[2.5rem] p-6 border-2 transition-all cursor-pointer ${
                           selected === plan.id 
-                          ? 'border-primary shadow-[0_10px_30px_-5px_rgba(29,78,216,0.15)] ring-1 ring-primary/20' 
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                          ? 'border-primary shadow-[0_20px_40px_-10px_rgba(29,78,216,0.12)] ring-1 ring-primary/20 scale-[1.02]' 
+                          : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
                         }`}
                     >
                         {plan.popularBadge && (
@@ -123,10 +125,10 @@ const PlanSelect: React.FC = () => {
 
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex gap-3 items-center">
-                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-colors ${
-                                  selected === plan.id ? 'bg-primary text-white shadow-inner' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                                  selected === plan.id ? 'bg-primary text-white shadow-lg rotate-3' : 'bg-slate-50 dark:bg-slate-800 text-slate-400'
                                 }`}>
-                                    <span className="material-symbols-outlined text-[20px]">{plan.icon}</span>
+                                    <span className="material-symbols-outlined text-[24px]">{plan.icon}</span>
                                 </div>
                                 <div>
                                     <h3 className="font-black text-slate-900 dark:text-white text-xl leading-tight uppercase tracking-tight">{plan.name}</h3>
@@ -134,26 +136,22 @@ const PlanSelect: React.FC = () => {
                                 </div>
                             </div>
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                              selected === plan.id ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'
+                              selected === plan.id ? 'bg-primary border-primary' : 'border-slate-200 dark:border-slate-700'
                             }`}>
                                 {selected === plan.id && <span className="material-symbols-outlined text-white text-[16px] font-black">check</span>}
                             </div>
                         </div>
 
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic mb-4">
-                          Ideal para: {plan.idealFor}
-                        </p>
-
-                        <div className="mb-5 border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <div className="mb-6 border-b border-slate-50 dark:border-slate-800 pb-5 pt-2">
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
-                                <span className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest ml-1">/mes</span>
+                                <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest ml-1">/mes</span>
                             </div>
                         </div>
 
-                        <ul className="space-y-3.5">
+                        <ul className="space-y-4 mb-8">
                             {plan.features.map((feat, i) => (
-                                <li key={i} className="flex items-start gap-3 text-[13px] text-slate-600 dark:text-slate-300 font-semibold leading-snug">
+                                <li key={i} className="flex items-start gap-3.5 text-[13px] text-slate-600 dark:text-slate-300 font-semibold leading-snug">
                                     <div className="w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5 border border-blue-100 dark:border-blue-800">
                                         <span className="material-symbols-outlined text-primary dark:text-blue-400 text-[14px] font-black">done</span>
                                     </div>
@@ -161,14 +159,21 @@ const PlanSelect: React.FC = () => {
                                 </li>
                             ))}
                         </ul>
+
+                        <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[14px]">groups</span>
+                            Ideal para: <span className="text-slate-500 dark:text-slate-300 italic normal-case font-bold ml-1">{plan.idealFor}</span>
+                          </p>
+                        </div>
                     </div>
                 ))}
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 to-transparent z-40">
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 to-transparent z-40">
                 <button 
                     onClick={handleNext}
-                    className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.99] transition-all text-white font-black h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
+                    className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.99] transition-all text-white font-black h-16 rounded-[1.5rem] shadow-button flex items-center justify-between px-2 relative overflow-hidden"
                 >
                     <div className="w-12"></div>
                     <span className="text-lg tracking-wide z-10 uppercase text-[15px]">
