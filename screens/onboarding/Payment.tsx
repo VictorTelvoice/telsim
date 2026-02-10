@@ -12,6 +12,7 @@ const Payment: React.FC = () => {
   const planData = location.state || {};
   const planName = planData.planName || 'Pro';
   const price = planData.price || 39.90;
+  const monthlyLimit = planData.monthlyLimit || 400;
   const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
 
   const handleCheckout = async () => {
@@ -19,9 +20,6 @@ const Payment: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      console.log(`[TELSIM] Solicitando sesión de pago segura para: ${planName}`);
-
-      // LLAMADA AL BACKEND (API ROUTE)
       const response = await fetch('/api/checkout/session', {
         method: 'POST',
         headers: {
@@ -31,6 +29,7 @@ const Payment: React.FC = () => {
           priceId: stripePriceId,
           userId: user.id,
           planName: planName,
+          monthlyLimit: monthlyLimit,
           isUpgrade: false
         }),
       });
@@ -41,12 +40,11 @@ const Payment: React.FC = () => {
         throw new Error(data.error || "No se pudo generar la sesión de pago.");
       }
 
-      // REDIRECCIÓN OBLIGATORIA AL SERVIDOR DE STRIPE
       window.location.href = data.url;
 
     } catch (err: any) {
       console.error("Payment Error:", err);
-      alert(err.message || "Error al conectar con el servidor de pagos. Inténtalo de nuevo.");
+      alert(err.message || "Error al conectar con el servidor de pagos.");
       setIsProcessing(false);
     }
   };
@@ -114,7 +112,7 @@ const Payment: React.FC = () => {
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
                     <p className="text-[9px] text-center font-black uppercase tracking-widest">
-                        TELSIM SECURE CHECKOUT v3.1 (SERVER-SIDE)
+                        TELSIM SECURE CHECKOUT v3.2 (SERVER-SIDE)
                     </p>
                 </div>
             </div>

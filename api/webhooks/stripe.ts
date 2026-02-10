@@ -1,91 +1,90 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v3.2
  * 
- * Lógica oficial para el procesamiento de pagos y aprovisionamiento de red.
- * Refactorizado para máxima seguridad utilizando variables de entorno.
+ * Procesamiento oficial de pagos con corrección de precisión decimal.
  */
 
 import Stripe from 'stripe';
 
-// Inicialización segura del cliente de Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-
 export const handleStripeWebhook = async (event: any, supabaseClient: any) => {
   const { type, data } = event;
 
-  /**
-   * NOTA DE SEGURIDAD: En producción, utiliza stripe.webhooks.constructEvent
-   * con el raw body y el sig-header para validar la autenticidad del evento
-   * usando el WEBHOOK_SECRET.
-   */
-
-  // Eventos de interés: Éxito de checkout o actualización manual de suscripción
-  if (type === 'checkout.session.completed' || type === 'customer.subscription.updated') {
-    const sessionOrSub = data.object;
+  // Procesamos exclusivamente el éxito del Checkout
+  if (type === 'checkout.session.completed') {
+    const session = data.object;
     
-    // Extraemos metadatos enviados desde el frontend
-    const metadata = sessionOrSub.metadata || {};
-    const { userId, phoneNumber, planName, amount, limit } = metadata;
+    // 1. Extracción y Conversión de Monto (Stripe envía centavos)
+    const amountTotalCents = session.amount_total || 0;
+    const amountDecimal = amountTotalCents / 100; // Convierte 3990 a 39.90
+
+    // 2. Extracción de Metadatos de Identidad TELSIM
+    const metadata = session.metadata || {};
+    const userId = metadata.userId; 
+    const phoneNumber = metadata.phoneNumber;
+    const planName = metadata.planName || 'Pro';
+    const monthlyLimit = parseInt(metadata.limit) || 400;
+
+    console.log(`[WEBHOOK] Procesando Pago: $${amountDecimal} para Usuario: ${userId}`);
 
     if (!userId || !phoneNumber) {
-      console.warn('[STRIPE WEBHOOK] Metadata faltante para aprovisionamiento');
-      return { status: 'error', message: 'Missing metadata' };
+      console.error('[STRIPE WEBHOOK ERROR] Metadata de usuario o teléfono faltante.');
+      return { status: 'error', message: 'Missing critical metadata' };
     }
 
     try {
-      // PROCESO DE HISTORIAL INMUTABLE:
+      // 3. Flujo Atómico en Supabase:
       
-      // 1. Marcar la suscripción anterior como 'actualizado' (Atomic flow)
+      // A. Marcar suscripciones previas de esta línea como 'actualizado'
       await supabaseClient
         .from('subscriptions')
         .update({ status: 'actualizado' })
-        .eq('user_id', userId)
         .eq('phone_number', phoneNumber)
         .eq('status', 'active');
 
-      // 2. Crear nueva suscripción activa e inmutable
+      // B. Insertar nueva suscripción con el monto decimal corregido
       const { error: insertError } = await supabaseClient
         .from('subscriptions')
         .insert([{
-          user_id: userId,
+          user_id: userId, // Usamos el ID de los metadatos
           phone_number: phoneNumber,
-          plan_name: planName || 'Pro',
-          amount: parseFloat(amount) || 0,
-          monthly_limit: parseInt(limit) || 400,
+          plan_name: planName,
+          amount: amountDecimal, // Ahora guarda $39.90, $99.00, etc.
+          monthly_limit: monthlyLimit,
           status: 'active',
-          currency: 'USD',
-          stripe_session_id: sessionOrSub.id
+          currency: (session.currency || 'usd').toUpperCase(),
+          stripe_session_id: session.id
         }]);
 
       if (insertError) throw insertError;
 
-      // 3. Cambiar estado del puerto GSM a 'ocupado'
+      // C. Actualizar el estado del puerto físico GSM
       await supabaseClient
         .from('slots')
         .update({ 
           status: 'ocupado',
-          plan_type: planName || 'Pro'
+          plan_type: planName
         })
         .eq('phone_number', phoneNumber);
 
-      // 4. Generar notificación de éxito en tiempo real
+      // D. Notificación de Infraestructura
       await supabaseClient
         .from('notifications')
         .insert([{
           user_id: userId,
-          title: '¡Plan Actualizado!',
-          message: `Tu línea ${phoneNumber} ahora es Plan ${planName}. La configuración de red ha sido actualizada exitosamente.`,
+          title: 'Transacción Confirmada',
+          message: `Pago de $${amountDecimal.toFixed(2)} procesado. Tu línea ${phoneNumber} ha sido provisionada con el Plan ${planName}.`,
           type: 'subscription'
         }]);
 
-      console.log(`[STRIPE WEBHOOK SUCCESS] Red aprovisionada vía puerto físico para ${phoneNumber}`);
+      console.log(`[WEBHOOK SUCCESS] Suscripción registrada exitosamente: ${session.id}`);
       return { status: 'success' };
-    } catch (err) {
-      console.error('[STRIPE WEBHOOK CRITICAL ERROR]', err);
+
+    } catch (err: any) {
+      console.error('[STRIPE WEBHOOK CRITICAL ERROR]', err.message);
       throw err;
     }
   }
