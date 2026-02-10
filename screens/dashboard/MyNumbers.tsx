@@ -34,6 +34,7 @@ const OFFICIAL_PLANS = [
     name: 'Starter',
     price: 19.90,
     limit: 150,
+    stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E',
     color: 'emerald',
     icon: <Leaf className="size-5" />,
     features: ['Acceso total vía App', 'Soporte vía Ticket', 'Notificaciones Push']
@@ -43,6 +44,7 @@ const OFFICIAL_PLANS = [
     name: 'Pro',
     price: 39.90,
     limit: 500,
+    stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM',
     color: 'blue',
     icon: <Zap className="size-5" />,
     features: ['Acceso a API Telsim', 'Webhooks en tiempo real', 'Soporte vía Chat']
@@ -52,6 +54,7 @@ const OFFICIAL_PLANS = [
     name: 'Power',
     price: 99.00,
     limit: 1400,
+    stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe',
     color: 'amber',
     icon: <Crown className="size-5" />,
     features: ['Infraestructura Dedicada', 'Soporte VIP 24/7', 'Escalabilidad P2P']
@@ -257,6 +260,7 @@ const MyNumbers: React.FC = () => {
                 planName: plan.name,
                 price: plan.price,
                 limit: plan.limit,
+                stripePriceId: plan.stripePriceId,
                 oldPlanName: slotForPlan.actual_plan_name
             }
         });
