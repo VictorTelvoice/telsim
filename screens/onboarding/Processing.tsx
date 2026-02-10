@@ -54,9 +54,10 @@ const Processing: React.FC = () => {
       if (!rpcError && data?.success) {
         const finalNumber = data.phoneNumber || data.phone_number;
         
+        // NOTIFICACIÓN 1: ACTIVACIÓN TÉCNICA
         await addNotification({
-          title: 'Puerto Activado',
-          message: `Tu nueva línea ${finalNumber} ha sido sincronizada con éxito.`,
+          title: 'Puerto GSM Sincronizado',
+          message: `La infraestructura física para el número ${finalNumber} ha sido vinculada a tu cuenta con éxito.`,
           type: 'activation',
           details: {
             number: finalNumber,
@@ -65,6 +66,13 @@ const Processing: React.FC = () => {
             nextBilling: 'En 7 días',
             price: price.toFixed(2)
           }
+        });
+
+        // NOTIFICACIÓN 2: CONFIRMACIÓN DE SUSCRIPCIÓN (NUEVA)
+        await addNotification({
+          title: `Suscripción ${planName} Confirmada`,
+          message: `Se ha procesado el alta del plan ${planName} para la línea ${finalNumber}. Tu periodo de prueba de 7 días ha comenzado.`,
+          type: 'subscription'
         });
 
         // Delay artificial pequeño para que la animación se aprecie
@@ -77,7 +85,7 @@ const Processing: React.FC = () => {
       if (rpcError?.code === '23505' || (!data?.success)) {
         const { data: existing } = await supabase
           .from('subscriptions')
-          .select('phone_number')
+          .select('phone_number, plan_name')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
@@ -85,7 +93,7 @@ const Processing: React.FC = () => {
           .maybeSingle();
 
         if (existing?.phone_number) {
-          navigate(`/onboarding/success?planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(existing.phone_number)}`, { replace: true });
+          navigate(`/onboarding/success?planName=${encodeURIComponent(existing.plan_name || planName)}&assignedNumber=${encodeURIComponent(existing.phone_number)}`, { replace: true });
           return;
         }
       }
@@ -106,7 +114,7 @@ const Processing: React.FC = () => {
   }, [user]);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 transition-colors duration-500 overflow-hidden">
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 transition-colors duration-500 overflow-hidden text-center">
       
       {/* Background Glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
@@ -117,28 +125,20 @@ const Processing: React.FC = () => {
           <>
             {/* Advanced Scanning Animation */}
             <div className="relative">
-              {/* Outer Rings */}
               <div className="absolute inset-0 rounded-[2.5rem] border-2 border-primary/20 animate-ping opacity-20"></div>
               <div className="absolute -inset-4 rounded-[3rem] border border-primary/10 animate-pulse"></div>
               
-              {/* Main SIM Card Visual */}
               <div className="relative size-32 rounded-[2.5rem] bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center overflow-hidden">
-                {/* Hardware Icon */}
                 <span className="material-symbols-rounded text-[64px] text-primary/20">sim_card</span>
-                
-                {/* Scanner Laser Line */}
                 <div className="absolute inset-0 z-20 overflow-hidden rounded-[2.5rem] pointer-events-none">
                   <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(29,78,216,0.8)] animate-scanner absolute top-0"></div>
                 </div>
-
-                {/* Animated Tech Dots */}
                 <div className="absolute top-4 right-4 flex gap-1">
                    <div className="size-1 rounded-full bg-emerald-500 animate-pulse"></div>
                    <div className="size-1 rounded-full bg-primary animate-bounce" style={{animationDelay: '0.2s'}}></div>
                 </div>
               </div>
 
-              {/* Orbital Icons */}
               <div className="absolute -top-4 -right-4 size-10 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 flex items-center justify-center animate-float-slow">
                  <Globe className="size-5 text-primary" />
               </div>
@@ -147,7 +147,7 @@ const Processing: React.FC = () => {
               </div>
             </div>
             
-            <div className="text-center space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">
                   ASIGNANDO TARJETA SIM
@@ -157,7 +157,6 @@ const Processing: React.FC = () => {
                 </p>
               </div>
 
-              {/* Status Ticker */}
               <div className="h-10 flex flex-col items-center justify-center overflow-hidden">
                 <div 
                   key={statusIndex}
@@ -172,12 +171,10 @@ const Processing: React.FC = () => {
             </div>
           </>
         ) : (
-          /* Error State */
-          <div className="w-full flex flex-col items-center text-center space-y-8 animate-in zoom-in-95">
+          <div className="w-full flex flex-col items-center space-y-8 animate-in zoom-in-95">
             <div className="size-20 bg-rose-500/10 rounded-[2rem] flex items-center justify-center border border-rose-500/20 shadow-lg">
                <AlertCircle className="size-10 text-rose-500" />
             </div>
-            
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3>
               <p className="text-xs font-medium text-slate-500 leading-relaxed px-4">
@@ -188,7 +185,6 @@ const Processing: React.FC = () => {
         )}
       </div>
       
-      {/* Footer Branding */}
       <div className="absolute bottom-12 flex flex-col items-center gap-2 opacity-20">
         <div className="flex items-center gap-4">
            <Cpu className="size-4" />

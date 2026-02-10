@@ -20,7 +20,8 @@ import {
   Leaf,
   RefreshCw,
   ChevronRight,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -32,6 +33,7 @@ const OFFICIAL_PLANS = [
     id: 'Starter',
     name: 'Starter',
     price: 19.90,
+    limit: 150,
     color: 'emerald',
     icon: <Leaf className="size-5" />,
     features: ['Acceso total vía App', 'Soporte vía Ticket', 'Notificaciones Push']
@@ -40,6 +42,7 @@ const OFFICIAL_PLANS = [
     id: 'Pro',
     name: 'Pro',
     price: 39.90,
+    limit: 500,
     color: 'blue',
     icon: <Zap className="size-5" />,
     features: ['Acceso a API Telsim', 'Webhooks en tiempo real', 'Soporte vía Chat']
@@ -48,6 +51,7 @@ const OFFICIAL_PLANS = [
     id: 'Power',
     name: 'Power',
     price: 99.00,
+    limit: 1400,
     color: 'amber',
     icon: <Crown className="size-5" />,
     features: ['Infraestructura Dedicada', 'Soporte VIP 24/7', 'Escalabilidad P2P']
@@ -79,6 +83,7 @@ const MyNumbers: React.FC = () => {
     // Nuevo estado para gestión de planes
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [slotForPlan, setSlotForPlan] = useState<SlotWithPlan | null>(null);
+    const [updatingPlanId, setUpdatingPlanId] = useState<string | null>(null);
 
     const fetchSlots = async () => {
         if (!user) return;
@@ -239,9 +244,47 @@ const MyNumbers: React.FC = () => {
         setIsPlanModalOpen(true);
     };
 
-    const handleUpdatePlanClick = (planId: string) => {
-        console.log(`[Action Log] User requested to switch to: ${planId}`);
-        showToast("Módulo de pago en mantenimiento programado", "info");
+    const handleUpdatePlanClick = async (planId: string) => {
+        if (!slotForPlan || !user) return;
+        
+        const plan = OFFICIAL_PLANS.find(p => p.id === planId);
+        if (!plan) return;
+
+        setUpdatingPlanId(planId);
+        
+        // Simulación de procesamiento de pago (2s)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        try {
+            // Actualización real en Supabase
+            const { error } = await supabase
+                .from('subscriptions')
+                .update({ 
+                    plan_name: plan.name,
+                    monthly_limit: plan.limit,
+                    amount: plan.price
+                })
+                .eq('phone_number', slotForPlan.phone_number)
+                .eq('user_id', user.id)
+                .eq('status', 'active');
+
+            if (error) throw error;
+
+            // Refresco de interfaz local
+            setSlots(prev => prev.map(s => 
+                s.port_id === slotForPlan.port_id 
+                    ? { ...s, actual_plan_name: plan.name } 
+                    : s
+            ));
+
+            showToast(`¡Plan ${plan.name} actualizado con éxito!`, "success");
+            setIsPlanModalOpen(false);
+        } catch (err: any) {
+            console.error("Error updating plan:", err);
+            showToast("Fallo en la sincronización de pago", "error");
+        } finally {
+            setUpdatingPlanId(null);
+        }
     };
 
     const handleReleaseSlot = async () => {
@@ -429,7 +472,6 @@ const MyNumbers: React.FC = () => {
                                             <Copy className="size-4 text-slate-400" />
                                         </button>
                                         
-                                        {/* NUEVO BOTÓN: GESTIONAR PLAN */}
                                         <button 
                                             onClick={() => openPlanModal(slot)}
                                             className={`size-12 rounded-2xl flex items-center justify-center shadow-lg hover:translate-y-[-2px] transition-all active:scale-95 ${
@@ -463,7 +505,7 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODAL DE GESTIÓN DE PLANES (UI ONLY) */}
+            {/* MODAL DE GESTIÓN DE PLANES (SIMULACIÓN REAL) */}
             {isPlanModalOpen && slotForPlan && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 flex flex-col max-h-[90vh]">
@@ -473,7 +515,7 @@ const MyNumbers: React.FC = () => {
                               <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Gestionar Plan</h2>
                               <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Línea: {formatPhoneNumber(slotForPlan.phone_number)}</p>
                            </div>
-                           <button onClick={() => setIsPlanModalOpen(false)} className="size-10 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400">
+                           <button onClick={() => setIsPlanModalOpen(false)} disabled={!!updatingPlanId} className="size-10 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400">
                               <X className="size-5" />
                            </button>
                         </div>
@@ -491,6 +533,7 @@ const MyNumbers: React.FC = () => {
                                 {OFFICIAL_PLANS.map((plan) => {
                                     const isCurrent = (slotForPlan.actual_plan_name || 'Starter').toString().toLowerCase() === plan.id.toLowerCase();
                                     const isDowngradeBlocked = (slotForPlan.actual_plan_name || '').toUpperCase().includes('POWER') && plan.id !== 'Power';
+                                    const isUpdatingThis = updatingPlanId === plan.id;
                                     
                                     // Dinamic Color Maps
                                     const colorsMap: Record<string, any> = {
@@ -533,7 +576,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                     <div>
                                                         <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase">{plan.name}</h4>
-                                                        <p className="text-[10px] font-bold text-slate-400">${plan.price.toFixed(2)} / mes</p>
+                                                        <p className="text-[10px] font-bold text-slate-400">${plan.price.toFixed(2)} / mes • {plan.limit} SMS</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -548,22 +591,28 @@ const MyNumbers: React.FC = () => {
                                             </ul>
 
                                             <button 
-                                                disabled={isCurrent || isDowngradeBlocked}
+                                                disabled={isCurrent || isDowngradeBlocked || !!updatingPlanId}
                                                 onClick={() => handleUpdatePlanClick(plan.id)}
-                                                className={`w-full h-11 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                                className={`w-full h-11 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
                                                     isCurrent 
                                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
                                                     : isDowngradeBlocked
-                                                        ? 'bg-slate-50 dark:bg-slate-800/50 text-slate-300 cursor-not-allowed'
+                                                        ? 'bg-slate-50 dark:bg-slate-800/50 text-slate-300 cursor-not-allowed text-[8px]'
                                                         : `${c.bg} text-white shadow-lg active:scale-95`
                                                 }`}
                                             >
-                                                {isCurrent 
-                                                  ? 'Tu Plan Actual' 
-                                                  : isDowngradeBlocked 
-                                                    ? 'Contactar Soporte para Downgrade' 
-                                                    : `Actualizar a ${plan.name}`
-                                                }
+                                                {isUpdatingThis ? (
+                                                  <>
+                                                    <Loader2 className="size-4 animate-spin" />
+                                                    Procesando pago...
+                                                  </>
+                                                ) : (
+                                                  isCurrent 
+                                                    ? 'Tu Plan Actual' 
+                                                    : isDowngradeBlocked 
+                                                      ? 'Contactar Soporte para Downgrade' 
+                                                      : `Actualizar a ${plan.name}`
+                                                )}
                                             </button>
                                         </div>
                                     );
@@ -575,7 +624,8 @@ const MyNumbers: React.FC = () => {
                         <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
                            <button 
                              onClick={() => setIsPlanModalOpen(false)}
-                             className="w-full h-12 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                             disabled={!!updatingPlanId}
+                             className="w-full h-12 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50"
                            >
                              Cerrar Ventana
                            </button>
