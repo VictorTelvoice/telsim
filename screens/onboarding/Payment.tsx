@@ -19,43 +19,34 @@ const Payment: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const publishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
-      
-      if (!publishableKey) {
-        console.error("[TELSIM ERROR] VITE_STRIPE_PUBLISHABLE_KEY no detectada.");
-        throw new Error("Error de configuración: Clave de Stripe no encontrada.");
-      }
+      console.log(`[TELSIM] Solicitando sesión de pago segura para: ${planName}`);
 
-      // Inicializar Stripe
-      const stripe = (window as any).Stripe(publishableKey);
-
-      if (!stripe) {
-        throw new Error("Error crítico: No se pudo inicializar Stripe JS.");
-      }
-
-      console.log(`[STRIPE] Iniciando Checkout Real para PriceID: ${stripePriceId}`);
-
-      // REDIRECCIÓN OBLIGATORIA A STRIPE
-      // Nota: Requiere 'Client-only integration' habilitado en el Dashboard de Stripe
-      const { error } = await stripe.redirectToCheckout({
-        lineItems: [{ 
-          price: stripePriceId, 
-          quantity: 1 
-        }],
-        mode: 'subscription',
-        successUrl: `${window.location.origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${encodeURIComponent(planName)}&limit=${planData.monthlyLimit}`,
-        cancelUrl: `${window.location.origin}/#/onboarding/payment`,
-        clientReferenceId: user.id,
-        customerEmail: user.email
+      // LLAMADA AL BACKEND (API ROUTE)
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: stripePriceId,
+          userId: user.id,
+          planName: planName,
+          isUpgrade: false
+        }),
       });
 
-      if (error) {
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "No se pudo generar la sesión de pago.");
       }
 
+      // REDIRECCIÓN OBLIGATORIA AL SERVIDOR DE STRIPE
+      window.location.href = data.url;
+
     } catch (err: any) {
-      console.error("Stripe Redirection Error:", err);
-      alert(err.message || "Error al conectar con Stripe. Verifica tu conexión.");
+      console.error("Payment Error:", err);
+      alert(err.message || "Error al conectar con el servidor de pagos. Inténtalo de nuevo.");
       setIsProcessing(false);
     }
   };
@@ -76,7 +67,7 @@ const Payment: React.FC = () => {
             <div className="flex-1 flex flex-col px-6 pt-8 pb-40 overflow-y-auto no-scrollbar">
                 <div className="bg-white dark:bg-[#1A2230] rounded-3xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm mb-10 flex justify-between items-center">
                     <div className="flex flex-col gap-1">
-                        <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Suscripción</span>
+                        <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Suscripción Seleccionada</span>
                         <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -86,13 +77,13 @@ const Payment: React.FC = () => {
                 </div>
 
                 <div className="mb-8">
-                  <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.1em] mb-4">Pasarela Oficial</h3>
+                  <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.1em] mb-4">Nodo de Pago</h3>
                   <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-primary/20 flex flex-col items-center gap-6 text-center">
                     <div className="size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-md">
                        <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-7" alt="Stripe" />
                     </div>
                     <p className="text-sm font-bold text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Haz clic abajo para ser redirigido a Stripe. <br/>Tus datos bancarios nunca tocan nuestros servidores.
+                      Conexión encriptada con el servidor.<br/>Tus datos están protegidos por Stripe.
                     </p>
                   </div>
                 </div>
@@ -100,7 +91,7 @@ const Payment: React.FC = () => {
                 <div className="mt-4 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex gap-4">
                     <ShieldCheck className="size-6 text-primary shrink-0" />
                     <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                        Confirmación: Al hacer clic autorizas el inicio del periodo de prueba. Puedes cancelar en cualquier momento.
+                        Confirmación: No se realizará ningún cargo hasta que finalice el periodo de prueba de 7 días.
                     </p>
                 </div>
             </div>
@@ -115,7 +106,7 @@ const Payment: React.FC = () => {
                         {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}
                     </div>
                     <span className="text-[17px] tracking-wide uppercase">
-                        {isProcessing ? 'Redirigiendo...' : 'Pagar con Stripe'}
+                        {isProcessing ? 'Conectando...' : 'Pagar con Stripe'}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <Lock className="size-6 text-white" />
@@ -123,7 +114,7 @@ const Payment: React.FC = () => {
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
                     <p className="text-[9px] text-center font-black uppercase tracking-widest">
-                        TELSIM SECURE CHECKOUT v3.0
+                        TELSIM SECURE CHECKOUT v3.1 (SERVER-SIDE)
                     </p>
                 </div>
             </div>
