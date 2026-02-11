@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -32,6 +33,8 @@ import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
 import SniperBots from './screens/use-cases/SniperBots';
+import SecureShopping from './screens/use-cases/SecureShopping';
+import ScaleAds from './screens/use-cases/ScaleAds';
 
 const BottomNav = () => {
   const navigate = useNavigate();
@@ -222,6 +225,8 @@ const App: React.FC = () => {
                     <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
                     <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
                     <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/secure-shopping" element={<ProtectedRoute><DashboardLayout><SecureShopping /></DashboardLayout></ProtectedRoute>} />
+                    <Route path="/use-case/scale-ads" element={<ProtectedRoute><DashboardLayout><ScaleAds /></DashboardLayout></ProtectedRoute>} />
                   </Routes>
                 </div>
               </HashRouter>

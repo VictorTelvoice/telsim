@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -67,6 +68,7 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
       tag: "Popular"
     },
     {
+      id: 'secure-shopping',
       icon: <ShoppingBag className="size-6" />,
       title: "Compras Seguras",
       desc: "Ideal para MercadoLibre o Marketplace. Evita spam y estafas."
@@ -102,6 +104,7 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
   ],
   growth: [
     {
+      id: 'scale-ads',
       icon: <Megaphone className="size-6" />,
       title: "Escala tus Ads",
       desc: "Crea múltiples cuentas de Facebook/Google Ads sin bloqueos por teléfono repetido."
@@ -133,6 +136,10 @@ const UseCasesShowcase: React.FC = () => {
       navigate('/use-case/bypass-antibots');
     } else if (useCase.id === 'sniper-bots') {
       navigate('/use-case/sniper-bots');
+    } else if (useCase.id === 'secure-shopping') {
+      navigate('/use-case/secure-shopping');
+    } else if (useCase.id === 'scale-ads') {
+      navigate('/use-case/scale-ads');
     } else {
       navigate('/onboarding/region');
     }
@@ -626,7 +633,7 @@ const Dashboard: React.FC = () => {
       <main className="px-5 py-4 space-y-8 pb-32">
         <div className="bg-surface-light dark:bg-surface-dark rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50">
             <div className="flex items-center justify-between mb-6">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
                         {activeSlot ? t('dashboard.active') : t('dashboard.no_line')}
