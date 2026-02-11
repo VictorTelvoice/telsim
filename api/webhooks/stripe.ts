@@ -1,8 +1,8 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.4
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.5
  * 
  * ADAPTACIÓN PARA VERCEL API ROUTES & STRIPE SIGNATURE VERIFICATION
- * Corrección de esquema: Uso de sim_id en la tabla subscriptions.
+ * Lógica de limpieza forzada (canceled) y vinculación de sim_id.
  */
 
 import Stripe from 'stripe';
@@ -18,7 +18,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-// Cliente administrativo para bypass de RLS
+// CLIENTE ADMINISTRATIVO (SERVICE ROLE) - Crucial para bypass RLS
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -82,12 +82,12 @@ export default async function handler(req: any, res: any) {
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (!userId) {
-      console.error('[CRITICAL] Missing userId');
+      console.error('[CRITICAL] Missing userId in metadata');
       return res.status(400).json({ error: 'Missing userId' });
     }
 
     try {
-      // 1. Verificar Idempotencia
+      // 1. Idempotencia: No procesar dos veces el mismo pago
       const { data: existingSub } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
       let finalPhoneNumber = '';
       let finalPortId = '';
 
-      // 2. LÓGICA DE VINCULACIÓN DE PUERTO (Infraestructura GSM - Tabla slots usa port_id)
+      // 2. Lógica de Vinculación de Infraestructura (Slots)
       if (phoneNumberReq === 'NEW_SIM_REQUEST') {
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
@@ -110,7 +110,7 @@ export default async function handler(req: any, res: any) {
           .limit(1)
           .single();
 
-        if (slotError || !slot) throw new Error("No physical GSM slots available in infrastructure");
+        if (slotError || !slot) throw new Error("No physical GSM slots available");
         finalPhoneNumber = slot.phone_number;
         finalPortId = slot.port_id;
       } else {
@@ -120,29 +120,36 @@ export default async function handler(req: any, res: any) {
           .eq('phone_number', phoneNumberReq)
           .single();
 
-        if (slotError || !slot) throw new Error(`Slot not found for phone number: ${phoneNumberReq}`);
+        if (slotError || !slot) throw new Error(`Slot not found for line: ${phoneNumberReq}`);
         finalPhoneNumber = phoneNumberReq;
         finalPortId = slot.port_id;
       }
 
-      // 3. FINALIZAR PLANES PREVIOS (Atomic Update)
-      console.log(`[TELSIM] Superseding previous plans for port ${finalPortId} (${finalPhoneNumber})`);
-      await supabaseAdmin
+      // 3. CIERRE FORZADO DE PLANES ANTERIORES (Cleanup)
+      // Buscamos todas las suscripciones activas para este usuario y número específico
+      const { error: cancelError } = await supabaseAdmin
         .from('subscriptions')
         .update({ 
-          status: 'superseded',
+          status: 'canceled',
           updated_at: new Date().toISOString()
         })
+        .eq('user_id', userId)
         .eq('phone_number', finalPhoneNumber)
         .eq('status', 'active');
 
-      // 4. CREAR NUEVA SUSCRIPCIÓN CON VÍNCULO FÍSICO (Mapeo a sim_id)
+      if (cancelError) {
+        console.error('[CLEANUP ERROR] Fallo al cancelar planes previos:', cancelError.message);
+      } else {
+        console.log('Suscripciones antiguas canceladas para el usuario: ' + userId);
+      }
+
+      // 4. CREAR NUEVA SUSCRIPCIÓN (Inmutable)
       const { error: insertError } = await supabaseAdmin
         .from('subscriptions')
         .insert([{
           user_id: userId,
           phone_number: finalPhoneNumber,
-          sim_id: finalPortId, // Corregido: de port_id a sim_id para la tabla subscriptions
+          sim_id: finalPortId, // Identificador físico del puerto GSM
           plan_name: planName,
           amount: amountValue,
           monthly_limit: monthlyLimit,
@@ -152,13 +159,10 @@ export default async function handler(req: any, res: any) {
           created_at: new Date().toISOString()
         }]);
 
-      if (insertError) {
-        console.error('[DATABASE INSERT ERROR] Fallo al insertar en subscriptions:', insertError.message);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      // 5. ACTUALIZAR ESTADO DE HARDWARE (Tabla slots mantiene port_id)
-      const { error: slotUpdateError } = await supabaseAdmin
+      // 5. ACTUALIZAR ESTADO DE HARDWARE (Slot)
+      await supabaseAdmin
         .from('slots')
         .update({ 
           status: 'ocupado',
@@ -168,24 +172,22 @@ export default async function handler(req: any, res: any) {
         })
         .eq('port_id', finalPortId);
 
-      if (slotUpdateError) throw slotUpdateError;
-
-      // 6. LOG DE CONFIRMACIÓN Y NOTIFICACIÓN
+      // 6. NOTIFICACIÓN Y LOG FINAL
       console.log(`Suscripción guardada con éxito: ${session.id} | sim_id: ${finalPortId}`);
 
       await supabaseAdmin
         .from('notifications')
         .insert([{
           user_id: userId,
-          title: 'Puerto Configurado',
-          message: `Tu línea ${finalPhoneNumber} ha sido vinculada al puerto ${finalPortId} con éxito. Pago de $${amountValue.toFixed(2)} procesado.`,
+          title: 'Plan Actualizado',
+          message: `Confirmamos el cambio al plan ${planName}. Tu línea ${finalPhoneNumber} (Puerto ${finalPortId}) ha sido reconfigurada.`,
           type: 'subscription'
         }]);
 
-      return res.status(200).json({ status: 'success', simId: finalPortId });
+      return res.status(200).json({ status: 'success', sessionId: session.id });
 
     } catch (err: any) {
-      console.error('[CRITICAL WEBHOOK ERROR]', err.message);
+      console.error('[CRITICAL WEBHOOK HANDLER ERROR]', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
