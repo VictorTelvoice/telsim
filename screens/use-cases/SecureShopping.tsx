@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, ShieldCheck, ShoppingCart, Search, Lock, ArrowRight, CheckCircle2, Store } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, ShieldCheck, ShoppingCart, Search, Lock, ArrowRight } from 'lucide-react';
 
 const SecureShopping: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ const SecureShopping: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-32">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-44">
       {/* Header Estilo Premium Shopping */}
       <div className="relative h-72 overflow-hidden bg-[#061B14]">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/30 via-slate-900/60 to-transparent z-10"></div>
@@ -84,39 +84,13 @@ const SecureShopping: React.FC = () => {
             </div>
           ))}
         </div>
-
-        {/* Compatibility Section */}
-        <div className="bg-slate-900 dark:bg-emerald-950/20 rounded-[2.5rem] p-8 border border-white/5">
-          <div className="flex items-center gap-3 mb-6">
-             <Store className="text-emerald-400 size-5" />
-             <h3 className="text-sm font-black text-white uppercase tracking-widest">Plataformas Soportadas</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              "MercadoLibre", "Facebook Marketplace", 
-              "Amazon", "AliExpress",
-              "Wallapop", "eBay Chile"
-            ].map((text, i) => (
-              <div key={i} className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                <CheckCircle2 className="size-3 text-emerald-500" />
-                {text}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Trust Info */}
-        <div className="flex flex-col items-center text-center gap-2 py-4 opacity-30">
-            <ShieldCheck className="size-6 text-slate-400" />
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">TELSIM SECURE TRANSACTION v1.0</p>
-        </div>
       </main>
 
-      {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 dark:via-background-dark/90 to-transparent z-40">
+      {/* Floating CTA - Ajustado para estar sobre el menú inferior */}
+      <div className="fixed bottom-[84px] left-0 w-full p-6 z-40">
         <button 
           onClick={() => navigate('/onboarding/region')}
-          className="group w-full max-w-md mx-auto h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
+          className="group w-full max-w-md mx-auto h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(29,78,216,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
           <span className="text-[15px] uppercase tracking-widest">Activar Protección</span>

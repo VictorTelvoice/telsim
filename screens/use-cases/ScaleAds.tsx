@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Megaphone, ArrowLeft, ShieldCheck, TrendingUp, Layers, Rocket, ArrowRight, CheckCircle2, Share2, Target } from 'lucide-react';
+import { Megaphone, ArrowLeft, ShieldCheck, TrendingUp, Layers, Rocket, ArrowRight, Target } from 'lucide-react';
 
 const ScaleAds: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ const ScaleAds: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-32">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display pb-44">
       {/* Header Estilo Growth/Marketing */}
       <div className="relative h-72 overflow-hidden bg-[#0F0A1E]">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/40 via-purple-900/60 to-transparent z-10"></div>
@@ -96,39 +96,13 @@ const ScaleAds: React.FC = () => {
             </div>
           ))}
         </div>
-
-        {/* Compatibility Section */}
-        <div className="bg-slate-900 dark:bg-indigo-950/20 rounded-[2.5rem] p-8 border border-white/5">
-          <div className="flex items-center gap-3 mb-6">
-             <Share2 className="text-indigo-400 size-5" />
-             <h3 className="text-sm font-black text-white uppercase tracking-widest">Nodos Soportados</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              "Meta Business Suite", "Google Ads / GMC", 
-              "TikTok Ads Manager", "LinkedIn Ads",
-              "Twitter (X) Ads", "Snapchat Business"
-            ].map((text, i) => (
-              <div key={i} className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                <CheckCircle2 className="size-3 text-indigo-500" />
-                {text}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Trust Info */}
-        <div className="flex flex-col items-center text-center gap-2 py-4 opacity-30">
-            <Target className="size-6 text-slate-400" />
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">TELSIM ADS-INFRASTRUCTURE v2.4</p>
-        </div>
       </main>
 
-      {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/90 dark:via-background-dark/90 to-transparent z-40">
+      {/* Floating CTA - Ajustado para estar sobre el menú inferior */}
+      <div className="fixed bottom-[84px] left-0 w-full p-6 z-40">
         <button 
           onClick={() => navigate('/onboarding/region')}
-          className="group w-full max-w-md mx-auto h-16 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
+          className="group w-full max-w-md mx-auto h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(29,78,216,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
           <span className="text-[15px] uppercase tracking-widest">Desplegar Infraestructura</span>
