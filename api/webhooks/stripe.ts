@@ -1,8 +1,8 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.5
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.7
  * 
  * ADAPTACIÓN PARA VERCEL API ROUTES & STRIPE SIGNATURE VERIFICATION
- * Lógica de limpieza forzada (canceled) y vinculación de sim_id.
+ * Lógica simplificada de cierre forzado de planes previos.
  */
 
 import Stripe from 'stripe';
@@ -18,7 +18,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-// CLIENTE ADMINISTRATIVO (SERVICE ROLE) - Crucial para bypass RLS
+// CLIENTE ADMINISTRATIVO (SERVICE ROLE) - Crucial para bypass RLS y cierre forzado
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -87,7 +87,7 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
-      // 1. Idempotencia: No procesar dos veces el mismo pago
+      // 1. Idempotencia: Verificar si ya procesamos este pago
       const { data: existingSub } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
       let finalPhoneNumber = '';
       let finalPortId = '';
 
-      // 2. Lógica de Vinculación de Infraestructura (Slots)
+      // 2. Lógica de Vinculación de Infraestructura (Hardware GSM)
       if (phoneNumberReq === 'NEW_SIM_REQUEST') {
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
@@ -110,7 +110,7 @@ export default async function handler(req: any, res: any) {
           .limit(1)
           .single();
 
-        if (slotError || !slot) throw new Error("No physical GSM slots available");
+        if (slotError || !slot) throw new Error("No physical GSM slots available in the node");
         finalPhoneNumber = slot.phone_number;
         finalPortId = slot.port_id;
       } else {
@@ -125,69 +125,67 @@ export default async function handler(req: any, res: any) {
         finalPortId = slot.port_id;
       }
 
-      // 3. CIERRE FORZADO DE PLANES ANTERIORES (Cleanup)
-      // Buscamos todas las suscripciones activas para este usuario y número específico
+      // 3. CIERRE FORZADO DE SUSCRIPCIONES ANTERIORES (Cleanup simplificado)
+      // Buscamos y cancelamos todas las suscripciones activas del usuario para este número
       const { error: cancelError } = await supabaseAdmin
         .from('subscriptions')
-        .update({ 
-          status: 'canceled',
-          updated_at: new Date().toISOString()
-        })
+        .update({ status: 'canceled' })
         .eq('user_id', userId)
         .eq('phone_number', finalPhoneNumber)
         .eq('status', 'active');
 
       if (cancelError) {
-        console.error('[CLEANUP ERROR] Fallo al cancelar planes previos:', cancelError.message);
+        console.error('[CLEANUP ERROR] Fallo al cancelar planes antiguos:', cancelError.message);
       } else {
         console.log('Suscripciones antiguas canceladas para el usuario: ' + userId);
       }
 
-      // 4. CREAR NUEVA SUSCRIPCIÓN (Inmutable)
+      // 4. INSERTAR NUEVA SUSCRIPCIÓN (Estado 'active')
       const { error: insertError } = await supabaseAdmin
         .from('subscriptions')
         .insert([{
           user_id: userId,
           phone_number: finalPhoneNumber,
-          sim_id: finalPortId, // Identificador físico del puerto GSM
+          sim_id: finalPortId, // port_id físico mapeado a sim_id en la tabla
           plan_name: planName,
           amount: amountValue,
           monthly_limit: monthlyLimit,
           status: 'active',
           currency: (session.currency || 'usd').toUpperCase(),
-          stripe_session_id: session.id,
-          created_at: new Date().toISOString()
+          stripe_session_id: session.id
         }]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('[DB ERROR] Error insertando nueva suscripción:', insertError.message);
+        throw insertError;
+      }
 
-      // 5. ACTUALIZAR ESTADO DE HARDWARE (Slot)
+      // 5. ACTUALIZAR ESTADO DEL HARDWARE (Slot físico)
       await supabaseAdmin
         .from('slots')
         .update({ 
           status: 'ocupado',
           assigned_to: userId,
-          plan_type: planName,
-          updated_at: new Date().toISOString()
+          plan_type: planName
         })
         .eq('port_id', finalPortId);
 
       // 6. NOTIFICACIÓN Y LOG FINAL
-      console.log(`Suscripción guardada con éxito: ${session.id} | sim_id: ${finalPortId}`);
+      console.log(`[TELSIM] Provisión completada: Session ${session.id} -> sim_id ${finalPortId}`);
 
       await supabaseAdmin
         .from('notifications')
         .insert([{
           user_id: userId,
           title: 'Plan Actualizado',
-          message: `Confirmamos el cambio al plan ${planName}. Tu línea ${finalPhoneNumber} (Puerto ${finalPortId}) ha sido reconfigurada.`,
+          message: `Tu línea ${finalPhoneNumber} ha sido vinculada al nuevo plan ${planName} con éxito.`,
           type: 'subscription'
         }]);
 
-      return res.status(200).json({ status: 'success', sessionId: session.id });
+      return res.status(200).json({ status: 'success', sim_id: finalPortId });
 
     } catch (err: any) {
-      console.error('[CRITICAL WEBHOOK HANDLER ERROR]', err.message);
+      console.error('[CRITICAL WEBHOOK ERROR]', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
