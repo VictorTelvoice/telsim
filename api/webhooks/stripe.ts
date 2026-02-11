@@ -1,7 +1,7 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v3.2
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v3.4
  * 
- * Procesamiento oficial de pagos con corrección de precisión decimal.
+ * Corrección de precisión financiera y mapeo estricto de columnas.
  */
 
 import Stripe from 'stripe';
@@ -17,51 +17,58 @@ export const handleStripeWebhook = async (event: any, supabaseClient: any) => {
   if (type === 'checkout.session.completed') {
     const session = data.object;
     
-    // 1. Extracción y Conversión de Monto (Stripe envía centavos)
-    const amountTotalCents = session.amount_total || 0;
-    const amountDecimal = amountTotalCents / 100; // Convierte 3990 a 39.90
+    // 1. Extracción de Monto Real (Stripe envía centavos, ej: 1990)
+    // Usamos Number() para garantizar tipo numérico y dividimos por 100 para decimales
+    const amount = Number(session.amount_total / 100); 
 
-    // 2. Extracción de Metadatos de Identidad TELSIM
+    // 2. Extracción de Metadatos (Claves exactas según JSON de Stripe)
     const metadata = session.metadata || {};
     const userId = metadata.userId; 
-    const phoneNumber = metadata.phoneNumber;
-    const planName = metadata.planName || 'Pro';
-    const monthlyLimit = parseInt(metadata.limit) || 400;
+    const phoneNumber = metadata.phoneNumber; 
+    const planName = metadata.planName; 
+    const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
-    console.log(`[WEBHOOK] Procesando Pago: $${amountDecimal} para Usuario: ${userId}`);
+    // 3. LOGS DE DEPURACIÓN PARA VERCEL
+    console.log('--- DIAGNÓSTICO WEBHOOK TELSIM ---');
+    console.log('Sesión ID:', session.id);
+    console.log('Metadatos recibidos:', { userId, phoneNumber, planName });
+    console.log('Insertando en Supabase -> Monto: ' + amount);
 
     if (!userId || !phoneNumber) {
-      console.error('[STRIPE WEBHOOK ERROR] Metadata de usuario o teléfono faltante.');
-      return { status: 'error', message: 'Missing critical metadata' };
+      console.error('[CRITICAL] Faltan metadatos esenciales (userId o phoneNumber).');
+      return { status: 'error', message: 'Faltan metadatos de identidad.' };
     }
 
     try {
-      // 3. Flujo Atómico en Supabase:
+      // 4. Actualización Atómica de la Base de Datos
       
-      // A. Marcar suscripciones previas de esta línea como 'actualizado'
+      // A. Marcar suscripciones anteriores como obsoletas
       await supabaseClient
         .from('subscriptions')
         .update({ status: 'actualizado' })
         .eq('phone_number', phoneNumber)
         .eq('status', 'active');
 
-      // B. Insertar nueva suscripción con el monto decimal corregido
+      // B. Insertar nueva suscripción con mapeo exacto de columnas
       const { error: insertError } = await supabaseClient
         .from('subscriptions')
         .insert([{
-          user_id: userId, // Usamos el ID de los metadatos
+          user_id: userId,
           phone_number: phoneNumber,
           plan_name: planName,
-          amount: amountDecimal, // Ahora guarda $39.90, $99.00, etc.
+          amount: amount, // Mapeo exacto a la columna 'amount' (Decimal)
           monthly_limit: monthlyLimit,
           status: 'active',
           currency: (session.currency || 'usd').toUpperCase(),
           stripe_session_id: session.id
         }]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('[SUPABASE INSERT ERROR]', insertError);
+        throw insertError;
+      }
 
-      // C. Actualizar el estado del puerto físico GSM
+      // C. Sincronizar estado del slot físico
       await supabaseClient
         .from('slots')
         .update({ 
@@ -70,24 +77,24 @@ export const handleStripeWebhook = async (event: any, supabaseClient: any) => {
         })
         .eq('phone_number', phoneNumber);
 
-      // D. Notificación de Infraestructura
+      // D. Notificar éxito al usuario
       await supabaseClient
         .from('notifications')
         .insert([{
           user_id: userId,
-          title: 'Transacción Confirmada',
-          message: `Pago de $${amountDecimal.toFixed(2)} procesado. Tu línea ${phoneNumber} ha sido provisionada con el Plan ${planName}.`,
+          title: 'Pago Confirmado',
+          message: `Tu plan ${planName} ha sido activado por un monto de $${amount.toFixed(2)}.`,
           type: 'subscription'
         }]);
 
-      console.log(`[WEBHOOK SUCCESS] Suscripción registrada exitosamente: ${session.id}`);
+      console.log(`[WEBHOOK SUCCESS] Procesado con éxito: ${session.id} | Monto: ${amount}`);
       return { status: 'success' };
 
     } catch (err: any) {
-      console.error('[STRIPE WEBHOOK CRITICAL ERROR]', err.message);
-      throw err;
+      console.error('[WEBHOOK CRITICAL FAILURE]', err.message);
+      return { status: 'error', error: err.message };
     }
   }
 
-  return { status: 'ignored' };
+  return { status: 'ignored', type };
 };
