@@ -1,8 +1,8 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.3
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.4
  * 
  * ADAPTACIÓN PARA VERCEL API ROUTES & STRIPE SIGNATURE VERIFICATION
- * Vinculación física de Port ID y aprovisionamiento de Hardware GSM.
+ * Corrección de esquema: Uso de sim_id en la tabla subscriptions.
  */
 
 import Stripe from 'stripe';
@@ -101,9 +101,8 @@ export default async function handler(req: any, res: any) {
       let finalPhoneNumber = '';
       let finalPortId = '';
 
-      // 2. LÓGICA DE VINCULACIÓN DE PUERTO (Infraestructura GSM)
+      // 2. LÓGICA DE VINCULACIÓN DE PUERTO (Infraestructura GSM - Tabla slots usa port_id)
       if (phoneNumberReq === 'NEW_SIM_REQUEST') {
-        // Buscar slot libre para nueva asignación
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
           .select('port_id, phone_number')
@@ -115,7 +114,6 @@ export default async function handler(req: any, res: any) {
         finalPhoneNumber = slot.phone_number;
         finalPortId = slot.port_id;
       } else {
-        // Es un upgrade/renovación sobre un número existente
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
           .select('port_id')
@@ -138,13 +136,13 @@ export default async function handler(req: any, res: any) {
         .eq('phone_number', finalPhoneNumber)
         .eq('status', 'active');
 
-      // 4. CREAR NUEVA SUSCRIPCIÓN CON VÍNCULO FÍSICO
+      // 4. CREAR NUEVA SUSCRIPCIÓN CON VÍNCULO FÍSICO (Mapeo a sim_id)
       const { error: insertError } = await supabaseAdmin
         .from('subscriptions')
         .insert([{
           user_id: userId,
           phone_number: finalPhoneNumber,
-          port_id: finalPortId, // Vínculo crucial para el motor de SMS
+          sim_id: finalPortId, // Corregido: de port_id a sim_id para la tabla subscriptions
           plan_name: planName,
           amount: amountValue,
           monthly_limit: monthlyLimit,
@@ -154,9 +152,12 @@ export default async function handler(req: any, res: any) {
           created_at: new Date().toISOString()
         }]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('[DATABASE INSERT ERROR] Fallo al insertar en subscriptions:', insertError.message);
+        throw insertError;
+      }
 
-      // 5. ACTUALIZAR ESTADO DE HARDWARE (Slot)
+      // 5. ACTUALIZAR ESTADO DE HARDWARE (Tabla slots mantiene port_id)
       const { error: slotUpdateError } = await supabaseAdmin
         .from('slots')
         .update({ 
@@ -170,7 +171,7 @@ export default async function handler(req: any, res: any) {
       if (slotUpdateError) throw slotUpdateError;
 
       // 6. LOG DE CONFIRMACIÓN Y NOTIFICACIÓN
-      console.log(`Suscripción guardada con éxito: ${session.id} | Port: ${finalPortId}`);
+      console.log(`Suscripción guardada con éxito: ${session.id} | sim_id: ${finalPortId}`);
 
       await supabaseAdmin
         .from('notifications')
@@ -181,7 +182,7 @@ export default async function handler(req: any, res: any) {
           type: 'subscription'
         }]);
 
-      return res.status(200).json({ status: 'success', portId: finalPortId });
+      return res.status(200).json({ status: 'success', simId: finalPortId });
 
     } catch (err: any) {
       console.error('[CRITICAL WEBHOOK ERROR]', err.message);
