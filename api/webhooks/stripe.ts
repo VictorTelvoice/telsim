@@ -1,8 +1,8 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.2
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.3
  * 
  * ADAPTACIÓN PARA VERCEL API ROUTES & STRIPE SIGNATURE VERIFICATION
- * Mapeo de stripe_session_id y lógica de monto decimal.
+ * Vinculación física de Port ID y aprovisionamiento de Hardware GSM.
  */
 
 import Stripe from 'stripe';
@@ -18,7 +18,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-// Uso de variables de entorno oficiales de Vercel (Service Role para bypass RLS)
+// Cliente administrativo para bypass de RLS
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -72,7 +72,6 @@ export default async function handler(req: any, res: any) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     
-    // 1. Monto: Stripe envía centavos -> Convertir a Decimal (amount_total / 100)
     const rawTotal = session.amount_total ?? session.amount_subtotal ?? 0;
     const amountValue = Number(rawTotal) / 100;
 
@@ -83,12 +82,12 @@ export default async function handler(req: any, res: any) {
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (!userId) {
-      console.error('[CRITICAL] Missing userId in session metadata');
+      console.error('[CRITICAL] Missing userId');
       return res.status(400).json({ error: 'Missing userId' });
     }
 
     try {
-      // 2. Idempotencia: Verificar si el ID de sesión ya existe en subscriptions
+      // 1. Verificar Idempotencia
       const { data: existingSub } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
@@ -96,84 +95,96 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (existingSub) {
-        console.log(`[IDEMPOTENCIA] Sesión ${session.id} ya procesada. Omitiendo.`);
         return res.status(200).json({ received: true, note: 'Already processed' });
       }
 
-      let finalPhoneNumber = phoneNumberReq;
+      let finalPhoneNumber = '';
+      let finalPortId = '';
 
-      // 3. Asignación de Puerto si es solicitud de SIM nueva
+      // 2. LÓGICA DE VINCULACIÓN DE PUERTO (Infraestructura GSM)
       if (phoneNumberReq === 'NEW_SIM_REQUEST') {
+        // Buscar slot libre para nueva asignación
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
-          .select('phone_number')
+          .select('port_id, phone_number')
           .eq('status', 'libre')
           .limit(1)
           .single();
 
         if (slotError || !slot) throw new Error("No physical GSM slots available in infrastructure");
         finalPhoneNumber = slot.phone_number;
+        finalPortId = slot.port_id;
+      } else {
+        // Es un upgrade/renovación sobre un número existente
+        const { data: slot, error: slotError } = await supabaseAdmin
+          .from('slots')
+          .select('port_id')
+          .eq('phone_number', phoneNumberReq)
+          .single();
+
+        if (slotError || !slot) throw new Error(`Slot not found for phone number: ${phoneNumberReq}`);
+        finalPhoneNumber = phoneNumberReq;
+        finalPortId = slot.port_id;
       }
 
-      // 4. LÓGICA DE UPGRADE/REPLACEMENT: Finalizar suscripción anterior para este número/usuario
-      console.log(`[TELSIM UPGRADE] Superseding previous active plans for ${finalPhoneNumber}`);
+      // 3. FINALIZAR PLANES PREVIOS (Atomic Update)
+      console.log(`[TELSIM] Superseding previous plans for port ${finalPortId} (${finalPhoneNumber})`);
       await supabaseAdmin
         .from('subscriptions')
         .update({ 
           status: 'superseded',
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', userId)
         .eq('phone_number', finalPhoneNumber)
         .eq('status', 'active');
 
-      // 5. INSERCIÓN DE NUEVA SUSCRIPCIÓN (Inmutable)
+      // 4. CREAR NUEVA SUSCRIPCIÓN CON VÍNCULO FÍSICO
       const { error: insertError } = await supabaseAdmin
         .from('subscriptions')
         .insert([{
           user_id: userId,
           phone_number: finalPhoneNumber,
+          port_id: finalPortId, // Vínculo crucial para el motor de SMS
           plan_name: planName,
-          amount: amountValue, // Monto decimal correcto
+          amount: amountValue,
           monthly_limit: monthlyLimit,
           status: 'active',
           currency: (session.currency || 'usd').toUpperCase(),
-          stripe_session_id: session.id, // Mapeo correcto de stripe_session_id
+          stripe_session_id: session.id,
           created_at: new Date().toISOString()
         }]);
 
-      if (insertError) {
-        console.error('[DB INSERT ERROR]', insertError.message);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      // 6. Actualización de Infraestructura GSM (Slots)
-      await supabaseAdmin
+      // 5. ACTUALIZAR ESTADO DE HARDWARE (Slot)
+      const { error: slotUpdateError } = await supabaseAdmin
         .from('slots')
         .update({ 
           status: 'ocupado',
           assigned_to: userId,
-          plan_type: planName 
+          plan_type: planName,
+          updated_at: new Date().toISOString()
         })
-        .eq('phone_number', finalPhoneNumber);
+        .eq('port_id', finalPortId);
 
-      // 7. Notificación de Sistema al Usuario
+      if (slotUpdateError) throw slotUpdateError;
+
+      // 6. LOG DE CONFIRMACIÓN Y NOTIFICACIÓN
+      console.log(`Suscripción guardada con éxito: ${session.id} | Port: ${finalPortId}`);
+
       await supabaseAdmin
         .from('notifications')
         .insert([{
           user_id: userId,
-          title: 'Activación Completada',
-          message: `Confirmamos tu pago de $${amountValue.toFixed(2)}. Tu número ${finalPhoneNumber} ha sido configurado con éxito.`,
+          title: 'Puerto Configurado',
+          message: `Tu línea ${finalPhoneNumber} ha sido vinculada al puerto ${finalPortId} con éxito. Pago de $${amountValue.toFixed(2)} procesado.`,
           type: 'subscription'
         }]);
 
-      // Bypass de Cache y Confirmación de Log
-      console.log('Suscripción guardada con éxito: ' + session.id);
-      
-      return res.status(200).json({ status: 'success', sessionId: session.id });
+      return res.status(200).json({ status: 'success', portId: finalPortId });
 
     } catch (err: any) {
-      console.error('[CRITICAL WEBHOOK HANDLER ERROR]', err.message);
+      console.error('[CRITICAL WEBHOOK ERROR]', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
