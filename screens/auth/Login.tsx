@@ -67,7 +67,7 @@ const Login: React.FC = () => {
       
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center mb-8 transform -rotate-3 relative">
+          <div className="inline-flex items-center justify-center mb-4 transform -rotate-3 relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
             <img 
               src="/logo.png" 
@@ -82,8 +82,8 @@ const Login: React.FC = () => {
               <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Panel Telsim</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Infraestructura de Simulación Física</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">TELSIM PANEL</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic">Automatizaciones Inteligentes</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
@@ -96,7 +96,7 @@ const Login: React.FC = () => {
 
           <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-2">
             <ShieldCheck className="size-3 text-emerald-500" />
-            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Conexión Segura Cloud Activa</span>
+            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Conexión Segura</span>
           </div>
           
           <div className="space-y-2">
@@ -138,7 +138,7 @@ const Login: React.FC = () => {
             disabled={loading}
             className="w-full h-16 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-black rounded-2xl shadow-button transition-all flex items-center justify-center gap-2 mt-4 active:scale-[0.98] uppercase tracking-widest"
           >
-            {loading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-white/30 border-t-white"></div> : 'Sincronizar Panel'}
+            {loading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-white/30 border-t-white"></div> : 'INGRESAR'}
           </button>
         </form>
 

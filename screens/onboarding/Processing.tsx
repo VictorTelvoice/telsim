@@ -1,103 +1,91 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
-import { Loader2, AlertCircle, Cpu, ShieldCheck, Globe } from 'lucide-react';
+import { Loader2, AlertCircle, Cpu, Globe } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
-  
   const [error, setError] = useState<string | null>(null);
   const [statusIndex, setStatusIndex] = useState(0);
-  const hasExecuted = useRef(false);
+  const pollingCount = useRef(0);
+  const maxPolling = 15; // 30 segundos total
 
   const sessionId = searchParams.get('session_id');
+  const planName = searchParams.get('plan') || 'Pro';
 
   const statusMessages = [
-    "Validando Sesión de Stripe...",
-    "Conectando puerto GSM...",
-    "Sincronizando Puerto en Red 4G...",
-    "Generando Identificador Único...",
-    "Finalizando Enlace Seguro..."
+    "Recibiendo confirmación de Stripe...",
+    "Sincronizando con Webhook TELSIM...",
+    "Validando montos en el Ledger...",
+    "Provisionando puerto GSM físico...",
+    "Finalizando enlace seguro..."
   ];
 
-  if (!user) return <Navigate to="/login" replace />;
-  
-  // BLOQUEO: Si no hay session_id de Stripe, no se permite el acceso a esta pantalla de aprovisionamiento
-  if (!sessionId) return <Navigate to="/dashboard" replace />;
+  if (!user || !sessionId) return <Navigate to="/dashboard" replace />;
 
   useEffect(() => {
     const interval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % statusMessages.length);
-    }, 1800);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  const startProvisioning = async () => {
-    if (hasExecuted.current) return;
-    hasExecuted.current = true;
+  // Lógica de Polling: Esperamos a que el Webhook cree el registro con el monto correcto
+  useEffect(() => {
+    let pollInterval: any;
 
-    // Extraer datos de la URL o estado
-    const planName = searchParams.get('plan') || 'Pro';
-    const limit = Number(searchParams.get('limit') || 400);
+    const checkSubscription = async () => {
+      pollingCount.current += 1;
+      
+      console.log(`[POLLING] Intento ${pollingCount.current} de verificar suscripción para sesión: ${sessionId}`);
 
-    try {
-      setError(null);
+      const { data, error: fetchError } = await supabase
+        .from('subscriptions')
+        .select('phone_number, amount')
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle();
 
-      // Llamada al RPC purchase_subscription
-      // Aquí el Backend (RPC) debería validar el session_id contra la API de Stripe internamente
-      const { data, error: rpcError } = await supabase.rpc('purchase_subscription', {
-        p_plan_name: planName,
-        p_amount: 0, // El cobro ya se hizo en Stripe
-        p_monthly_limit: limit
-      });
-
-      if (!rpcError && data?.success) {
-        const finalNumber = data.phoneNumber || data.phone_number;
+      if (data && data.phone_number) {
+        console.log('[POLLING SUCCESS] Suscripción detectada en DB:', data);
+        clearInterval(pollInterval);
         
-        await addNotification({
-          title: 'Puerto GSM Sincronizado',
-          message: `La infraestructura física para el número ${finalNumber} ha sido vinculada tras el pago exitoso.`,
-          type: 'activation',
-          details: {
-            number: finalNumber,
-            plan: planName,
-            activationDate: new Date().toLocaleDateString('es-ES'),
-            nextBilling: 'En 30 días',
-            price: "Cobrado via Stripe"
-          }
-        });
-
+        // Pequeño delay para UX
         setTimeout(() => {
-          navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(finalNumber)}`, { replace: true });
-        }, 2000);
-        return;
+          navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phone_number)}`, { replace: true });
+        }, 1500);
       }
 
-      throw rpcError || new Error("Fallo en la validación de red.");
+      if (pollingCount.current >= maxPolling) {
+        console.error('[POLLING TIMEOUT] El Webhook no respondió a tiempo.');
+        clearInterval(pollInterval);
+        setError("TIMEOUT");
+      }
+    };
 
-    } catch (err: any) {
-      console.error("Provisioning Error:", err);
-      setError("STALE_SESSION");
-      setTimeout(() => navigate('/dashboard', { replace: true }), 4000);
-    }
-  };
+    pollInterval = setInterval(checkSubscription, 2500);
+    checkSubscription(); // Primer chequeo inmediato
 
-  useEffect(() => {
-    startProvisioning();
-  }, [user]);
+    return () => clearInterval(pollInterval);
+  }, [sessionId]);
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 overflow-hidden text-center">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
       
       <div className="flex flex-col items-center gap-12 w-full max-w-sm relative z-10">
-        {!error ? (
+        {error === "TIMEOUT" ? (
+          <div className="w-full flex flex-col items-center space-y-8 animate-in zoom-in duration-300">
+            <div className="size-20 bg-amber-500/10 rounded-[2rem] flex items-center justify-center border border-amber-500/20">
+               <AlertCircle className="size-10 text-amber-500" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronización Lenta</h3>
+            <p className="text-xs font-medium text-slate-500 max-w-[25ch]">Tu pago fue procesado, pero la red está tardando en responder. Verifica tu panel en unos minutos.</p>
+            <button onClick={() => navigate('/dashboard')} className="px-8 h-12 bg-primary text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Ir al Dashboard</button>
+          </div>
+        ) : (
           <>
             <div className="relative">
               <div className="absolute inset-0 rounded-[2.5rem] border-2 border-primary/20 animate-ping opacity-20"></div>
@@ -114,7 +102,7 @@ const Processing: React.FC = () => {
             
             <div className="space-y-4">
               <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">
-                Sincronizando Pago
+                Provisionando
               </h1>
               <div key={statusIndex} className="animate-in slide-in-from-bottom-2 duration-500 flex items-center justify-center gap-2">
                    <Loader2 className="size-3 text-slate-400 animate-spin" />
@@ -124,20 +112,12 @@ const Processing: React.FC = () => {
               </div>
             </div>
           </>
-        ) : (
-          <div className="w-full flex flex-col items-center space-y-8">
-            <div className="size-20 bg-rose-500/10 rounded-[2rem] flex items-center justify-center border border-rose-500/20">
-               <AlertCircle className="size-10 text-rose-500" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sesión Caducada</h3>
-            <p className="text-xs font-medium text-slate-500">Volviendo al panel para verificar estado...</p>
-          </div>
         )}
       </div>
       
       <div className="absolute bottom-12 flex items-center gap-4 opacity-20">
         <Cpu className="size-4" />
-        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE NODE v3.0</span>
+        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE NODE v3.4</span>
       </div>
     </div>
   );
