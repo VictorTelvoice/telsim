@@ -1,55 +1,94 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v3.7
+ * TELSIM CLOUD INFRASTRUCTURE - STRIPE WEBHOOK HANDLER v4.1
  * 
- * LÓGICA DE ACTUALIZACIÓN AGRESIVA: 
- * 1. Finalización de suscripciones previas (superseded).
- * 2. Creación de nuevos registros (Inmutabilidad histórica).
- * 3. Mapeo estricto de montos decimales.
+ * ADAPTACIÓN PARA VERCEL API ROUTES & STRIPE SIGNATURE VERIFICATION
+ * Lógica de Upgrade Inmutable: Cancela anterior, crea nueva.
  */
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialización con Service Role para saltar RLS y manejar la columna 'amount'
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
-);
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-export const handleStripeWebhook = async (event: any) => {
-  const { type, data } = event;
+// Uso de variables de entorno sin prefijo VITE_ para backend en Vercel
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+);
 
-  if (type === 'checkout.session.completed') {
-    const session = data.object;
+async function getRawBody(readable: any): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of readable) {
+    if (typeof chunk === 'string') {
+      chunks.push(new TextEncoder().encode(chunk));
+    } else {
+      chunks.push(new Uint8Array(chunk));
+    }
+  }
+  
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
+
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  let event: Stripe.Event;
+
+  try {
+    const rawBody = await getRawBody(req);
+    const rawBodyString = new TextDecoder().decode(rawBody);
     
-    // 1. EXTRACCIÓN Y CONVERSIÓN DE MONTO (Stripe centavos -> DB decimal)
-    const rawTotal = session.amount_total ?? session.amount_subtotal ?? 0;
-    const amountValue = Number(rawTotal) / 100; // Ej: 3990 -> 39.9
+    if (webhookSecret && sig) {
+      event = stripe.webhooks.constructEvent(rawBodyString, sig, webhookSecret);
+    } else {
+      event = JSON.parse(rawBodyString);
+    }
+  } catch (err: any) {
+    console.error(`[STRIPE ERROR] ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-    // 2. EXTRACCIÓN DE METADATOS (Case-sensitive exacto)
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    
+    // 1. Monto: Stripe centavos -> Decimal (amount_total / 100)
+    const rawTotal = session.amount_total ?? session.amount_subtotal ?? 0;
+    const amountValue = Number(rawTotal) / 100;
+
     const metadata = session.metadata || {};
     const userId = metadata.userId; 
     const phoneNumberReq = metadata.phoneNumber; 
     const planName = metadata.planName; 
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
-    console.log('--- [DIAGNÓSTICO TELSIM INICIO] ---');
-    console.log('Evento ID:', event.id);
-    console.log('Session ID:', session.id);
-    console.log('Insertando en Supabase -> Monto:', amountValue);
-    console.log('Metadatos:', { userId, phoneNumberReq, planName });
-
     if (!userId) {
-      console.error('[FATAL] Metadato userId no encontrado en Stripe Session.');
-      return { status: 'error', message: 'User identity missing' };
+      console.error('[CRITICAL] Missing userId');
+      return res.status(400).json({ error: 'Missing userId' });
     }
 
     try {
-      // 3. VERIFICAR IDEMPOTENCIA (Evitar duplicar si Stripe reintenta el webhook)
+      // 2. Idempotencia
       const { data: existingSub } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
@@ -57,13 +96,12 @@ export const handleStripeWebhook = async (event: any) => {
         .maybeSingle();
 
       if (existingSub) {
-        console.log('[INFO] Webhook ya procesado anteriormente. Omitiendo.');
-        return { status: 'success', message: 'Already processed' };
+        return res.status(200).json({ received: true, note: 'Already processed' });
       }
 
       let finalPhoneNumber = phoneNumberReq;
 
-      // 4. ASIGNACIÓN DE INFRAESTRUCTURA (Nuevo puerto si aplica)
+      // 3. Asignación de Puerto si es nuevo
       if (phoneNumberReq === 'NEW_SIM_REQUEST') {
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
@@ -72,17 +110,13 @@ export const handleStripeWebhook = async (event: any) => {
           .limit(1)
           .single();
 
-        if (slotError || !slot) {
-          console.error('[INFRA ERROR] Sin puertos GSM físicos disponibles.');
-          throw new Error("No physical hardware slots available");
-        }
+        if (slotError || !slot) throw new Error("No physical GSM slots available");
         finalPhoneNumber = slot.phone_number;
       }
 
-      // 5. FINALIZAR SUSCRIPCIÓN ANTERIOR (Superseded)
-      // Buscamos cualquier plan activo para este usuario y número y lo cerramos.
-      console.log(`[CLEANUP] Finalizando planes previos para ${finalPhoneNumber}...`);
-      const { error: updateOldError } = await supabaseAdmin
+      // 4. LÓGICA DE UPGRADE: Cancelar suscripción anterior para este número
+      console.log(`[UPGRADE LOGIC] Superseding previous plans for ${finalPhoneNumber}`);
+      await supabaseAdmin
         .from('subscriptions')
         .update({ 
           status: 'superseded',
@@ -92,38 +126,24 @@ export const handleStripeWebhook = async (event: any) => {
         .eq('phone_number', finalPhoneNumber)
         .eq('status', 'active');
 
-      if (updateOldError) {
-        console.warn('[WARNING] Error al marcar anterior como superseded:', updateOldError.message);
-      }
-
-      // 6. CREAR NUEVA SUSCRIPCIÓN (Inmutabilidad)
-      const subscriptionPayload = {
-        user_id: userId,
-        phone_number: finalPhoneNumber,
-        plan_name: planName,
-        amount: amountValue, // Mapeo exacto a columna 'amount' (Decimal)
-        monthly_limit: monthlyLimit,
-        status: 'active',
-        currency: (session.currency || 'usd').toUpperCase(),
-        stripe_session_id: session.id,
-        created_at: new Date().toISOString()
-      };
-
-      const { data: insertResult, error: insertError } = await supabaseAdmin
+      // 5. NUEVA SUSCRIPCIÓN (Inmutable)
+      const { error: insertError } = await supabaseAdmin
         .from('subscriptions')
-        .insert([subscriptionPayload])
-        .select();
+        .insert([{
+          user_id: userId,
+          phone_number: finalPhoneNumber,
+          plan_name: planName,
+          amount: amountValue, // Inserción del monto calculado
+          monthly_limit: monthlyLimit,
+          status: 'active',
+          currency: (session.currency || 'usd').toUpperCase(),
+          stripe_session_id: session.id,
+          created_at: new Date().toISOString()
+        }]);
 
-      if (insertError) {
-        // "GRITAR" ERROR DETALLADO
-        console.error('--- [ERROR CRÍTICO SUPABASE] ---');
-        console.error('Mensaje:', insertError.message);
-        console.error('Detalles:', insertError.details);
-        console.error('Payload:', JSON.stringify(subscriptionPayload));
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      // 7. VINCULAR SERVICIO EN TABLA SLOTS
+      // 6. Actualización de Infraestructura
       await supabaseAdmin
         .from('slots')
         .update({ 
@@ -133,24 +153,23 @@ export const handleStripeWebhook = async (event: any) => {
         })
         .eq('phone_number', finalPhoneNumber);
 
-      // 8. NOTIFICACIÓN DE SISTEMA
+      // 7. Notificación
       await supabaseAdmin
         .from('notifications')
         .insert([{
           user_id: userId,
-          title: 'Contrato Activado',
-          message: `Confirmamos pago de $${amountValue.toFixed(2)}. Tu puerto ${finalPhoneNumber} está vinculado al plan ${planName}.`,
+          title: 'Plan Actualizado',
+          message: `Confirmamos el pago de $${amountValue.toFixed(2)}. Tu puerto ${finalPhoneNumber} ha sido reconfigurado al plan ${planName}.`,
           type: 'subscription'
         }]);
 
-      console.log('--- [DIAGNÓSTICO TELSIM ÉXITO] ---');
-      return { status: 'success' };
+      return res.status(200).json({ status: 'success' });
 
     } catch (err: any) {
-      console.error('[WEBHOOK FATAL ERROR]', err.message);
-      return { status: 'error', error: err.message };
+      console.error('[WEBHOOK ERROR]', err.message);
+      return res.status(500).json({ error: err.message });
     }
   }
 
-  return { status: 'ignored' };
-};
+  return res.status(200).json({ received: true });
+}
