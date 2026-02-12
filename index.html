@@ -26,10 +26,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- Icons -->
+    <!-- Icons (Material Icons & Symbols) -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Tailwind Config -->
     <script>
@@ -100,6 +101,11 @@
         scrollbar-width: none;
       }
       
+      /* Solución Maestra para Iconos: Evitar texto antes que fuente */
+      .material-icons, .material-icons-round, .material-symbols-rounded, .material-symbols-outlined {
+        font-display: block;
+      }
+
       .material-symbols-rounded {
         font-family: 'Material Symbols Rounded' !important;
         font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -110,6 +116,9 @@
       }
       .material-icons-round {
         font-family: 'Material Icons Round' !important;
+      }
+      .material-icons {
+        font-family: 'Material Icons' !important;
       }
 
       .pb-safe {

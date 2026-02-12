@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -36,6 +35,9 @@ import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
 
+// Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
+import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
+
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,9 +63,11 @@ const BottomNav = () => {
           onClick={() => navigate('/dashboard')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className={`material-symbols-outlined text-[24px] transition-colors ${isHomeActive ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
-            home
-          </span>
+          <Home 
+            size={24} 
+            className={`transition-colors ${isHomeActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}
+            fill={isHomeActive ? 'currentColor' : 'none'}
+          />
           <span className={`text-[10px] font-medium transition-colors ${isHomeActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Inicio
           </span>
@@ -73,9 +77,11 @@ const BottomNav = () => {
           onClick={() => navigate('/dashboard/messages')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group relative"
         >
-          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard/messages') ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
-            chat_bubble
-          </span>
+          <MessageSquare 
+            size={24} 
+            className={`transition-colors ${isActive('/dashboard/messages') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}
+            fill={isActive('/dashboard/messages') ? 'currentColor' : 'none'}
+          />
           <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard/messages') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Mensajes
           </span>
@@ -91,7 +97,7 @@ const BottomNav = () => {
             onClick={() => navigate('/onboarding/region')}
             className="size-14 bg-primary rounded-full flex items-center justify-center text-white shadow-[0_4px_12px_rgba(17,82,212,0.4)] hover:scale-105 active:scale-95 transition-transform"
           >
-            <span className="material-symbols-outlined text-[32px]">add</span>
+            <Plus size={32} />
           </button>
         </div>
 
@@ -99,9 +105,11 @@ const BottomNav = () => {
           onClick={() => navigate('/dashboard/numbers')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className={`material-symbols-outlined text-[24px] transition-colors ${isActive('/dashboard/numbers') ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
-            sim_card
-          </span>
+          <Smartphone 
+            size={24} 
+            className={`transition-colors ${isActive('/dashboard/numbers') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}
+            fill={isActive('/dashboard/numbers') ? 'currentColor' : 'none'}
+          />
           <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard/numbers') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Números
           </span>
@@ -111,9 +119,11 @@ const BottomNav = () => {
           onClick={() => navigate('/dashboard/profile')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
-          <span className={`material-symbols-outlined text-[24px] transition-colors ${isSettingsActive ? 'text-primary fill-1' : 'text-slate-400 group-hover:text-primary'}`}>
-            settings
-          </span>
+          <Settings 
+            size={24} 
+            className={`transition-colors ${isSettingsActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}
+            fill={isSettingsActive ? 'currentColor' : 'none'}
+          />
           <span className={`text-[10px] font-medium transition-colors ${isSettingsActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Ajustes
           </span>
