@@ -133,7 +133,7 @@ const Profile: React.FC = () => {
                }}
              />
              <div style={{ display: 'none' }} className="size-full bg-gradient-to-br from-primary to-blue-600 items-center justify-center text-white">
-                <span className="material-symbols-outlined text-[20px]">sim_card</span>
+                <span className="material-icons text-[20px]">sim_card</span>
              </div>
           </div>
 
@@ -294,12 +294,12 @@ const Profile: React.FC = () => {
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <div className="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary shrink-0">
-                <span className="material-symbols-outlined text-[20px]">lock</span>
+                <span className="material-icons text-[20px]">lock</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Seguridad y Contraseña</p>
               </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
           </div>
         </section>
@@ -312,12 +312,12 @@ const Profile: React.FC = () => {
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <div className="flex items-center justify-center size-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-brand shrink-0">
-                <span className="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+                <span className="material-icons text-[20px]">account_balance_wallet</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.billing')}</p>
               </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
           </div>
         </section>
@@ -327,7 +327,7 @@ const Profile: React.FC = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                <span className="material-icons text-[20px]">notifications</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white">Notificaciones Push</p>
@@ -363,7 +363,7 @@ const Profile: React.FC = () => {
 
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                <span className="material-symbols-outlined text-[20px]">dark_mode</span>
+                <span className="material-icons text-[20px]">dark_mode</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white">Modo Oscuro</p>
@@ -389,36 +389,36 @@ const Profile: React.FC = () => {
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                <span className="material-symbols-outlined text-[20px]">help</span>
+                <span className="material-icons text-[20px]">help</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.help')}</p>
               </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
             <button 
               onClick={() => navigate('/dashboard/support')}
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                <span className="material-icons text-[20px]">support_agent</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Contactar Soporte 24/7</p>
               </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
             <button 
               onClick={() => navigate('/dashboard/terms')}
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                <span className="material-symbols-outlined text-[20px]">description</span>
+                <span className="material-icons text-[20px]">description</span>
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Términos y Privacidad</p>
               </div>
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
           </div>
         </section>
@@ -428,7 +428,7 @@ const Profile: React.FC = () => {
             onClick={handleLogout}
             className="w-full bg-white dark:bg-surface-dark border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 font-semibold py-3.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors flex items-center justify-center gap-2 mb-4 shadow-sm"
           >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
+            <span className="material-icons text-[20px]">logout</span>
             {t('profile.logout')}
           </button>
           <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">Telsim v2.4.0</p>

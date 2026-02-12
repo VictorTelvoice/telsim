@@ -21,11 +21,14 @@ import {
   RefreshCw,
   ChevronRight,
   Info,
-  Loader2
+  Loader2,
+  BarChart3
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
   actual_plan_name?: string;
+  monthly_limit?: number;
+  credits_used?: number;
 }
 
 const OFFICIAL_PLANS = [
@@ -83,7 +86,6 @@ const MyNumbers: React.FC = () => {
     const [fwdConfig, setFwdConfig] = useState('');
     const [savingFwd, setSavingFwd] = useState(false);
 
-    // Nuevo estado para gestión de planes
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [slotForPlan, setSlotForPlan] = useState<SlotWithPlan | null>(null);
 
@@ -99,10 +101,9 @@ const MyNumbers: React.FC = () => {
 
             if (slotsError) throw slotsError;
 
-            // Filtramos por status 'active' para obtener solo la suscripción vigente del histórico
             const { data: subsData, error: subsError } = await supabase
                 .from('subscriptions')
-                .select('phone_number, plan_name')
+                .select('phone_number, plan_name, monthly_limit, credits_used')
                 .eq('user_id', user.id)
                 .eq('status', 'active');
 
@@ -112,7 +113,9 @@ const MyNumbers: React.FC = () => {
                 const subscription = subsData?.find(s => s.phone_number === slot.phone_number);
                 return {
                     ...slot,
-                    actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter'
+                    actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter',
+                    monthly_limit: subscription?.monthly_limit || 150,
+                    credits_used: subscription?.credits_used || 0
                 };
             });
 
@@ -201,7 +204,9 @@ const MyNumbers: React.FC = () => {
                 chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
                 icon: <Crown className="size-3" />,
                 label: 'POWER',
-                numberColor: 'text-white'
+                numberColor: 'text-white',
+                progressBase: 'bg-white/10',
+                progressFill: 'bg-white'
             };
         }
         if (rawName.includes('PRO')) {
@@ -213,7 +218,9 @@ const MyNumbers: React.FC = () => {
                 chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
                 icon: <Zap className="size-3" />,
                 label: 'PRO',
-                numberColor: 'text-white'
+                numberColor: 'text-white',
+                progressBase: 'bg-white/10',
+                progressFill: 'bg-white'
             };
         }
         return {
@@ -224,7 +231,9 @@ const MyNumbers: React.FC = () => {
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
             label: 'STARTER',
-            numberColor: 'text-slate-900 dark:text-white'
+            numberColor: 'text-slate-900 dark:text-white',
+            progressBase: 'bg-slate-100 dark:bg-slate-700',
+            progressFill: 'bg-emerald-500'
         };
     };
 
@@ -256,7 +265,7 @@ const MyNumbers: React.FC = () => {
         navigate('/dashboard/upgrade-summary', {
             state: {
                 phoneNumber: slotForPlan.phone_number,
-                portId: slotForPlan.port_id,
+                port_id: slotForPlan.port_id,
                 planName: plan.name,
                 price: plan.price,
                 limit: plan.limit,
@@ -346,6 +355,12 @@ const MyNumbers: React.FC = () => {
                             const isPower = (slot.actual_plan_name || '').toUpperCase().includes('POWER');
                             const isPro = (slot.actual_plan_name || '').toUpperCase().includes('PRO');
                             
+                            // Cálculo de créditos sutil
+                            const creditsUsed = slot.credits_used || 0;
+                            const monthlyLimit = slot.monthly_limit || 150;
+                            const usagePercent = Math.min(100, (creditsUsed / monthlyLimit) * 100);
+                            const isLowCredits = usagePercent > 80;
+
                             return (
                                 <div key={slot.port_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <div className="relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500">
@@ -423,10 +438,26 @@ const MyNumbers: React.FC = () => {
                                             </div>
 
                                             <div className="flex justify-between items-end relative z-10">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex flex-col gap-2">
                                                     <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badgeBg}`}>
                                                         {style.icon}
                                                         {style.label}
+                                                    </div>
+                                                    
+                                                    {/* Indicador sutil de créditos */}
+                                                    <div className="flex flex-col gap-1 w-24">
+                                                        <div className="flex justify-between items-center text-[7px] font-black uppercase tracking-wider opacity-60">
+                                                            <span className={isPower || isPro ? 'text-white' : 'text-slate-400'}>SMS Usage</span>
+                                                            <span className={isPower || isPro ? 'text-white' : (isLowCredits ? 'text-rose-500' : 'text-slate-400')}>
+                                                                {creditsUsed}/{monthlyLimit}
+                                                            </span>
+                                                        </div>
+                                                        <div className={`h-[3px] w-full rounded-full overflow-hidden ${style.progressBase}`}>
+                                                            <div 
+                                                                className={`h-full transition-all duration-700 ease-out ${usagePercent > 90 ? 'bg-rose-400' : (usagePercent > 70 ? 'bg-amber-400' : style.progressFill)}`}
+                                                                style={{ width: `${usagePercent}%` }}
+                                                            ></div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end">
@@ -484,7 +515,7 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODAL DE GESTIÓN DE PLANES (SIMULACIÓN HISTÓRICA REAL) */}
+            {/* MODAL DE GESTIÓN DE PLANES */}
             {isPlanModalOpen && slotForPlan && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 flex flex-col max-h-[90vh]">
@@ -513,7 +544,6 @@ const MyNumbers: React.FC = () => {
                                     const isCurrent = (slotForPlan.actual_plan_name || 'Starter').toString().toLowerCase() === plan.id.toLowerCase();
                                     const isDowngradeBlocked = (slotForPlan.actual_plan_name || '').toUpperCase().includes('POWER') && plan.id !== 'Power';
                                     
-                                    // Dinamic Color Maps
                                     const colorsMap: Record<string, any> = {
                                         emerald: { 
                                             bg: 'bg-emerald-500', 
