@@ -16,7 +16,8 @@ import {
   Info,
   Clock,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -47,6 +48,8 @@ const Billing: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingPM, setLoadingPM] = useState(true);
+  const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
 
   const fetchData = async () => {
@@ -63,16 +66,6 @@ const Billing: React.FC = () => {
       if (subsError) throw subsError;
       setSubscriptions(subsData || []);
 
-      // Fetch Payment Method
-      const { data: pmData, error: pmError } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (pmError && pmError.code !== 'PGRST116') throw pmError;
-      setPaymentMethod(pmData);
-
     } catch (err: any) {
       console.error("Error fetching billing data:", err);
     } finally {
@@ -80,9 +73,56 @@ const Billing: React.FC = () => {
     }
   };
 
+  const fetchPaymentMethod = async () => {
+    if (!user) return;
+    setLoadingPM(true);
+    try {
+      const response = await fetch('/api/get-default-payment-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      
+      const data = await response.json();
+      if (data.paymentMethod) {
+        setPaymentMethod(data.paymentMethod);
+      }
+    } catch (err) {
+      console.error("Error al obtener método de pago de Stripe:", err);
+    } finally {
+      setLoadingPM(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchPaymentMethod();
   }, [user]);
+
+  const handleEditPaymentMethod = async () => {
+    if (!user || isCreatingPortal) return;
+    setIsCreatingPortal(true);
+    
+    try {
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "No se pudo abrir el portal de gestión.");
+        setIsCreatingPortal(false);
+      }
+    } catch (err) {
+      console.error("Error creating portal session:", err);
+      setIsCreatingPortal(false);
+    }
+  };
 
   const activeServices = subscriptions.filter(s => s.status === 'active');
   const previousServices = subscriptions.filter(s => s.status !== 'active');
@@ -145,8 +185,13 @@ const Billing: React.FC = () => {
         <section className="space-y-4">
           <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Método de Pago Predeterminado</h3>
           
-          {paymentMethod ? (
-            <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group">
+          {loadingPM ? (
+            <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="size-5 text-primary animate-spin" />
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Consultando Stripe...</span>
+            </div>
+          ) : paymentMethod ? (
+            <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group animate-in fade-in duration-500">
               <div className="flex items-center gap-4">
                 <div className="size-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm">
                   <CreditCard className="size-6 text-slate-900 dark:text-white" />
@@ -158,12 +203,20 @@ const Billing: React.FC = () => {
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Expira: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
                 </div>
               </div>
-              <button className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all">
-                Editar
+              <button 
+                onClick={handleEditPaymentMethod}
+                disabled={isCreatingPortal}
+                className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
+              >
+                {isCreatingPortal && <Loader2 className="size-3 animate-spin" />}
+                {isCreatingPortal ? 'Abriendo...' : 'Editar'}
               </button>
             </div>
           ) : (
-            <button className="w-full border-2 border-dashed border-slate-200 dark:border-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center gap-3 hover:border-primary/40 transition-all group">
+            <button 
+              onClick={() => navigate('/onboarding/region')}
+              className="w-full border-2 border-dashed border-slate-200 dark:border-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center gap-3 hover:border-primary/40 transition-all group"
+            >
                <div className="size-10 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
                   <Plus className="size-5" />
                </div>
@@ -313,7 +366,12 @@ const Billing: React.FC = () => {
                         <p className="text-[11px] font-bold text-white">{paymentMethod ? `${paymentMethod.brand} •••• ${paymentMethod.last4}` : 'No vinculado'}</p>
                      </div>
                   </div>
-                  <button className="text-[10px] font-black text-primary uppercase tracking-widest">Cambiar</button>
+                  <button 
+                    onClick={handleEditPaymentMethod}
+                    className="text-[10px] font-black text-primary uppercase tracking-widest"
+                  >
+                    {isCreatingPortal ? '...' : 'Cambiar'}
+                  </button>
                </div>
 
                <div className="space-y-4">

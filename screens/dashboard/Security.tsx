@@ -37,7 +37,6 @@ const Security: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -136,30 +135,13 @@ const Security: React.FC = () => {
 
       <main className="px-5 py-8 max-w-lg mx-auto space-y-8">
         
-        {/* NIVEL DE PROTECCIÓN */}
-        <section className="bg-slate-900 dark:bg-blue-950/20 p-8 rounded-[2.5rem] text-white relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-10 translate-x-10"></div>
-          
-          <div className="relative z-10 flex flex-col items-center text-center">
-             <div className="size-16 rounded-2xl bg-white/10 flex items-center justify-center mb-6 border border-white/10">
-                <ShieldCheck className="size-10 text-emerald-400" />
-             </div>
-             <h2 className="text-xl font-black mb-1">Tu cuenta está protegida</h2>
-             <p className="text-white/50 text-[10px] uppercase font-bold tracking-widest mb-6">Nivel de seguridad: Excelente</p>
-             
-             <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 w-[85%]"></div>
-             </div>
-          </div>
-        </section>
-
         {/* SECCIÓN A: ACCESO */}
         <div className="space-y-4">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Acceso a la cuenta</h3>
           
           <div className="bg-white dark:bg-surface-dark rounded-[2rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
             {/* Password Item */}
-            <div className="p-6 border-b border-slate-50 dark:border-slate-800">
+            <div className="p-6">
                {!showPasswordForm ? (
                  <div className="flex items-center justify-between">
                    <div className="flex items-center gap-4">
@@ -211,27 +193,6 @@ const Security: React.FC = () => {
                     </button>
                  </form>
                )}
-            </div>
-
-            {/* 2FA Item */}
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="size-11 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center">
-                     <Fingerprint className="size-5" />
-                  </div>
-                  <div>
-                     <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Autenticación (2FA)</p>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protección de Doble Capa</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIs2FAEnabled(!is2FAEnabled)}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${is2FAEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                >
-                   <div className={`absolute top-1 size-4 rounded-full bg-white transition-all shadow-sm ${is2FAEnabled ? 'left-7' : 'left-1'}`}></div>
-                </button>
-              </div>
             </div>
           </div>
         </div>
