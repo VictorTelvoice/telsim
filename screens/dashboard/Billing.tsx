@@ -99,7 +99,7 @@ const Billing: React.FC = () => {
     fetchPaymentMethod();
   }, [user]);
 
-  const handleEditPaymentMethod = async () => {
+  const handleOpenStripePortal = async () => {
     if (!user || isCreatingPortal) return;
     setIsCreatingPortal(true);
     
@@ -115,13 +115,21 @@ const Billing: React.FC = () => {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "No se pudo abrir el portal de gestión.");
+        alert(data.error || "No se pudo abrir el portal de gestión. Asegúrate de tener una suscripción activa.");
         setIsCreatingPortal(false);
       }
     } catch (err) {
       console.error("Error creating portal session:", err);
       setIsCreatingPortal(false);
     }
+  };
+
+  const getBrandLogo = (brand: string) => {
+    const b = brand.toLowerCase();
+    if (b.includes('visa')) return 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg';
+    if (b.includes('mastercard')) return 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg';
+    if (b.includes('amex') || b.includes('american')) return 'https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg';
+    return null;
   };
 
   const activeServices = subscriptions.filter(s => s.status === 'active');
@@ -143,12 +151,6 @@ const Billing: React.FC = () => {
       month: 'long', 
       year: 'numeric' 
     });
-  };
-
-  const formatShortDate = (dateStr: string) => {
-    if (!dateStr) return '—';
-    const date = new Date(dateStr);
-    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -193,8 +195,12 @@ const Billing: React.FC = () => {
           ) : paymentMethod ? (
             <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group animate-in fade-in duration-500">
               <div className="flex items-center gap-4">
-                <div className="size-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm">
-                  <CreditCard className="size-6 text-slate-900 dark:text-white" />
+                <div className="size-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm overflow-hidden p-2">
+                  {getBrandLogo(paymentMethod.brand) ? (
+                    <img src={getBrandLogo(paymentMethod.brand)!} alt={paymentMethod.brand} className="w-full h-full object-contain" />
+                  ) : (
+                    <CreditCard className="size-6 text-slate-400" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
@@ -204,12 +210,11 @@ const Billing: React.FC = () => {
                 </div>
               </div>
               <button 
-                onClick={handleEditPaymentMethod}
+                onClick={handleOpenStripePortal}
                 disabled={isCreatingPortal}
                 className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
               >
-                {isCreatingPortal && <Loader2 className="size-3 animate-spin" />}
-                {isCreatingPortal ? 'Abriendo...' : 'Editar'}
+                {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : 'Editar'}
               </button>
             </div>
           ) : (
@@ -220,7 +225,7 @@ const Billing: React.FC = () => {
                <div className="size-10 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
                   <Plus className="size-5" />
                </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300">Agregar tarjeta para pagos automáticos</span>
+               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300">Vincular tarjeta en Stripe</span>
             </button>
           )}
         </section>
@@ -251,9 +256,6 @@ const Billing: React.FC = () => {
                       <div>
                          <h4 className="text-[13px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{sub.plan_name}</h4>
                          <p className="text-[12px] font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</p>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                            Próx. pago: {formatShortDate(sub.next_billing_date)}
-                         </p>
                       </div>
                    </div>
                    <div className="text-right">
@@ -359,7 +361,11 @@ const Billing: React.FC = () => {
                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                      <div className="size-8 bg-white/5 rounded-lg flex items-center justify-center">
-                        <CreditCard className="size-4 text-white/40" />
+                        {paymentMethod && getBrandLogo(paymentMethod.brand) ? (
+                            <img src={getBrandLogo(paymentMethod.brand)!} alt={paymentMethod.brand} className="w-5 h-5 object-contain opacity-60" />
+                        ) : (
+                            <CreditCard className="size-4 text-white/40" />
+                        )}
                      </div>
                      <div className="flex flex-col">
                         <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Método de pago</span>
@@ -367,10 +373,10 @@ const Billing: React.FC = () => {
                      </div>
                   </div>
                   <button 
-                    onClick={handleEditPaymentMethod}
-                    className="text-[10px] font-black text-primary uppercase tracking-widest"
+                    onClick={handleOpenStripePortal}
+                    className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
                   >
-                    {isCreatingPortal ? '...' : 'Cambiar'}
+                    {isCreatingPortal ? '...' : 'Gestionar'}
                   </button>
                </div>
 

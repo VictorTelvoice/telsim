@@ -42,6 +42,7 @@ export default async function handler(req: any, res: any) {
     const customerId = userData.stripe_customer_id;
 
     // 2. Listar métodos de pago (tarjetas) del cliente en Stripe
+    // Por simplicidad en flujos de suscripción, el primer método devuelto suele ser el activo.
     const paymentMethods = await stripe.paymentMethods.list({
       customer: customerId,
       type: 'card',
@@ -51,7 +52,6 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ paymentMethod: null });
     }
 
-    // 3. Devolver la primera tarjeta (usualmente la predeterminada en flujos simples)
     const pm = paymentMethods.data[0];
     
     return res.status(200).json({
