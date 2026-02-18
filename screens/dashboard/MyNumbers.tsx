@@ -86,7 +86,7 @@ const MyNumbers: React.FC = () => {
     const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
     const [releasing, setReleasing] = useState(false);
 
-    // MODAL DE AUTOMATIZACIÓN DUAL (REDESIGN)
+    // MODAL DE AUTOMATIZACIÓN DUAL
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
     const [savingFwd, setSavingFwd] = useState(false);
     
@@ -114,10 +114,10 @@ const MyNumbers: React.FC = () => {
                 .eq('assigned_to', user.id)
                 .order('created_at', { ascending: false });
 
-            // Cargar Configuración Dual del usuario
+            // Fix: Mapeo exacto de columnas para la carga inicial
             const { data: userData } = await supabase
                 .from('users')
-                .select('api_enabled, api_url, telegram_enabled, telegram_bot_token, telegram_chat_id')
+                .select('api_enabled, api_url, telegram_enabled, telegram_token, telegram_chat_id')
                 .eq('id', user.id)
                 .single();
 
@@ -125,7 +125,7 @@ const MyNumbers: React.FC = () => {
                 setApiEnabled(userData.api_enabled || false);
                 setApiUrl(userData.api_url || '');
                 setTgEnabled(userData.telegram_enabled || false);
-                setTgToken(userData.telegram_bot_token || '');
+                setTgToken(userData.telegram_token || '');
                 setTgChatId(userData.telegram_chat_id || '');
             }
 
@@ -288,24 +288,36 @@ const MyNumbers: React.FC = () => {
 
     const handleSaveAutomation = async () => {
         if (!user) return;
+
+        // 3. Validación de Datos (Consola) para diagnóstico
+        console.log("TELSIM - Datos a enviar (Update Config):", { 
+          telegram_token: tgToken, 
+          telegram_chat_id: tgChatId, 
+          telegram_enabled: tgEnabled, 
+          api_enabled: apiEnabled, 
+          api_url: apiUrl 
+        });
+
         setSavingFwd(true);
         try {
+            // 1. Mapeo estricto a las columnas de la DB para evitar ERROR 400
             const { error } = await supabase
                 .from('users')
                 .update({ 
-                    api_enabled: apiEnabled,
-                    api_url: apiUrl,
-                    telegram_enabled: tgEnabled,
-                    telegram_bot_token: tgToken,
-                    telegram_chat_id: tgChatId
+                    telegram_token: tgToken, 
+                    telegram_chat_id: tgChatId, 
+                    telegram_enabled: tgEnabled, 
+                    api_enabled: apiEnabled, 
+                    api_url: apiUrl 
                 })
                 .eq('id', user.id);
             
             if (error) throw error;
             showToast("Configuración guardada");
             setIsFwdModalOpen(false);
-        } catch (err) { 
-            showToast("Error al sincronizar Ledger", "error");
+        } catch (err: any) { 
+            console.error("Supabase Patch Error:", err);
+            alert(`Fallo al actualizar Ledger:\n${err.message || '400 Bad Request - Verifica nombres de columna'}`);
         } finally { 
             setSavingFwd(false); 
         }
@@ -330,23 +342,37 @@ const MyNumbers: React.FC = () => {
     };
 
     const handleTestTg = async () => {
-        if (!tgToken || !tgChatId) return showToast("Datos Telegram incompletos", "error");
+        // 4. Prevención de Nulos
+        if (!tgToken || !tgChatId) {
+            return alert("El Token y el Chat ID son obligatorios para el test.");
+        }
+
+        // 3. Log de depuración
+        console.log("TELSIM - Datos a enviar (Test Telegram):", { 
+          telegram_token: tgToken, 
+          telegram_chat_id: tgChatId 
+        });
+
         setTestingTg(true);
         try {
-            const url = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+            const url = `https://api.telegram.org/bot${tgToken.trim()}/sendMessage`;
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chat_id: tgChatId,
-                    text: '[TELSIM] ✅ Bot vinculado correctamente.',
-                    parse_mode: 'Markdown'
+                    // 2. Formato de Telegram: ChatID como string limpio para evitar error 400
+                    chat_id: String(tgChatId).trim(),
+                    text: '[TELSIM] ✅ Bot vinculado correctamente. Tu infraestructura de reenvío está lista.',
+                    parse_mode: 'HTML'
                 })
             });
-            if (!resp.ok) throw new Error();
-            showToast("Test Telegram enviado");
-        } catch (err) {
-            showToast("Error en Bot Telegram", "error");
+            const data = await resp.json();
+            if (!data.ok) throw new Error(data.description || "Token o ChatID inválido");
+            
+            showToast("Mensaje de prueba enviado");
+        } catch (err: any) {
+            console.error("Telegram API Error:", err);
+            alert(`Error en Bot Telegram:\n${err.message}`);
         } finally {
             setTestingTg(false);
         }
