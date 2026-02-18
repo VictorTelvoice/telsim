@@ -2,16 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Loader2, AlertCircle, Cpu, Globe } from 'lucide-react';
+import { Loader2, AlertCircle, Cpu, Globe, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 const Processing: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  
   const [error, setError] = useState<string | null>(null);
+  const [isVerifyingManual, setIsVerifyingManual] = useState(false);
   const [statusIndex, setStatusIndex] = useState(0);
+  
   const pollingCount = useRef(0);
-  const maxPolling = 15; // 30 segundos total
+  const maxPolling = 40; // Incrementado a 40 intentos (~100 segundos)
+  const pollIntervalRef = useRef<any>(null);
 
   const sessionId = searchParams.get('session_id');
   const planName = searchParams.get('plan') || 'Pro';
@@ -29,47 +33,66 @@ const Processing: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % statusMessages.length);
-    }, 2000);
+    }, 2500);
     return () => clearInterval(interval);
   }, []);
 
-  // Lógica de Polling: Esperamos a que el Webhook cree el registro con el monto correcto
+  const checkSubscription = async () => {
+    pollingCount.current += 1;
+    
+    const { data, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('phone_number')
+      .eq('stripe_session_id', sessionId)
+      .maybeSingle();
+
+    if (data?.phone_number) {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phone_number)}`, { replace: true });
+      return true;
+    }
+
+    if (pollingCount.current >= maxPolling) {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      setError("TIMEOUT");
+    }
+    return false;
+  };
+
   useEffect(() => {
-    let pollInterval: any;
-
-    const checkSubscription = async () => {
-      pollingCount.current += 1;
-      
-      console.log(`[POLLING] Intento ${pollingCount.current} de verificar suscripción para sesión: ${sessionId}`);
-
-      const { data, error: fetchError } = await supabase
-        .from('subscriptions')
-        .select('phone_number, amount')
-        .eq('stripe_session_id', sessionId)
-        .maybeSingle();
-
-      if (data && data.phone_number) {
-        console.log('[POLLING SUCCESS] Suscripción detectada en DB:', data);
-        clearInterval(pollInterval);
-        
-        // Pequeño delay para UX
-        setTimeout(() => {
-          navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phone_number)}`, { replace: true });
-        }, 1500);
-      }
-
-      if (pollingCount.current >= maxPolling) {
-        console.error('[POLLING TIMEOUT] El Webhook no respondió a tiempo.');
-        clearInterval(pollInterval);
-        setError("TIMEOUT");
-      }
-    };
-
-    pollInterval = setInterval(checkSubscription, 2500);
-    checkSubscription(); // Primer chequeo inmediato
-
-    return () => clearInterval(pollInterval);
+    pollIntervalRef.current = setInterval(checkSubscription, 2500);
+    checkSubscription();
+    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [sessionId]);
+
+  const handleManualVerify = async () => {
+    setIsVerifyingManual(true);
+    try {
+      const response = await fetch('/api/checkout/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      const data = await response.json();
+
+      if (data.status === 'completed') {
+        navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phoneNumber)}`, { replace: true });
+      } else if (data.status === 'pending_db') {
+        alert("Pago confirmado por Stripe. El servidor está terminando de procesar la línea. Por favor, espera 10 segundos más.");
+        // Reiniciar polling corto
+        pollingCount.current = maxPolling - 5; 
+        setError(null);
+        pollIntervalRef.current = setInterval(checkSubscription, 2500);
+      } else {
+        alert(data.message || "Aún no detectamos el pago.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al conectar con el nodo de verificación.");
+    } finally {
+      setIsVerifyingManual(false);
+    }
+  };
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 overflow-hidden text-center">
@@ -78,12 +101,31 @@ const Processing: React.FC = () => {
       <div className="flex flex-col items-center gap-12 w-full max-w-sm relative z-10">
         {error === "TIMEOUT" ? (
           <div className="w-full flex flex-col items-center space-y-8 animate-in zoom-in duration-300">
-            <div className="size-20 bg-amber-500/10 rounded-[2rem] flex items-center justify-center border border-amber-500/20">
+            <div className="size-20 bg-amber-500/10 rounded-[2rem] flex items-center justify-center border border-amber-500/20 shadow-lg">
                <AlertCircle className="size-10 text-amber-500" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronización Lenta</h3>
-            <p className="text-xs font-medium text-slate-500 max-w-[25ch]">Tu pago fue procesado, pero la red está tardando en responder. Verifica tu panel en unos minutos.</p>
-            <button onClick={() => navigate('/dashboard')} className="px-8 h-12 bg-primary text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Ir al Dashboard</button>
+            <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronización Lenta</h3>
+                <p className="text-xs font-medium text-slate-500 max-w-[30ch] mx-auto">Tu pago fue procesado en Stripe, pero nuestra infraestructura física aún no confirma la activación.</p>
+            </div>
+
+            <div className="w-full space-y-3">
+                <button 
+                    onClick={handleManualVerify}
+                    disabled={isVerifyingManual}
+                    className="w-full h-14 bg-white dark:bg-slate-800 border-2 border-primary text-primary font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest shadow-xl shadow-primary/5 active:scale-95 transition-all"
+                >
+                    {isVerifyingManual ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    Ya pagué, verificar ahora
+                </button>
+                
+                <button 
+                    onClick={() => navigate('/dashboard')} 
+                    className="w-full h-12 text-slate-400 font-black uppercase text-[10px] tracking-widest"
+                >
+                    Ir al Dashboard principal
+                </button>
+            </div>
           </div>
         ) : (
           <>
@@ -104,10 +146,15 @@ const Processing: React.FC = () => {
               <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">
                 Provisionando
               </h1>
-              <div key={statusIndex} className="animate-in slide-in-from-bottom-2 duration-500 flex items-center justify-center gap-2">
-                   <Loader2 className="size-3 text-slate-400 animate-spin" />
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
-                     {statusMessages[statusIndex]}
+              <div key={statusIndex} className="animate-in slide-in-from-bottom-2 duration-500 flex flex-col items-center justify-center gap-3">
+                   <div className="flex items-center gap-2">
+                       <Loader2 className="size-3 text-primary animate-spin" />
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
+                         {statusMessages[statusIndex]}
+                       </span>
+                   </div>
+                   <span className="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
+                       Intento {pollingCount.current} de {maxPolling}
                    </span>
               </div>
             </div>
@@ -117,7 +164,7 @@ const Processing: React.FC = () => {
       
       <div className="absolute bottom-12 flex items-center gap-4 opacity-20">
         <Cpu className="size-4" />
-        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE NODE v3.4</span>
+        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE NODE v3.5</span>
       </div>
     </div>
   );
