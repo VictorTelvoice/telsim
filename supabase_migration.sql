@@ -1,18 +1,23 @@
--- TELSIM ADVANCED AUTOMATION BRIDGE v6.0
+-- TELSIM AUTOMATION BRIDGE v7.0 - HOTFIX SCHEMA
 
--- 1. Tabla de Telemetría para errores de reenvío
-CREATE TABLE IF NOT EXISTS public.automation_logs (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL, -- 'api_forward' o 'telegram_forward'
-    target_url TEXT,
-    status_code INTEGER,
-    response_body TEXT,
-    error_message TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
+-- 1. Normalización de columnas según requerimiento prioritario
+DO $$ 
+BEGIN
+    -- Renombrar si existe la versión anterior para evitar pérdida de datos
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='telegram_bot_token') THEN
+        ALTER TABLE public.users RENAME COLUMN telegram_bot_token TO telegram_token;
+    END IF;
+END $$;
 
--- 2. Motor de Reenvío de Alta Disponibilidad (Fan-out con aislamiento de errores)
+-- Asegurar que las columnas existan con los nombres exactos solicitados
+ALTER TABLE public.users 
+ADD COLUMN IF NOT EXISTS api_enabled BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS api_url TEXT,
+ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS telegram_token TEXT,
+ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+
+-- 2. Motor de Reenvío Actualizado (Fan-out v7.0)
 CREATE OR REPLACE FUNCTION public.handle_sms_webhook_forwarding()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -22,17 +27,16 @@ DECLARE
     tg_payload TEXT;
     api_payload TEXT;
     tg_message TEXT;
-    http_resp record;
 BEGIN
-    -- Cargar configuración del Ledger (service_role implicito por SECURITY DEFINER)
-    SELECT api_enabled, api_url, telegram_enabled, telegram_bot_token, telegram_chat_id 
+    -- Búsqueda en el Ledger usando service_role (SECURITY DEFINER)
+    SELECT api_enabled, api_url, telegram_enabled, telegram_token, telegram_chat_id 
     INTO u_rec
     FROM public.users 
     WHERE id = NEW.user_id;
 
     display_code := COALESCE(NEW.verification_code, '---');
 
-    -- CANAL A: CUSTOM API (Aislamiento mediante bloque anidado)
+    -- CANAL A: CUSTOM API (JSON)
     IF u_rec.api_enabled AND u_rec.api_url IS NOT NULL AND u_rec.api_url ~ '^https?://.+' THEN
         BEGIN
             api_payload := json_build_object(
@@ -47,7 +51,7 @@ BEGIN
             PERFORM net.http_post(
                 url := u_rec.api_url,
                 body := api_payload,
-                headers := '{"Content-Type": "application/json", "X-Telsim-Source": "Dual-Bridge-API"}'::jsonb
+                headers := '{"Content-Type": "application/json"}'::jsonb
             );
         EXCEPTION WHEN OTHERS THEN
             INSERT INTO public.automation_logs (user_id, event_type, target_url, error_message)
@@ -55,11 +59,10 @@ BEGIN
         END;
     END IF;
 
-    -- CANAL B: TELEGRAM BOT (Formato estrictamente solicitado)
-    -- Estructura: [TELSIM] 🔔 Nuevo SMS de: {{sender}} | Código: {{verification_code}} | Texto: {{content}}
-    IF u_rec.telegram_enabled AND u_rec.telegram_bot_token IS NOT NULL AND u_rec.telegram_chat_id IS NOT NULL THEN
+    -- CANAL B: TELEGRAM BOT (Branding [TELSIM])
+    IF u_rec.telegram_enabled AND u_rec.telegram_token IS NOT NULL AND u_rec.telegram_chat_id IS NOT NULL THEN
         BEGIN
-            tg_endpoint := 'https://api.telegram.org/bot' || u_rec.telegram_bot_token || '/sendMessage';
+            tg_endpoint := 'https://api.telegram.org/bot' || u_rec.telegram_token || '/sendMessage';
             
             tg_message := '[TELSIM] 🔔 Nuevo SMS de: ' || NEW.sender || 
                           ' | Código: ' || display_code || 
@@ -67,8 +70,7 @@ BEGIN
 
             tg_payload := json_build_object(
                 'chat_id', u_rec.telegram_chat_id,
-                'text', tg_message,
-                'parse_mode', 'HTML'
+                'text', tg_message
             )::text;
 
             PERFORM net.http_post(
@@ -86,7 +88,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Asegurar persistencia del Trigger en la tabla sms_logs
+-- 3. Asegurar Trigger
 DROP TRIGGER IF EXISTS on_new_sms_forward ON public.sms_logs;
 CREATE TRIGGER on_new_sms_forward
 AFTER INSERT ON public.sms_logs
