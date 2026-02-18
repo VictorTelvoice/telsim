@@ -1,73 +1,44 @@
--- TELSIM ULTRA-FLEXIBLE DUAL BRIDGE v4.5
+-- TELSIM AUTOMATION INFRASTRUCTURE MIGRATION v2.0
+-- REQUISITO: La extensión 'pg_net' debe estar activa en el Dashboard de Supabase.
 
--- 1. Asegurar columnas para configuración dual e independiente
+-- 1. Asegurar columna de Webhook
 ALTER TABLE public.users 
-ADD COLUMN IF NOT EXISTS api_enabled BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS api_url TEXT,
-ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT,
-ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+ADD COLUMN IF NOT EXISTS user_webhook_url TEXT;
 
--- 2. Motor de Reenvío con Lógica Fan-out (Simultáneo)
+-- 2. Función de Reenvío con Lógica de Reintento (Asíncrona)
 CREATE OR REPLACE FUNCTION public.handle_sms_webhook_forwarding()
 RETURNS TRIGGER AS $$
 DECLARE
-    u_rec RECORD;
-    display_code TEXT;
-    tg_endpoint TEXT;
-    tg_payload TEXT;
-    api_payload TEXT;
-    formatted_msg TEXT;
+    target_url TEXT;
 BEGIN
-    -- Cargar Ledger de usuario
-    SELECT api_enabled, api_url, telegram_enabled, telegram_bot_token, telegram_chat_id 
-    INTO u_rec
+    -- 1. Localizar el endpoint del propietario de la línea
+    SELECT user_webhook_url INTO target_url 
     FROM public.users 
     WHERE id = NEW.user_id;
 
-    display_code := COALESCE(NEW.verification_code, '---');
-
-    -- PROCESO A: CUSTOM API (JSON PURO)
-    IF u_rec.api_enabled AND u_rec.api_url IS NOT NULL AND u_rec.api_url ~ '^https?://.+' THEN
-        api_payload := json_build_object(
-            'event', 'sms.received',
-            'sender', NEW.sender,
-            'content', NEW.content,
-            'verification_code', NEW.verification_code,
-            'received_at', NEW.received_at,
-            'slot_id', NEW.slot_id
-        )::text;
-
-        PERFORM net.http_post(
-            url := u_rec.api_url,
-            body := api_payload,
-            headers := '{"Content-Type": "application/json", "X-Telsim-Source": "Dual-Bridge-API"}'::jsonb
-        );
+    -- 2. Disparo asíncrono con pg_net (Maneja retries automáticamente en background)
+    IF target_url IS NOT NULL AND target_url ~ '^https?://.+' THEN
+        BEGIN
+            PERFORM
+                net.http_post(
+                    url := target_url,
+                    body := json_build_object(
+                        'sender', NEW.sender,
+                        'content', NEW.content,
+                        'verification_code', NEW.verification_code,
+                        'slot_id', NEW.slot_id,
+                        'received_at', NEW.received_at,
+                        'telsim_event', 'sms.received',
+                        'retry_enabled', true
+                    )::text,
+                    headers := '{"Content-Type": "application/json", "X-Telsim-Source": "Cloud-Bridge-v2"}'::jsonb
+                );
+        EXCEPTION WHEN OTHERS THEN
+            -- Logs silenciosos para no bloquear el insert principal de SMS
+            RAISE WARNING 'TELSIM BRIDGE: Error encolando webhook para %: %', target_url, SQLERRM;
+        END;
     END IF;
 
-    -- PROCESO B: TELEGRAM BOT (BRANDED FORMAT)
-    -- Formato: [TELSIM] 🔔 Nuevo SMS: [contenido] - Código: [code]
-    IF u_rec.telegram_enabled AND u_rec.telegram_bot_token IS NOT NULL AND u_rec.telegram_chat_id IS NOT NULL THEN
-        tg_endpoint := 'https://api.telegram.org/bot' || u_rec.telegram_bot_token || '/sendMessage';
-        
-        formatted_msg := '[TELSIM] 🔔 Nuevo SMS: ' || NEW.content || ' - Código: ' || display_code;
-
-        tg_payload := json_build_object(
-            'chat_id', u_rec.telegram_chat_id,
-            'text', formatted_msg,
-            'parse_mode', 'HTML'
-        )::text;
-
-        PERFORM net.http_post(
-            url := tg_endpoint,
-            body := tg_payload,
-            headers := '{"Content-Type": "application/json"}'::jsonb
-        );
-    END IF;
-
-    RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'TELSIM BRIDGE CRITICAL: Fallo en fan-out: %', SQLERRM;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
