@@ -29,13 +29,15 @@ import {
   Send,
   ToggleLeft,
   ToggleRight,
-  ShieldCheck
+  ShieldCheck,
+  HelpCircle
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
   actual_plan_name?: string;
   monthly_limit?: number;
   credits_used?: number;
+  forwarding_active?: boolean;
 }
 
 const OFFICIAL_PLANS = [
@@ -89,6 +91,7 @@ const MyNumbers: React.FC = () => {
     // MODAL DE AUTOMATIZACIÓN DUAL
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
     const [savingFwd, setSavingFwd] = useState(false);
+    const [activeConfigSlot, setActiveConfigSlot] = useState<SlotWithPlan | null>(null);
     
     // Estados API
     const [apiEnabled, setApiEnabled] = useState(false);
@@ -100,6 +103,7 @@ const MyNumbers: React.FC = () => {
     const [tgToken, setTgToken] = useState('');
     const [tgChatId, setTgChatId] = useState('');
     const [testingTg, setTestingTg] = useState(false);
+    const [slotFwdActive, setSlotFwdActive] = useState(false);
 
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [slotForPlan, setSlotForPlan] = useState<SlotWithPlan | null>(null);
@@ -114,7 +118,6 @@ const MyNumbers: React.FC = () => {
                 .eq('assigned_to', user.id)
                 .order('created_at', { ascending: false });
 
-            // Fix: Mapeo exacto de columnas para la carga inicial
             const { data: userData } = await supabase
                 .from('users')
                 .select('api_enabled, api_url, telegram_enabled, telegram_token, telegram_chat_id')
@@ -141,7 +144,8 @@ const MyNumbers: React.FC = () => {
                     ...slot,
                     actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter',
                     monthly_limit: subscription?.monthly_limit || 150,
-                    credits_used: subscription?.credits_used || 0
+                    credits_used: subscription?.credits_used || 0,
+                    forwarding_active: slot.forwarding_active || false
                 };
             });
 
@@ -235,7 +239,7 @@ const MyNumbers: React.FC = () => {
         }
         if (rawName.includes('PRO')) {
             return {
-                cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-[0_15px_40px_-10px_rgba(0,148,255,0.4)]',
+                cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-[0_15px_40_px_-10px_rgba(0,148,255,0.4)]',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
                 accentText: 'text-blue-50',
                 indicator: 'bg-white',
@@ -272,7 +276,8 @@ const MyNumbers: React.FC = () => {
                     status: 'libre',
                     plan_type: null,
                     label: null,
-                    is_forwarding_active: false
+                    is_forwarding_active: false,
+                    forwarding_active: false
                 })
                 .eq('port_id', slotToRelease.port_id);
             if (error) throw error;
@@ -286,22 +291,29 @@ const MyNumbers: React.FC = () => {
         }
     };
 
-    const handleSaveAutomation = async () => {
-        if (!user) return;
+    const openConfigModal = (slot: SlotWithPlan) => {
+        setActiveConfigSlot(slot);
+        setSlotFwdActive(slot.forwarding_active || false);
+        setIsFwdModalOpen(true);
+    };
 
-        // 3. Validación de Datos (Consola) para diagnóstico
+    const handleSaveAutomation = async () => {
+        if (!user || !activeConfigSlot) return;
+
         console.log("TELSIM - Datos a enviar (Update Config):", { 
           telegram_token: tgToken, 
           telegram_chat_id: tgChatId, 
           telegram_enabled: tgEnabled, 
           api_enabled: apiEnabled, 
-          api_url: apiUrl 
+          api_url: apiUrl,
+          slot_id: activeConfigSlot.port_id,
+          forwarding_active: slotFwdActive
         });
 
         setSavingFwd(true);
         try {
-            // 1. Mapeo estricto a las columnas de la DB para evitar ERROR 400
-            const { error } = await supabase
+            // 1. Actualizar configuración global del usuario
+            const { error: userError } = await supabase
                 .from('users')
                 .update({ 
                     telegram_token: tgToken, 
@@ -312,12 +324,22 @@ const MyNumbers: React.FC = () => {
                 })
                 .eq('id', user.id);
             
-            if (error) throw error;
+            if (userError) throw userError;
+
+            // 2. Actualizar switch individual del slot
+            const { error: slotError } = await supabase
+                .from('slots')
+                .update({ forwarding_active: slotFwdActive })
+                .eq('port_id', activeConfigSlot.port_id);
+
+            if (slotError) throw slotError;
+
             showToast("Configuración guardada");
             setIsFwdModalOpen(false);
+            fetchSlots(); // Recargar para feedback visual en iconos
         } catch (err: any) { 
             console.error("Supabase Patch Error:", err);
-            alert(`Fallo al actualizar Ledger:\n${err.message || '400 Bad Request - Verifica nombres de columna'}`);
+            alert(`Fallo al actualizar Ledger:\n${err.message || '400 Bad Request'}`);
         } finally { 
             setSavingFwd(false); 
         }
@@ -342,12 +364,10 @@ const MyNumbers: React.FC = () => {
     };
 
     const handleTestTg = async () => {
-        // 4. Prevención de Nulos
         if (!tgToken || !tgChatId) {
             return alert("El Token y el Chat ID son obligatorios para el test.");
         }
 
-        // 3. Log de depuración
         console.log("TELSIM - Datos a enviar (Test Telegram):", { 
           telegram_token: tgToken, 
           telegram_chat_id: tgChatId 
@@ -360,7 +380,6 @@ const MyNumbers: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    // 2. Formato de Telegram: ChatID como string limpio para evitar error 400
                     chat_id: String(tgChatId).trim(),
                     text: '[TELSIM] ✅ Bot vinculado correctamente. Tu infraestructura de reenvío está lista.',
                     parse_mode: 'HTML'
@@ -485,7 +504,9 @@ const MyNumbers: React.FC = () => {
                                         <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-2px] transition-all text-slate-600 dark:text-slate-300"><Mail className="size-4 text-primary" /> Bandeja</button>
                                         <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:translate-y-[-2px] transition-all"><Copy className="size-4 text-slate-400" /></button>
                                         <button onClick={() => { setSlotForPlan(slot); setIsPlanModalOpen(true); }} className={`size-12 rounded-2xl flex items-center justify-center shadow-lg hover:translate-y-[-2px] transition-all ${isPower ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600 border border-amber-500/30' : isPro ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-500/30' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-500/30'}`}><RefreshCw className="size-4" /></button>
-                                        <button onClick={() => setIsFwdModalOpen(true)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:translate-y-[-2px] transition-all"><Settings className="size-4 text-slate-400" /></button>
+                                        <button onClick={() => openConfigModal(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:translate-y-[-2px] transition-all">
+                                            <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary animate-pulse' : 'text-slate-400'}`} />
+                                        </button>
                                         <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center transition-all"><Trash2 className="size-4" /></button>
                                     </div>
                                 </div>
@@ -496,18 +517,34 @@ const MyNumbers: React.FC = () => {
             </main>
 
             {/* MODAL INTEGRACIÓN DUAL stack */}
-            {isFwdModalOpen && (
+            {isFwdModalOpen && activeConfigSlot && (
                 <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                         <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
-                            <div className="flex items-center gap-3">
-                                <div className="size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center"><Terminal className="size-5" /></div>
-                                <h2 className="text-xl font-black tracking-tight uppercase">Puente de Datos</h2>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Terminal className="size-4 text-primary" />
+                                    <h2 className="text-sm font-black tracking-tight uppercase">Configurar Puerto</h2>
+                                </div>
+                                <p className="text-[10px] font-black text-slate-400 tabular-nums uppercase">{formatPhoneNumber(activeConfigSlot.phone_number)}</p>
                             </div>
                             <button onClick={() => setIsFwdModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="size-5" /></button>
                         </div>
                         
                         <div className="p-8 pt-6 space-y-8 overflow-y-auto no-scrollbar">
+                            {/* SWITCH INDIVIDUAL DE NOTIFICACIONES */}
+                            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl border border-primary/10">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Puente de Notificaciones</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Activar para este número</span>
+                                    </div>
+                                    <button onClick={() => setSlotFwdActive(!slotFwdActive)} className={`transition-colors ${slotFwdActive ? 'text-primary' : 'text-slate-300'}`}>
+                                        {slotFwdActive ? <ToggleRight className="size-10" /> : <ToggleLeft className="size-10" />}
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* SECCIÓN API */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -544,6 +581,9 @@ const MyNumbers: React.FC = () => {
                                 </div>
                                 {tgEnabled && (
                                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <button onClick={() => navigate('/dashboard/telegram-guide')} className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors">
+                                            <HelpCircle className="size-4" /> ¿Cómo configurar mi Bot? ❓
+                                        </button>
                                         <input type="text" value={tgToken} onChange={(e) => setTgToken(e.target.value)} placeholder="Bot Token (7123456:AAH...)" className="w-full h-12 px-4 rounded-xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[11px] font-bold outline-none focus:border-blue-400 transition-all" />
                                         <input type="text" value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder="Chat ID (Ej: 98765432)" className="w-full h-12 px-4 rounded-xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[11px] font-bold outline-none focus:border-blue-400 transition-all" />
                                         <button onClick={handleTestTg} disabled={testingTg} className="w-full h-10 bg-slate-100 dark:bg-slate-800 text-[9px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200">
@@ -610,13 +650,13 @@ const MyNumbers: React.FC = () => {
                         <div className="p-8 space-y-6">
                             <p className="text-xs font-bold text-slate-500 leading-relaxed">Esta acción cancelará tu suscripción definitivamente.</p>
                             <div className="flex items-start gap-3 cursor-pointer" onClick={() => setConfirmReleaseCheck(!confirmReleaseCheck)}>
-                                <div className={`mt-0.5 size-5 shrink-0 rounded border-2 transition-all flex items-center justify-center ${confirmReleaseCheck ? 'bg-rose-500 border-rose-500' : 'border-slate-200'}`}>
+                                <div className={`mt-0.5 size-5 shrink-0 rounded border-2 transition-all flex items-center justify-center ${confirmReleaseCheck ? 'bg-rose-50 border-rose-500' : 'border-slate-200'}`}>
                                     {confirmReleaseCheck && <Check className="size-3 text-white" />}
                                 </div>
                                 <span className="text-[11px] font-bold text-slate-400">Entiendo los riesgos.</span>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-500 text-white shadow-xl' : 'bg-slate-100 text-slate-300'}`}>
+                                <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-50 text-white shadow-xl' : 'bg-slate-100 text-slate-300'}`}>
                                     {releasing ? 'PROCESANDO...' : 'CONFIRMAR'}
                                 </button>
                                 <button onClick={() => setIsReleaseModalOpen(false)} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
