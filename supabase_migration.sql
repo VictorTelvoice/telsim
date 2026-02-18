@@ -1,15 +1,6 @@
--- TELSIM AUTOMATION BRIDGE v7.0 - HOTFIX SCHEMA
+-- TELSIM AUTOMATION ENGINE v9.0 - BACKEND ONLY
 
--- 1. Normalización de columnas según requerimiento prioritario
-DO $$ 
-BEGIN
-    -- Renombrar si existe la versión anterior para evitar pérdida de datos
-    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='telegram_bot_token') THEN
-        ALTER TABLE public.users RENAME COLUMN telegram_bot_token TO telegram_token;
-    END IF;
-END $$;
-
--- Asegurar que las columnas existan con los nombres exactos solicitados
+-- 1. Asegurar que las columnas de configuración existan en el Ledger
 ALTER TABLE public.users 
 ADD COLUMN IF NOT EXISTS api_enabled BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS api_url TEXT,
@@ -17,80 +8,68 @@ ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS telegram_token TEXT,
 ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
 
--- 2. Motor de Reenvío Actualizado (Fan-out v7.0)
-CREATE OR REPLACE FUNCTION public.handle_sms_webhook_forwarding()
+-- 2. Función de Procesamiento de Reenvío (Engine: process-sms-forwarding)
+-- Se usa SECURITY DEFINER para que la función pueda leer tokens de la tabla users 
+-- independientemente de las políticas RLS del usuario que inserta el SMS.
+CREATE OR REPLACE FUNCTION public.process_sms_forwarding()
 RETURNS TRIGGER AS $$
 DECLARE
     u_rec RECORD;
     display_code TEXT;
-    tg_endpoint TEXT;
-    tg_payload TEXT;
-    api_payload TEXT;
-    tg_message TEXT;
+    tg_msg TEXT;
 BEGIN
-    -- Búsqueda en el Ledger usando service_role (SECURITY DEFINER)
+    -- Localizar al dueño del puerto SIM
     SELECT api_enabled, api_url, telegram_enabled, telegram_token, telegram_chat_id 
     INTO u_rec
     FROM public.users 
     WHERE id = NEW.user_id;
 
+    -- Formatear el código (usar guiones si es nulo)
     display_code := COALESCE(NEW.verification_code, '---');
 
-    -- CANAL A: CUSTOM API (JSON)
+    -- LÓGICA TELEGRAM: Formato Estricto TELSIM
+    IF u_rec.telegram_enabled AND u_rec.telegram_token IS NOT NULL AND u_rec.telegram_chat_id IS NOT NULL THEN
+        -- Construcción del mensaje con saltos de línea (chr(10)) y emojis
+        tg_msg := '[TELSIM] 🔔 Nuevo SMS' || chr(10) || 
+                  '📱 De: ' || NEW.sender || chr(10) || 
+                  '💬 Msg: ' || NEW.content || chr(10) || 
+                  '🔑 Código: ' || display_code;
+
+        PERFORM net.http_post(
+            url := 'https://api.telegram.org/bot' || u_rec.telegram_token || '/sendMessage',
+            body := json_build_object(
+                'chat_id', u_rec.telegram_chat_id,
+                'text', tg_msg,
+                'parse_mode', 'HTML'
+            )::text,
+            headers := '{"Content-Type": "application/json"}'::jsonb
+        );
+    END IF;
+
+    -- LÓGICA CUSTOM API (FAN-OUT)
     IF u_rec.api_enabled AND u_rec.api_url IS NOT NULL AND u_rec.api_url ~ '^https?://.+' THEN
-        BEGIN
-            api_payload := json_build_object(
+        PERFORM net.http_post(
+            url := u_rec.api_url,
+            body := json_build_object(
                 'event', 'sms.received',
                 'sender', NEW.sender,
                 'content', NEW.content,
                 'verification_code', NEW.verification_code,
-                'received_at', NEW.received_at,
+                'timestamp', NEW.received_at,
                 'slot_id', NEW.slot_id
-            )::text;
-
-            PERFORM net.http_post(
-                url := u_rec.api_url,
-                body := api_payload,
-                headers := '{"Content-Type": "application/json"}'::jsonb
-            );
-        EXCEPTION WHEN OTHERS THEN
-            INSERT INTO public.automation_logs (user_id, event_type, target_url, error_message)
-            VALUES (NEW.user_id, 'api_forward', u_rec.api_url, SQLERRM);
-        END;
-    END IF;
-
-    -- CANAL B: TELEGRAM BOT (Branding [TELSIM])
-    IF u_rec.telegram_enabled AND u_rec.telegram_token IS NOT NULL AND u_rec.telegram_chat_id IS NOT NULL THEN
-        BEGIN
-            tg_endpoint := 'https://api.telegram.org/bot' || u_rec.telegram_token || '/sendMessage';
-            
-            tg_message := '[TELSIM] 🔔 Nuevo SMS de: ' || NEW.sender || 
-                          ' | Código: ' || display_code || 
-                          ' | Texto: ' || NEW.content;
-
-            tg_payload := json_build_object(
-                'chat_id', u_rec.telegram_chat_id,
-                'text', tg_message
-            )::text;
-
-            PERFORM net.http_post(
-                url := tg_endpoint,
-                body := tg_payload,
-                headers := '{"Content-Type": "application/json"}'::jsonb
-            );
-        EXCEPTION WHEN OTHERS THEN
-            INSERT INTO public.automation_logs (user_id, event_type, target_url, error_message)
-            VALUES (NEW.user_id, 'telegram_forward', tg_endpoint, SQLERRM);
-        END;
+            )::text,
+            headers := '{"Content-Type": "application/json", "X-Source": "TELSIM-CORE"}'::jsonb
+        );
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Asegurar Trigger
-DROP TRIGGER IF EXISTS on_new_sms_forward ON public.sms_logs;
-CREATE TRIGGER on_new_sms_forward
+-- 3. Activación del Trigger en la tabla sms_logs
+-- Se dispara inmediatamente después de cada INSERT exitoso
+DROP TRIGGER IF EXISTS tr_auto_forward_sms ON public.sms_logs;
+CREATE TRIGGER tr_auto_forward_sms
 AFTER INSERT ON public.sms_logs
 FOR EACH ROW
-EXECUTE FUNCTION public.handle_sms_webhook_forwarding();
+EXECUTE FUNCTION public.process_sms_forwarding();
