@@ -44,7 +44,7 @@ export interface SMSLog {
 }
 
 export interface Slot {
-  port_id: string;
+  slot_id: string; // Actualizado de port_id a slot_id
   phone_number: string;
   plan_type: string;
   assigned_to: string;
@@ -52,7 +52,7 @@ export interface Slot {
   status?: string;
   region?: string;
   label?: string;
-  forwarding_active?: boolean; // Estandarizado sin el prefijo 'is_'
+  forwarding_active?: boolean;
   forwarding_channel?: 'telegram' | 'discord' | 'webhook';
   forwarding_config?: string;
 }

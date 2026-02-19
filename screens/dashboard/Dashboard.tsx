@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -503,9 +504,9 @@ const Dashboard: React.FC = () => {
                                 {allSlots.length > 0 ? (
                                   allSlots.map((slot) => (
                                     <div 
-                                      key={slot.port_id} 
+                                      key={slot.slot_id} 
                                       onClick={() => handleSelectSlot(slot)}
-                                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer group ${activeSlot?.port_id === slot.port_id ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer group ${activeSlot?.slot_id === slot.slot_id ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                                     >
                                       <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">
                                           <img src={`https://flagcdn.com/w80/${getCountryCode(slot)}.png`} className="w-full h-full object-cover" alt="" />
@@ -513,10 +514,10 @@ const Dashboard: React.FC = () => {
                                       <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-900 dark:text-white truncate tabular-nums">{formatPhoneNumber(slot.phone_number)}</span>
                                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate">
-                                            Puerto: {slot.port_id}
+                                            Puerto ID: {slot.slot_id}
                                           </span>
                                       </div>
-                                      {activeSlot?.port_id === slot.port_id && (
+                                      {activeSlot?.slot_id === slot.slot_id && (
                                         <span className="material-icons-round text-primary text-sm shrink-0">check_circle</span>
                                       )}
                                     </div>
