@@ -49,8 +49,9 @@ const Messages: React.FC = () => {
 
       if (slotsData) {
         setUserSlots(slotsData);
+        // Corregido: Usar slot_id para el mapeo
         const mapping = slotsData.reduce((acc, s) => {
-          acc[s.port_id] = s.phone_number;
+          acc[s.slot_id] = s.phone_number;
           return acc;
         }, {} as Record<string, string>);
         setSlotMap(mapping);
@@ -160,6 +161,7 @@ const Messages: React.FC = () => {
       const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
       if (!tabMatch) return false;
       if (filterNum) {
+        // Corregido: Buscar por slot_id en el mapeo
         const msgNum = slotMap[msg.slot_id];
         const cleanFilter = filterNum.replace(/\D/g, '');
         const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
@@ -207,7 +209,7 @@ const Messages: React.FC = () => {
           </button>
           {userSlots.map((slot) => (
             <button 
-              key={slot.port_id}
+              key={slot.slot_id}
               onClick={() => toggleFilter(slot.phone_number)}
               className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
             >

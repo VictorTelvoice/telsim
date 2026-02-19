@@ -44,7 +44,7 @@ export interface SMSLog {
 }
 
 export interface Slot {
-  port_id: string;
+  slot_id: string; // Cambiado de port_id a slot_id para corregir error 42703
   phone_number: string;
   plan_type: string;
   assigned_to: string;
