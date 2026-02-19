@@ -49,9 +49,8 @@ const Messages: React.FC = () => {
 
       if (slotsData) {
         setUserSlots(slotsData);
-        // Mapeo corregido a slot_id
         const mapping = slotsData.reduce((acc, s) => {
-          acc[s.slot_id] = s.phone_number;
+          acc[s.port_id] = s.phone_number;
           return acc;
         }, {} as Record<string, string>);
         setSlotMap(mapping);
@@ -208,7 +207,7 @@ const Messages: React.FC = () => {
           </button>
           {userSlots.map((slot) => (
             <button 
-              key={slot.slot_id}
+              key={slot.port_id}
               onClick={() => toggleFilter(slot.phone_number)}
               className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
             >
