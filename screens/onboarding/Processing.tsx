@@ -8,7 +8,6 @@ import {
   AlertCircle, 
   Cpu, 
   Globe, 
-  RefreshCw, 
   CheckCircle2, 
   ArrowRight,
   Zap,
@@ -40,7 +39,6 @@ const Processing: React.FC = () => {
     "Finalizando enlace seguro..."
   ];
 
-  // Formateador de número premium
   const formatPhoneNumber = (num: string) => {
     if (!num) return '';
     const cleaned = ('' + num).replace(/\D/g, '');
@@ -52,7 +50,7 @@ const Processing: React.FC = () => {
 
   const fetchAssignedNumber = async (slotId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('slots')
         .select('phone_number')
         .eq('slot_id', slotId)
@@ -68,7 +66,6 @@ const Processing: React.FC = () => {
   };
 
   const checkStatus = async () => {
-    // Timeout de 60 segundos
     if (Date.now() - startTime.current > 60000) {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setError("TIMEOUT");
@@ -76,7 +73,8 @@ const Processing: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase
+      // REGLA CRÍTICA: Obtener la suscripción ACTIVA más reciente (Historial preservado)
+      const { data } = await supabase
         .from('subscriptions')
         .select('status, slot_id, phone_number')
         .eq('user_id', user?.id)
@@ -101,34 +99,30 @@ const Processing: React.FC = () => {
   useEffect(() => {
     if (!user || !sessionId) return;
 
-    // 1. Configurar Realtime (Suscripción instantánea)
     const channel = supabase
       .channel('provisioning_check')
       .on('postgres_changes', { 
-        event: 'UPDATE', 
+        event: 'INSERT', // Ahora escuchamos el INSERT de la nueva fila
         schema: 'public', 
         table: 'subscriptions',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        const updatedSub = payload.new as any;
-        if (updatedSub.status === 'active') {
-          if (updatedSub.phone_number) {
-            setActivatedNumber(updatedSub.phone_number);
+        const newSub = payload.new as any;
+        if (newSub.status === 'active') {
+          if (newSub.phone_number) {
+            setActivatedNumber(newSub.phone_number);
             setIsSuccess(true);
-          } else if (updatedSub.slot_id) {
-            fetchAssignedNumber(updatedSub.slot_id);
+          } else if (newSub.slot_id) {
+            fetchAssignedNumber(newSub.slot_id);
           }
         }
       })
       .subscribe();
 
     realtimeChannelRef.current = channel;
-
-    // 2. Fallback de Polling (Cada 3 segundos)
     pollIntervalRef.current = setInterval(checkStatus, 3000);
-    checkStatus(); // Primera ejecución inmediata
+    checkStatus();
 
-    // 3. Animación de mensajes
     const msgInterval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % statusMessages.length);
     }, 2800);
@@ -142,7 +136,6 @@ const Processing: React.FC = () => {
 
   if (!user || !sessionId) return <Navigate to="/dashboard" replace />;
 
-  // RENDER: PANTALLA DE ÉXITO
   if (isSuccess) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 animate-in fade-in duration-700">
@@ -187,7 +180,6 @@ const Processing: React.FC = () => {
     );
   }
 
-  // RENDER: PANTALLA DE ERROR / TIMEOUT
   if (error === "TIMEOUT") {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center">
@@ -209,7 +201,6 @@ const Processing: React.FC = () => {
     );
   }
 
-  // RENDER: PANTALLA DE PROCESAMIENTO
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 overflow-hidden text-center">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
