@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
 import { 
   Copy, 
@@ -32,7 +33,6 @@ import {
   ToggleRight,
   ShieldCheck,
   HelpCircle,
-  // Fix: Added missing Bot icon import from lucide-react to avoid "Cannot find name 'Bot'" error
   Bot
 } from 'lucide-react';
 
@@ -45,6 +45,7 @@ interface SlotWithPlan extends Slot {
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { refreshUnreadCount } = useMessagesCount();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -85,7 +86,6 @@ const MyNumbers: React.FC = () => {
                 .eq('user_id', user.id)
                 .eq('status', 'active');
 
-            // Cargar credenciales de Telegram del perfil de usuario
             const { data: userData } = await supabase
                 .from('users')
                 .select('telegram_token, telegram_chat_id, telegram_enabled')
@@ -177,19 +177,14 @@ const MyNumbers: React.FC = () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         try {
-            // ELIMINACIÓN TOTAL: slot_id es la clave única en el Ledger
             console.log(`[LEDGER] Solicitando baja definitiva para Slot: ${slotToRelease.slot_id}`);
 
-            // 1. MARCAR SUSCRIPCIÓN COMO CANCELADA (USANDO slot_id)
-            const { error: subError } = await supabase
+            // 1. MARCAR SUSCRIPCIÓN COMO CANCELADA
+            await supabase
                 .from('subscriptions')
                 .update({ status: 'canceled' })
                 .eq('slot_id', slotToRelease.slot_id)
                 .eq('user_id', user.id);
-
-            if (subError) {
-                console.warn("[LEDGER WARNING] No se encontró suscripción vinculada, liberando puerto físico únicamente.");
-            }
 
             // 2. LIBERAR PUERTO EN TABLA SLOTS
             const { error: slotError } = await supabase
@@ -205,6 +200,10 @@ const MyNumbers: React.FC = () => {
             
             if (slotError) throw slotError;
             
+            // 3. LIMPIEZA POST-CANCELACIÓN: Refrescar contadores de mensajes
+            // El RLS y el filtro por user_id en la pantalla de mensajes harán que desaparezcan
+            refreshUnreadCount();
+
             showToast("Número liberado con éxito.");
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
@@ -218,7 +217,6 @@ const MyNumbers: React.FC = () => {
         }
     };
 
-    // FUNCIÓN PARA EL BOTÓN DE ENGRANAJE
     const openAutomationConfig = (slot: SlotWithPlan) => {
         setActiveConfigSlot(slot);
         setSlotFwdActive(slot.forwarding_active || false);
@@ -229,7 +227,6 @@ const MyNumbers: React.FC = () => {
         if (!user || !activeConfigSlot) return;
         setSavingFwd(true);
         try {
-            // Actualizar credenciales en el perfil
             const { error: userErr } = await supabase
                 .from('users')
                 .update({
@@ -241,7 +238,6 @@ const MyNumbers: React.FC = () => {
 
             if (userErr) throw userErr;
 
-            // Actualizar estado del slot
             const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ forwarding_active: slotFwdActive })
@@ -372,7 +368,6 @@ const MyNumbers: React.FC = () => {
                                         <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> Bandeja</button>
                                         <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
                                         
-                                        {/* BOTÓN ENGRANAJE: CONFIGURACIÓN DE AUTOMATIZACIÓN */}
                                         <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:text-primary transition-colors">
                                             <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
                                         </button>
@@ -386,7 +381,6 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODAL DE BAJA (REESTABLECIDO) */}
             {isReleaseModalOpen && slotToRelease && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
@@ -411,7 +405,6 @@ const MyNumbers: React.FC = () => {
                 </div>
             )}
 
-            {/* MODAL DE AUTOMATIZACIÓN (NUEVO / RESTAURADO) */}
             {isFwdModalOpen && activeConfigSlot && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -425,7 +418,6 @@ const MyNumbers: React.FC = () => {
                         </div>
                         
                         <div className="p-8 space-y-8">
-                            {/* Toggle General */}
                             <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-primary/20">
                                 <div className="flex flex-col">
                                     <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase">Redirección SMS</span>
@@ -436,7 +428,6 @@ const MyNumbers: React.FC = () => {
                                 </button>
                             </div>
 
-                            {/* Sección Telegram */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 px-1">
                                     <Send className="size-4 text-primary" />

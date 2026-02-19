@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -389,7 +390,7 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      // Consulta a sms_logs
+      // REGLA DE PRIVACIDAD: Filtrar estrictamente por el user_id autenticado
       const { data: smsData } = await supabase
         .from('sms_logs')
         .select('*')
@@ -409,7 +410,7 @@ const Dashboard: React.FC = () => {
     fetchData();
     if (!user) return;
     
-    // Suscripción a sms_logs
+    // Suscripción Realtime con FILTRO DE SEGURIDAD por user_id
     const channel = supabase
       .channel('dashboard_feed_sync')
       .on('postgres_changes', { 

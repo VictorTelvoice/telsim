@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -35,13 +36,13 @@ const Messages: React.FC = () => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'verifications' | 'others'>('verifications');
 
-  // Obtener el número de filtro de la URL
   const filterNum = searchParams.get('num');
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 1. Obtener solo los slots que pertenecen al usuario actual
       const { data: slotsData } = await supabase
         .from('slots')
         .select('*')
@@ -49,7 +50,6 @@ const Messages: React.FC = () => {
 
       if (slotsData) {
         setUserSlots(slotsData);
-        // Corregido: Usar slot_id para el mapeo
         const mapping = slotsData.reduce((acc, s) => {
           acc[s.slot_id] = s.phone_number;
           return acc;
@@ -57,6 +57,8 @@ const Messages: React.FC = () => {
         setSlotMap(mapping);
       }
 
+      // 2. REGLA DE PRIVACIDAD: Filtrar logs estrictamente por user_id del usuario actual
+      // Esto garantiza que no se vean mensajes de dueños anteriores del mismo número
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -78,15 +80,13 @@ const Messages: React.FC = () => {
   const markAllAsRead = async () => {
     if (!user) return;
     try {
-      const { error } = await supabase
+      await supabase
         .from('sms_logs')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
       
-      if (!error) {
-        refreshUnreadCount();
-      }
+      refreshUnreadCount();
     } catch (err) {
       console.debug("Error marking as read", err);
     }
@@ -94,7 +94,40 @@ const Messages: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+
+    if (!user) return;
+
+    // 3. Suscripción Realtime Protegida: Solo escuchar mensajes del usuario actual
+    const channel = supabase
+      .channel(`private_messages_${user.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'sms_logs',
+        filter: `user_id=eq.${user.id}` // Filtro a nivel de socket
+      }, (payload) => {
+        const newMsg = payload.new as SMSLog;
+        setMessages(prev => [newMsg, ...prev]);
+        refreshUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
+
+  // 4. Limpieza automática si se deselecciona o cancela una línea
+  useEffect(() => {
+    if (filterNum) {
+      const isStillOwned = userSlots.some(s => s.phone_number === filterNum);
+      if (!isStillOwned && userSlots.length > 0) {
+          // Si el número filtrado ya no pertenece al usuario, resetear vista
+          searchParams.delete('num');
+          setSearchParams(searchParams);
+      }
+    }
+  }, [userSlots, filterNum]);
 
   const handleCopy = (e: React.MouseEvent, code: string, id: string) => {
     e.stopPropagation();
@@ -161,7 +194,6 @@ const Messages: React.FC = () => {
       const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
       if (!tabMatch) return false;
       if (filterNum) {
-        // Corregido: Buscar por slot_id en el mapeo
         const msgNum = slotMap[msg.slot_id];
         const cleanFilter = filterNum.replace(/\D/g, '');
         const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
