@@ -1,6 +1,4 @@
-/**
- * TELSIM SERVER-SIDE CHECKOUT GATEWAY v3.2
- */
+
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -14,7 +12,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit } = req.body;
+    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
@@ -43,13 +41,15 @@ export default async function handler(req: any, res: any) {
         userId: userId,
         phoneNumber: phoneNumber || 'NEW_SIM_REQUEST',
         planName: planName,
-        limit: monthlyLimit || 400, // Enviamos el límite para el Webhook
+        limit: monthlyLimit || 400,
+        slot_id: slot_id || 'new', // Aseguramos slot_id en metadatos para el Webhook
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION'
       },
       subscription_data: {
         metadata: {
           userId: userId,
-          phoneNumber: phoneNumber || 'NEW_SIM_REQUEST'
+          phoneNumber: phoneNumber || 'NEW_SIM_REQUEST',
+          slot_id: slot_id || 'new'
         }
       }
     });
