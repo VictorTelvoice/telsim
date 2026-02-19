@@ -21,15 +21,14 @@ const UpgradeSummary: React.FC = () => {
 
   if (!user || !upgradeData) return <Navigate to="/dashboard/numbers" replace />;
 
-  const { phoneNumber, planName, price, limit, stripePriceId } = upgradeData;
+  const { phoneNumber, planName, price, limit, stripePriceId, slot_id } = upgradeData;
 
   const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
 
     try {
-      console.log(`[UPGRADE] Solicitando sesión de mejora para puerto: ${phoneNumber}`);
+      console.log(`[UPGRADE] Solicitando mejora para slot: ${slot_id} (${phoneNumber})`);
 
-      // LLAMADA AL BACKEND (API ROUTE)
       const response = await fetch('/api/checkout/session', {
         method: 'POST',
         headers: {
@@ -40,7 +39,8 @@ const UpgradeSummary: React.FC = () => {
           userId: user.id,
           phoneNumber: phoneNumber,
           planName: planName,
-          isUpgrade: true
+          isUpgrade: true,
+          slot_id: slot_id // Estandarizado a slot_id
         }),
       });
 
@@ -50,7 +50,6 @@ const UpgradeSummary: React.FC = () => {
         throw new Error(data.error || "Fallo al conectar con el servidor de Stripe.");
       }
 
-      // REDIRECCIÓN OBLIGATORIA
       window.location.href = data.url;
 
     } catch (err: any) {

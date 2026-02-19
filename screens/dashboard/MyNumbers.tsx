@@ -228,12 +228,10 @@ const MyNumbers: React.FC = () => {
             const { error: subError } = await supabase
                 .from('subscriptions')
                 .update({ status: 'canceled' })
-                .eq('slot_id', slotToRelease.slot_id) // Corregido de sim_id a slot_id
+                .eq('slot_id', slotToRelease.slot_id) // Corregido sim_id -> slot_id
                 .eq('user_id', user.id);
 
-            if (subError) {
-                console.warn("No se encontró suscripción vinculada o error al cancelar, continuando con liberación de hardware...");
-            }
+            if (subError) console.warn("Aviso: No se pudo actualizar suscripción o no existe vinculada por slot_id.");
 
             // 2. LIBERAR PUERTO FÍSICO EN TABLA SLOTS
             const { error: slotError } = await supabase
@@ -249,7 +247,7 @@ const MyNumbers: React.FC = () => {
             
             if (slotError) throw slotError;
             
-            showToast("Puerto liberado con éxito.");
+            showToast("Número liberado y suscripción cancelada.");
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
             setConfirmReleaseCheck(false);

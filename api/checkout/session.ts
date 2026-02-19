@@ -2,7 +2,8 @@
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  // Updated apiVersion to match required type '2026-01-28.clover'
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 export default async function handler(req: any, res: any) {

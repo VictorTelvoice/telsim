@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -69,7 +70,8 @@ const Security: React.FC = () => {
     
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing updateUser
+      const { error } = await (supabase.auth as any).updateUser({ password: newPassword });
       if (error) throw error;
       alert("Contraseña actualizada con éxito");
       setShowPasswordForm(false);
@@ -275,7 +277,7 @@ const Security: React.FC = () => {
               <History className="size-4 text-slate-400" />
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logs de Auditoría Disponibles</span>
            </div>
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center">Telsim Crypto-Vault Protection v4.2</p>
+           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-8">Telsim Crypto-Vault Protection v4.2</p>
         </div>
 
       </main>

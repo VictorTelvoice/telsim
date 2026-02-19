@@ -1,3 +1,4 @@
+
 /**
  * TELSIM INFRASTRUCTURE - MANUAL VERIFICATION NODE v1.0
  * Permite al usuario forzar la verificación si el webhook tarda demasiado.
@@ -6,7 +7,8 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  // Updated apiVersion to match required type '2026-01-28.clover'
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 const supabaseAdmin = createClient(

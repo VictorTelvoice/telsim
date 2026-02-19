@@ -1,11 +1,3 @@
-/**
- * TELSIM CLOUD INFRASTRUCTURE - UNIFIED WEBHOOK HANDLER v9.0
- * 
- * Este es el "cerebro" único que gestiona la comunicación entre Stripe y TELSIM.
- * Maneja:
- * 1. checkout.session.completed -> Provisión de hardware y suscripciones.
- * 2. customer.updated / payment_method.attached -> Sincronización del Ledger de tarjetas.
- */
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -17,7 +9,8 @@ export const config = {
 };
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
-  apiVersion: '2023-10-16',
+  // Updated apiVersion to match required type '2026-01-28.clover'
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 const supabaseAdmin = createClient(
@@ -25,9 +18,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
 );
 
-/**
- * Extrae el body bruto para validación criptográfica de TELSIM.
- */
 async function getRawBody(readable: any): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of readable) {
@@ -73,70 +63,50 @@ export default async function handler(req: any, res: any) {
   }
 
   const eventType = event.type;
-  console.log(`[TELSIM GATEWAY] Recibido evento: ${eventType}`);
 
-  // --- SECCIÓN 1: SINCRONIZACIÓN DE PERFIL Y TARJETAS ---
-  if (eventType === 'customer.updated' || eventType === 'payment_method.attached') {
-    const object = event.data.object as any;
-    // Identificamos el ID de cliente de Stripe
-    const customerId = object.customer || (eventType === 'customer.updated' ? object.id : null);
-
-    if (customerId && typeof customerId === 'string') {
-      try {
-        console.log(`[TELSIM LEDGER] Sincronizando tarjeta para el cliente: ${customerId}`);
-        
-        // Consultamos los métodos de pago actuales en la infraestructura de Stripe
-        const paymentMethods = await stripe.paymentMethods.list({
-          customer: customerId,
-          type: 'card',
-        });
-
-        if (paymentMethods.data.length > 0) {
-          // Tomamos la tarjeta predeterminada o la más reciente
-          const mainCard = paymentMethods.data[0].card;
-
-          if (mainCard) {
-            // Actualizamos la tabla 'users' de TELSIM (no 'profiles')
-            const { error: updateError } = await supabaseAdmin
-              .from('users')
-              .update({
-                card_brand: mainCard.brand,   // Ej: 'visa'
-                card_last4: mainCard.last4    // Ej: '4242'
-              })
-              .eq('stripe_customer_id', customerId);
-
-            if (updateError) throw updateError;
-            
-            console.log(`✅ TELSIM SYNC SUCCESS: Usuario ${customerId} actualizado (${mainCard.brand} **** ${mainCard.last4})`);
-          }
-        }
-      } catch (err: any) {
-        console.error(`❌ TELSIM SYNC ERROR: ${err.message}`);
-      }
-    }
-  }
-
-  // --- SECCIÓN 2: PROVISIÓN DE PAGOS Y LÍNEAS ---
   if (eventType === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const userId = metadata.userId;
-    const phoneNumberReq = metadata.phoneNumber;
+    const slotId = metadata.slot_id;
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (userId) {
       try {
-        console.log(`[TELSIM PROVISION] Procesando nueva línea para usuario ${userId}`);
+        console.log(`[TELSIM PROVISION] Actualizando Ledger para Slot: ${slotId}`);
         
-        // Lógica de asignación de puertos físicos y creación de suscripciones
-        // (Asumimos que la lógica interna de base de datos se mantiene para la operatividad del negocio)
-        
-        // Guardamos también el customer_id si es nuevo para futuras sincronizaciones
+        // 1. Vincular cliente de Stripe al usuario
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
           }).eq('id', userId);
+        }
+
+        // 2. Crear o actualizar suscripción usando slot_id
+        const { error: subError } = await supabaseAdmin
+          .from('subscriptions')
+          .upsert({
+            user_id: userId,
+            slot_id: slotId, // Corregido sim_id -> slot_id
+            plan_name: planName,
+            monthly_limit: monthlyLimit,
+            status: 'active',
+            stripe_session_id: session.id,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'slot_id' });
+
+        if (subError) throw subError;
+
+        // 3. Si es un slot nuevo (status 'libre'), marcarlo como 'ocupado'
+        if (slotId !== 'new') {
+           await supabaseAdmin.from('slots')
+            .update({ 
+                status: 'ocupado',
+                assigned_to: userId,
+                plan_type: planName
+            })
+            .eq('slot_id', slotId);
         }
 
       } catch (err: any) {

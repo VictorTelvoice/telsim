@@ -1,8 +1,9 @@
+
 -- ==========================================
--- TELSIM BACKEND AUTOMATION v15.0 - REVERT TO SMS_LOGS
+-- TELSIM BACKEND AUTOMATION v16.0 - FIX COLUMN NAMES
 -- ==========================================
 
--- 1. Asegurar tabla de Auditoría para ver qué se intenta enviar
+-- 1. Asegurar tabla de Auditoría
 CREATE TABLE IF NOT EXISTS public.automation_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id),
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.automation_logs (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Función de validación y registro mejorada para sms_logs
+-- 2. Función de procesamiento SMS (Estandarizada a slot_id)
 CREATE OR REPLACE FUNCTION public.process_sms_forwarding()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -27,28 +28,23 @@ BEGIN
     FROM public.users 
     WHERE id = NEW.user_id;
 
-    -- B. Obtener estado del Slot (Puerto físico)
+    -- B. Obtener estado del Slot (Cambiado port_id -> slot_id)
     SELECT forwarding_active INTO v_forwarding_active
     FROM public.slots 
-    WHERE port_id = NEW.slot_id;
+    WHERE slot_id = NEW.slot_id;
 
-    -- C. VALIDACIONES DE REGLA DE NEGOCIO
-    IF NOT COALESCE(u_rec.telegram_enabled, FALSE) THEN
-        RETURN NEW; 
-    END IF;
-
-    IF NOT COALESCE(v_forwarding_active, FALSE) THEN
-        RETURN NEW;
-    END IF;
+    -- C. VALIDACIONES
+    IF NOT COALESCE(u_rec.telegram_enabled, FALSE) THEN RETURN NEW; END IF;
+    IF NOT COALESCE(v_forwarding_active, FALSE) THEN RETURN NEW; END IF;
 
     -- D. VALIDACIÓN DE CREDENCIALES
     IF u_rec.telegram_token IS NULL OR u_rec.telegram_chat_id IS NULL OR u_rec.telegram_token = '' THEN
         INSERT INTO public.automation_logs (user_id, slot_id, status, error_message)
-        VALUES (NEW.user_id, NEW.slot_id, 'error', 'Token o Chat ID no configurados');
+        VALUES (NEW.user_id, NEW.slot_id, 'error', 'Credenciales Telegram no configuradas');
         RETURN NEW;
     END IF;
 
-    -- E. REGISTRO DE COLA (AUDITORÍA)
+    -- E. REGISTRO DE COLA
     INSERT INTO public.automation_logs (user_id, slot_id, status, payload)
     VALUES (
         NEW.user_id, 
@@ -67,17 +63,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Re-Instalación del Trigger para escuchar de nuevo la tabla SMS_LOGS
+-- 3. Re-Instalación del Trigger
 DROP TRIGGER IF EXISTS tr_forward_sms ON public.sms_logs;
 CREATE TRIGGER tr_forward_sms
 AFTER INSERT ON public.sms_logs
 FOR EACH ROW
 EXECUTE FUNCTION public.process_sms_forwarding();
-
-/* 
--- TEST MANUAL EN LA TABLA SMS_LOGS:
-INSERT INTO public.sms_logs (user_id, slot_id, sender, content, verification_code)
-VALUES ('TU-USER-ID', 'TU-PORT-ID', 'TELSIM_REVERT', 'Mensaje de validación para sms_logs con slot_id.', '999111');
-
-SELECT * FROM public.automation_logs ORDER BY created_at DESC LIMIT 5;
-*/
