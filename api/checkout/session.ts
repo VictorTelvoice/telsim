@@ -26,24 +26,24 @@ export default async function handler(req: any, res: any) {
 
     let finalSlotId = slot_id;
 
-    // REGLA CRÍTICA DE CONCURRENCIA: 
-    // Si es una compra nueva, buscamos un slot libre Y lo reservamos inmediatamente
+    // REGLA CRÍTICA DE CONCURRENCIA Y ORDEN: 
+    // Si es una compra nueva, buscamos el primer slot libre disponible por orden de ID
     if (!isUpgrade && (!finalSlotId || finalSlotId === 'new')) {
-      // 1. Buscar el primer slot disponible
       const { data: freeSlot, error: slotError } = await supabaseAdmin
         .from('slots')
         .select('slot_id')
         .eq('status', 'libre')
+        .order('slot_id', { ascending: true }) // Garantiza asignar 1A antes que 2A
         .limit(1)
         .maybeSingle();
 
       if (slotError || !freeSlot) {
-        return res.status(503).json({ error: 'No hay puertos físicos disponibles. Intenta en unos minutos.' });
+        return res.status(503).json({ error: 'No hay puertos físicos disponibles en este momento. Intenta más tarde.' });
       }
 
       finalSlotId = freeSlot.slot_id;
 
-      // 2. RESERVA ATÓMICA: Marcar como reservado para que nadie más lo use mientras se paga
+      // RESERVA INMEDIATA: Bloquear el slot para que ninguna otra sesión lo tome
       await supabaseAdmin
         .from('slots')
         .update({ 

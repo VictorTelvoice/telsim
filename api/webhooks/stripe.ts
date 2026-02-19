@@ -61,7 +61,6 @@ export default async function handler(req: any, res: any) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // EVENTO: Pago Exitoso - Confirmación de Infraestructura
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
@@ -72,25 +71,22 @@ export default async function handler(req: any, res: any) {
 
     if (userId && slotId) {
       try {
-        console.log(`[TELSIM LEDGER] Iniciando provisión final para Slot: ${slotId}`);
-
-        // 1. RECUPERAR EL NÚMERO REAL DEL SLOT RESERVADO
+        // 1. OBTENER EL NÚMERO DEL HARDWARE RESERVADO
         const { data: slotData, error: slotFetchError } = await supabaseAdmin
           .from('slots')
           .select('phone_number')
           .eq('slot_id', slotId)
           .single();
 
-        if (slotFetchError || !slotData) throw new Error("No se pudo encontrar el puerto físico reservado.");
+        if (slotFetchError || !slotData) throw new Error(`Puerto ${slotId} no hallado.`);
 
-        // 2. INSERT DE NUEVA SUSCRIPCIÓN CON EL NÚMERO YA VINCULADO
-        // Esto es vital para que el frontend (Processing.tsx) deje de cargar
+        // 2. CREAR SUSCRIPCIÓN ACTIVA CON EL NÚMERO VINCULADO
         const { error: subError } = await supabaseAdmin
           .from('subscriptions')
           .insert({
             user_id: userId,
             slot_id: slotId,
-            phone_number: slotData.phone_number, // Vinculación inmediata
+            phone_number: slotData.phone_number,
             plan_name: planName,
             monthly_limit: monthlyLimit,
             status: 'active',
@@ -101,7 +97,7 @@ export default async function handler(req: any, res: any) {
 
         if (subError) throw subError;
 
-        // 3. ACTUALIZACIÓN DE ESTADO: De 'reservado' a 'ocupado'
+        // 3. PASAR ESTADO A 'OCUPADO'
         await supabaseAdmin.from('slots')
           .update({ 
               status: 'ocupado',
@@ -110,34 +106,28 @@ export default async function handler(req: any, res: any) {
           })
           .eq('slot_id', slotId);
 
-        // 4. Sincronizar cliente de Stripe en el perfil de usuario
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
           }).eq('id', userId);
         }
 
-        console.log(`[TELSIM WEBHOOK] ✅ Activación exitosa: ${slotData.phone_number} asignado a ${userId}`);
+        console.log(`[TELSIM WEBHOOK] ✅ Activación confirmada: ${slotData.phone_number} para user ${userId}`);
 
       } catch (err: any) {
-        console.error(`❌ TELSIM PROVISION ERROR: ${err.message}`);
+        console.error(`❌ PROVISION ERROR: ${err.message}`);
       }
     }
   }
 
-  // EVENTOS: Liberación de Puertos (Si el usuario no paga o la sesión expira)
   if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const slotId = session.metadata?.slot_id;
     
     if (slotId) {
-      console.log(`[TELSIM LEDGER] Liberando slot ${slotId} por pago fallido/expirado.`);
+      console.log(`[TELSIM] Pago fallido. Liberando slot ${slotId}`);
       await supabaseAdmin.from('slots')
-        .update({ 
-          status: 'libre', 
-          assigned_to: null, 
-          plan_type: null 
-        })
+        .update({ status: 'libre', assigned_to: null, plan_type: null })
         .eq('slot_id', slotId)
         .eq('status', 'reservado');
     }
