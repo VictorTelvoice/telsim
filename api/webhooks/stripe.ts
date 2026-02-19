@@ -1,5 +1,5 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - UNIFIED WEBHOOK HANDLER v9.0
+ * TELSIM CLOUD INFRASTRUCTURE - UNIFIED WEBHOOK HANDLER v10.0
  * 
  * Este es el "cerebro" único que gestiona la comunicación entre Stripe y TELSIM.
  * Maneja:
@@ -78,34 +78,26 @@ export default async function handler(req: any, res: any) {
   // --- SECCIÓN 1: SINCRONIZACIÓN DE PERFIL Y TARJETAS ---
   if (eventType === 'customer.updated' || eventType === 'payment_method.attached') {
     const object = event.data.object as any;
-    // Identificamos el ID de cliente de Stripe
     const customerId = object.customer || (eventType === 'customer.updated' ? object.id : null);
 
     if (customerId && typeof customerId === 'string') {
       try {
         console.log(`[TELSIM LEDGER] Sincronizando tarjeta para el cliente: ${customerId}`);
-        
-        // Consultamos los métodos de pago actuales en la infraestructura de Stripe
         const paymentMethods = await stripe.paymentMethods.list({
           customer: customerId,
           type: 'card',
         });
 
         if (paymentMethods.data.length > 0) {
-          // Tomamos la tarjeta predeterminada o la más reciente
           const mainCard = paymentMethods.data[0].card;
-
           if (mainCard) {
-            // Actualizamos la tabla 'users' de TELSIM (no 'profiles')
-            const { error: updateError } = await supabaseAdmin
+            await supabaseAdmin
               .from('users')
               .update({
-                card_brand: mainCard.brand,   // Ej: 'visa'
-                card_last4: mainCard.last4    // Ej: '4242'
+                card_brand: mainCard.brand,
+                card_last4: mainCard.last4
               })
               .eq('stripe_customer_id', customerId);
-
-            if (updateError) throw updateError;
             
             console.log(`✅ TELSIM SYNC SUCCESS: Usuario ${customerId} actualizado (${mainCard.brand} **** ${mainCard.last4})`);
           }
@@ -121,26 +113,73 @@ export default async function handler(req: any, res: any) {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const userId = metadata.userId;
-    const phoneNumberReq = metadata.phoneNumber;
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (userId) {
       try {
-        console.log(`[TELSIM PROVISION] Procesando nueva línea para usuario ${userId}`);
+        console.log(`[TELSIM PROVISION] Iniciando asignación para usuario ${userId}`);
         
-        // Lógica de asignación de puertos físicos y creación de suscripciones
-        // (Asumimos que la lógica interna de base de datos se mantiene para la operatividad del negocio)
+        // 1. Búsqueda de puerto físico libre (Estado en español: 'libre')
+        const { data: slot, error: slotError } = await supabaseAdmin
+          .from('slots')
+          .select('*')
+          .eq('status', 'libre') 
+          .is('assigned_to', null)
+          .limit(1)
+          .maybeSingle();
+
+        if (slotError || !slot) {
+          throw new Error("Infraestructura saturada: No se encontraron puertos con estado 'libre'.");
+        }
+
+        console.log(`[TELSIM PROVISION] Puerto asignado: ${slot.phone_number} (Slot ID: ${slot.port_id})`);
+
+        // 2. Actualización de estado del puerto (Estado en español: 'ocupado')
+        const { error: updateSlotError } = await supabaseAdmin
+          .from('slots')
+          .update({
+            status: 'ocupado',
+            assigned_to: userId,
+            plan_type: planName
+          })
+          .eq('port_id', slot.port_id);
+
+        if (updateSlotError) throw updateSlotError;
+
+        // 3. Sincronización de la tabla de suscripciones
+        const { error: subUpdateError } = await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            phone_number: slot.phone_number,
+            slot_id: slot.port_id,
+            status: 'active',
+            plan_name: planName,
+            monthly_limit: monthlyLimit
+          })
+          .eq('stripe_session_id', session.id);
+
+        if (subUpdateError) throw subUpdateError;
         
-        // Guardamos también el customer_id si es nuevo para futuras sincronizaciones
+        // 4. Actualización persistente del Customer ID de Stripe
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
           }).eq('id', userId);
         }
 
+        console.log(`[TELSIM PROVISION] Éxito: Puerto ${slot.phone_number} operativo para usuario ${userId}`);
+
       } catch (err: any) {
-        console.error(`❌ TELSIM PROVISION ERROR: ${err.message}`);
+        console.error(`❌ TELSIM PROVISION CRITICAL ERROR: ${err.message}`);
+        // Log de error en DB para auditoría manual
+        await supabaseAdmin.from('automation_logs').insert({
+          user_id: userId,
+          event_type: 'stripe_provision_error',
+          status: 'error',
+          error_message: err.message,
+          payload: { session_id: session.id, metadata: metadata }
+        });
       }
     }
   }

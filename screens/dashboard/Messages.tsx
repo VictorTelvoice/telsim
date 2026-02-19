@@ -57,7 +57,7 @@ const Messages: React.FC = () => {
       }
 
       const { data, error } = await supabase
-        .from('sms_logs')
+        .from('inbox_sms')
         .select('*')
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
@@ -78,7 +78,7 @@ const Messages: React.FC = () => {
     if (!user) return;
     try {
       const { error } = await supabase
-        .from('sms_logs')
+        .from('inbox_sms')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);

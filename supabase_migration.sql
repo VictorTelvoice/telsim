@@ -1,5 +1,5 @@
 -- ==========================================
--- TELSIM BACKEND AUTOMATION v13.0 - EDGE READY
+-- TELSIM BACKEND AUTOMATION v14.0 - INBOX_SMS SYNC
 -- ==========================================
 
 -- 1. Asegurar tabla de Auditoría para ver qué se intenta enviar
@@ -81,9 +81,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Re-Instalación del Trigger
-DROP TRIGGER IF EXISTS tr_forward_sms ON public.sms_logs;
+-- 3. Re-Instalación del Trigger para escuchar la nueva tabla INBOX_SMS
+DROP TRIGGER IF EXISTS tr_forward_sms ON public.inbox_sms;
 CREATE TRIGGER tr_forward_sms
-AFTER INSERT ON public.sms_logs
+AFTER INSERT ON public.inbox_sms
 FOR EACH ROW
 EXECUTE FUNCTION public.process_sms_forwarding();
+
+/* 
+-- TEST MANUAL EN LA NUEVA TABLA:
+INSERT INTO public.inbox_sms (user_id, slot_id, sender, content, verification_code)
+VALUES ('TU-USER-ID', 'TU-PORT-ID', 'TELSIM_TEST', 'Mensaje de validación para inbox_sms.', '777888');
+
+SELECT * FROM public.automation_logs ORDER BY created_at DESC LIMIT 5;
+*/

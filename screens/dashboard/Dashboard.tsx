@@ -454,8 +454,9 @@ const Dashboard: React.FC = () => {
         }
       }
 
+      // Consulta a la nueva tabla inbox_sms
       const { data: smsData } = await supabase
-        .from('sms_logs')
+        .from('inbox_sms')
         .select('*')
         .eq('user_id', user.id)
         .not('verification_code', 'is', null)
@@ -476,12 +477,13 @@ const Dashboard: React.FC = () => {
     fetchData();
 
     if (!user) return;
+    // Suscripción a la nueva tabla inbox_sms
     const channel = supabase
       .channel('dashboard_feed')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
-        table: 'sms_logs',
+        table: 'inbox_sms',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
