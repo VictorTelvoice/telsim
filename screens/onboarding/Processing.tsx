@@ -56,16 +56,17 @@ const Processing: React.FC = () => {
       return;
     }
 
+    if (!sessionId) return;
+
     try {
-      // REGLA CRÍTICA: Solo procedemos si el status es 'active' Y el trigger ya completó el 'phone_number'
+      // REGLA DE PRECISIÓN: Consultar estrictamente por el stripe_session_id de esta compra
+      // Esto evita mostrar números de suscripciones anteriores del mismo usuario.
       const { data } = await supabase
         .from('subscriptions')
         .select('status, phone_number')
-        .eq('user_id', user?.id)
+        .eq('stripe_session_id', sessionId)
         .eq('status', 'active')
-        .not('phone_number', 'is', null) // Asegurar que el trigger ya actuó
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .not('phone_number', 'is', null)
         .maybeSingle();
 
       if (data && data.phone_number) {
@@ -81,14 +82,14 @@ const Processing: React.FC = () => {
   useEffect(() => {
     if (!user || !sessionId) return;
 
-    // Escucha en tiempo real para cambios en la tabla de suscripciones
+    // Escucha en tiempo real para cambios específicos en esta sesión de pago
     const channel = supabase
-      .channel('provisioning_check_v2')
+      .channel(`provisioning_${sessionId}`)
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'subscriptions',
-        filter: `user_id=eq.${user.id}`
+        filter: `stripe_session_id=eq.${sessionId}` // Filtro estricto por ID de sesión
       }, (payload) => {
         const item = payload.new as any;
         if (item && item.status === 'active' && item.phone_number) {
@@ -159,7 +160,7 @@ const Processing: React.FC = () => {
           </div>
 
           <button 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(`/dashboard?new_line=${encodeURIComponent(activatedNumber)}`)}
             className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98] animate-in slide-in-from-bottom-4 duration-1000 delay-500"
           >
             <div className="size-12"></div>
@@ -228,15 +229,9 @@ const Processing: React.FC = () => {
         </div>
       </div>
       
-      <div className="absolute bottom-12 flex flex-col items-center gap-2 opacity-20">
-        <div className="flex items-center gap-4">
-           <Cpu className="size-4" />
-           <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE RT-v5.0</span>
-        </div>
-        <div className="flex items-center gap-2">
-           <ShieldCheck className="size-3" />
-           <span className="text-[7px] font-bold uppercase">Proceso Cifrado AES-256</span>
-        </div>
+      <div className="absolute bottom-12 flex items-center gap-4 opacity-20">
+        <Cpu className="size-4" />
+        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE RT-v5.0</span>
       </div>
     </div>
   );

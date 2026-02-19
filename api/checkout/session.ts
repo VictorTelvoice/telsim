@@ -26,8 +26,10 @@ export default async function handler(req: any, res: any) {
 
     let finalSlotId = slot_id;
 
-    // REGLA CRÍTICA: No permitir 'new'. Si es una compra nueva, buscar un slot libre ahora mismo.
+    // REGLA CRÍTICA DE CONCURRENCIA: 
+    // Si es una compra nueva, buscamos un slot libre Y lo reservamos inmediatamente
     if (!isUpgrade && (!finalSlotId || finalSlotId === 'new')) {
+      // 1. Buscar el primer slot disponible
       const { data: freeSlot, error: slotError } = await supabaseAdmin
         .from('slots')
         .select('slot_id')
@@ -36,9 +38,20 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (slotError || !freeSlot) {
-        return res.status(503).json({ error: 'No hay puertos físicos disponibles en este momento. Intenta en unos minutos.' });
+        return res.status(503).json({ error: 'No hay puertos físicos disponibles. Intenta en unos minutos.' });
       }
+
       finalSlotId = freeSlot.slot_id;
+
+      // 2. RESERVA ATÓMICA: Marcar como reservado para que nadie más lo use mientras se paga
+      await supabaseAdmin
+        .from('slots')
+        .update({ 
+          status: 'reservado',
+          assigned_to: userId,
+          plan_type: planName
+        })
+        .eq('slot_id', finalSlotId);
     }
 
     const host = req.headers.host;
@@ -65,7 +78,7 @@ export default async function handler(req: any, res: any) {
         phoneNumber: phoneNumber || 'PENDING_ASSIGNMENT',
         planName: planName,
         limit: monthlyLimit || 400,
-        slot_id: finalSlotId, // Ahora garantizamos un ID real
+        slot_id: finalSlotId,
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION'
       },
       subscription_data: {

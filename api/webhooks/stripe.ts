@@ -61,9 +61,7 @@ export default async function handler(req: any, res: any) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  const eventType = event.type;
-
-  if (eventType === 'checkout.session.completed') {
+  if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const userId = metadata.userId;
@@ -73,20 +71,7 @@ export default async function handler(req: any, res: any) {
 
     if (userId) {
       try {
-        // FALLBACK DE SEGURIDAD: Asignación automática si el slot es 'new'
-        if (!slotId || slotId === 'new') {
-          const { data: freeSlot } = await supabaseAdmin
-            .from('slots')
-            .select('slot_id')
-            .eq('status', 'libre')
-            .limit(1)
-            .maybeSingle();
-
-          if (!freeSlot) throw new Error("No hay puertos físicos disponibles.");
-          slotId = freeSlot.slot_id;
-        }
-
-        console.log(`[TELSIM LEDGER] Iniciando INSERT de nueva suscripción para Slot: ${slotId}`);
+        console.log(`[TELSIM LEDGER] Finalizando provisión para Slot: ${slotId}`);
         
         // 1. Sincronizar cliente de Stripe
         if (session.customer) {
@@ -95,7 +80,7 @@ export default async function handler(req: any, res: any) {
           }).eq('id', userId);
         }
 
-        // 2. INSERT LIMPIO: Cada compra es una fila nueva para historial financiero
+        // 2. INSERT DE NUEVA SUSCRIPCIÓN (Historial Financiero)
         const { error: subError } = await supabaseAdmin
           .from('subscriptions')
           .insert({
@@ -104,23 +89,23 @@ export default async function handler(req: any, res: any) {
             plan_name: planName,
             monthly_limit: monthlyLimit,
             status: 'active',
-            stripe_session_id: session.id,
+            stripe_session_id: session.id, // VITAL para el tracking en frontend
             amount: session.amount_total ? session.amount_total / 100 : 0,
             currency: session.currency || 'usd'
           });
 
         if (subError) throw subError;
 
-        // 3. Actualizar estado del Slot físico
+        // 3. ACTUALIZACIÓN DE ESTADO FINAL DEL SLOT
         await supabaseAdmin.from('slots')
           .update({ 
-              status: 'ocupado',
+              status: 'ocupado', // De reservado/libre a ocupado
               assigned_to: userId,
               plan_type: planName
           })
           .eq('slot_id', slotId);
 
-        console.log(`[TELSIM WEBHOOK] ✅ Nueva suscripción registrada exitosamente.`);
+        console.log(`[TELSIM WEBHOOK] ✅ Transacción completada y slot ${slotId} activado.`);
 
       } catch (err: any) {
         console.error(`❌ TELSIM PROVISION ERROR: ${err.message}`);
@@ -128,5 +113,5 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  return res.status(200).json({ received: true, node: 'TELSIM-GATEWAY-PRO' });
+  return res.status(200).json({ received: true });
 }
