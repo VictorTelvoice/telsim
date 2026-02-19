@@ -1,10 +1,15 @@
 
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // Updated apiVersion to match required type '2026-01-28.clover'
   apiVersion: '2026-01-28.clover' as any,
 });
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -17,6 +22,23 @@ export default async function handler(req: any, res: any) {
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
+    }
+
+    let finalSlotId = slot_id;
+
+    // REGLA CRÍTICA: No permitir 'new'. Si es una compra nueva, buscar un slot libre ahora mismo.
+    if (!isUpgrade && (!finalSlotId || finalSlotId === 'new')) {
+      const { data: freeSlot, error: slotError } = await supabaseAdmin
+        .from('slots')
+        .select('slot_id')
+        .eq('status', 'libre')
+        .limit(1)
+        .maybeSingle();
+
+      if (slotError || !freeSlot) {
+        return res.status(503).json({ error: 'No hay puertos físicos disponibles en este momento. Intenta en unos minutos.' });
+      }
+      finalSlotId = freeSlot.slot_id;
     }
 
     const host = req.headers.host;
@@ -40,17 +62,17 @@ export default async function handler(req: any, res: any) {
       client_reference_id: userId,
       metadata: {
         userId: userId,
-        phoneNumber: phoneNumber || 'NEW_SIM_REQUEST',
+        phoneNumber: phoneNumber || 'PENDING_ASSIGNMENT',
         planName: planName,
         limit: monthlyLimit || 400,
-        slot_id: slot_id || 'new', // Aseguramos slot_id en metadatos para el Webhook
+        slot_id: finalSlotId, // Ahora garantizamos un ID real
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION'
       },
       subscription_data: {
         metadata: {
           userId: userId,
-          phoneNumber: phoneNumber || 'NEW_SIM_REQUEST',
-          slot_id: slot_id || 'new'
+          phoneNumber: phoneNumber || 'PENDING_ASSIGNMENT',
+          slot_id: finalSlotId
         }
       }
     });
@@ -58,6 +80,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ url: session.url });
 
   } catch (err: any) {
+    console.error("[CHECKOUT SESSION ERROR]", err.message);
     return res.status(500).json({ error: err.message });
   }
 }

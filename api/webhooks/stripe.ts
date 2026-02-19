@@ -1,3 +1,4 @@
+
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -66,22 +67,41 @@ export default async function handler(req: any, res: any) {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const userId = metadata.userId;
-    const slotId = metadata.slot_id; // SIEMPRE slot_id
+    let slotId = metadata.slot_id;
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (userId) {
       try {
-        console.log(`[TELSIM LEDGER] Provisionando Slot ID: ${slotId}`);
+        // NODO DE ASIGNACIÓN AUTOMÁTICA (FALLBACK DE SEGURIDAD)
+        if (!slotId || slotId === 'new') {
+          console.warn(`[TELSIM WEBHOOK] Recibido slot_id '${slotId}'. Iniciando búsqueda de puerto libre...`);
+          
+          const { data: freeSlot, error: freeSlotError } = await supabaseAdmin
+            .from('slots')
+            .select('slot_id, phone_number')
+            .eq('status', 'libre')
+            .limit(1)
+            .maybeSingle();
+
+          if (freeSlotError || !freeSlot) {
+            throw new Error("CRITICAL: No hay slots libres para asignar a esta compra completada.");
+          }
+          
+          slotId = freeSlot.slot_id;
+          console.log(`[TELSIM WEBHOOK] Puerto auto-asignado con éxito: ${slotId}`);
+        }
+
+        console.log(`[TELSIM LEDGER] Provisionando Slot ID: ${slotId} para Usuario: ${userId}`);
         
-        // 1. Vincular cliente
+        // 1. Vincular cliente de Stripe al usuario si no existe
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
           }).eq('id', userId);
         }
 
-        // 2. Upsert Suscripción (Garantizando slot_id)
+        // 2. Upsert Suscripción (Garantizando el slotId real encontrado o recibido)
         const { error: subError } = await supabaseAdmin
           .from('subscriptions')
           .upsert({
@@ -96,19 +116,22 @@ export default async function handler(req: any, res: any) {
 
         if (subError) throw subError;
 
-        // 3. Marcar Slot como ocupado
-        if (slotId && slotId !== 'new') {
-           await supabaseAdmin.from('slots')
-            .update({ 
-                status: 'ocupado',
-                assigned_to: userId,
-                plan_type: planName
-            })
-            .eq('slot_id', slotId);
-        }
+        // 3. Actualizar la tabla física de Slots
+        const { error: slotUpdateError } = await supabaseAdmin.from('slots')
+          .update({ 
+              status: 'ocupado',
+              assigned_to: userId,
+              plan_type: planName
+          })
+          .eq('slot_id', slotId);
+
+        if (slotUpdateError) throw slotUpdateError;
+
+        console.log(`[TELSIM WEBHOOK] ✅ Provisión completada exitosamente para ${slotId}`);
 
       } catch (err: any) {
         console.error(`❌ TELSIM PROVISION ERROR: ${err.message}`);
+        // Aquí se podría enviar una alerta a un canal de Slack/Discord interno
       }
     }
   }
