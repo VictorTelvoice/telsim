@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -368,7 +368,7 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (forcedLine?: string) => {
     if (!user) return;
     setLoading(true);
     try {
@@ -380,9 +380,14 @@ const Dashboard: React.FC = () => {
 
       if (slotsData) {
         setAllSlots(slotsData);
-        const newLineParam = searchParams.get('new_line');
-        if (newLineParam) {
-          const matchingSlot = slotsData.find(s => s.phone_number === newLineParam);
+        
+        // Prioridad: 1.forcedLine (del parámetro), 2.activeSlot actual, 3.primero de la lista
+        const targetLine = forcedLine || searchParams.get('new_line');
+        
+        if (targetLine) {
+          const matchingSlot = slotsData.find(s => 
+            s.phone_number.replace(/\D/g, '').includes(targetLine.replace(/\D/g, ''))
+          );
           if (matchingSlot) setActiveSlot(matchingSlot);
           else if (slotsData.length > 0) setActiveSlot(slotsData[0]);
         } else if (!activeSlot && slotsData.length > 0) {
@@ -390,7 +395,6 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      // REGLA DE PRIVACIDAD: Filtrar estrictamente por el user_id autenticado
       const { data: smsData } = await supabase
         .from('sms_logs')
         .select('*')
@@ -404,13 +408,12 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, searchParams, activeSlot]);
 
   useEffect(() => {
     fetchData();
     if (!user) return;
     
-    // Suscripción Realtime con FILTRO DE SEGURIDAD por user_id
     const channel = supabase
       .channel('dashboard_feed_sync')
       .on('postgres_changes', { 

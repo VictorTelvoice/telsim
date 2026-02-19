@@ -52,7 +52,8 @@ const Processing: React.FC = () => {
   };
 
   const checkStatus = async () => {
-    if (Date.now() - startTime.current > 60000) {
+    // Aumentamos el tiempo de espera a 90 segundos por si el hardware tarda en responder
+    if (Date.now() - startTime.current > 90000) {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setError("TIMEOUT");
       return;
@@ -61,8 +62,8 @@ const Processing: React.FC = () => {
     if (!sessionId) return;
 
     try {
-      // REGLA CRÍTICA: No cerrar hasta que phone_number esté poblado
-      const { data } = await supabase
+      // Consultar la suscripción buscando el ID de sesión de Stripe
+      const { data, error: fetchError } = await supabase
         .from('subscriptions')
         .select('status, phone_number')
         .eq('stripe_session_id', sessionId)
@@ -71,6 +72,7 @@ const Processing: React.FC = () => {
         .maybeSingle();
 
       if (data && data.phone_number) {
+        console.log("[SYNC] Número detectado:", data.phone_number);
         setActivatedNumber(data.phone_number);
         setIsSuccess(true);
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -83,16 +85,29 @@ const Processing: React.FC = () => {
   useEffect(() => {
     if (!user || !sessionId) return;
 
+    // Escucha Realtime agresiva para esta sesión
     const channel = supabase
-      .channel(`provisioning_${sessionId}`)
+      .channel(`provisioning_exclusive_${sessionId}`)
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
         schema: 'public', 
         table: 'subscriptions',
         filter: `stripe_session_id=eq.${sessionId}`
       }, (payload) => {
         const item = payload.new as any;
-        if (item && item.status === 'active' && item.phone_number) {
+        if (item && item.phone_number) {
+          setActivatedNumber(item.phone_number);
+          setIsSuccess(true);
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'subscriptions',
+        filter: `stripe_session_id=eq.${sessionId}`
+      }, (payload) => {
+        const item = payload.new as any;
+        if (item && item.phone_number) {
           setActivatedNumber(item.phone_number);
           setIsSuccess(true);
         }
@@ -100,12 +115,14 @@ const Processing: React.FC = () => {
       .subscribe();
 
     realtimeChannelRef.current = channel;
-    pollIntervalRef.current = setInterval(checkStatus, 2500);
+    
+    // Polling más frecuente al inicio
+    pollIntervalRef.current = setInterval(checkStatus, 2000);
     checkStatus();
 
     const msgInterval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % statusMessages.length);
-    }, 2500);
+    }, 3000);
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -199,12 +216,6 @@ const Processing: React.FC = () => {
           >
               <Headphones className="size-4" />
               Hablar con Soporte
-          </button>
-          <button 
-              onClick={() => navigate('/dashboard')}
-              className="w-full h-10 text-slate-400 font-bold uppercase text-[9px] tracking-[0.2em] mt-2"
-          >
-              Ir al Dashboard de todas formas
           </button>
         </div>
       </div>
