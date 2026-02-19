@@ -162,7 +162,10 @@ const MyNumbers: React.FC = () => {
         toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'} backdrop-blur-md text-white px-8 py-4 rounded-2xl flex items-center gap-3 shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
         toast.innerHTML = `<span class="text-[11px] font-black uppercase tracking-widest">${message}</span>`;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3500);
+        setTimeout(() => {
+            toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
     };
 
     const handleCopy = (num: string) => {
@@ -221,18 +224,18 @@ const MyNumbers: React.FC = () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         try {
-            // 1. CANCELAR SUSCRIPCIÓN (Lógica de Backend solicitada)
-            // Se usa slot_id en lugar del erróneo sim_id
+            // 1. ACTUALIZAR TABLA SUBSCRIPTIONS (Estandarizado a slot_id)
             const { error: subError } = await supabase
                 .from('subscriptions')
                 .update({ status: 'canceled' })
-                .eq('slot_id', slotToRelease.slot_id)
+                .eq('slot_id', slotToRelease.slot_id) // Corregido de sim_id a slot_id
                 .eq('user_id', user.id);
 
-            // Nota: Si no hay suscripción activa (ej. trial manual), ignoramos el error silenciosamente
-            // pero si existe, debe marcarse como cancelada.
+            if (subError) {
+                console.warn("No se encontró suscripción vinculada o error al cancelar, continuando con liberación de hardware...");
+            }
 
-            // 2. LIBERAR SLOT FÍSICO
+            // 2. LIBERAR PUERTO FÍSICO EN TABLA SLOTS
             const { error: slotError } = await supabase
                 .from('slots')
                 .update({ 
@@ -246,9 +249,10 @@ const MyNumbers: React.FC = () => {
             
             if (slotError) throw slotError;
             
-            showToast("Número liberado con éxito.");
+            showToast("Puerto liberado con éxito.");
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
+            setConfirmReleaseCheck(false);
             fetchSlots();
         } catch (err) {
             console.error("Release error:", err);
