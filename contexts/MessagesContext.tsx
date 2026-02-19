@@ -21,7 +21,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     try {
       const { count, error } = await supabase
-        .from('inbox_sms')
+        .from('sms_logs')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
@@ -37,13 +37,13 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     refreshUnreadCount();
     
-    // Suscribirse a cambios en tiempo real en la nueva tabla inbox_sms
+    // Suscribirse a cambios en tiempo real en sms_logs
     const channel = supabase
       .channel('sms_unread_changes')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'inbox_sms',
+        table: 'sms_logs',
         filter: `user_id=eq.${user?.id}`
       }, () => {
         refreshUnreadCount();

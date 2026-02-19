@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,7 +15,7 @@ const Processing: React.FC = () => {
   const [statusIndex, setStatusIndex] = useState(0);
   
   const pollingCount = useRef(0);
-  const maxPolling = 40; // Incrementado a 40 intentos (~100 segundos)
+  const maxPolling = 45; // ~110 segundos
   const pollIntervalRef = useRef<any>(null);
 
   const sessionId = searchParams.get('session_id');
@@ -23,8 +24,8 @@ const Processing: React.FC = () => {
   const statusMessages = [
     "Recibiendo confirmación de Stripe...",
     "Sincronizando con Webhook TELSIM...",
-    "Validando montos en el Ledger...",
-    "Provisionando puerto GSM físico...",
+    "Provisionando puerto físico...",
+    "Validando ID de red local...",
     "Finalizando enlace seguro..."
   ];
 
@@ -33,20 +34,21 @@ const Processing: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % statusMessages.length);
-    }, 2500);
+    }, 2800);
     return () => clearInterval(interval);
   }, []);
 
   const checkSubscription = async () => {
     pollingCount.current += 1;
     
+    // Verificamos si la suscripción ya fue insertada por el webhook
     const { data, error: fetchError } = await supabase
       .from('subscriptions')
-      .select('phone_number')
+      .select('phone_number, status')
       .eq('stripe_session_id', sessionId)
       .maybeSingle();
 
-    if (data?.phone_number) {
+    if (data?.phone_number && data?.status === 'active') {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phone_number)}`, { replace: true });
       return true;
@@ -61,13 +63,14 @@ const Processing: React.FC = () => {
 
   useEffect(() => {
     pollIntervalRef.current = setInterval(checkSubscription, 2500);
-    checkSubscription();
+    checkSubscription(); // Llamada inmediata
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [sessionId]);
 
   const handleManualVerify = async () => {
     setIsVerifyingManual(true);
     try {
+      // Intento de forzar verificación vía API Node/Edge si existe el endpoint
       const response = await fetch('/api/checkout/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,18 +80,17 @@ const Processing: React.FC = () => {
 
       if (data.status === 'completed') {
         navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(data.phoneNumber)}`, { replace: true });
-      } else if (data.status === 'pending_db') {
-        alert("Pago confirmado por Stripe. El servidor está terminando de procesar la línea. Por favor, espera 10 segundos más.");
-        // Reiniciar polling corto
-        pollingCount.current = maxPolling - 5; 
-        setError(null);
-        pollIntervalRef.current = setInterval(checkSubscription, 2500);
       } else {
-        alert(data.message || "Aún no detectamos el pago.");
+        // Fallback: Si no hay endpoint, simplemente intentamos una consulta extra a la DB
+        const { data: retryData } = await supabase.from('subscriptions').select('phone_number').eq('stripe_session_id', sessionId).maybeSingle();
+        if (retryData?.phone_number) {
+            navigate(`/onboarding/success?session_id=${sessionId}&planName=${encodeURIComponent(planName)}&assignedNumber=${encodeURIComponent(retryData.phone_number)}`, { replace: true });
+        } else {
+            alert("Aún estamos esperando la confirmación física. Por favor espera 10 segundos más.");
+        }
       }
     } catch (err) {
-      console.error(err);
-      alert("Error al conectar con el nodo de verificación.");
+      setError("RETRY_DB");
     } finally {
       setIsVerifyingManual(false);
     }
@@ -105,26 +107,20 @@ const Processing: React.FC = () => {
                <AlertCircle className="size-10 text-amber-500" />
             </div>
             <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronización Lenta</h3>
-                <p className="text-xs font-medium text-slate-500 max-w-[30ch] mx-auto">Tu pago fue procesado en Stripe, pero nuestra infraestructura física aún no confirma la activación.</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3>
+                <p className="text-xs font-medium text-slate-500 max-w-[30ch] mx-auto leading-relaxed">Tu pago fue recibido, pero la infraestructura física está tardando más de lo habitual en responder.</p>
             </div>
 
             <div className="w-full space-y-3">
                 <button 
                     onClick={handleManualVerify}
                     disabled={isVerifyingManual}
-                    className="w-full h-14 bg-white dark:bg-slate-800 border-2 border-primary text-primary font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest shadow-xl shadow-primary/5 active:scale-95 transition-all"
+                    className="w-full h-14 bg-white dark:bg-slate-800 border-2 border-primary text-primary font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest shadow-xl active:scale-95 transition-all"
                 >
-                    {isVerifyingManual ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                    Ya pagué, verificar ahora
+                    {isVerifyingManual ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    Sincronizar Manualmente
                 </button>
-                
-                <button 
-                    onClick={() => navigate('/dashboard')} 
-                    className="w-full h-12 text-slate-400 font-black uppercase text-[10px] tracking-widest"
-                >
-                    Ir al Dashboard principal
-                </button>
+                <button onClick={() => navigate('/dashboard')} className="w-full h-12 text-slate-400 font-black uppercase text-[10px] tracking-widest">Ir al Dashboard</button>
             </div>
           </div>
         ) : (
@@ -143,9 +139,7 @@ const Processing: React.FC = () => {
             </div>
             
             <div className="space-y-4">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">
-                Provisionando
-              </h1>
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">Provisionando Puerto</h1>
               <div key={statusIndex} className="animate-in slide-in-from-bottom-2 duration-500 flex flex-col items-center justify-center gap-3">
                    <div className="flex items-center gap-2">
                        <Loader2 className="size-3 text-primary animate-spin" />
@@ -154,7 +148,7 @@ const Processing: React.FC = () => {
                        </span>
                    </div>
                    <span className="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
-                       Intento {pollingCount.current} de {maxPolling}
+                       Haciendo handshake con Nodo CL...
                    </span>
               </div>
             </div>
@@ -164,7 +158,7 @@ const Processing: React.FC = () => {
       
       <div className="absolute bottom-12 flex items-center gap-4 opacity-20">
         <Cpu className="size-4" />
-        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE NODE v3.5</span>
+        <span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CLOUD v4.1</span>
       </div>
     </div>
   );

@@ -176,7 +176,7 @@ const MyNumbers: React.FC = () => {
     };
 
     const handleStartEditLabel = (slot: SlotWithPlan) => {
-        setEditingLabelId(slot.slot_id);
+        setEditingLabelId(slot.port_id);
         setTempLabelValue(slot.label || '');
     };
 
@@ -185,17 +185,17 @@ const MyNumbers: React.FC = () => {
         setTempLabelValue('');
     };
 
-    const handleSaveLabel = async (slotId: string) => {
+    const handleSaveLabel = async (portId: string) => {
         setSavingLabel(true);
         try {
             const { error } = await supabase
                 .from('slots')
                 .update({ label: tempLabelValue })
-                .eq('slot_id', slotId);
+                .eq('port_id', portId);
             
             if (error) throw error;
             
-            setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: tempLabelValue } : s));
+            setSlots(prev => prev.map(s => s.port_id === portId ? { ...s, label: tempLabelValue } : s));
             setEditingLabelId(null);
         } catch (err) {
             console.error(err);
@@ -279,7 +279,7 @@ const MyNumbers: React.FC = () => {
                     is_forwarding_active: false,
                     forwarding_active: false
                 })
-                .eq('slot_id', slotToRelease.slot_id);
+                .eq('port_id', slotToRelease.port_id);
             if (error) throw error;
             showToast("Número liberado con éxito.");
             setIsReleaseModalOpen(false);
@@ -299,6 +299,16 @@ const MyNumbers: React.FC = () => {
 
     const handleSaveAutomation = async () => {
         if (!user || !activeConfigSlot) return;
+
+        console.log("TELSIM - Datos a enviar (Update Config):", { 
+          telegram_token: tgToken, 
+          telegram_chat_id: tgChatId, 
+          telegram_enabled: tgEnabled, 
+          api_enabled: apiEnabled, 
+          api_url: apiUrl,
+          slot_id: activeConfigSlot.port_id,
+          forwarding_active: slotFwdActive
+        });
 
         setSavingFwd(true);
         try {
@@ -320,13 +330,13 @@ const MyNumbers: React.FC = () => {
             const { error: slotError } = await supabase
                 .from('slots')
                 .update({ forwarding_active: slotFwdActive })
-                .eq('slot_id', activeConfigSlot.slot_id);
+                .eq('port_id', activeConfigSlot.port_id);
 
             if (slotError) throw slotError;
 
             showToast("Configuración guardada");
             setIsFwdModalOpen(false);
-            fetchSlots(); 
+            fetchSlots(); // Recargar para feedback visual en iconos
         } catch (err: any) { 
             console.error("Supabase Patch Error:", err);
             alert(`Fallo al actualizar Ledger:\n${err.message || '400 Bad Request'}`);
@@ -357,6 +367,11 @@ const MyNumbers: React.FC = () => {
         if (!tgToken || !tgChatId) {
             return alert("El Token y el Chat ID son obligatorios para el test.");
         }
+
+        console.log("TELSIM - Datos a enviar (Test Telegram):", { 
+          telegram_token: tgToken, 
+          telegram_chat_id: tgChatId 
+        });
 
         setTestingTg(true);
         try {
@@ -410,7 +425,7 @@ const MyNumbers: React.FC = () => {
                     <div className="space-y-14">
                         {slots?.map((slot) => {
                             const country = getCountryCode(slot);
-                            const isEditing = editingLabelId === slot.slot_id;
+                            const isEditing = editingLabelId === slot.port_id;
                             const style = getPlanStyle(slot.actual_plan_name);
                             const isPower = (slot.actual_plan_name || '').toUpperCase().includes('POWER');
                             const isPro = (slot.actual_plan_name || '').toUpperCase().includes('PRO');
@@ -421,7 +436,7 @@ const MyNumbers: React.FC = () => {
                             const isLowCredits = usagePercent > 80;
 
                             return (
-                                <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div key={slot.port_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <div className="relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500">
                                         <div 
                                             style={{ clipPath: 'polygon(0% 0%, 85% 0%, 100% 15%, 100% 100%, 0% 100%)' }}
@@ -438,7 +453,7 @@ const MyNumbers: React.FC = () => {
                                                         {isEditing ? (
                                                             <div className={`flex items-center gap-1.5 p-1 rounded-lg ${isPower || isPro ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
                                                                 <input type="text" value={tempLabelValue} onChange={(e) => setTempLabelValue(e.target.value)} className="bg-transparent border-none p-0 px-1 text-[10px] font-black w-24 outline-none uppercase" autoFocus />
-                                                                <button onClick={() => handleSaveLabel(slot.slot_id)} className="text-emerald-400 p-0.5"><Check className="size-3" /></button>
+                                                                <button onClick={() => handleSaveLabel(slot.port_id)} className="text-emerald-400 p-0.5"><Check className="size-3" /></button>
                                                                 <button onClick={handleCancelEditLabel} className="text-white/50 p-0.5"><X className="size-3" /></button>
                                                             </div>
                                                         ) : (
@@ -517,6 +532,7 @@ const MyNumbers: React.FC = () => {
                         </div>
                         
                         <div className="p-8 pt-6 space-y-8 overflow-y-auto no-scrollbar">
+                            {/* SWITCH INDIVIDUAL DE NOTIFICACIONES */}
                             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl border border-primary/10">
                                 <div className="flex items-center justify-between">
                                     <div className="flex flex-col gap-1">
@@ -529,6 +545,7 @@ const MyNumbers: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* SECCIÓN API */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -551,6 +568,7 @@ const MyNumbers: React.FC = () => {
 
                             <div className="h-px bg-slate-100 dark:bg-slate-800"></div>
 
+                            {/* SECCIÓN TELEGRAM */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -585,6 +603,7 @@ const MyNumbers: React.FC = () => {
                 </div>
             )}
 
+            {/* OTROS MODALES... */}
             {isPlanModalOpen && slotForPlan && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 flex flex-col max-h-[90vh]">
@@ -609,7 +628,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <button onClick={() => { setIsPlanModalOpen(false); navigate('/dashboard/upgrade-summary', { state: { phoneNumber: slotForPlan.phone_number, slot_id: slotForPlan.slot_id, planName: plan.name, price: plan.price, limit: plan.limit, stripePriceId: plan.stripePriceId, oldPlanName: slotForPlan.actual_plan_name } }); }} disabled={isCurrent} className={`w-full h-11 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 ${isCurrent ? 'bg-slate-100 text-slate-400' : 'bg-primary text-white shadow-lg active:scale-95'}`}>
+                                            <button onClick={() => { setIsPlanModalOpen(false); navigate('/dashboard/upgrade-summary', { state: { phoneNumber: slotForPlan.phone_number, port_id: slotForPlan.port_id, planName: plan.name, price: plan.price, limit: plan.limit, stripePriceId: plan.stripePriceId, oldPlanName: slotForPlan.actual_plan_name } }); }} disabled={isCurrent} className={`w-full h-11 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 ${isCurrent ? 'bg-slate-100 text-slate-400' : 'bg-primary text-white shadow-lg active:scale-95'}`}>
                                                 {isCurrent ? 'Tu Plan Actual' : `Actualizar a ${plan.name}`}
                                             </button>
                                         </div>

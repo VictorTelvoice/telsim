@@ -50,15 +50,14 @@ const Messages: React.FC = () => {
       if (slotsData) {
         setUserSlots(slotsData);
         const mapping = slotsData.reduce((acc, s) => {
-          // CORRECCIÓN: port_id -> slot_id
-          acc[s.slot_id] = s.phone_number;
+          acc[s.port_id] = s.phone_number;
           return acc;
         }, {} as Record<string, string>);
         setSlotMap(mapping);
       }
 
       const { data, error } = await supabase
-        .from('inbox_sms')
+        .from('sms_logs')
         .select('*')
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
@@ -79,7 +78,7 @@ const Messages: React.FC = () => {
     if (!user) return;
     try {
       const { error } = await supabase
-        .from('inbox_sms')
+        .from('sms_logs')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
@@ -161,7 +160,6 @@ const Messages: React.FC = () => {
       const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
       if (!tabMatch) return false;
       if (filterNum) {
-        // CORRECCIÓN: port_id -> slot_id
         const msgNum = slotMap[msg.slot_id];
         const cleanFilter = filterNum.replace(/\D/g, '');
         const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
@@ -209,7 +207,7 @@ const Messages: React.FC = () => {
           </button>
           {userSlots.map((slot) => (
             <button 
-              key={slot.slot_id}
+              key={slot.port_id}
               onClick={() => toggleFilter(slot.phone_number)}
               className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
             >
