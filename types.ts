@@ -1,4 +1,3 @@
-
 export interface Plan {
   id: string;
   name: string;
@@ -44,7 +43,7 @@ export interface SMSLog {
 }
 
 export interface Slot {
-  port_id: string;
+  slot_id: string;
   phone_number: string;
   plan_type: string;
   assigned_to: string;
@@ -53,6 +52,7 @@ export interface Slot {
   region?: string;
   label?: string;
   is_forwarding_active?: boolean;
+  forwarding_active?: boolean;
   forwarding_channel?: 'telegram' | 'discord' | 'webhook';
   forwarding_config?: string;
 }
