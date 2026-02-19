@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -38,7 +38,7 @@ const Messages: React.FC = () => {
 
   const filterNum = searchParams.get('num');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -57,8 +57,8 @@ const Messages: React.FC = () => {
         setSlotMap(mapping);
       }
 
-      // 2. REGLA DE PRIVACIDAD: Filtrar logs estrictamente por user_id del usuario actual
-      // Esto garantiza que no se vean mensajes de dueños anteriores del mismo número
+      // 2. PRIVACIDAD CRÍTICA: Filtro obligatorio por user_id
+      // Evita que un nuevo dueño vea SMS de un dueño anterior del mismo hardware/número
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -75,7 +75,7 @@ const Messages: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const markAllAsRead = async () => {
     if (!user) return;
@@ -93,18 +93,20 @@ const Messages: React.FC = () => {
   };
 
   useEffect(() => {
+    // Reset local state on user change for clean load
+    setMessages([]);
     fetchData();
 
     if (!user) return;
 
-    // 3. Suscripción Realtime Protegida: Solo escuchar mensajes del usuario actual
+    // 3. Suscripción Realtime con filtro por user_id
     const channel = supabase
       .channel(`private_messages_${user.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'sms_logs',
-        filter: `user_id=eq.${user.id}` // Filtro a nivel de socket
+        filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
         setMessages(prev => [newMsg, ...prev]);
@@ -115,19 +117,17 @@ const Messages: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchData]);
 
-  // 4. Limpieza automática si se deselecciona o cancela una línea
   useEffect(() => {
     if (filterNum) {
       const isStillOwned = userSlots.some(s => s.phone_number === filterNum);
       if (!isStillOwned && userSlots.length > 0) {
-          // Si el número filtrado ya no pertenece al usuario, resetear vista
           searchParams.delete('num');
           setSearchParams(searchParams);
       }
     }
-  }, [userSlots, filterNum]);
+  }, [userSlots, filterNum, searchParams, setSearchParams]);
 
   const handleCopy = (e: React.MouseEvent, code: string, id: string) => {
     e.stopPropagation();

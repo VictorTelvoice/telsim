@@ -61,6 +61,7 @@ export default async function handler(req: any, res: any) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // EVENTO: Pago Exitoso
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
@@ -71,16 +72,10 @@ export default async function handler(req: any, res: any) {
 
     if (userId) {
       try {
-        console.log(`[TELSIM LEDGER] Finalizando provisión para Slot: ${slotId}`);
-        
-        // 1. Sincronizar cliente de Stripe
         if (session.customer) {
-          await supabaseAdmin.from('users').update({ 
-            stripe_customer_id: session.customer 
-          }).eq('id', userId);
+          await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
         }
 
-        // 2. INSERT DE NUEVA SUSCRIPCIÓN (Historial Financiero)
         const { error: subError } = await supabaseAdmin
           .from('subscriptions')
           .insert({
@@ -89,27 +84,42 @@ export default async function handler(req: any, res: any) {
             plan_name: planName,
             monthly_limit: monthlyLimit,
             status: 'active',
-            stripe_session_id: session.id, // VITAL para el tracking en frontend
+            stripe_session_id: session.id,
             amount: session.amount_total ? session.amount_total / 100 : 0,
             currency: session.currency || 'usd'
           });
 
         if (subError) throw subError;
 
-        // 3. ACTUALIZACIÓN DE ESTADO FINAL DEL SLOT
         await supabaseAdmin.from('slots')
           .update({ 
-              status: 'ocupado', // De reservado/libre a ocupado
+              status: 'ocupado',
               assigned_to: userId,
               plan_type: planName
           })
           .eq('slot_id', slotId);
 
-        console.log(`[TELSIM WEBHOOK] ✅ Transacción completada y slot ${slotId} activado.`);
-
       } catch (err: any) {
         console.error(`❌ TELSIM PROVISION ERROR: ${err.message}`);
       }
+    }
+  }
+
+  // EVENTOS: Liberación de Puertos (Fallo o Expiración)
+  if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const slotId = session.metadata?.slot_id;
+    
+    if (slotId) {
+      console.log(`[TELSIM LEDGER] Liberando slot ${slotId} por pago no completado.`);
+      await supabaseAdmin.from('slots')
+        .update({ 
+          status: 'libre', 
+          assigned_to: null, 
+          plan_type: null 
+        })
+        .eq('slot_id', slotId)
+        .eq('status', 'reservado'); // Solo si todavía está en reserva
     }
   }
 

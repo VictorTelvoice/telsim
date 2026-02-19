@@ -12,7 +12,9 @@ import {
   ArrowRight,
   Zap,
   Smartphone,
-  ShieldCheck
+  ShieldCheck,
+  Headphones,
+  RefreshCw
 } from 'lucide-react';
 
 const Processing: React.FC = () => {
@@ -59,8 +61,7 @@ const Processing: React.FC = () => {
     if (!sessionId) return;
 
     try {
-      // REGLA DE PRECISIÓN: Consultar estrictamente por el stripe_session_id de esta compra
-      // Esto evita mostrar números de suscripciones anteriores del mismo usuario.
+      // REGLA CRÍTICA: No cerrar hasta que phone_number esté poblado
       const { data } = await supabase
         .from('subscriptions')
         .select('status, phone_number')
@@ -82,14 +83,13 @@ const Processing: React.FC = () => {
   useEffect(() => {
     if (!user || !sessionId) return;
 
-    // Escucha en tiempo real para cambios específicos en esta sesión de pago
     const channel = supabase
       .channel(`provisioning_${sessionId}`)
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'subscriptions',
-        filter: `stripe_session_id=eq.${sessionId}` // Filtro estricto por ID de sesión
+        filter: `stripe_session_id=eq.${sessionId}`
       }, (payload) => {
         const item = payload.new as any;
         if (item && item.status === 'active' && item.phone_number) {
@@ -131,17 +131,17 @@ const Processing: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">¡Activación Exitosa!</h1>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tu infraestructura de red local está On-Air.</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Provisión Completa</h1>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Tu infraestructura de red local está activa.</p>
           </div>
 
-          <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] p-10 border-2 border-emerald-500/10 shadow-card flex flex-col items-center gap-6 relative overflow-hidden group">
+          <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] p-10 border-2 border-emerald-500/10 shadow-card flex flex-col items-center gap-2 relative overflow-hidden group">
              <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
              
-             <div className="flex flex-col items-center gap-1.5 relative z-10">
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10 mb-2">
+             <div className="flex flex-col items-center gap-1 relative z-10">
+                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10 mb-3">
                     <Zap className="size-3 text-emerald-500" />
-                    <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Subscriber Identity Module</span>
+                    <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Identidad de red verificada</span>
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Tu nueva línea:</p>
                 <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums animate-reveal-number">
@@ -149,7 +149,7 @@ const Processing: React.FC = () => {
                 </h2>
              </div>
 
-             <div className="flex items-center gap-4 pt-4 border-t border-slate-50 dark:border-slate-800 w-full justify-center relative z-10">
+             <div className="flex items-center gap-4 pt-6 mt-4 border-t border-slate-50 dark:border-slate-800 w-full justify-center relative z-10">
                 <div className="flex items-center gap-1.5">
                    <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                    <span className="text-[10px] font-bold text-slate-400 uppercase">Red 4G LTE</span>
@@ -164,7 +164,7 @@ const Processing: React.FC = () => {
             className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98] animate-in slide-in-from-bottom-4 duration-1000 delay-500"
           >
             <div className="size-12"></div>
-            <span className="text-[14px] uppercase tracking-widest">Ir al Dashboard</span>
+            <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
             <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
               <ArrowRight className="size-6" />
             </div>
@@ -176,21 +176,37 @@ const Processing: React.FC = () => {
 
   if (error === "TIMEOUT") {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center">
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in duration-500">
         <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8">
            <AlertCircle className="size-10 text-amber-500" />
         </div>
         <div className="space-y-4 mb-10">
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3>
-            <p className="text-sm font-medium text-slate-500 max-w-[30ch] mx-auto leading-relaxed italic">Tu pago fue exitoso, pero el nodo físico está tardando en reportar el número asignado. Tu línea aparecerá en el panel en unos segundos.</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sincronización Lenta</h3>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed italic">Tu pago fue exitoso, pero el nodo físico está tardando en reportar el número asignado.</p>
         </div>
-        <button 
-            onClick={() => navigate('/dashboard')}
-            className="w-full max-w-sm h-16 bg-primary text-white font-black rounded-2xl shadow-button flex items-center justify-center gap-3 uppercase text-[12px] tracking-widest"
-        >
-            Ir al Dashboard
-            <ArrowRight className="size-5" />
-        </button>
+        
+        <div className="w-full max-w-sm space-y-3">
+          <button 
+              onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }}
+              className="w-full h-14 bg-primary text-white font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95 transition-all"
+          >
+              <RefreshCw className="size-4" />
+              Reintentar Sincronización
+          </button>
+          <button 
+              onClick={() => navigate('/dashboard/support')}
+              className="w-full h-14 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-200 font-black rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95 transition-all"
+          >
+              <Headphones className="size-4" />
+              Hablar con Soporte
+          </button>
+          <button 
+              onClick={() => navigate('/dashboard')}
+              className="w-full h-10 text-slate-400 font-bold uppercase text-[9px] tracking-[0.2em] mt-2"
+          >
+              Ir al Dashboard de todas formas
+          </button>
+        </div>
       </div>
     );
   }
