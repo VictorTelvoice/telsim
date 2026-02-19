@@ -1,7 +1,10 @@
 /**
- * TELSIM CLOUD INFRASTRUCTURE - UNIFIED WEBHOOK HANDLER v10.1
+ * TELSIM CLOUD INFRASTRUCTURE - UNIFIED WEBHOOK HANDLER v10.2
  * 
- * Corrección: Cambio de port_id -> slot_id para coincidir con el schema de DB.
+ * Cambios:
+ * - Uso garantizado de Service Role Key para bypass de RLS.
+ * - Refuerzo de logs de error en operaciones de DB.
+ * - Validación estricta de stripe_session_id.
  */
 
 import Stripe from 'stripe';
@@ -13,10 +16,11 @@ export const config = {
   },
 };
 
-const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
+// INICIALIZACIÓN CRÍTICA: Se usa SERVICE_ROLE_KEY para tener permisos de administrador (Bypass RLS)
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -62,7 +66,7 @@ export default async function handler(req: any, res: any) {
       event = JSON.parse(rawBodyString);
     }
   } catch (err: any) {
-    console.error(`[TELSIM WEBHOOK ERROR] Security Validation Failed: ${err.message}`);
+    console.error(`[TELSIM WEBHOOK ERROR] Validation Failed: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -92,7 +96,7 @@ export default async function handler(req: any, res: any) {
           }
         }
       } catch (err: any) {
-        console.error(`❌ TELSIM SYNC ERROR: ${err.message}`);
+        console.error(`❌ [TELSIM SYNC ERROR] User Update Failed: ${err.message}`);
       }
     }
   }
@@ -104,8 +108,11 @@ export default async function handler(req: any, res: any) {
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
+    console.log(`[TELSIM WEBHOOK] Procesando sesión exitosa: ${session.id} para usuario: ${userId}`);
+
     if (userId) {
       try {
+        // 1. Localizar puerto libre
         const { data: slot, error: slotError } = await supabaseAdmin
           .from('slots')
           .select('*')
@@ -114,11 +121,16 @@ export default async function handler(req: any, res: any) {
           .limit(1)
           .maybeSingle();
 
-        if (slotError || !slot) {
-          throw new Error("Infraestructura saturada: No hay puertos 'libre' disponibles.");
+        if (slotError) {
+          console.error('[TELSIM DB ERROR] Error consultando tabla slots:', slotError);
+          throw new Error("Fallo en consulta de infraestructura.");
         }
 
-        // CORRECCIÓN: port_id -> slot_id
+        if (!slot) {
+          throw new Error("No hay puertos 'libre' disponibles en el inventario.");
+        }
+
+        // 2. Ocupar puerto
         const { error: updateSlotError } = await supabaseAdmin
           .from('slots')
           .update({
@@ -128,9 +140,13 @@ export default async function handler(req: any, res: any) {
           })
           .eq('slot_id', slot.slot_id);
 
-        if (updateSlotError) throw updateSlotError;
+        if (updateSlotError) {
+          console.error('[TELSIM DB ERROR] Error actualizando tabla slots:', updateSlotError);
+          throw updateSlotError;
+        }
 
-        // CORRECCIÓN: port_id -> slot_id
+        // 3. Vincular suscripción mediante stripe_session_id
+        // CRÍTICO: Usamos Service Role para saltar RLS y grabamos phone_number
         const { error: subUpdateError } = await supabaseAdmin
           .from('subscriptions')
           .update({
@@ -142,8 +158,14 @@ export default async function handler(req: any, res: any) {
           })
           .eq('stripe_session_id', session.id);
 
-        if (subUpdateError) throw subUpdateError;
+        if (subUpdateError) {
+          console.error('❌ [TELSIM DB ERROR] Error fatal actualizando suscripción:', subUpdateError);
+          throw subUpdateError;
+        }
         
+        console.log(`✅ [TELSIM SUCCESS] Línea ${slot.phone_number} vinculada correctamente a la sesión ${session.id}`);
+
+        // 4. Asegurar Customer ID
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
@@ -151,7 +173,7 @@ export default async function handler(req: any, res: any) {
         }
 
       } catch (err: any) {
-        console.error(`❌ TELSIM PROVISION CRITICAL ERROR: ${err.message}`);
+        console.error(`❌ [TELSIM PROVISIONING FAILED]: ${err.message}`);
         await supabaseAdmin.from('automation_logs').insert({
           user_id: userId,
           event_type: 'stripe_provision_error',
@@ -163,5 +185,5 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  return res.status(200).json({ received: true, node: 'TELSIM-GATEWAY-UNIFIED' });
+  return res.status(200).json({ received: true, node: 'TELSIM-GATEWAY-PROVISIONING' });
 }
