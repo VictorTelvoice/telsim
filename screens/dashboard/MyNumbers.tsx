@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -30,7 +31,9 @@ import {
   ToggleLeft,
   ToggleRight,
   ShieldCheck,
-  HelpCircle
+  HelpCircle,
+  // Fix: Added missing Bot icon import from lucide-react to avoid "Cannot find name 'Bot'" error
+  Bot
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -39,70 +42,32 @@ interface SlotWithPlan extends Slot {
   credits_used?: number;
 }
 
-const OFFICIAL_PLANS = [
-  {
-    id: 'Starter',
-    name: 'Starter',
-    price: 19.90,
-    limit: 150,
-    stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E',
-    color: 'emerald',
-    icon: <Leaf className="size-5" />,
-    features: ['Acceso total vía App', 'Soporte vía Ticket', 'Notificaciones Push']
-  },
-  {
-    id: 'Pro',
-    name: 'Pro',
-    price: 39.90,
-    limit: 500,
-    stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM',
-    color: 'blue',
-    icon: <Zap className="size-5" />,
-    features: ['Acceso a API Telsim', 'Webhooks en tiempo real', 'Soporte vía Chat']
-  },
-  {
-    id: 'Power',
-    name: 'Power',
-    price: 99.00,
-    limit: 1400,
-    stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe',
-    color: 'amber',
-    icon: <Crown className="size-5" />,
-    features: ['Infraestructura Dedicada', 'Soporte VIP 24/7', 'Escalabilidad P2P']
-  }
-];
-
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
     
+    // Estados para edición de etiquetas
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
     const [savingLabel, setSavingLabel] = useState(false);
 
+    // Estados para el modal de liberación (Baja)
     const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
     const [slotToRelease, setSlotToRelease] = useState<SlotWithPlan | null>(null);
     const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
     const [releasing, setReleasing] = useState(false);
 
+    // Estados para el modal de automatización (ENGRANAJE)
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
-    const [savingFwd, setSavingFwd] = useState(false);
     const [activeConfigSlot, setActiveConfigSlot] = useState<SlotWithPlan | null>(null);
+    const [savingFwd, setSavingFwd] = useState(false);
     
-    const [apiEnabled, setApiEnabled] = useState(false);
-    const [apiUrl, setApiUrl] = useState('');
-    const [testingApi, setTestingApi] = useState(false);
-
     const [tgEnabled, setTgEnabled] = useState(false);
     const [tgToken, setTgToken] = useState('');
     const [tgChatId, setTgChatId] = useState('');
-    const [testingTg, setTestingTg] = useState(false);
     const [slotFwdActive, setSlotFwdActive] = useState(false);
-
-    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-    const [slotForPlan, setSlotForPlan] = useState<SlotWithPlan | null>(null);
 
     const fetchSlots = async () => {
         if (!user) return;
@@ -114,28 +79,27 @@ const MyNumbers: React.FC = () => {
                 .eq('assigned_to', user.id)
                 .order('created_at', { ascending: false });
 
+            const { data: subsData } = await supabase
+                .from('subscriptions')
+                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id')
+                .eq('user_id', user.id)
+                .eq('status', 'active');
+
+            // Cargar credenciales de Telegram del perfil de usuario
             const { data: userData } = await supabase
                 .from('users')
-                .select('api_enabled, api_url, telegram_enabled, telegram_token, telegram_chat_id')
+                .select('telegram_token, telegram_chat_id, telegram_enabled')
                 .eq('id', user.id)
                 .single();
 
             if (userData) {
-                setApiEnabled(userData.api_enabled || false);
-                setApiUrl(userData.api_url || '');
-                setTgEnabled(userData.telegram_enabled || false);
                 setTgToken(userData.telegram_token || '');
                 setTgChatId(userData.telegram_chat_id || '');
+                setTgEnabled(userData.telegram_enabled || false);
             }
 
-            const { data: subsData } = await supabase
-                .from('subscriptions')
-                .select('phone_number, plan_name, monthly_limit, credits_used')
-                .eq('user_id', user.id)
-                .eq('status', 'active');
-
             const enrichedSlots = (slotsData || []).map(slot => {
-                const subscription = subsData?.find(s => s.phone_number === slot.phone_number);
+                const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);
                 return {
                     ...slot,
                     actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter',
@@ -174,16 +138,6 @@ const MyNumbers: React.FC = () => {
         showToast("Número Copiado");
     };
 
-    const handleStartEditLabel = (slot: SlotWithPlan) => {
-        setEditingLabelId(slot.slot_id);
-        setTempLabelValue(slot.label || '');
-    };
-
-    const handleCancelEditLabel = () => {
-        setEditingLabelId(null);
-        setTempLabelValue('');
-    };
-
     const handleSaveLabel = async (slotId: string) => {
         setSavingLabel(true);
         try {
@@ -193,7 +147,6 @@ const MyNumbers: React.FC = () => {
                 .eq('slot_id', slotId);
             
             if (error) throw error;
-            
             setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: tempLabelValue } : s));
             setEditingLabelId(null);
         } catch (err) {
@@ -224,16 +177,21 @@ const MyNumbers: React.FC = () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         try {
-            // 1. ACTUALIZAR TABLA SUBSCRIPTIONS (Estandarizado a slot_id)
+            // ELIMINACIÓN TOTAL: slot_id es la clave única en el Ledger
+            console.log(`[LEDGER] Solicitando baja definitiva para Slot: ${slotToRelease.slot_id}`);
+
+            // 1. MARCAR SUSCRIPCIÓN COMO CANCELADA (USANDO slot_id)
             const { error: subError } = await supabase
                 .from('subscriptions')
                 .update({ status: 'canceled' })
-                .eq('slot_id', slotToRelease.slot_id) // Corregido sim_id -> slot_id
+                .eq('slot_id', slotToRelease.slot_id)
                 .eq('user_id', user.id);
 
-            if (subError) console.warn("Aviso: No se pudo actualizar suscripción o no existe vinculada por slot_id.");
+            if (subError) {
+                console.warn("[LEDGER WARNING] No se encontró suscripción vinculada, liberando puerto físico únicamente.");
+            }
 
-            // 2. LIBERAR PUERTO FÍSICO EN TABLA SLOTS
+            // 2. LIBERAR PUERTO EN TABLA SLOTS
             const { error: slotError } = await supabase
                 .from('slots')
                 .update({ 
@@ -247,20 +205,21 @@ const MyNumbers: React.FC = () => {
             
             if (slotError) throw slotError;
             
-            showToast("Número liberado y suscripción cancelada.");
+            showToast("Número liberado con éxito.");
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
             setConfirmReleaseCheck(false);
             fetchSlots();
-        } catch (err) {
-            console.error("Release error:", err);
-            showToast("Error al procesar la baja", "error");
+        } catch (err: any) {
+            console.error("[RELEASE ERROR]", err);
+            showToast(err.message || "Fallo en la comunicación con el Ledger", "error");
         } finally {
             setReleasing(false);
         }
     };
 
-    const openConfigModal = (slot: SlotWithPlan) => {
+    // FUNCIÓN PARA EL BOTÓN DE ENGRANAJE
+    const openAutomationConfig = (slot: SlotWithPlan) => {
         setActiveConfigSlot(slot);
         setSlotFwdActive(slot.forwarding_active || false);
         setIsFwdModalOpen(true);
@@ -270,34 +229,34 @@ const MyNumbers: React.FC = () => {
         if (!user || !activeConfigSlot) return;
         setSavingFwd(true);
         try {
-            const { error: userError } = await supabase
+            // Actualizar credenciales en el perfil
+            const { error: userErr } = await supabase
                 .from('users')
-                .update({ 
-                    telegram_token: tgToken, 
-                    telegram_chat_id: tgChatId, 
-                    telegram_enabled: tgEnabled, 
-                    api_enabled: apiEnabled, 
-                    api_url: apiUrl 
+                .update({
+                    telegram_enabled: tgEnabled,
+                    telegram_token: tgToken,
+                    telegram_chat_id: tgChatId
                 })
                 .eq('id', user.id);
-            
-            if (userError) throw userError;
 
-            const { error: slotError } = await supabase
+            if (userErr) throw userErr;
+
+            // Actualizar estado del slot
+            const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ forwarding_active: slotFwdActive })
                 .eq('slot_id', activeConfigSlot.slot_id);
 
-            if (slotError) throw slotError;
+            if (slotErr) throw slotErr;
 
-            showToast("Configuración guardada");
+            showToast("Automatización guardada");
             setIsFwdModalOpen(false);
             fetchSlots();
-        } catch (err: any) { 
-            console.error("Automation save error:", err);
-            showToast("Error al sincronizar", "error");
-        } finally { 
-            setSavingFwd(false); 
+        } catch (err) {
+            console.error(err);
+            showToast("Error al guardar config.", "error");
+        } finally {
+            setSavingFwd(false);
         }
     };
 
@@ -308,12 +267,9 @@ const MyNumbers: React.FC = () => {
                 cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C] text-white shadow-xl',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
                 accentText: 'text-amber-100',
-                indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
                 icon: <Crown className="size-3" />,
                 label: 'POWER',
-                numberColor: 'text-white',
-                progressBase: 'bg-white/10',
                 progressFill: 'bg-white'
             };
         }
@@ -322,12 +278,9 @@ const MyNumbers: React.FC = () => {
                 cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-xl',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
                 accentText: 'text-blue-50',
-                indicator: 'bg-white',
                 chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
                 icon: <Zap className="size-3" />,
                 label: 'PRO',
-                numberColor: 'text-white',
-                progressBase: 'bg-white/10',
                 progressFill: 'bg-white'
             };
         }
@@ -335,12 +288,9 @@ const MyNumbers: React.FC = () => {
             cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 shadow-soft',
             badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
             accentText: 'text-primary',
-            indicator: 'bg-emerald-500',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
             label: 'STARTER',
-            numberColor: 'text-slate-900 dark:text-white',
-            progressBase: 'bg-slate-100 dark:bg-slate-700',
             progressFill: 'bg-emerald-500'
         };
     };
@@ -380,10 +330,10 @@ const MyNumbers: React.FC = () => {
                                                         <div className="flex items-center gap-1.5 p-1 rounded-lg bg-black/10">
                                                             <input type="text" value={tempLabelValue} onChange={(e) => setTempLabelValue(e.target.value)} className="bg-transparent border-none p-0 px-1 text-[10px] font-black w-24 outline-none uppercase" autoFocus />
                                                             <button onClick={() => handleSaveLabel(slot.slot_id)} className="text-emerald-400 p-0.5"><Check className="size-3" /></button>
-                                                            <button onClick={handleCancelEditLabel} className="text-white/50 p-0.5"><X className="size-3" /></button>
+                                                            <button onClick={() => setEditingLabelId(null)} className="text-white/50 p-0.5"><X className="size-3" /></button>
                                                         </div>
                                                     ) : (
-                                                        <button onClick={() => handleStartEditLabel(slot)} className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
+                                                        <button onClick={() => { setEditingLabelId(slot.slot_id); setTempLabelValue(slot.label || ''); }} className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
                                                             <span className="text-[10px] font-black uppercase tracking-widest italic truncate max-w-[120px]">
                                                                 {(slot.label || 'Mi Línea').toUpperCase()}
                                                             </span>
@@ -410,23 +360,24 @@ const MyNumbers: React.FC = () => {
                                                 <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badgeBg}`}>
                                                     {style.icon} {style.label}
                                                 </div>
-                                                <div className="w-24">
-                                                    <div className={`h-[3px] w-full rounded-full overflow-hidden ${style.progressBase}`}>
-                                                        <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
-                                                    </div>
+                                                <div className="w-24 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                                    <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
                                                 </div>
                                             </div>
-                                            <span className="text-[7px] font-bold opacity-20 uppercase">Puerto: {slot.slot_id}</span>
+                                            <span className="text-[7px] font-bold opacity-20 uppercase">Nodo: {slot.slot_id}</span>
                                         </div>
                                     </div>
 
                                     <div className="mt-5 flex items-center justify-center gap-3">
                                         <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> Bandeja</button>
                                         <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
-                                        <button onClick={() => openConfigModal(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm">
+                                        
+                                        {/* BOTÓN ENGRANAJE: CONFIGURACIÓN DE AUTOMATIZACIÓN */}
+                                        <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:text-primary transition-colors">
                                             <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
                                         </button>
-                                        <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center"><Trash2 className="size-4" /></button>
+                                        
+                                        <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center transition-transform active:scale-90"><Trash2 className="size-4" /></button>
                                     </div>
                                 </div>
                             );
@@ -435,6 +386,7 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
+            {/* MODAL DE BAJA (REESTABLECIDO) */}
             {isReleaseModalOpen && slotToRelease && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
@@ -449,11 +401,84 @@ const MyNumbers: React.FC = () => {
                                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Entiendo que esta acción es permanente y no hay reembolsos.</span>
                             </label>
                             <div className="flex flex-col gap-3">
-                                <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-600 text-white shadow-xl' : 'bg-slate-100 text-slate-300'}`}>
+                                <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-600 text-white shadow-xl active:scale-95' : 'bg-slate-100 text-slate-300'}`}>
                                     {releasing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'CONFIRMAR BAJA TOTAL'}
                                 </button>
-                                <button onClick={() => setIsReleaseModalOpen(false)} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
+                                <button onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE AUTOMATIZACIÓN (NUEVO / RESTAURADO) */}
+            {isFwdModalOpen && activeConfigSlot && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 max-h-[90vh] overflow-y-auto no-scrollbar">
+                        <div className="bg-primary p-8 text-white relative">
+                            <button onClick={() => setIsFwdModalOpen(false)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20">
+                                <X className="size-5" />
+                            </button>
+                            <Bot className="size-10 mb-4" />
+                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Automatización</h2>
+                            <p className="text-[10px] font-black uppercase text-white/60 tracking-widest mt-1">Línea: {formatPhoneNumber(activeConfigSlot.phone_number)}</p>
+                        </div>
+                        
+                        <div className="p-8 space-y-8">
+                            {/* Toggle General */}
+                            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-primary/20">
+                                <div className="flex flex-col">
+                                    <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase">Redirección SMS</span>
+                                    <span className="text-[9px] font-bold text-slate-400">Estado del puerto</span>
+                                </div>
+                                <button onClick={() => setSlotFwdActive(!slotFwdActive)} className="text-primary">
+                                    {slotFwdActive ? <ToggleRight className="size-10" /> : <ToggleLeft className="size-10 text-slate-300" />}
+                                </button>
+                            </div>
+
+                            {/* Sección Telegram */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 px-1">
+                                    <Send className="size-4 text-primary" />
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telegram Bot Gateway</h3>
+                                    <button onClick={() => navigate('/dashboard/telegram-guide')} className="ml-auto text-[9px] font-black text-primary uppercase underline">¿Cómo configurar?</button>
+                                </div>
+                                
+                                <div className="space-y-4 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Bot API Token</label>
+                                        <input 
+                                            type="password" 
+                                            value={tgToken} 
+                                            onChange={(e) => setTgToken(e.target.value)} 
+                                            className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-mono"
+                                            placeholder="582910... (de BotFather)"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Chat ID</label>
+                                        <input 
+                                            type="text" 
+                                            value={tgChatId} 
+                                            onChange={(e) => setTgChatId(e.target.value)} 
+                                            className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-mono"
+                                            placeholder="91823... (de userinfobot)"
+                                        />
+                                    </div>
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked={tgEnabled} onChange={(e) => setTgEnabled(e.target.checked)} className="size-4 rounded border-slate-200 text-primary focus:ring-primary" />
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Habilitar vía Telegram</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={handleSaveAutomation}
+                                disabled={savingFwd}
+                                className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                            >
+                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Actualizar Configuración'}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,3 @@
-
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -9,7 +8,6 @@ export const config = {
 };
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
-  // Updated apiVersion to match required type '2026-01-28.clover'
   apiVersion: '2026-01-28.clover' as any,
 });
 
@@ -68,27 +66,27 @@ export default async function handler(req: any, res: any) {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const userId = metadata.userId;
-    const slotId = metadata.slot_id;
+    const slotId = metadata.slot_id; // SIEMPRE slot_id
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
 
     if (userId) {
       try {
-        console.log(`[TELSIM PROVISION] Actualizando Ledger para Slot: ${slotId}`);
+        console.log(`[TELSIM LEDGER] Provisionando Slot ID: ${slotId}`);
         
-        // 1. Vincular cliente de Stripe al usuario
+        // 1. Vincular cliente
         if (session.customer) {
           await supabaseAdmin.from('users').update({ 
             stripe_customer_id: session.customer 
           }).eq('id', userId);
         }
 
-        // 2. Crear o actualizar suscripción usando slot_id
+        // 2. Upsert Suscripción (Garantizando slot_id)
         const { error: subError } = await supabaseAdmin
           .from('subscriptions')
           .upsert({
             user_id: userId,
-            slot_id: slotId, // Corregido sim_id -> slot_id
+            slot_id: slotId,
             plan_name: planName,
             monthly_limit: monthlyLimit,
             status: 'active',
@@ -98,8 +96,8 @@ export default async function handler(req: any, res: any) {
 
         if (subError) throw subError;
 
-        // 3. Si es un slot nuevo (status 'libre'), marcarlo como 'ocupado'
-        if (slotId !== 'new') {
+        // 3. Marcar Slot como ocupado
+        if (slotId && slotId !== 'new') {
            await supabaseAdmin.from('slots')
             .update({ 
                 status: 'ocupado',
@@ -115,5 +113,5 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  return res.status(200).json({ received: true, node: 'TELSIM-GATEWAY-UNIFIED' });
+  return res.status(200).json({ received: true, node: 'TELSIM-GATEWAY-PRO' });
 }
