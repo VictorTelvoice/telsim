@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -235,7 +235,6 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     if (cleaned.startsWith('54') && cleaned.length >= 10) {
         return `+54 ${cleaned.substring(2, 5)} ${cleaned.substring(5, 8)} ${cleaned.substring(8)}`;
     }
-    // Si contiene letras (nombre de servicio), lo devolvemos tal cual
     if (/[a-zA-Z]/.test(num)) return num;
     return num.startsWith('+') ? num : `+${num}`;
   };
@@ -243,78 +242,18 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
     const originalName = serviceName || sender || '';
     const name = originalName.toLowerCase();
-    
-    // Heurística para detectar números de teléfono como remitente
     const isPhoneNumber = /^(\+?\d+){5,}$/.test(name.replace(/\s/g, ''));
     
-    if (name.includes('whatsapp')) return {
-      bg: 'bg-[#25D366]',
-      text: 'text-white',
-      icon: <MessageCircle className="size-6" />,
-      label: 'WhatsApp'
-    };
-    if (name.includes('instagram')) return {
-      bg: 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]',
-      text: 'text-white',
-      icon: <Instagram className="size-6" />,
-      label: 'Instagram'
-    };
-    if (name.includes('facebook')) return {
-      bg: 'bg-[#1877F2]',
-      text: 'text-white',
-      icon: <Facebook className="size-6" />,
-      label: 'Facebook'
-    };
-    if (name.includes('google')) return {
-      bg: 'bg-white border-2 border-slate-100',
-      text: 'text-slate-900',
-      icon: <Chrome className="size-6 text-[#4285F4]" />,
-      label: 'Google'
-    };
-    if (name.includes('uber')) return {
-      bg: 'bg-black',
-      text: 'text-white',
-      icon: <Smartphone className="size-6" />,
-      label: 'Uber'
-    };
-    if (name.includes('tiktok')) return {
-      bg: 'bg-black border-l-4 border-cyan-400',
-      text: 'text-white',
-      icon: <Music className="size-6 text-[#ff0050]" />,
-      label: 'TikTok'
-    };
-    if (name.includes('telegram')) return {
-      bg: 'bg-[#0088cc]',
-      text: 'text-white',
-      icon: <Send className="size-6" />,
-      label: 'Telegram'
-    };
-    if (name.includes('ebay')) return {
-      bg: 'bg-white border-2 border-blue-500 shadow-sm',
-      text: 'text-slate-900',
-      icon: <ShoppingCart className="size-6 text-blue-600" />,
-      label: 'eBay'
-    };
-    if (name.includes('wechat')) return {
-      bg: 'bg-[#7BB32E]',
-      text: 'text-white',
-      icon: <MessageCircle className="size-6" />,
-      label: 'WeChat'
-    };
-    if (name.includes('nike')) return {
-      bg: 'bg-black',
-      text: 'text-white',
-      icon: <Check className="size-6 stroke-[3px]" />,
-      label: 'Nike'
-    };
-    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return {
-      bg: 'bg-slate-700 dark:bg-slate-900',
-      text: 'text-white',
-      icon: <Landmark className="size-6 text-blue-300" />,
-      label: serviceName || 'Entidad Bancaria'
-    };
+    if (name.includes('whatsapp')) return { bg: 'bg-[#25D366]', text: 'text-white', icon: <MessageCircle className="size-6" />, label: 'WhatsApp' };
+    if (name.includes('instagram')) return { bg: 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]', text: 'text-white', icon: <Instagram className="size-6" />, label: 'Instagram' };
+    if (name.includes('facebook')) return { bg: 'bg-[#1877F2]', text: 'text-white', icon: <Facebook className="size-6" />, label: 'Facebook' };
+    if (name.includes('google')) return { bg: 'bg-white border-2 border-slate-100', text: 'text-slate-900', icon: <Chrome className="size-6 text-[#4285F4]" />, label: 'Google' };
+    if (name.includes('uber')) return { bg: 'bg-black', text: 'text-white', icon: <Smartphone className="size-6" />, label: 'Uber' };
+    if (name.includes('tiktok')) return { bg: 'bg-black border-l-4 border-cyan-400', text: 'text-white', icon: <Music className="size-6 text-[#ff0050]" />, label: 'TikTok' };
+    if (name.includes('telegram')) return { bg: 'bg-[#0088cc]', text: 'text-white', icon: <Send className="size-6" />, label: 'Telegram' };
+    if (name.includes('ebay')) return { bg: 'bg-white border-2 border-blue-500 shadow-sm', text: 'text-slate-900', icon: <ShoppingCart className="size-6 text-blue-600" />, label: 'eBay' };
+    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return { bg: 'bg-slate-700 dark:bg-slate-900', text: 'text-white', icon: <Landmark className="size-6 text-blue-300" />, label: 'Entidad Bancaria' };
 
-    // Caso por defecto (Desconocido o Número de teléfono)
     return {
       bg: isPhoneNumber ? 'bg-slate-200 dark:bg-slate-800' : 'bg-slate-100 dark:bg-slate-800',
       text: 'text-slate-600 dark:text-slate-400',
@@ -336,10 +275,10 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Live OTP Feed</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Monitor de Tráfico</h3>
             <div className="flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                 <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">Live</span>
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">On-Air</span>
             </div>
         </div>
       </div>
@@ -347,7 +286,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
       {messages.length === 0 ? (
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 py-8 flex flex-col items-center text-center px-6">
             <RefreshCw className="size-6 text-slate-300 dark:text-slate-600 animate-spin mb-3" />
-            <p className="text-[11px] font-bold text-slate-400 italic">Esperando códigos de verificación...</p>
+            <p className="text-[11px] font-bold text-slate-400 italic">Esperando tráfico entrante...</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -388,24 +327,26 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DE ACCESO</span>
-                        <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
-                            {msg.verification_code}
-                        </span>
-                      </div>
-                      <button 
-                          onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
-                          className={`size-10 rounded-lg flex items-center justify-center transition-all ${
-                              copyingId === msg.id 
-                              ? 'bg-emerald-500 text-white shadow-lg' 
-                              : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700 shadow-sm'
-                          }`}
-                      >
-                          {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                      </button>
-                  </div>
+                  {msg.verification_code && (
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DETECTADO</span>
+                          <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
+                              {msg.verification_code}
+                          </span>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
+                            className={`size-10 rounded-lg flex items-center justify-center transition-all ${
+                                copyingId === msg.id 
+                                ? 'bg-emerald-500 text-white shadow-lg' 
+                                : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700 shadow-sm'
+                            }`}
+                        >
+                            {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
+                        </button>
+                    </div>
+                  )}
               </div>
             );
           })}
@@ -427,7 +368,7 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (forcedLine?: string) => {
     if (!user) return;
     setLoading(true);
     try {
@@ -440,15 +381,15 @@ const Dashboard: React.FC = () => {
       if (slotsData) {
         setAllSlots(slotsData);
         
-        // LÓGICA DE SELECCIÓN AUTOMÁTICA POST-COMPRA
-        const newLineParam = searchParams.get('new_line');
-        if (newLineParam) {
-          const matchingSlot = slotsData.find(s => s.phone_number === newLineParam);
-          if (matchingSlot) {
-            setActiveSlot(matchingSlot);
-          } else if (slotsData.length > 0) {
-            setActiveSlot(slotsData[0]);
-          }
+        // Prioridad: 1.forcedLine (del parámetro), 2.activeSlot actual, 3.primero de la lista
+        const targetLine = forcedLine || searchParams.get('new_line');
+        
+        if (targetLine) {
+          const matchingSlot = slotsData.find(s => 
+            s.phone_number.replace(/\D/g, '').includes(targetLine.replace(/\D/g, ''))
+          );
+          if (matchingSlot) setActiveSlot(matchingSlot);
+          else if (slotsData.length > 0) setActiveSlot(slotsData[0]);
         } else if (!activeSlot && slotsData.length > 0) {
           setActiveSlot(slotsData[0]);
         }
@@ -458,26 +399,23 @@ const Dashboard: React.FC = () => {
         .from('sms_logs')
         .select('*')
         .eq('user_id', user.id)
-        .not('verification_code', 'is', null)
         .order('received_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
-      if (smsData) {
-        setRecentMessages(smsData);
-      }
+      if (smsData) setRecentMessages(smsData);
     } catch (err) {
       console.debug("Dashboard fetch error", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, searchParams, activeSlot]);
 
   useEffect(() => {
     fetchData();
-
     if (!user) return;
+    
     const channel = supabase
-      .channel('dashboard_feed')
+      .channel('dashboard_feed_sync')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -485,15 +423,11 @@ const Dashboard: React.FC = () => {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
-        if (newMsg.verification_code) {
-           setRecentMessages(prev => [newMsg, ...prev.slice(0, 2)]);
-        }
+        setRecentMessages(prev => [newMsg, ...prev.slice(0, 4)]);
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const handleSelectSlot = (slot: Slot) => {
@@ -504,12 +438,8 @@ const Dashboard: React.FC = () => {
   const formatPhoneNumber = (phoneNumber: string) => {
     if (!phoneNumber) return '---';
     const cleaned = ('' + phoneNumber).replace(/\D/g, '');
-    if (cleaned.startsWith('569') && cleaned.length === 11) {
-        return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
-    }
-    if (cleaned.startsWith('54') && cleaned.length >= 10) {
-        return `+54 ${cleaned.substring(2, 5)} ${cleaned.substring(5, 8)} ${cleaned.substring(8)}`;
-    }
+    if (cleaned.startsWith('569') && cleaned.length === 11) return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
+    if (cleaned.startsWith('54') && cleaned.length >= 10) return `+54 ${cleaned.substring(2, 5)} ${cleaned.substring(5, 8)} ${cleaned.substring(8)}`;
     return phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
   };
 
@@ -517,33 +447,20 @@ const Dashboard: React.FC = () => {
     if (!slot) return 'cl';
     if (slot.region && slot.region.length === 2) return slot.region.toLowerCase();
     const num = slot.phone_number || '';
-    if (num.includes('56') || num.startsWith('+56')) return 'cl';
-    if (num.includes('54') || num.startsWith('+54')) return 'ar';
-    if (num.includes('51') || num.startsWith('+51')) return 'pe';
+    if (num.includes('56')) return 'cl';
+    if (num.includes('54')) return 'ar';
     return 'cl';
   };
 
   const showToast = (message: string) => {
     const toast = document.createElement('div');
     toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10";
-    toast.innerHTML = `
-        <div class="size-5 bg-emerald-500 rounded-full flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </div>
-        <span class="text-[10px] font-black uppercase tracking-widest">${message}</span>
-    `;
+    toast.innerHTML = `<div class="size-5 bg-emerald-500 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div><span class="text-[10px] font-black uppercase tracking-widest">${message}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
         toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
         setTimeout(() => toast.remove(), 300);
     }, 2000);
-  };
-
-  const handleCopy = () => {
-    if (!activeSlot) return;
-    const formatted = formatPhoneNumber(activeSlot.phone_number);
-    navigator.clipboard.writeText(formatted);
-    showToast("Número Copiado");
   };
 
   return (
@@ -561,22 +478,18 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-2 truncate flex-1">
                         <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
                             {loading ? (
-                                <span className="animate-pulse">Cargando...</span>
+                                <span className="animate-pulse">Sincronizando...</span>
                             ) : activeSlot ? (
                                 <>
                                     <div className="size-5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
-                                      <img 
-                                        src={`https://flagcdn.com/w80/${getCountryCode(activeSlot)}.png`}
-                                        className="w-full h-full object-cover"
-                                        alt=""
-                                      />
+                                      <img src={`https://flagcdn.com/w80/${getCountryCode(activeSlot)}.png`} className="w-full h-full object-cover" alt="" />
                                     </div>
                                     <div className="flex flex-col items-start truncate">
                                       <span className="truncate tracking-tight leading-none text-[13px]">{formatPhoneNumber(activeSlot.phone_number)}</span>
                                     </div>
                                 </>
                             ) : (
-                                <span className="text-slate-400 italic">Sin número</span>
+                                <span className="text-slate-400 italic">Sin puertos activos</span>
                             )}
                         </span>
                     </div>
@@ -588,36 +501,32 @@ const Dashboard: React.FC = () => {
                         <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setMenuOpen(false)}></div>
                         <div className="absolute top-full left-0 mt-3 w-80 bg-white dark:bg-surface-dark rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700/60 z-50 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700/50">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tus Números Activos</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Infraestructura Vinculada</span>
                             </div>
                             <div className="p-1.5 space-y-1 max-h-[320px] overflow-y-auto no-scrollbar">
                                 {allSlots.length > 0 ? (
                                   allSlots.map((slot) => (
                                     <div 
-                                      key={slot.port_id} 
+                                      key={slot.slot_id} 
                                       onClick={() => handleSelectSlot(slot)}
-                                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer group ${activeSlot?.port_id === slot.port_id ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer group ${activeSlot?.slot_id === slot.slot_id ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                                     >
                                       <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">
-                                          <img 
-                                            src={`https://flagcdn.com/w80/${getCountryCode(slot)}.png`}
-                                            className="w-full h-full object-cover"
-                                            alt=""
-                                          />
+                                          <img src={`https://flagcdn.com/w80/${getCountryCode(slot)}.png`} className="w-full h-full object-cover" alt="" />
                                       </div>
                                       <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-900 dark:text-white truncate tabular-nums">{formatPhoneNumber(slot.phone_number)}</span>
                                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate">
-                                            {slot.plan_type}
+                                            Puerto: {slot.slot_id}
                                           </span>
                                       </div>
-                                      {activeSlot?.port_id === slot.port_id && (
+                                      {activeSlot?.slot_id === slot.slot_id && (
                                         <span className="material-icons-round text-primary text-sm shrink-0">check_circle</span>
                                       )}
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="p-4 text-center text-xs text-slate-400 italic">No tienes números activos</div>
+                                  <div className="p-4 text-center text-xs text-slate-400 italic">Inicia una activación en la tienda</div>
                                 )}
                             </div>
                         </div>
@@ -636,35 +545,22 @@ const Dashboard: React.FC = () => {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                        {activeSlot ? t('dashboard.active') : t('dashboard.no_line')}
+                        {activeSlot ? 'NODO ACTIVO' : 'SIN ASIGNACIÓN'}
                     </span>
                 </div>
-                <div className="flex-shrink-0 flex items-center justify-center">
-                   <div className="relative size-8">
-                     <img 
-                      src="/logo.svg" 
-                      alt="TELSIM" 
-                      className="size-full object-contain drop-shadow-sm z-10" 
-                      onError={(e) => {
-                        (e.target as any).style.display = 'none';
-                        (e.target as any).nextSibling.style.display = 'flex';
-                      }}
-                     />
-                     <div style={{ display: 'none' }} className="size-full bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
-                        <span className="material-symbols-outlined text-[18px]">sim_card</span>
-                     </div>
-                   </div>
+                <div className="size-8 bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
+                   <span className="material-symbols-outlined text-[18px]">sim_card</span>
                 </div>
             </div>
             <div className="text-center mb-6">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('dashboard.main_line')}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Línea Principal TELSIM</p>
                 <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
                     {activeSlot ? formatPhoneNumber(activeSlot.phone_number) : '--- --- ---'}
                 </h2>
                 {activeSlot && (
                     <div className="mt-4 text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center justify-center gap-2">
                         <span className="material-icons-round text-xs">signal_cellular_alt</span>
-                        {t('dashboard.connected')}
+                        CONECTADO A LA RED
                     </div>
                 )}
             </div>
@@ -672,20 +568,14 @@ const Dashboard: React.FC = () => {
             {activeSlot ? (
               <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={handleCopy}
+                  onClick={() => { navigator.clipboard.writeText(formatPhoneNumber(activeSlot.phone_number)); showToast("Número Copiado"); }}
                   className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">content_copy</span>
-                    <span>{t('dashboard.copy')}</span>
+                    <span>Copiar</span>
                 </button>
                 <button 
-                  onClick={() => {
-                    if (activeSlot) {
-                      navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`);
-                    } else {
-                      navigate('/dashboard/messages');
-                    }
-                  }}
+                  onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`)}
                   className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">chat_bubble</span>
@@ -706,18 +596,6 @@ const Dashboard: React.FC = () => {
         <LiveOTPFeed messages={recentMessages} />
 
         <UseCasesShowcase />
-
-        <div className="bg-slate-900 dark:bg-blue-950/10 rounded-3xl p-6 text-white overflow-hidden relative group cursor-pointer" onClick={() => navigate('/onboarding/region')}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-colors"></div>
-            <div className="relative z-10">
-                <h4 className="text-xl font-black mb-1">{t('dashboard.another')}</h4>
-                <p className="text-white/60 text-sm font-medium mb-4">{t('dashboard.add_more')}</p>
-                <div className="inline-flex items-center gap-2 text-sm font-bold bg-white text-slate-900 px-4 py-2 rounded-xl transition-transform active:scale-95">
-                    <span>{t('dashboard.start_now')}</span>
-                    <ArrowRight className="size-4" />
-                </div>
-            </div>
-        </div>
       </main>
     </div>
   );

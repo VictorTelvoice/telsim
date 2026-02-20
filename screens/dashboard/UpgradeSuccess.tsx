@@ -1,8 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import { CheckCircle2, ArrowRight, ShieldCheck, Zap, Loader2 } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  ArrowRight, 
+  ShieldCheck, 
+  Zap, 
+  Loader2, 
+  Crown, 
+  Sparkles, 
+  Star,
+  Calendar,
+  Layers
+} from 'lucide-react';
 
 const UpgradeSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -17,11 +27,6 @@ const UpgradeSuccess: React.FC = () => {
   const numParam = searchParams.get('num');
   const planParam = searchParams.get('plan');
 
-  // BLOQUEO: Si no hay session_id de Stripe, no se muestra el éxito
-  if (!sessionId && !location.state) {
-    return <Navigate to="/dashboard/numbers" replace />;
-  }
-
   const data = location.state || {
       phoneNumber: numParam,
       planName: planParam,
@@ -30,68 +35,82 @@ const UpgradeSuccess: React.FC = () => {
 
   const { phoneNumber, planName } = data;
 
-  const getPlanConfig = (name: string) => {
-    const normalized = name?.toUpperCase() || '';
-    if (normalized.includes('POWER')) {
-      return {
-        accent: 'text-[#D4AF37]',
-        bg: 'bg-[#D4AF37]/10',
-        border: 'border-[#D4AF37]/20',
-        button: 'bg-[#D4AF37] hover:bg-[#B8962E]',
-        glow: 'bg-[#D4AF37]/20',
-        badge: 'CONTRATO VERIFICADO',
-        badgeText: 'text-[#D4AF37]',
-        icon: 'text-[#D4AF37]'
-      };
-    }
-    if (normalized.includes('PRO')) {
-      return {
-        accent: 'text-[#0047AB]',
-        bg: 'bg-[#0047AB]/10',
-        border: 'border-[#0047AB]/20',
-        button: 'bg-[#0047AB] hover:bg-[#003580]',
-        glow: 'bg-[#0047AB]/20',
-        badge: 'CONTRATO VERIFICADO',
-        badgeText: 'text-[#0047AB]',
-        icon: 'text-[#0047AB]'
-      };
-    }
-    // Default / STARTER
-    return {
-      accent: 'text-teal-500',
-      bg: 'bg-teal-500/10',
-      border: 'border-teal-500/20',
-      button: 'bg-teal-600 hover:bg-teal-700',
-      glow: 'bg-teal-500/20',
-      badge: 'POTENCIA DE RED ACTUALIZADA',
-      badgeText: 'text-teal-600',
-      icon: 'text-teal-500'
-    };
-  };
-
-  const config = getPlanConfig(planName);
-
-  const getRenewalDate = () => {
+  // Cálculo de fecha de renovación (30 días desde hoy)
+  const renewalDate = useMemo(() => {
     const date = new Date();
-    date.setMonth(date.getMonth() + 1);
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+    date.setDate(date.getDate() + 30);
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  }, []);
+
+  // Configuración Visual Condicional por Plan
+  const planConfig = useMemo(() => {
+    const name = (planName || 'Starter').toUpperCase();
+    
+    if (name.includes('POWER')) {
+      return {
+        title: 'NIVEL POWER ACTIVADO',
+        subtitle: 'Bienvenido al máximo nivel de seguridad empresarial, escalabilidad y soporte prioritario 24/7.',
+        accentColor: 'text-[#B49248]',
+        glowColor: 'bg-[#B49248]/20',
+        borderColor: 'border-[#B49248]/30',
+        badgeBg: 'bg-[#B49248]/10',
+        badgeText: 'text-[#B49248]',
+        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-[#B49248]/20',
+        icon: <Crown className="size-14 text-[#B49248]" />,
+        miniIcon: <Sparkles className="size-3 text-[#B49248]" />,
+        capacity: '1,400 SMS mensuales'
+      };
+    }
+    
+    if (name.includes('PRO')) {
+      return {
+        title: 'POTENCIA PRO ACTIVADA',
+        subtitle: 'Tu infraestructura ahora cuenta con automatización total, acceso a API y Webhooks.',
+        accentColor: 'text-[#0047FF]',
+        glowColor: 'bg-[#0047FF]/20',
+        borderColor: 'border-[#0047FF]/30',
+        badgeBg: 'bg-[#0047FF]/10',
+        badgeText: 'text-[#0047FF]',
+        buttonClass: 'bg-[#0047FF] shadow-[#0047FF]/20',
+        icon: <Zap className="size-14 text-[#0047FF]" />,
+        miniIcon: <Zap className="size-3 text-[#0047FF]" />,
+        capacity: '400 SMS mensuales'
+      };
+    }
+
+    // Default: STARTER
+    return {
+      title: 'PLAN BÁSICO ACTIVO',
+      subtitle: 'Tu puerto físico ha sido configurado con éxito para recibir verificaciones en tiempo real.',
+      accentColor: 'text-emerald-500',
+      glowColor: 'bg-emerald-500/20',
+      borderColor: 'border-emerald-500/20',
+      badgeBg: 'bg-emerald-500/10',
+      badgeText: 'text-emerald-600',
+      buttonClass: 'bg-primary shadow-blue-500/20',
+      icon: <CheckCircle2 className="size-14 text-emerald-500" />,
+      miniIcon: <ShieldCheck className="size-3 text-emerald-500" />,
+      capacity: '150 SMS mensuales'
+    };
+  }, [planName]);
 
   useEffect(() => {
+    if (!sessionId && !location.state) return;
+    
     const executePostPaymentLogic = async () => {
       if (hasExecutedRef.current) return;
       hasExecutedRef.current = true;
 
       try {
-        // En una implementación real con Webhooks, aquí solo consultaríamos el estado actualizado en la DB
-        // Para asegurar feedback inmediato en la UI tras el redirect de Stripe:
-        
         await addNotification({
           title: '¡Plan Actualizado!',
           message: `El Ledger ha confirmado el pago. Tu línea ${phoneNumber} ahora opera bajo el Plan ${planName}.`,
           type: 'subscription'
         });
-
       } catch (err) {
         console.error("Sync error:", err);
       } finally {
@@ -101,7 +120,7 @@ const UpgradeSuccess: React.FC = () => {
     };
 
     executePostPaymentLogic();
-  }, []);
+  }, [sessionId, location.state, planName, phoneNumber, addNotification]);
 
   const formatPhoneNumber = (num: string) => {
     if (!num) return '';
@@ -111,6 +130,10 @@ const UpgradeSuccess: React.FC = () => {
     }
     return num.startsWith('+') ? num : `+${num}`;
   };
+
+  if (!sessionId && !location.state) {
+    return <Navigate to="/dashboard/numbers" replace />;
+  }
 
   if (isSyncing) {
     return (
@@ -123,53 +146,60 @@ const UpgradeSuccess: React.FC = () => {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none"></div>
+      {/* Fondo dinámico basado en plan */}
+      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] ${planConfig.glowColor.replace('bg-', 'from-')} via-transparent to-transparent pointer-events-none opacity-40`}></div>
 
       <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-1000 ease-out ${showContent ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
         
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="relative mb-8 flex justify-center">
-             <div className={`absolute inset-0 ${config.glow} blur-3xl rounded-full scale-125 animate-pulse`}></div>
-            <div className="size-28 rounded-[2.5rem] bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 shadow-2xl flex items-center justify-center relative z-10">
-              <CheckCircle2 className={`size-14 ${config.icon}`} />
+             <div className={`absolute inset-0 ${planConfig.glowColor} blur-3xl rounded-full scale-125 animate-pulse`}></div>
+            <div className={`size-28 rounded-[2.5rem] bg-white dark:bg-slate-900 border-2 ${planConfig.borderColor} shadow-2xl flex items-center justify-center relative z-10 transition-colors duration-500`}>
+              {planConfig.icon}
             </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase mb-1">Mejora Lista</h1>
-          <p className={`text-xs font-bold uppercase tracking-widest ${config.accent} mb-4`}>
-            Suscripción activa: {planName}
-          </p>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[28ch] mx-auto">
-            Stripe ha validado tu pago. La red se ha reconfigurado automáticamente.
+          <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white uppercase mb-3 px-4 leading-tight">
+            {planConfig.title}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[30ch] mx-auto italic">
+            "Mejora Lista. Tu infraestructura ha sido potenciada."
           </p>
         </div>
 
-        <div className={`w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 ${config.border} px-8 py-10 flex flex-col items-center shadow-card mb-12 relative overflow-hidden`}>
+        <div className={`w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 ${planConfig.borderColor} px-8 py-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden`}>
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
           
-          <div className={`inline-flex items-center gap-2 px-3 py-1 ${config.bg} rounded-full mb-6 border ${config.border}`}>
-             <Zap className={`size-3 ${config.accent}`} />
-             <span className={`text-[8px] font-black ${config.badgeText} uppercase tracking-widest`}>{config.badge}</span>
+          <div className={`inline-flex items-center gap-2 px-3 py-1 ${planConfig.badgeBg} rounded-full mb-6 border ${planConfig.borderColor}`}>
+             {planConfig.miniIcon}
+             <span className={`text-[8px] font-black uppercase tracking-widest ${planConfig.badgeText}`}>Configuración Actualizada</span>
           </div>
 
-          <div className="text-[26px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums mb-2">
-              {formatPhoneNumber(phoneNumber)}
-          </div>
-
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">
-            Próxima renovación: {getRenewalDate()}
+          <div className="flex flex-col items-center gap-1 mb-8">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
+             <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
+                {formatPhoneNumber(phoneNumber)}
+             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-             <div className={`size-1.5 rounded-full ${config.accent.replace('text-', 'bg-')} animate-pulse`}></div>
-             <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
-               {planName} Active • v3.0
-             </span>
+          <div className="w-full grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+             <div className="flex flex-col items-start gap-1">
+                <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                   <Layers className="size-3" /> Capacidad
+                </div>
+                <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{planConfig.capacity}</p>
+             </div>
+             <div className="flex flex-col items-end gap-1 text-right">
+                <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                   <Calendar className="size-3" /> Renovación
+                </div>
+                <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{renewalDate}</p>
+             </div>
           </div>
         </div>
 
         <button 
           onClick={() => navigate('/dashboard/numbers')}
-          className={`group w-full h-16 ${config.button} text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]`}
+          className={`group w-full h-16 ${planConfig.buttonClass} text-white font-black rounded-2xl shadow-lg flex items-center justify-between px-2 transition-all active:scale-[0.98]`}
         >
           <div className="size-12"></div>
           <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
