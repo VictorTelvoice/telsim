@@ -59,20 +59,11 @@ export default async function handler(req: any, res: any) {
         if (!existingSub) {
           const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
           
-          // Si el total es 0 (por el trial de 7 días), obtenemos el precio unitario del item
-          let amount = (session.amount_total || 0) / 100;
-          if (amount === 0) {
-            const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-            if (lineItems.data.length > 0) {
-              amount = (lineItems.data[0].price?.unit_amount || 0) / 100;
-            }
-          }
-
           await supabaseAdmin.from('subscriptions').insert({
               user_id: userId, slot_id: slotId, phone_number: slotData?.phone_number,
               plan_name: planName, monthly_limit: Number(limit) || 400, credits_used: 0,
               status: 'active', stripe_session_id: session.id,
-              amount: amount,
+              amount: session.amount_total ? session.amount_total / 100 : 0,
               currency: session.currency || 'usd', created_at: new Date().toISOString()
           });
 
