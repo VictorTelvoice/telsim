@@ -33,7 +33,10 @@ import {
   ToggleRight,
   ShieldCheck,
   HelpCircle,
-  Bot
+  Bot,
+  TrendingUp,
+  ArrowUpCircle,
+  ChevronDown
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -41,6 +44,12 @@ interface SlotWithPlan extends Slot {
   monthly_limit?: number;
   credits_used?: number;
 }
+
+const OFFICIAL_PLANS_DATA = [
+  { id: 'Starter', name: 'Starter', price: 19.90, limit: 150, stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', icon: <Leaf className="size-4" /> },
+  { id: 'Pro', name: 'Pro', price: 39.90, limit: 400, stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', icon: <Zap className="size-4" /> },
+  { id: 'Power', name: 'Power', price: 99.00, limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', icon: <Crown className="size-4" /> }
+];
 
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
@@ -69,6 +78,10 @@ const MyNumbers: React.FC = () => {
     const [tgToken, setTgToken] = useState('');
     const [tgChatId, setTgChatId] = useState('');
     const [slotFwdActive, setSlotFwdActive] = useState(false);
+
+    // NUEVO: Estados para Upgrade
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
 
     const fetchSlots = async () => {
         if (!user) return;
@@ -177,16 +190,12 @@ const MyNumbers: React.FC = () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         try {
-            console.log(`[LEDGER] Solicitando baja definitiva para Slot: ${slotToRelease.slot_id}`);
-
-            // 1. MARCAR SUSCRIPCIÓN COMO CANCELADA
             await supabase
                 .from('subscriptions')
                 .update({ status: 'canceled' })
                 .eq('slot_id', slotToRelease.slot_id)
                 .eq('user_id', user.id);
 
-            // 2. LIBERAR PUERTO EN TABLA SLOTS
             const { error: slotError } = await supabase
                 .from('slots')
                 .update({ 
@@ -200,10 +209,7 @@ const MyNumbers: React.FC = () => {
             
             if (slotError) throw slotError;
             
-            // 3. LIMPIEZA POST-CANCELACIÓN: Refrescar contadores de mensajes
-            // El RLS y el filtro por user_id en la pantalla de mensajes harán que desaparezcan
             refreshUnreadCount();
-
             showToast("Número liberado con éxito.");
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
@@ -254,6 +260,26 @@ const MyNumbers: React.FC = () => {
         } finally {
             setSavingFwd(false);
         }
+    };
+
+    const handleUpgradeSelect = (slot: SlotWithPlan) => {
+        setSlotToUpgrade(slot);
+        setIsUpgradeModalOpen(true);
+    };
+
+    const confirmUpgrade = (plan: any) => {
+        if (!slotToUpgrade) return;
+        navigate('/dashboard/upgrade-summary', {
+            state: {
+                phoneNumber: slotToUpgrade.phone_number,
+                planName: plan.id,
+                price: plan.price,
+                limit: plan.limit,
+                stripePriceId: plan.stripePriceId,
+                slot_id: slotToUpgrade.slot_id
+            }
+        });
+        setIsUpgradeModalOpen(false);
     };
 
     const getPlanStyle = (planName: string | undefined | null) => {
@@ -371,6 +397,11 @@ const MyNumbers: React.FC = () => {
                                         <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:text-primary transition-colors">
                                             <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
                                         </button>
+
+                                        {/* BOTÓN UPGRADE RECUPERADO */}
+                                        <button onClick={() => handleUpgradeSelect(slot)} className="size-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm">
+                                            <TrendingUp className="size-4" />
+                                        </button>
                                         
                                         <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center transition-transform active:scale-90"><Trash2 className="size-4" /></button>
                                     </div>
@@ -380,6 +411,53 @@ const MyNumbers: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            {/* MODAL DE SELECCIÓN DE PLAN (UPGRADE) */}
+            {isUpgradeModalOpen && slotToUpgrade && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
+                        <div className="bg-primary p-8 text-white relative">
+                            <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20">
+                                <X className="size-5" />
+                            </button>
+                            <ArrowUpCircle className="size-10 mb-4" />
+                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Cambiar Plan</h2>
+                            <p className="text-[10px] font-black uppercase text-white/60 tracking-widest mt-1">Línea: {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
+                        </div>
+                        <div className="p-8 space-y-4">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Selecciona la nueva potencia:</p>
+                            <div className="space-y-3">
+                                {OFFICIAL_PLANS_DATA.map((plan) => {
+                                    const isCurrent = slotToUpgrade.actual_plan_name === plan.id;
+                                    return (
+                                        <button 
+                                            key={plan.id}
+                                            onClick={() => !isCurrent && confirmUpgrade(plan)}
+                                            disabled={isCurrent}
+                                            className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${isCurrent ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-60 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-primary active:scale-[0.98]'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`size-8 rounded-lg flex items-center justify-center ${isCurrent ? 'bg-slate-200 text-slate-400' : 'bg-primary/10 text-primary'}`}>
+                                                    {plan.icon}
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="text-sm font-black text-slate-900 dark:text-white uppercase">{plan.name}</span>
+                                                    <p className="text-[9px] font-bold text-slate-400">{plan.limit} SMS / Mes</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-black text-slate-900 dark:text-white">${plan.price}</span>
+                                                {isCurrent && <p className="text-[8px] font-black text-emerald-500 uppercase mt-0.5">Actual</p>}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button onClick={() => setIsUpgradeModalOpen(false)} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px] mt-2">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isReleaseModalOpen && slotToRelease && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
