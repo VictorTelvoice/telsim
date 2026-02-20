@@ -35,7 +35,8 @@ import {
   Bot,
   TrendingUp,
   ArrowUpCircle,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -45,9 +46,44 @@ interface SlotWithPlan extends Slot {
 }
 
 const OFFICIAL_PLANS_DATA = [
-  { id: 'Starter', name: 'Starter', price: 19.90, limit: 150, stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', icon: <Leaf className="size-4" /> },
-  { id: 'Pro', name: 'Pro', price: 39.90, limit: 400, stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', icon: <Zap className="size-4" /> },
-  { id: 'Power', name: 'Power', price: 99.00, limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', icon: <Crown className="size-4" /> }
+  { 
+    id: 'Starter', 
+    name: 'Starter', 
+    price: 19.90, 
+    limit: 150, 
+    stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', 
+    icon: <Leaf className="size-5" />,
+    features: ['150 SMS Mensuales', 'Número SIM Real', 'Soporte vía Ticket'],
+    accent: 'text-slate-900',
+    border: 'border-slate-200 dark:border-slate-700',
+    bg: 'bg-white dark:bg-slate-800'
+  },
+  { 
+    id: 'Pro', 
+    name: 'Pro', 
+    price: 39.90, 
+    limit: 400, 
+    stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', 
+    icon: <Zap className="size-5" />,
+    features: ['400 SMS Mensuales', 'Acceso API & Webhooks', 'Soporte vía Chat'],
+    accent: 'text-blue-600',
+    border: 'border-blue-500/50 dark:border-blue-400/30',
+    bg: 'bg-blue-50/30 dark:bg-blue-900/10',
+    popular: true
+  },
+  { 
+    id: 'Power', 
+    name: 'Power', 
+    price: 99.00, 
+    limit: 1400, 
+    stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', 
+    icon: <Crown className="size-5" />,
+    features: ['1,400 SMS Mensuales', 'Seguridad Empresarial', 'Soporte 24/7'],
+    accent: 'text-amber-600',
+    border: 'border-amber-400/50 dark:border-amber-500/30',
+    bg: 'bg-amber-50/30 dark:bg-amber-900/10',
+    premium: true
+  }
 ];
 
 const MyNumbers: React.FC = () => {
@@ -304,7 +340,7 @@ const MyNumbers: React.FC = () => {
             };
         }
         return {
-            cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 shadow-soft',
+            cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-800 shadow-soft',
             badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
             accentText: 'text-primary',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
@@ -408,47 +444,98 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
+            {/* MODAL DE UPGRADE REDISEÑADO - VITRINA DE LUJO */}
             {isUpgradeModalOpen && slotToUpgrade && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
-                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
-                        <div className="bg-primary p-8 text-white relative">
-                            <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20">
-                                <X className="size-5" />
+                <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="w-full max-w-md h-[92vh] bg-background-light dark:bg-background-dark rounded-t-[3rem] shadow-2xl overflow-hidden border-x border-t border-white/10 flex flex-col animate-in slide-in-from-bottom-10 duration-700">
+                        {/* Header del Modal */}
+                        <div className="p-8 flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Marketplace</h2>
+                                <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Cambiar Plan</h1>
+                            </div>
+                            <button onClick={() => setIsUpgradeModalOpen(false)} className="size-12 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:scale-110 active:scale-90 transition-all">
+                                <X className="size-6" />
                             </button>
-                            <ArrowUpCircle className="size-10 mb-4" />
-                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Cambiar Plan</h2>
-                            <p className="text-[10px] font-black uppercase text-white/60 tracking-widest mt-1">Línea: {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
                         </div>
-                        <div className="p-8 space-y-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Selecciona la nueva potencia:</p>
-                            <div className="space-y-3">
-                                {OFFICIAL_PLANS_DATA.map((plan) => {
-                                    const isCurrent = slotToUpgrade.actual_plan_name === plan.id;
-                                    return (
-                                        <button 
-                                            key={plan.id}
-                                            onClick={() => !isCurrent && confirmUpgrade(plan)}
-                                            disabled={isCurrent}
-                                            className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${isCurrent ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-60 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-primary active:scale-[0.98]'}`}
-                                        >
+
+                        {/* Contenido Scrolleable */}
+                        <div className="flex-1 overflow-y-auto no-scrollbar px-6 pb-12 space-y-4">
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center italic mb-4">
+                                Línea: {formatPhoneNumber(slotToUpgrade.phone_number)}
+                            </p>
+
+                            {OFFICIAL_PLANS_DATA.map((plan) => {
+                                const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
+                                
+                                return (
+                                    <div 
+                                        key={plan.id}
+                                        className={`relative group rounded-[2.5rem] border-2 p-6 transition-all duration-500 ${plan.bg} ${plan.border} ${isCurrent ? 'opacity-50' : 'hover:scale-[1.02] hover:shadow-xl'}`}
+                                    >
+                                        {/* Badges Condicionales */}
+                                        {plan.popular && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-4 py-1.5 rounded-full shadow-lg border border-white/20 uppercase tracking-[0.2em] z-10 animate-pulse">
+                                                MÁS POPULAR
+                                            </div>
+                                        )}
+                                        {plan.premium && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-[8px] font-black px-4 py-1.5 rounded-full shadow-lg border border-white/20 uppercase tracking-[0.2em] z-10">
+                                                MÁXIMA POTENCIA
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between items-start mb-4">
                                             <div className="flex items-center gap-3">
-                                                <div className={`size-8 rounded-lg flex items-center justify-center ${isCurrent ? 'bg-slate-200 text-slate-400' : 'bg-primary/10 text-primary'}`}>
+                                                <div className={`size-12 rounded-2xl flex items-center justify-center shadow-inner ${isCurrent ? 'bg-slate-200 text-slate-400' : `${plan.accent.replace('text-', 'bg-')}/10 ${plan.accent}`}`}>
                                                     {plan.icon}
                                                 </div>
-                                                <div className="text-left">
-                                                    <span className="text-sm font-black text-slate-900 dark:text-white uppercase">{plan.name}</span>
-                                                    <p className="text-[9px] font-bold text-slate-400">{plan.limit} SMS / Mes</p>
+                                                <div className="flex flex-col">
+                                                    <h3 className={`text-xl font-black uppercase tracking-tight ${plan.accent}`}>{plan.name}</h3>
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{plan.limit} SMS / MES</span>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-sm font-black text-slate-900 dark:text-white">${plan.price}</span>
-                                                {isCurrent && <p className="text-[8px] font-black text-emerald-500 uppercase mt-0.5">Actual</p>}
-                                            </div>
+                                            
+                                            {isCurrent && (
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-full border border-emerald-100 dark:border-emerald-800">
+                                                    <div className="size-1.5 rounded-full bg-emerald-500"></div>
+                                                    <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Plan Actual</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-baseline gap-1 mb-6 border-b border-slate-100 dark:border-slate-700/50 pb-4">
+                                            <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">${plan.price.toFixed(2)}</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">/ mes</span>
+                                        </div>
+
+                                        <div className="space-y-3 mb-8">
+                                            {plan.features.map((feat, i) => (
+                                                <div key={i} className="flex items-center gap-3">
+                                                    <CheckCircle2 className={`size-4 shrink-0 ${isCurrent ? 'text-slate-300' : plan.accent}`} />
+                                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{feat}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button 
+                                            onClick={() => !isCurrent && confirmUpgrade(plan)}
+                                            disabled={isCurrent}
+                                            className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${isCurrent ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed' : `bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl active:scale-[0.98] group-hover:bg-primary group-hover:text-white dark:group-hover:bg-primary dark:group-hover:text-white`}`}
+                                        >
+                                            {isCurrent ? 'Actual' : 'Seleccionar Plan'}
+                                            {!isCurrent && <ChevronRight className="size-4" />}
                                         </button>
-                                    );
-                                })}
-                            </div>
-                            <button onClick={() => setIsUpgradeModalOpen(false)} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px] mt-2">Cerrar</button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+                             <div className="flex items-center justify-center gap-2 opacity-30">
+                                 <ShieldCheck className="size-3" />
+                                 <p className="text-[8px] font-black uppercase tracking-[0.4em]">TELSIM GLOBAL INFRASTRUCTURE</p>
+                             </div>
                         </div>
                     </div>
                 </div>
