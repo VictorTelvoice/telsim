@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -17,8 +16,7 @@ const Register: React.FC = () => {
     setError(null);
     
     try {
-      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing signUp
-      const { data, error: signUpError } = await (supabase.auth as any).signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {

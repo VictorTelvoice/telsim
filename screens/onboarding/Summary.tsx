@@ -163,6 +163,10 @@ const Summary: React.FC = () => {
                         <span className="material-symbols-outlined text-white">arrow_forward</span>
                     </div>
                 </button>
+                <div className="mt-4 flex items-center justify-center gap-1.5 opacity-40">
+                    <span className="material-symbols-outlined text-gray-500" style={{fontSize: '14px'}}>lock</span>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">Pagos procesados por Stripe. Cifrado SSL.</p>
+                </div>
             </div>
         </div>
     </div>

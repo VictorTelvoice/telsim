@@ -37,7 +37,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     refreshUnreadCount();
     
-    // Suscribirse a cambios en tiempo real en sms_logs
+    // Suscribirse a cambios en tiempo real
     const channel = supabase
       .channel('sms_unread_changes')
       .on('postgres_changes', { 

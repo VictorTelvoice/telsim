@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,13 +35,13 @@ const Messages: React.FC = () => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'verifications' | 'others'>('verifications');
 
+  // Obtener el número de filtro de la URL
   const filterNum = searchParams.get('num');
 
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Obtener solo los slots que pertenecen al usuario actual
       const { data: slotsData } = await supabase
         .from('slots')
         .select('*')
@@ -51,14 +50,12 @@ const Messages: React.FC = () => {
       if (slotsData) {
         setUserSlots(slotsData);
         const mapping = slotsData.reduce((acc, s) => {
-          acc[s.slot_id] = s.phone_number;
+          acc[s.port_id] = s.phone_number;
           return acc;
         }, {} as Record<string, string>);
         setSlotMap(mapping);
       }
 
-      // 2. PRIVACIDAD CRÍTICA: Filtro obligatorio por user_id
-      // Evita que un nuevo dueño vea SMS de un dueño anterior del mismo hardware/número
       const { data, error } = await supabase
         .from('sms_logs')
         .select('*')
@@ -75,59 +72,28 @@ const Messages: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  };
 
   const markAllAsRead = async () => {
     if (!user) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from('sms_logs')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
       
-      refreshUnreadCount();
+      if (!error) {
+        refreshUnreadCount();
+      }
     } catch (err) {
       console.debug("Error marking as read", err);
     }
   };
 
   useEffect(() => {
-    // Reset local state on user change for clean load
-    setMessages([]);
     fetchData();
-
-    if (!user) return;
-
-    // 3. Suscripción Realtime con filtro por user_id
-    const channel = supabase
-      .channel(`private_messages_${user.id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'sms_logs',
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        const newMsg = payload.new as SMSLog;
-        setMessages(prev => [newMsg, ...prev]);
-        refreshUnreadCount();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchData]);
-
-  useEffect(() => {
-    if (filterNum) {
-      const isStillOwned = userSlots.some(s => s.phone_number === filterNum);
-      if (!isStillOwned && userSlots.length > 0) {
-          searchParams.delete('num');
-          setSearchParams(searchParams);
-      }
-    }
-  }, [userSlots, filterNum, searchParams, setSearchParams]);
+  }, [user]);
 
   const handleCopy = (e: React.MouseEvent, code: string, id: string) => {
     e.stopPropagation();
@@ -241,7 +207,7 @@ const Messages: React.FC = () => {
           </button>
           {userSlots.map((slot) => (
             <button 
-              key={slot.slot_id}
+              key={slot.port_id}
               onClick={() => toggleFilter(slot.phone_number)}
               className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
             >

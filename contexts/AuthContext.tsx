@@ -1,12 +1,11 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-// Removed User and Session imports as they are not exported from @supabase/supabase-js in this environment
+import { User, Session } from '@supabase/supabase-js';
 import { useDeviceSession } from '../hooks/useDeviceSession';
 
 interface AuthContextType {
-  user: any | null; // Changed from User to any
-  session: any | null; // Changed from Session to any
+  user: User | null;
+  session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -14,13 +13,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [session, setSession] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { registerOrUpdateSession } = useDeviceSession();
 
   // Función para sincronizar datos con la tabla public.users
-  const syncUserToPublicTable = async (currentUser: any) => {
+  const syncUserToPublicTable = async (currentUser: User) => {
     try {
       const { error } = await supabase
         .from('users')
@@ -48,8 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Verificar sesión inicial
-    // Cast supabase.auth to any to bypass SupabaseAuthClient type missing getSession
-    (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
         setUser(session.user);
@@ -59,8 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Escuchar cambios de estado de autenticación
-    // Cast supabase.auth to any to bypass SupabaseAuthClient type missing onAuthStateChange
-    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((event: string, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -78,8 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     // Limpiar ID de sesión local al cerrar sesión
     localStorage.removeItem('telsim_device_session_id');
-    // Cast supabase.auth to any to bypass SupabaseAuthClient type missing signOut
-    await (supabase.auth as any).signOut();
+    await supabase.auth.signOut();
     setUser(null);
     setSession(null);
   };
