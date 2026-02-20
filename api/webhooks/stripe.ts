@@ -50,13 +50,24 @@ export default async function handler(req: any, res: any) {
           amount = (lines.data[0]?.price?.unit_amount || 0) / 100;
         }
 
+        // GUARDAR CUSTOMER ID PARA PERSISTENCIA DE PAGO
+        if (session.customer) {
+            await supabaseAdmin.from('users').update({ 
+                stripe_customer_id: session.customer.toString() 
+            }).eq('id', userId);
+        }
+
         if (transactionType === 'UPGRADE') {
-          await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('slot_id', slotId).eq('status', 'active');
+          // Lógica de Auditoría: Marcar como cancelada la previa
+          await supabaseAdmin.from('subscriptions')
+            .update({ status: 'canceled' })
+            .eq('slot_id', slotId)
+            .eq('status', 'active');
         }
 
         const { data: slot } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
         
-        // Verificamos si ya se insertó por el flujo instantáneo para evitar duplicidad
+        // Evitar duplicidad con flujos instantáneos
         const { data: exists } = await supabaseAdmin.from('subscriptions').select('id').eq('stripe_session_id', session.id).maybeSingle();
         
         if (!exists) {
@@ -68,8 +79,10 @@ export default async function handler(req: any, res: any) {
             });
         }
 
-        await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', slotId);
-        if (session.customer) await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
+        await supabaseAdmin.from('slots').update({ 
+            status: 'ocupado', assigned_to: userId, plan_type: planName 
+        }).eq('slot_id', slotId);
+
       } catch (err: any) { console.error(`[WEBHOOK ERROR] ${err.message}`); }
     }
   }
