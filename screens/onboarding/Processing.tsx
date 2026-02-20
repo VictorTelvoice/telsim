@@ -29,13 +29,14 @@ const Processing: React.FC = () => {
 
   const sessionId = searchParams.get('session_id');
   const subId = searchParams.get('id'); 
+  const slotId = searchParams.get('slot_id');
   const isUpgrade = searchParams.get('isUpgrade') === 'true';
 
   const statusMessages = isUpgrade ? [
     "Validando nueva potencia de red...",
     "Reconfigurando nodo físico...",
     "Sincronizando créditos SMS...",
-    "Actualizando Ledger v4.0...",
+    "Actualizando historial financiero...",
     "Finalizando actualización..."
   ] : [
     "Recibiendo confirmación segura...",
@@ -53,18 +54,22 @@ const Processing: React.FC = () => {
   };
 
   const checkStatus = async () => {
-    if (Date.now() - startTime.current > 80000) {
+    if (Date.now() - startTime.current > 85000) {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setError("TIMEOUT");
       return;
     }
 
     try {
-      // Prioridad absoluta al ID primario (UUID) para pagos One-Click
+      // Prioridad 1: ID primario del registro nuevo
+      // Prioridad 2: Slot ID + Status Active (Garantiza encontrar la nueva fila de historial)
+      // Prioridad 3: Stripe Session ID
       let query = supabase.from('subscriptions').select('phone_number, status').eq('status', 'active');
       
       if (subId) {
         query = query.eq('id', subId);
+      } else if (slotId && isUpgrade) {
+        query = query.eq('slot_id', slotId).eq('user_id', user.id);
       } else if (sessionId) {
         query = query.eq('stripe_session_id', sessionId);
       } else {
@@ -82,21 +87,20 @@ const Processing: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!user || (!sessionId && !subId)) return;
+    if (!user || (!sessionId && !subId && !slotId)) return;
     
-    // Polling agresivo inicial (cada 1.2s) para máxima velocidad
-    pollIntervalRef.current = setInterval(checkStatus, 1200);
+    pollIntervalRef.current = setInterval(checkStatus, 1300);
     checkStatus();
 
-    const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2000);
+    const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
     
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       clearInterval(msgInterval);
     };
-  }, [user, sessionId, subId]);
+  }, [user, sessionId, subId, slotId]);
 
-  if (!user || (!sessionId && !subId)) return <Navigate to="/dashboard" replace />;
+  if (!user || (!sessionId && !subId && !slotId)) return <Navigate to="/dashboard" replace />;
 
   if (isSuccess) {
     return (
@@ -112,7 +116,7 @@ const Processing: React.FC = () => {
           </div>
           <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] p-10 border-2 border-emerald-500/10 shadow-card flex flex-col items-center gap-2 relative overflow-hidden">
              <div className="flex flex-col items-center gap-1 relative z-10">
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Hardware Sincronizado</span></div>
+                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Contrato Verificado</span></div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de red:</p>
                 <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{formatPhoneNumber(activatedNumber)}</h2>
              </div>
@@ -129,7 +133,7 @@ const Processing: React.FC = () => {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in">
         <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8"><AlertCircle className="size-10 text-amber-500" /></div>
-        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago es válido, pero el hardware está tardando en responder. El nodo de red se activará automáticamente en unos minutos.</p></div>
+        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago es válido, pero el historial financiero está tardando en sincronizarse. El nodo se actualizará automáticamente.</p></div>
         <div className="w-full max-w-sm space-y-3">
           <button onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"><RefreshCw className="size-4" /> Reintentar Sincronización</button>
           <button onClick={() => navigate('/dashboard/numbers')} className="w-full h-14 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Ir a mis números de todas formas</button>

@@ -49,28 +49,64 @@ export default async function handler(req: any, res: any) {
 
     if (userId && slotId) {
       try {
-        // Verificamos si ya existe (para evitar duplicidad con el flujo Instant)
-        const { data: existingSub } = await supabaseAdmin
-          .from('subscriptions')
-          .select('id')
-          .eq('stripe_session_id', session.id)
-          .maybeSingle();
-
-        if (!existingSub) {
-          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
-          
-          await supabaseAdmin.from('subscriptions').insert({
-              user_id: userId, slot_id: slotId, phone_number: slotData?.phone_number,
-              plan_name: planName, monthly_limit: Number(limit) || 400, credits_used: 0,
-              status: 'active', stripe_session_id: session.id,
-              amount: session.amount_total ? session.amount_total / 100 : 0,
-              currency: session.currency || 'usd', created_at: new Date().toISOString()
-          });
-
-          await supabaseAdmin.from('slots').update({ 
-              status: 'ocupado', assigned_to: userId, plan_type: planName 
-          }).eq('slot_id', slotId);
+        // Obtenemos precio unitario real
+        let amount = (session.amount_total || 0) / 100;
+        if (amount === 0) {
+          const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+          if (lineItems.data.length > 0) {
+            amount = (lineItems.data[0].price?.unit_amount || 0) / 100;
+          }
         }
+
+        if (transactionType === 'UPGRADE') {
+          // 1. Cancelar suscripción activa previa para este slot
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ status: 'canceled' })
+            .eq('slot_id', slotId)
+            .eq('status', 'active');
+
+          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+
+          // 2. Insertar nueva fila (Historial de Auditoría)
+          await supabaseAdmin.from('subscriptions').insert({
+              user_id: userId,
+              slot_id: slotId,
+              phone_number: slotData?.phone_number,
+              plan_name: planName,
+              monthly_limit: Number(limit) || 400,
+              credits_used: 0,
+              status: 'active',
+              stripe_session_id: session.id,
+              amount: amount,
+              currency: session.currency || 'usd',
+              created_at: new Date().toISOString()
+          });
+        } else {
+          // Flujo de Nueva Suscripción (Evitar duplicidad)
+          const { data: existingSub } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id')
+            .eq('stripe_session_id', session.id)
+            .maybeSingle();
+
+          if (!existingSub) {
+            const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+            
+            await supabaseAdmin.from('subscriptions').insert({
+                user_id: userId, slot_id: slotId, phone_number: slotData?.phone_number,
+                plan_name: planName, monthly_limit: Number(limit) || 400, credits_used: 0,
+                status: 'active', stripe_session_id: session.id,
+                amount: amount,
+                currency: session.currency || 'usd', created_at: new Date().toISOString()
+            });
+          }
+        }
+
+        // Sincronizar hardware
+        await supabaseAdmin.from('slots').update({ 
+            status: 'ocupado', assigned_to: userId, plan_type: planName 
+        }).eq('slot_id', slotId);
 
         if (session.customer) {
           await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);

@@ -34,11 +34,12 @@ export default async function handler(req: any, res: any) {
     // --- FLUJO DE PAGO RÁPIDO (ONE-CLICK) ---
     if (customerId && !forceManual) {
       
-      // ESCENARIO A: Upgrade de línea existente
+      // ESCENARIO A: Upgrade de línea existente (Auditoría Financiera)
       if (isUpgrade && slot_id) {
+        // 1. Identificar suscripción actual activa
         const { data: activeSub } = await supabaseAdmin
           .from('subscriptions')
-          .select('id, stripe_session_id')
+          .select('*')
           .eq('slot_id', slot_id)
           .eq('status', 'active')
           .maybeSingle();
@@ -50,19 +51,52 @@ export default async function handler(req: any, res: any) {
 
             if (stripeSubId) {
               const subscription = await stripe.subscriptions.retrieve(stripeSubId);
+              
+              // Actualizamos en Stripe
               await stripe.subscriptions.update(stripeSubId, {
                 items: [{ id: subscription.items.data[0].id, price: priceId }],
                 proration_behavior: 'always_invoice',
                 metadata: { transactionType: 'UPGRADE', planName, limit: monthlyLimit, slot_id, userId }
               });
 
-              // Actualización atómica de hardware
+              // 2. LÓGICA DE AUDITORÍA: Cancelar contrato anterior en DB
+              await supabaseAdmin
+                .from('subscriptions')
+                .update({ status: 'canceled' })
+                .eq('id', activeSub.id);
+
+              // Obtener precio real para el historial
+              const priceData = await stripe.prices.retrieve(priceId);
+              const amount = (priceData.unit_amount || 0) / 100;
+
+              // 3. Crear NUEVO registro de suscripción
+              const { data: newSub, error: insertError } = await supabaseAdmin
+                .from('subscriptions')
+                .insert({
+                  user_id: userId,
+                  slot_id: slot_id,
+                  phone_number: activeSub.phone_number,
+                  plan_name: planName,
+                  monthly_limit: monthlyLimit,
+                  credits_used: activeSub.credits_used || 0, // Arrastramos créditos usados si aplica
+                  status: 'active',
+                  stripe_session_id: activeSub.stripe_session_id, // Mantenemos referencia a la sesión original
+                  amount: amount,
+                  currency: priceData.currency || 'usd',
+                  created_at: new Date().toISOString()
+                })
+                .select('id')
+                .single();
+
+              if (insertError) throw insertError;
+
+              // Actualización de hardware
               await supabaseAdmin.from('slots').update({ plan_type: planName }).eq('slot_id', slot_id);
 
               return res.status(200).json({ 
                 instant: true, 
-                subscriptionId: activeSub.id, 
-                message: 'Upgrade procesado con éxito.' 
+                subscriptionId: newSub.id, 
+                message: 'Contrato actualizado e historial registrado.' 
               });
             }
           } catch (subErr: any) {
@@ -71,7 +105,7 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // ESCENARIO B: Nueva línea (Secuencia Infalible)
+      // ESCENARIO B: Nueva línea (Flujo Estándar One-Click)
       if (!isUpgrade) {
         let reservedSlotId: string | null = null;
         try {
@@ -79,7 +113,6 @@ export default async function handler(req: any, res: any) {
           const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
           if (defaultPaymentMethod) {
-            // 1. Búsqueda de Slot Libre (Orden ascendente)
             const { data: freeSlot } = await supabaseAdmin
               .from('slots')
               .select('slot_id, phone_number')
@@ -88,22 +121,12 @@ export default async function handler(req: any, res: any) {
               .limit(1)
               .maybeSingle();
 
-            if (!freeSlot) throw new Error("No hay puertos físicos disponibles en este momento.");
+            if (!freeSlot) throw new Error("Sin puertos físicos disponibles.");
             reservedSlotId = freeSlot.slot_id;
 
-            // 2. Bloqueo de Hardware Inmediato
-            const { error: lockError } = await supabaseAdmin
-              .from('slots')
-              .update({ 
-                status: 'ocupado', 
-                assigned_to: userId, 
-                plan_type: planName 
-              })
-              .eq('slot_id', reservedSlotId);
+            await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', reservedSlotId);
 
-            if (lockError) throw lockError;
-
-            // 3. Creación de Suscripción en Stripe
+            const priceData = await stripe.prices.retrieve(priceId);
             const stripeSub = await stripe.subscriptions.create({
               customer: customerId,
               items: [{ price: priceId }],
@@ -112,7 +135,6 @@ export default async function handler(req: any, res: any) {
               metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: reservedSlotId, transactionType: 'NEW_SUB_INSTANT' }
             });
 
-            // 4. Inserción en Tabla de Suscripciones (UUID)
             const { data: newSub, error: subError } = await supabaseAdmin
               .from('subscriptions')
               .insert({
@@ -124,8 +146,8 @@ export default async function handler(req: any, res: any) {
                 credits_used: 0,
                 status: 'active',
                 stripe_session_id: stripeSub.id,
-                amount: stripeSub.items.data[0].price.unit_amount ? stripeSub.items.data[0].price.unit_amount / 100 : 0,
-                currency: stripeSub.currency || 'usd',
+                amount: (priceData.unit_amount || 0) / 100,
+                currency: priceData.currency || 'usd',
                 created_at: new Date().toISOString()
               })
               .select('id')
@@ -137,12 +159,10 @@ export default async function handler(req: any, res: any) {
                 instant: true, 
                 subscriptionId: newSub.id, 
                 phoneNumber: freeSlot.phone_number,
-                message: 'Nodo activado instantáneamente.' 
+                message: 'Nodo activado con historial de auditoría.' 
             });
           }
         } catch (err: any) {
-          console.error("[PROVISIONING ERROR]", err.message);
-          // 4. Rollback de Hardware si algo falló
           if (reservedSlotId) {
             await supabaseAdmin.from('slots').update({ status: 'libre', assigned_to: null, plan_type: null }).eq('slot_id', reservedSlotId);
           }
@@ -151,12 +171,11 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // --- FLUJO ESTÁNDAR (REDIRECCIÓN) ---
+    // --- FLUJO ESTÁNDAR (REDIRECCIÓN STRIPE) ---
     const host = req.headers.host;
     const protocol = host?.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
 
-    // Reservamos slot preventivamente antes de ir a Stripe
     const { data: redirectSlot } = await supabaseAdmin
       .from('slots')
       .select('slot_id, phone_number')
@@ -175,7 +194,7 @@ export default async function handler(req: any, res: any) {
       mode: 'subscription',
       subscription_data: { trial_period_days: 7 },
       success_url: isUpgrade 
-        ? `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}&isUpgrade=true`
+        ? `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}&isUpgrade=true&slot_id=${slot_id}`
         : `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}`,
       cancel_url: isUpgrade ? `${origin}/#/dashboard/numbers` : `${origin}/#/onboarding/payment`,
       client_reference_id: userId,
