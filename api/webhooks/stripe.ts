@@ -1,19 +1,15 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const config = { api: { bodyParser: false } };
 
-const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
 
 const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '' 
 );
 
 async function getRawBody(readable: any): Promise<Uint8Array> {
@@ -30,8 +26,7 @@ async function getRawBody(readable: any): Promise<Uint8Array> {
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-
+  if (req.method !== 'POST') return res.status(405).end();
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SIGNING_SECRET;
   let event: Stripe.Event;
@@ -49,71 +44,34 @@ export default async function handler(req: any, res: any) {
 
     if (userId && slotId) {
       try {
-        // Obtenemos precio unitario real consultando el ítem de línea si amount_total es 0 (por trial)
         let amount = (session.amount_total || 0) / 100;
         if (amount === 0) {
-          const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-          if (lineItems.data.length > 0) {
-            amount = (lineItems.data[0].price?.unit_amount || 0) / 100;
-          }
+          const lines = await stripe.checkout.sessions.listLineItems(session.id);
+          amount = (lines.data[0]?.price?.unit_amount || 0) / 100;
         }
 
         if (transactionType === 'UPGRADE') {
-          // 1. AUDITORÍA: Cancelar suscripción activa previa para este puerto físico
-          await supabaseAdmin
-            .from('subscriptions')
-            .update({ status: 'canceled' })
-            .eq('slot_id', slotId)
-            .eq('status', 'active');
+          await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('slot_id', slotId).eq('status', 'active');
+        }
 
-          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
-
-          // 2. Insertar nueva fila (Historial de Auditoría)
-          await supabaseAdmin.from('subscriptions').insert({
-              user_id: userId,
-              slot_id: slotId,
-              phone_number: slotData?.phone_number,
-              plan_name: planName,
-              monthly_limit: Number(limit) || 400,
-              credits_used: 0,
-              status: 'active',
-              stripe_session_id: session.id,
-              amount: amount,
-              currency: session.currency || 'usd',
-              created_at: new Date().toISOString()
-          });
-        } else {
-          // Flujo de Nueva Suscripción (Evitar duplicidad con flujos instantáneos)
-          const { data: existingSub } = await supabaseAdmin
-            .from('subscriptions')
-            .select('id')
-            .eq('stripe_session_id', session.id)
-            .maybeSingle();
-
-          if (!existingSub) {
-            const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
-            
+        const { data: slot } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+        
+        // Verificamos si ya se insertó por el flujo instantáneo para evitar duplicidad
+        const { data: exists } = await supabaseAdmin.from('subscriptions').select('id').eq('stripe_session_id', session.id).maybeSingle();
+        
+        if (!exists) {
             await supabaseAdmin.from('subscriptions').insert({
-                user_id: userId, slot_id: slotId, phone_number: slotData?.phone_number,
-                plan_name: planName, monthly_limit: Number(limit) || 400, credits_used: 0,
-                status: 'active', stripe_session_id: session.id,
-                amount: amount,
-                currency: session.currency || 'usd', created_at: new Date().toISOString()
+                user_id: userId, slot_id: slotId, phone_number: slot?.phone_number,
+                plan_name: planName, monthly_limit: Number(limit), status: 'active',
+                stripe_session_id: session.id, amount, currency: session.currency || 'usd',
+                created_at: new Date().toISOString()
             });
-          }
         }
 
-        // Sincronizar hardware y dueño
-        await supabaseAdmin.from('slots').update({ 
-            status: 'ocupado', assigned_to: userId, plan_type: planName 
-        }).eq('slot_id', slotId);
-
-        if (session.customer) {
-          await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
-        }
+        await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', slotId);
+        if (session.customer) await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
       } catch (err: any) { console.error(`[WEBHOOK ERROR] ${err.message}`); }
     }
   }
-
   return res.status(200).json({ received: true });
 }

@@ -61,14 +61,12 @@ const Processing: React.FC = () => {
     }
 
     try {
-      // Prioridad 1: ID primario del registro nuevo
-      // Prioridad 2: Slot ID + Status Active (Garantiza encontrar la nueva fila de historial)
-      // Prioridad 3: Stripe Session ID
+      // Búsqueda prioritaria por ID único o puerto activo
       let query = supabase.from('subscriptions').select('phone_number, status').eq('status', 'active');
       
       if (subId) {
         query = query.eq('id', subId);
-      } else if (slotId && isUpgrade) {
+      } else if (slotId) {
         query = query.eq('slot_id', slotId).eq('user_id', user.id);
       } else if (sessionId) {
         query = query.eq('stripe_session_id', sessionId);
@@ -78,8 +76,9 @@ const Processing: React.FC = () => {
 
       const { data } = await query.maybeSingle();
 
-      if (data?.status === 'active' && data?.phone_number) {
-        setActivatedNumber(data.phone_number);
+      // Fix: Quitamos el filtro phone_number=null. Si el registro existe y está activo, procedemos.
+      if (data?.status === 'active') {
+        setActivatedNumber(data.phone_number || 'Sincronizando...');
         setIsSuccess(true);
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       }
@@ -88,12 +87,9 @@ const Processing: React.FC = () => {
 
   useEffect(() => {
     if (!user || (!sessionId && !subId && !slotId)) return;
-    
     pollIntervalRef.current = setInterval(checkStatus, 1300);
     checkStatus();
-
     const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
-    
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       clearInterval(msgInterval);
@@ -118,10 +114,10 @@ const Processing: React.FC = () => {
              <div className="flex flex-col items-center gap-1 relative z-10">
                 <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Contrato Verificado</span></div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de red:</p>
-                <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{formatPhoneNumber(activatedNumber)}</h2>
+                <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{activatedNumber === 'Sincronizando...' ? activatedNumber : formatPhoneNumber(activatedNumber)}</h2>
              </div>
           </div>
-          <button onClick={() => navigate(`/dashboard/numbers?updated=${encodeURIComponent(activatedNumber)}`)} className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]">
+          <button onClick={() => navigate(`/dashboard/numbers`)} className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]">
             <div className="size-12"></div><span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span><div className="size-12 bg-white/20 rounded-xl flex items-center justify-center"><ArrowRight className="size-6" /></div>
           </button>
         </div>
