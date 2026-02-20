@@ -103,7 +103,11 @@ export default async function handler(req: any, res: any) {
 
             if (lockError) throw lockError;
 
-            // 3. Creación de Suscripción en Stripe
+            // 3. Obtener detalles del precio para el campo 'amount'
+            const price = await stripe.prices.retrieve(priceId);
+            const unitAmount = (price.unit_amount || 0) / 100;
+
+            // 4. Creación de Suscripción en Stripe
             const stripeSub = await stripe.subscriptions.create({
               customer: customerId,
               items: [{ price: priceId }],
@@ -112,7 +116,7 @@ export default async function handler(req: any, res: any) {
               metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: reservedSlotId, transactionType: 'NEW_SUB_INSTANT' }
             });
 
-            // 4. Inserción en Tabla de Suscripciones (UUID)
+            // 5. Inserción en Tabla de Suscripciones (UUID)
             const { data: newSub, error: subError } = await supabaseAdmin
               .from('subscriptions')
               .insert({
@@ -124,8 +128,8 @@ export default async function handler(req: any, res: any) {
                 credits_used: 0,
                 status: 'active',
                 stripe_session_id: stripeSub.id,
-                amount: stripeSub.items.data[0].price.unit_amount ? stripeSub.items.data[0].price.unit_amount / 100 : 0,
-                currency: stripeSub.currency || 'usd',
+                amount: unitAmount,
+                currency: price.currency || 'usd',
                 created_at: new Date().toISOString()
               })
               .select('id')
@@ -142,7 +146,7 @@ export default async function handler(req: any, res: any) {
           }
         } catch (err: any) {
           console.error("[PROVISIONING ERROR]", err.message);
-          // 4. Rollback de Hardware si algo falló
+          // Rollback de Hardware si algo falló
           if (reservedSlotId) {
             await supabaseAdmin.from('slots').update({ status: 'libre', assigned_to: null, plan_type: null }).eq('slot_id', reservedSlotId);
           }
