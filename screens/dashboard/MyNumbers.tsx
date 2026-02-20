@@ -50,10 +50,9 @@ const OFFICIAL_PLANS_DATA = [
         'Capacidad: 150 SMS mensuales',
         'Soporte técnico vía Ticket'
     ],
-    idealFor: 'Usuarios individuales y Desarrolladores.',
     accent: 'text-slate-400',
     iconBg: 'bg-slate-100',
-    border: 'border-slate-100'
+    border: 'border-slate-100 dark:border-slate-800'
   },
   { 
     id: 'Pro', 
@@ -70,10 +69,9 @@ const OFFICIAL_PLANS_DATA = [
         'Capacidad: 400 SMS mensuales',
         'Soporte vía Ticket y Chat'
     ],
-    idealFor: 'Equipos DevOps y Automatizadores.',
     popularBadge: 'MÁS POPULAR',
-    accent: 'text-[#1d4ed8]',
-    iconBg: 'bg-blue-50',
+    accent: 'text-[#0047FF]',
+    iconBg: 'bg-blue-50 dark:bg-blue-900/20',
     border: 'border-blue-500/40'
   },
   { 
@@ -87,14 +85,13 @@ const OFFICIAL_PLANS_DATA = [
     features: [
         'Todo lo incluido en Pro',
         'Seguridad y Control Empresarial',
-        'Escalabilidad P2P',
+        'Integraciones y Escalabilidad',
         'Capacidad: 1,400 SMS mensuales',
         'Soporte Prioritario 24/7'
     ],
-    idealFor: 'Fintech y Corporativos.',
     premiumBadge: 'POTENCIA TOTAL',
     accent: 'text-[#B49248]',
-    iconBg: 'bg-amber-50',
+    iconBg: 'bg-amber-50 dark:bg-amber-900/20',
     border: 'border-amber-400/50'
   }
 ];
@@ -457,12 +454,12 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODAL DE UPGRADE - CLON EXACTO DE MARKETPLACE (ZERO SCROLL) */}
+            {/* MODAL DE UPGRADE - MINIMALISTA & PROFESIONAL (ZERO SCROLL) */}
             {isUpgradeModalOpen && slotToUpgrade && (
                 <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="w-full max-w-md h-[100dvh] bg-background-light dark:bg-background-dark rounded-t-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-10 duration-500 pb-safe">
                         
-                        {/* Header Clonado Marketplace */}
+                        {/* Header Minimalista */}
                         <header className="flex items-center justify-between px-6 pt-5 pb-1 relative z-10">
                             <button onClick={() => setIsUpgradeModalOpen(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                 <span className="material-symbols-outlined text-slate-900 dark:text-white" style={{fontSize: '22px'}}>arrow_back</span>
@@ -476,12 +473,12 @@ const MyNumbers: React.FC = () => {
                                 Elige tu plan
                             </h1>
                             <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">
-                                Línea: {formatPhoneNumber(slotToUpgrade.phone_number)}
+                                Puerto: {formatPhoneNumber(slotToUpgrade.phone_number)}
                             </p>
                         </div>
 
-                        {/* Lista de Planes - Clon exacto Marketplace con Flex Auto-Ajuste */}
-                        <div className="flex-1 flex flex-col gap-2.5 px-6 pb-6 overflow-hidden">
+                        {/* Lista de Planes - Unificación tipográfica con Resumen de Pedido */}
+                        <div className="flex-1 flex flex-col gap-3 px-6 pb-10 overflow-hidden">
                             {OFFICIAL_PLANS_DATA.map((plan) => {
                                 const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
                                 
@@ -489,15 +486,15 @@ const MyNumbers: React.FC = () => {
                                     <div 
                                         key={plan.id}
                                         onClick={() => !isCurrent && confirmUpgrade(plan)}
-                                        className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2rem] p-4 border-2 transition-all cursor-pointer ${
+                                        className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${
                                           isCurrent 
-                                          ? 'border-slate-100 dark:border-slate-800 opacity-60 grayscale' 
+                                          ? 'border-slate-100 dark:border-slate-800 opacity-60' 
                                           : `hover:scale-[1.01] ${plan.border} shadow-lg shadow-black/5`
                                         }`}
                                     >
                                         {/* Badges Flotantes */}
                                         {plan.popularBadge && (
-                                          <div className="absolute -top-2.5 left-8 bg-[#1d4ed8] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                          <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
                                             {plan.popularBadge}
                                           </div>
                                         )}
@@ -509,12 +506,12 @@ const MyNumbers: React.FC = () => {
 
                                         <div className="flex justify-between items-start">
                                             <div className="flex gap-3 items-center">
-                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
-                                                    <span className="material-symbols-outlined text-[20px]">{plan.icon}</span>
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
+                                                    <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
                                                 </div>
                                                 <div>
-                                                    <h3 className={`font-black text-[15px] uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                                                    <p className={`text-[8px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{plan.subtitle}</p>
+                                                    <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{plan.subtitle}</p>
                                                 </div>
                                             </div>
                                             
@@ -525,53 +522,36 @@ const MyNumbers: React.FC = () => {
                                                 </div>
                                             ) : (
                                                 <div className="flex items-baseline gap-0.5">
-                                                    <span className={`text-[17px] font-black tracking-tighter tabular-nums ${plan.accent}`}>${plan.price.toFixed(2)}</span>
-                                                    <span className="text-[7px] text-slate-400 font-black uppercase tracking-widest">/m</span>
+                                                    <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
+                                                    <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Lista de Beneficios Compacta Clon Marketplace */}
-                                        <div className="grid grid-cols-1 gap-1.5 mt-2">
+                                        {/* Lista de Beneficios - Tipografía Unificada text-[11px] */}
+                                        <div className="grid grid-cols-1 gap-2 mt-2">
                                             {plan.features.map((feat, i) => (
                                                 <div key={i} className="flex items-center gap-2">
-                                                    <div className={`size-3.5 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
+                                                    <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
                                                         <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
                                                     </div>
-                                                    <span className="text-[9px] text-slate-600 dark:text-slate-400 font-bold leading-none">{feat}</span>
+                                                    <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
                                                 </div>
                                             ))}
                                         </div>
 
-                                        {/* Footer de Tarjeta */}
-                                        <div className="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800/50 flex items-center justify-between">
-                                            <p className="text-[8px] font-bold text-slate-400 lowercase">
-                                                ideal para: <span className="italic font-bold ml-0.5 text-slate-500 dark:text-slate-300">{plan.idealFor}</span>
-                                            </p>
-                                            {!isCurrent && (
-                                                <div className="flex items-center gap-1 text-[8px] font-black text-primary uppercase tracking-widest">
+                                        {/* Selector Indicador */}
+                                        {!isCurrent && (
+                                            <div className="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800/50 flex justify-end">
+                                                <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase tracking-widest">
                                                    Configurar
-                                                   <ChevronRight className="size-3" />
+                                                   <ChevronRight className="size-4" />
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
-                        </div>
-
-                        {/* Footer del Modal */}
-                        <div className="px-8 pb-10 flex flex-col items-center gap-4">
-                            <button 
-                                onClick={() => setIsUpgradeModalOpen(false)}
-                                className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] py-2 hover:text-slate-600 transition-colors"
-                            >
-                                Cancelar y Volver
-                            </button>
-                            <div className="flex items-center justify-center gap-2 opacity-20">
-                                <ShieldCheck className="size-3" />
-                                <p className="text-[8px] font-black uppercase tracking-[0.3em]">TELSIM GLOBAL SECURE CLOUD v6.0</p>
-                            </div>
                         </div>
                     </div>
                 </div>
