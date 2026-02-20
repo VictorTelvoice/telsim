@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -44,7 +43,7 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { unreadSmsCount } = useMessagesCount();
-
+  
   const isActive = (path: string) => location.pathname === path;
 
   const isSettingsActive = 
