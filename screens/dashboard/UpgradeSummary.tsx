@@ -161,7 +161,7 @@ const UpgradeSummary: React.FC = () => {
             <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
                 <div className="pb-6 pt-2">
                     <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">Revisa el cambio</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles de la nueva configuración de red.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles de la nueva configuración de SIM.</p>
                 </div>
 
                 {/* Tarjeta Principal - Clon Onboarding con Acentos Cromáticos */}
@@ -260,7 +260,7 @@ const UpgradeSummary: React.FC = () => {
                 )}
             </div>
 
-            {/* Footer de Acción con Identidad Cromática */}
+            {/* Footer de Acción con Identidad Cromática - Sin texto de infraestructura */}
             <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-4">
                 <button 
                     onClick={() => handleConfirmUpgrade(false)}
@@ -278,10 +278,6 @@ const UpgradeSummary: React.FC = () => {
                     </div>
                 </button>
                 <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">Cambiar método de pago</button>
-                <div className="flex items-center justify-center gap-1.5 opacity-40">
-                    <Lock className="size-3" />
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">INFRAESTRUCTURA GLOBAL TELSIM</p>
-                </div>
             </div>
         </div>
     </div>
