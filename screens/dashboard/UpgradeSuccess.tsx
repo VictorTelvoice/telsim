@@ -9,9 +9,11 @@ import {
   Loader2, 
   Crown, 
   Sparkles, 
-  Star,
   Calendar,
-  Layers
+  Layers,
+  Cpu,
+  Bot,
+  Shield
 } from 'lucide-react';
 
 const UpgradeSuccess: React.FC = () => {
@@ -46,55 +48,58 @@ const UpgradeSuccess: React.FC = () => {
     });
   }, []);
 
-  // Configuración Visual Condicional por Plan
+  // Configuración Visual y de Datos por Plan
   const planConfig = useMemo(() => {
     const name = (planName || 'Starter').toUpperCase();
     
     if (name.includes('POWER')) {
       return {
         title: 'NIVEL POWER ACTIVADO',
-        subtitle: 'Bienvenido al máximo nivel de seguridad empresarial, escalabilidad y soporte prioritario 24/7.',
-        accentColor: 'text-[#B49248]',
-        glowColor: 'bg-[#B49248]/20',
-        borderColor: 'border-[#B49248]/30',
-        badgeBg: 'bg-[#B49248]/10',
-        badgeText: 'text-[#B49248]',
-        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-[#B49248]/20',
-        icon: <Crown className="size-14 text-[#B49248]" />,
-        miniIcon: <Sparkles className="size-3 text-[#B49248]" />,
-        capacity: '1,400 SMS mensuales'
+        description: 'Has desbloqueado la infraestructura de máxima escala para empresas y trading de alta frecuencia.',
+        accentColor: 'text-amber-500',
+        glowColor: 'from-amber-500/20',
+        borderColor: 'border-amber-400/30',
+        badgeBg: 'bg-amber-500/10',
+        badgeText: 'text-amber-600',
+        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-amber-500/20',
+        icon: <Crown className="size-14 text-amber-500" />,
+        miniIcon: <Shield className="size-3 text-amber-500" />,
+        capacity: '1,400 SMS / mes',
+        highlight: 'Soporte Prioritario 24/7'
       };
     }
     
     if (name.includes('PRO')) {
       return {
-        title: 'POTENCIA PRO ACTIVADA',
-        subtitle: 'Tu infraestructura ahora cuenta con automatización total, acceso a API y Webhooks.',
-        accentColor: 'text-[#0047FF]',
-        glowColor: 'bg-[#0047FF]/20',
-        borderColor: 'border-[#0047FF]/30',
-        badgeBg: 'bg-[#0047FF]/10',
-        badgeText: 'text-[#0047FF]',
-        buttonClass: 'bg-[#0047FF] shadow-[#0047FF]/20',
-        icon: <Zap className="size-14 text-[#0047FF]" />,
-        miniIcon: <Zap className="size-3 text-[#0047FF]" />,
-        capacity: '400 SMS mensuales'
+        title: 'POTENCIA PRO ACTIVA',
+        description: 'Tu puerto ahora es compatible con automatización total vía API y Webhooks en tiempo real.',
+        accentColor: 'text-primary',
+        glowColor: 'from-primary/20',
+        borderColor: 'border-primary/30',
+        badgeBg: 'bg-primary/10',
+        badgeText: 'text-primary',
+        buttonClass: 'bg-primary shadow-blue-500/20',
+        icon: <Zap className="size-14 text-primary" />,
+        miniIcon: <Bot className="size-3 text-primary" />,
+        capacity: '400 SMS / mes',
+        highlight: 'Acceso a API & Webhooks'
       };
     }
 
     // Default: STARTER
     return {
-      title: 'PLAN BÁSICO ACTIVO',
-      subtitle: 'Tu puerto físico ha sido configurado con éxito para recibir verificaciones en tiempo real.',
+      title: 'PLAN BÁSICO VINCULADO',
+      description: 'Tu número SIM real ha sido configurado para recibir verificaciones SMS de forma segura.',
       accentColor: 'text-emerald-500',
-      glowColor: 'bg-emerald-500/20',
+      glowColor: 'from-emerald-500/20',
       borderColor: 'border-emerald-500/20',
       badgeBg: 'bg-emerald-500/10',
       badgeText: 'text-emerald-600',
-      buttonClass: 'bg-primary shadow-blue-500/20',
+      buttonClass: 'bg-emerald-600 shadow-emerald-500/20',
       icon: <CheckCircle2 className="size-14 text-emerald-500" />,
       miniIcon: <ShieldCheck className="size-3 text-emerald-500" />,
-      capacity: '150 SMS mensuales'
+      capacity: '150 SMS / mes',
+      highlight: 'Número SIM Real (+56)'
     };
   }, [planName]);
 
@@ -107,8 +112,8 @@ const UpgradeSuccess: React.FC = () => {
 
       try {
         await addNotification({
-          title: '¡Plan Actualizado!',
-          message: `El Ledger ha confirmado el pago. Tu línea ${phoneNumber} ahora opera bajo el Plan ${planName}.`,
+          title: 'Mejora de Plan Exitosa',
+          message: `El Ledger ha confirmado tu upgrade. Tu línea ${phoneNumber} ya opera bajo el nivel ${planName}.`,
           type: 'subscription'
         });
       } catch (err) {
@@ -137,9 +142,12 @@ const UpgradeSuccess: React.FC = () => {
 
   if (isSyncing) {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 gap-6">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 gap-6 font-display">
           <Loader2 className="size-12 text-primary animate-spin" />
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Confirmando Transacción...</h2>
+          <div className="text-center">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-[0.3em] mb-1">Reconfigurando Nodo</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando con el Ledger...</p>
+          </div>
       </div>
     );
   }
@@ -147,52 +155,52 @@ const UpgradeSuccess: React.FC = () => {
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
       {/* Fondo dinámico basado en plan */}
-      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] ${planConfig.glowColor.replace('bg-', 'from-')} via-transparent to-transparent pointer-events-none opacity-40`}></div>
+      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] ${planConfig.glowColor} via-transparent to-transparent pointer-events-none opacity-40`}></div>
 
       <div className={`relative z-10 w-full max-w-sm flex flex-col items-center text-center transition-all duration-1000 ease-out ${showContent ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
         
         <div className="mb-8">
           <div className="relative mb-8 flex justify-center">
-             <div className={`absolute inset-0 ${planConfig.glowColor} blur-3xl rounded-full scale-125 animate-pulse`}></div>
+             <div className={`absolute inset-0 ${planConfig.badgeBg} blur-3xl rounded-full scale-150 animate-pulse`}></div>
             <div className={`size-28 rounded-[2.5rem] bg-white dark:bg-slate-900 border-2 ${planConfig.borderColor} shadow-2xl flex items-center justify-center relative z-10 transition-colors duration-500`}>
               {planConfig.icon}
             </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white uppercase mb-3 px-4 leading-tight">
-            {planConfig.title}
+          <h1 className={`text-3xl font-black tracking-tighter uppercase mb-3 px-4 leading-tight ${planConfig.accentColor}`}>
+            Mejora Lista
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[30ch] mx-auto italic">
-            "Mejora Lista. Tu infraestructura ha sido potenciada."
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[32ch] mx-auto italic">
+            "{planConfig.description}"
           </p>
         </div>
 
-        <div className={`w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 ${planConfig.borderColor} px-8 py-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden`}>
+        <div className={`w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 ${planConfig.borderColor} px-6 py-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden`}>
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
           
           <div className={`inline-flex items-center gap-2 px-3 py-1 ${planConfig.badgeBg} rounded-full mb-6 border ${planConfig.borderColor}`}>
              {planConfig.miniIcon}
-             <span className={`text-[8px] font-black uppercase tracking-widest ${planConfig.badgeText}`}>Configuración Actualizada</span>
+             <span className={`text-[8px] font-black uppercase tracking-widest ${planConfig.badgeText}`}>{planConfig.highlight}</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 mb-8">
+          <div className="flex flex-col items-center gap-1 mb-10">
              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
              <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
                 {formatPhoneNumber(phoneNumber)}
              </div>
           </div>
           
-          <div className="w-full grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+          <div className="w-full grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-8">
              <div className="flex flex-col items-start gap-1">
                 <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                   <Layers className="size-3" /> Capacidad
+                   <Layers className="size-3" /> Nueva Capacidad
                 </div>
-                <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{planConfig.capacity}</p>
+                <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase">{planConfig.capacity}</p>
              </div>
              <div className="flex flex-col items-end gap-1 text-right">
                 <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                   <Calendar className="size-3" /> Renovación
+                   <Calendar className="size-3" /> Próxima Renovación
                 </div>
-                <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{renewalDate}</p>
+                <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase">{renewalDate}</p>
              </div>
           </div>
         </div>
@@ -207,6 +215,11 @@ const UpgradeSuccess: React.FC = () => {
             <ArrowRight className="size-6" />
           </div>
         </button>
+      </div>
+
+      <div className="absolute bottom-8 flex items-center gap-3 opacity-20 pointer-events-none">
+        <Cpu className="size-4" />
+        <span className="text-[8px] font-black uppercase tracking-[0.5em]">SYNC OK - CORE v6.0</span>
       </div>
     </div>
   );
