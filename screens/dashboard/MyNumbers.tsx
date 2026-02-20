@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
@@ -98,6 +98,7 @@ const OFFICIAL_PLANS_DATA = [
 
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { refreshUnreadCount } = useMessagesCount();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
@@ -174,6 +175,19 @@ const MyNumbers: React.FC = () => {
     useEffect(() => {
         fetchSlots();
     }, [user]);
+
+    // Lógica para detectar si volvemos desde el resumen de upgrade
+    useEffect(() => {
+      if (location.state?.reopenUpgrade && slots.length > 0) {
+        const slot = slots.find(s => s.slot_id === location.state.slotId);
+        if (slot) {
+          setSlotToUpgrade(slot);
+          setShowUpgradeView(true);
+          // Limpiamos el estado para que no se reabra innecesariamente en futuros renders
+          window.history.replaceState({}, document.title);
+        }
+      }
+    }, [location.state, slots]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         const toast = document.createElement('div');
@@ -390,8 +404,8 @@ const MyNumbers: React.FC = () => {
                                 onClick={() => !isCurrent && confirmUpgrade(plan)}
                                 className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${
                                   isCurrent 
-                                  ? 'border-slate-100 dark:border-slate-800 opacity-60' 
-                                  : `hover:scale-[1.01] ${plan.border} shadow-sm`
+                                  ? 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none' 
+                                  : `hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`
                                 }`}
                             >
                                 {/* Badges Integrados */}
@@ -440,15 +454,6 @@ const MyNumbers: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-
-                                {!isCurrent && (
-                                    <div className="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800/50 flex justify-end">
-                                        <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase tracking-widest">
-                                           Seleccionar
-                                           <ChevronRight className="size-4" />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
@@ -577,7 +582,7 @@ const MyNumbers: React.FC = () => {
             )}
 
             {isFwdModalOpen && activeConfigSlot && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5 max-h-[90vh] overflow-y-auto no-scrollbar">
                         <div className="bg-primary p-8 text-white relative">
                             <button onClick={() => setIsFwdModalOpen(false)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20">

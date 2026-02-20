@@ -125,6 +125,17 @@ const UpgradeSummary: React.FC = () => {
     } catch (err: any) { alert(err.message || "Error al procesar."); setIsProcessing(false); }
   };
 
+  const handleBack = () => {
+    if (isProcessing) return;
+    // Volvemos a MyNumbers pasando el estado para reabrir la vista de "Cambiar Plan"
+    navigate('/dashboard/numbers', { 
+      state: { 
+        reopenUpgrade: true, 
+        slotId: slot_id 
+      } 
+    });
+  };
+
   const formatPhoneNumber = (num: string) => {
     const cleaned = ('' + num).replace(/\D/g, '');
     if (cleaned.startsWith('569') && cleaned.length === 11) return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
@@ -134,10 +145,10 @@ const UpgradeSummary: React.FC = () => {
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased min-h-screen flex flex-col items-center">
         <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
-            {/* Header - Clon Onboarding */}
+            {/* Header - Flecha personalizada para volver a Cambiar Plan */}
             <div className="sticky top-0 z-20 flex items-center bg-background-light/90 dark:bg-background-dark/90 px-4 py-3 backdrop-blur-sm">
                 <div 
-                    onClick={() => !isProcessing && navigate(-1)}
+                    onClick={handleBack}
                     className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer ${isProcessing ? 'opacity-30' : ''}`}
                 >
                     <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
@@ -164,7 +175,7 @@ const UpgradeSummary: React.FC = () => {
                     <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles de la nueva configuración de SIM.</p>
                 </div>
 
-                {/* Tarjeta Principal - Clon Onboarding con Acentos Cromáticos */}
+                {/* Tarjeta Principal */}
                 <div className={`relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#1A2230] p-0 shadow-soft border-2 ${planConfig.borderColor} mb-6 transition-colors duration-500`}>
                     <div className="flex items-center gap-4 p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 dark:bg-slate-800/30">
                         <div className="size-12 shrink-0 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900 flex items-center justify-center text-2xl">
@@ -260,7 +271,7 @@ const UpgradeSummary: React.FC = () => {
                 )}
             </div>
 
-            {/* Footer de Acción con Identidad Cromática - Sin texto de infraestructura */}
+            {/* Footer de Acción - Limpio de textos adicionales */}
             <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-4">
                 <button 
                     onClick={() => handleConfirmUpgrade(false)}
