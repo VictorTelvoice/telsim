@@ -145,9 +145,9 @@ export default async function handler(req: any, res: any) {
     }
 
     // Inyección de parámetros de persistencia en la sesión
+    // Nota: 'customer_creation' se elimina porque no es compatible con el modo 'subscription'
     const session = await stripe.checkout.sessions.create({
       customer: customerId || undefined, // RECONOCIMIENTO AUTOMÁTICO DE TARJETAS
-      customer_creation: customerId ? undefined : 'always',
       payment_method_collection: customerId ? 'if_required' : 'always',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
