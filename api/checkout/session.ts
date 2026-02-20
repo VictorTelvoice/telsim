@@ -23,7 +23,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
     }
 
-    // 1. OBTENER DATOS DEL USUARIO (Stripe Customer ID)
     const { data: userData } = await supabaseAdmin
       .from('users')
       .select('stripe_customer_id')
@@ -32,9 +31,8 @@ export default async function handler(req: any, res: any) {
 
     const customerId = userData?.stripe_customer_id;
 
-    // 2. LÓGICA DE PAGO INSTANTÁNEO (ONE-CLICK)
+    // LÓGICA DE PAGO RÁPIDO (ONE-CLICK)
     if (customerId && !forceManual) {
-      
       // ESCENARIO A: Upgrade de una línea existente
       if (isUpgrade && slot_id) {
         const { data: activeSub } = await supabaseAdmin
@@ -51,23 +49,12 @@ export default async function handler(req: any, res: any) {
 
             if (subscriptionId) {
               const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-              
               await stripe.subscriptions.update(subscriptionId, {
-                items: [{
-                  id: subscription.items.data[0].id,
-                  price: priceId,
-                }],
+                items: [{ id: subscription.items.data[0].id, price: priceId }],
                 proration_behavior: 'always_invoice',
-                metadata: {
-                  transactionType: 'UPGRADE',
-                  planName: planName,
-                  limit: monthlyLimit,
-                  slot_id: slot_id,
-                  userId: userId
-                }
+                metadata: { transactionType: 'UPGRADE', planName, limit: monthlyLimit, slot_id, userId }
               });
-
-              return res.status(200).json({ instant: true, message: 'Upgrade procesado con éxito.' });
+              return res.status(200).json({ instant: true, message: 'Upgrade procesado.' });
             }
           } catch (subErr: any) {
             console.error("[INSTANT UPGRADE FAIL]", subErr.message);
@@ -75,68 +62,48 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // ESCENARIO B: Contratación de NUEVA línea con tarjeta guardada
+      // ESCENARIO B: Nueva línea (One-Click)
       if (!isUpgrade) {
         try {
           const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
           const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
           if (defaultPaymentMethod) {
-            // Buscamos un slot libre
-            const { data: freeSlot } = await supabaseAdmin
-              .from('slots')
-              .select('slot_id, phone_number')
-              .eq('status', 'libre')
-              .limit(1)
-              .maybeSingle();
+            const { data: freeSlot } = await supabaseAdmin.from('slots').select('slot_id, phone_number').eq('status', 'libre').limit(1).maybeSingle();
+            if (!freeSlot) throw new Error("No hay puertos físicos libres.");
 
-            if (!freeSlot) throw new Error("No hay puertos físicos disponibles.");
+            await supabaseAdmin.from('slots').update({ status: 'reservado', assigned_to: userId }).eq('slot_id', freeSlot.slot_id);
 
-            // Reservamos temporalmente
-            await supabaseAdmin.from('slots').update({ 
-                status: 'reservado', 
-                assigned_to: userId 
-            }).eq('slot_id', freeSlot.slot_id);
-
-            // Crear suscripción directa
             const subscription = await stripe.subscriptions.create({
               customer: customerId,
               items: [{ price: priceId }],
               default_payment_method: defaultPaymentMethod as string,
               trial_period_days: 7,
-              metadata: {
-                userId, phoneNumber: freeSlot.phone_number, planName,
-                limit: monthlyLimit, slot_id: freeSlot.slot_id,
-                transactionType: 'NEW_SUBSCRIPTION_INSTANT'
-              }
+              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, limit: monthlyLimit, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUBSCRIPTION_INSTANT' }
             });
 
-            // Provisionamiento inmediato
-            await supabaseAdmin.from('subscriptions').insert({
+            const { data: newSub } = await supabaseAdmin.from('subscriptions').insert({
                 user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
                 plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
                 status: 'active', stripe_session_id: subscription.id,
                 amount: subscription.items.data[0].price.unit_amount ? subscription.items.data[0].price.unit_amount / 100 : 0,
                 currency: subscription.currency || 'usd', created_at: new Date().toISOString()
-            });
+            }).select('id').single();
 
-            await supabaseAdmin.from('slots').update({ 
-                status: 'ocupado', assigned_to: userId, plan_type: planName 
-            }).eq('slot_id', freeSlot.slot_id);
+            await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
 
             return res.status(200).json({ 
                 instant: true, 
+                subscriptionId: newSub?.id, // Retornamos el UUID interno
                 phoneNumber: freeSlot.phone_number,
-                message: 'Nueva línea activada con One-Click.' 
+                message: 'Activación One-Click exitosa.' 
             });
           }
-        } catch (instantErr: any) {
-          console.error("[INSTANT NEW SUB FAIL]", instantErr.message);
-        }
+        } catch (err: any) { console.error("[INSTANT FAIL]", err.message); }
       }
     }
 
-    // 3. FLUJO ESTÁNDAR DE REDIRECCIÓN A STRIPE
+    // FLUJO ESTÁNDAR
     const host = req.headers.host;
     const protocol = host?.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
@@ -147,23 +114,16 @@ export default async function handler(req: any, res: any) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      subscription_data: {
-        trial_period_days: 7
-      },
+      subscription_data: { trial_period_days: 7 },
       success_url: isUpgrade 
         ? `${origin}/#/dashboard/upgrade-success?session_id={CHECKOUT_SESSION_ID}&num=${phoneNumber}&plan=${planName}`
         : `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}`,
       cancel_url: isUpgrade ? `${origin}/#/dashboard/numbers` : `${origin}/#/onboarding/payment`,
       client_reference_id: userId,
-      metadata: {
-        userId, phoneNumber: phoneNumber || 'PENDING', planName,
-        limit: monthlyLimit || 400, slot_id: slot_id || '',
-        transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION'
-      }
+      metadata: { userId, phoneNumber: phoneNumber || 'PENDING', planName, limit: monthlyLimit || 400, slot_id: slot_id || '', transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION' }
     });
 
     return res.status(200).json({ url: session.url });
-
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
