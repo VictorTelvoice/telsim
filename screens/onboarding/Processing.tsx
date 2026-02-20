@@ -43,7 +43,7 @@ const Processing: React.FC = () => {
     "Validando puerto en el Ledger...",
     "Asignando infraestructura física...",
     "Triggering sim-card activation...",
-    "Sincronizando número de red..."
+    "Sincronizando número de SIM..."
   ];
 
   const formatPhoneNumber = (num: string) => {
@@ -61,7 +61,6 @@ const Processing: React.FC = () => {
     }
 
     try {
-      // Búsqueda prioritaria por ID único o puerto activo
       let query = supabase.from('subscriptions').select('phone_number, status').eq('status', 'active');
       
       if (subId) {
@@ -76,7 +75,6 @@ const Processing: React.FC = () => {
 
       const { data } = await query.maybeSingle();
 
-      // Fix: Quitamos el filtro phone_number=null. Si el registro existe y está activo, procedemos.
       if (data?.status === 'active') {
         setActivatedNumber(data.phone_number || 'Sincronizando...');
         setIsSuccess(true);
@@ -113,7 +111,7 @@ const Processing: React.FC = () => {
           <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] p-10 border-2 border-emerald-500/10 shadow-card flex flex-col items-center gap-2 relative overflow-hidden">
              <div className="flex flex-col items-center gap-1 relative z-10">
                 <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Contrato Verificado</span></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de red:</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
                 <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{activatedNumber === 'Sincronizando...' ? activatedNumber : formatPhoneNumber(activatedNumber)}</h2>
              </div>
           </div>

@@ -280,7 +280,7 @@ const UpgradeSummary: React.FC = () => {
                 <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">Cambiar método de pago</button>
                 <div className="flex items-center justify-center gap-1.5 opacity-40">
                     <Lock className="size-3" />
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">TELSIM SECURE CHECKOUT v4.0</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">INFRAESTRUCTURA GLOBAL TELSIM</p>
                 </div>
             </div>
         </div>
