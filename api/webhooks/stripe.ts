@@ -19,138 +19,63 @@ const supabaseAdmin = createClient(
 async function getRawBody(readable: any): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of readable) {
-    if (typeof chunk === 'string') {
-      chunks.push(new TextEncoder().encode(chunk));
-    } else {
-      chunks.push(new Uint8Array(chunk));
-    }
+    if (typeof chunk === 'string') chunks.push(new TextEncoder().encode(chunk));
+    else chunks.push(new Uint8Array(chunk));
   }
   const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
   return result;
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'TELSIM: Method Not Allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SIGNING_SECRET;
-  
   let event: Stripe.Event;
 
   try {
     const rawBody = await getRawBody(req);
     const rawBodyString = new TextDecoder().decode(rawBody);
-    
-    if (webhookSecret && sig) {
-      event = stripe.webhooks.constructEvent(rawBodyString, sig, webhookSecret);
-    } else {
-      event = JSON.parse(rawBodyString);
-    }
-  } catch (err: any) {
-    console.error(`[TELSIM WEBHOOK ERROR] Security Validation Failed: ${err.message}`);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+    if (webhookSecret && sig) event = stripe.webhooks.constructEvent(rawBodyString, sig, webhookSecret);
+    else event = JSON.parse(rawBodyString);
+  } catch (err: any) { return res.status(400).send(`Webhook Error: ${err.message}`); }
 
-  // EVENTO A: Checkout completado (Flujo nuevo o Upgrade con redirección)
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const metadata = session.metadata || {};
-    const userId = metadata.userId;
-    const slotId = metadata.slot_id;
-    const planName = metadata.planName;
-    const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
-    const transactionType = metadata.transactionType;
+    const { userId, slot_id: slotId, planName, limit, transactionType } = session.metadata || {};
 
     if (userId && slotId) {
       try {
-        const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
-        if (!slotData) throw new Error("Slot no hallado.");
+        // Verificamos si ya existe (para evitar duplicidad con el flujo Instant)
+        const { data: existingSub } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id')
+          .eq('stripe_session_id', session.id)
+          .maybeSingle();
 
-        // Se elimina el .update({ status: 'canceled' }) manual ya que el trigger de DB lo manejará
-        // para mantener integridad histórica.
+        if (!existingSub) {
+          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+          
+          await supabaseAdmin.from('subscriptions').insert({
+              user_id: userId, slot_id: slotId, phone_number: slotData?.phone_number,
+              plan_name: planName, monthly_limit: Number(limit) || 400, credits_used: 0,
+              status: 'active', stripe_session_id: session.id,
+              amount: session.amount_total ? session.amount_total / 100 : 0,
+              currency: session.currency || 'usd', created_at: new Date().toISOString()
+          });
 
-        await supabaseAdmin.from('subscriptions').insert({
-            user_id: userId, slot_id: slotId, phone_number: slotData.phone_number,
-            plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
-            status: 'active', stripe_session_id: session.id,
-            amount: session.amount_total ? session.amount_total / 100 : 0,
-            currency: session.currency || 'usd', created_at: new Date().toISOString()
-        });
-
-        await supabaseAdmin.from('slots').update({ 
-            status: 'ocupado', assigned_to: userId, plan_type: planName 
-        }).eq('slot_id', slotId);
+          await supabaseAdmin.from('slots').update({ 
+              status: 'ocupado', assigned_to: userId, plan_type: planName 
+          }).eq('slot_id', slotId);
+        }
 
         if (session.customer) {
           await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
         }
-      } catch (err: any) {
-        console.error(`❌ PROVISION ERROR: ${err.message}`);
-      }
-    }
-  }
-
-  // EVENTO B: Suscripción actualizada (Flujo Upgrade Directo / One-Click)
-  if (event.type === 'customer.subscription.updated') {
-    const subscription = event.data.object as Stripe.Subscription;
-    const metadata = subscription.metadata || {};
-    
-    if (metadata.transactionType === 'UPGRADE') {
-      const slotId = metadata.slot_id;
-      const planName = metadata.planName;
-      const monthlyLimit = Number(metadata.limit);
-      const userId = metadata.userId;
-
-      if (slotId && userId) {
-        console.log(`[ONE-CLICK WEBHOOK] Procesando historial de Upgrade para Slot ${slotId}`);
-        
-        try {
-          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
-          
-          if (slotData) {
-            // INSERTAMOS una nueva fila para auditoría financiera
-            await supabaseAdmin.from('subscriptions').insert({
-                user_id: userId,
-                slot_id: slotId,
-                phone_number: slotData.phone_number,
-                plan_name: planName,
-                monthly_limit: monthlyLimit,
-                credits_used: 0,
-                status: 'active',
-                stripe_session_id: subscription.id,
-                amount: subscription.items.data[0].price.unit_amount ? subscription.items.data[0].price.unit_amount / 100 : 0,
-                currency: subscription.currency || 'usd',
-                created_at: new Date().toISOString()
-            });
-
-            // Actualizamos solo el tipo de plan en el hardware
-            await supabaseAdmin.from('slots')
-              .update({ plan_type: planName })
-              .eq('slot_id', slotId);
-          }
-        } catch (err: any) {
-          console.error(`❌ ERROR EN UPDATE WEBHOOK: ${err.message}`);
-        }
-      }
-    }
-  }
-
-  if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const metadata = session.metadata || {};
-    const slotId = metadata.slot_id;
-    if (slotId && metadata.transactionType !== 'UPGRADE') {
-      await supabaseAdmin.from('slots').update({ status: 'libre', assigned_to: null, plan_type: null })
-        .eq('slot_id', slotId).eq('status', 'reservado');
+      } catch (err: any) { console.error(`[WEBHOOK ERROR] ${err.message}`); }
     }
   }
 

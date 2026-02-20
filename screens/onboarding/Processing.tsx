@@ -38,7 +38,7 @@ const Processing: React.FC = () => {
     "Actualizando Ledger v4.0...",
     "Finalizando actualización..."
   ] : [
-    "Recibiendo confirmación de Stripe...",
+    "Recibiendo confirmación segura...",
     "Validando puerto en el Ledger...",
     "Asignando infraestructura física...",
     "Triggering sim-card activation...",
@@ -53,20 +53,23 @@ const Processing: React.FC = () => {
   };
 
   const checkStatus = async () => {
-    // Aumentamos timeout a 90s para mayor seguridad en hardware físico
-    if (Date.now() - startTime.current > 90000) {
+    if (Date.now() - startTime.current > 80000) {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setError("TIMEOUT");
       return;
     }
 
     try {
-      // Consultamos la suscripción. En upgrades, el número ya existe, solo validamos status.
+      // Prioridad absoluta al ID primario (UUID) para pagos One-Click
       let query = supabase.from('subscriptions').select('phone_number, status').eq('status', 'active');
       
-      if (subId) query = query.eq('id', subId);
-      else if (sessionId) query = query.eq('stripe_session_id', sessionId);
-      else return;
+      if (subId) {
+        query = query.eq('id', subId);
+      } else if (sessionId) {
+        query = query.eq('stripe_session_id', sessionId);
+      } else {
+        return;
+      }
 
       const { data } = await query.maybeSingle();
 
@@ -75,14 +78,18 @@ const Processing: React.FC = () => {
         setIsSuccess(true);
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       }
-    } catch (err) { console.debug("Polling error", err); }
+    } catch (err) { console.debug("Polling retry...", err); }
   };
 
   useEffect(() => {
     if (!user || (!sessionId && !subId)) return;
-    pollIntervalRef.current = setInterval(checkStatus, 1500);
+    
+    // Polling agresivo inicial (cada 1.2s) para máxima velocidad
+    pollIntervalRef.current = setInterval(checkStatus, 1200);
     checkStatus();
-    const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2500);
+
+    const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2000);
+    
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       clearInterval(msgInterval);
@@ -105,7 +112,7 @@ const Processing: React.FC = () => {
           </div>
           <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] p-10 border-2 border-emerald-500/10 shadow-card flex flex-col items-center gap-2 relative overflow-hidden">
              <div className="flex flex-col items-center gap-1 relative z-10">
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Infraestructura Verificada</span></div>
+                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-3"><Zap className="size-3 text-emerald-500" /><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Hardware Sincronizado</span></div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de red:</p>
                 <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{formatPhoneNumber(activatedNumber)}</h2>
              </div>
@@ -122,7 +129,7 @@ const Processing: React.FC = () => {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in">
         <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8"><AlertCircle className="size-10 text-amber-500" /></div>
-        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago es válido, pero el hardware está tardando en responder. Esto puede suceder en horas de alta demanda de red física.</p></div>
+        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago es válido, pero el hardware está tardando en responder. El nodo de red se activará automáticamente en unos minutos.</p></div>
         <div className="w-full max-w-sm space-y-3">
           <button onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"><RefreshCw className="size-4" /> Reintentar Sincronización</button>
           <button onClick={() => navigate('/dashboard/numbers')} className="w-full h-14 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Ir a mis números de todas formas</button>
