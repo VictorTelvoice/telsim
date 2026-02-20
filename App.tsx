@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-route
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { MessagesProvider } from './contexts/MessagesContext';
+import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './screens/Landing';
@@ -42,6 +42,7 @@ import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { unreadSmsCount } = useMessagesCount();
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -85,6 +86,11 @@ const BottomNav = () => {
           <span className={`text-[10px] font-medium transition-colors ${isActive('/dashboard/messages') ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}>
             Mensajes
           </span>
+          {unreadSmsCount > 0 && (
+            <span className="absolute top-1 right-5 min-w-[14px] h-[14px] bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center px-1 border border-white dark:border-surface-dark">
+              {unreadSmsCount}
+            </span>
+          )}
         </button>
 
         <div className="relative -top-5 px-2">

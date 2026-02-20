@@ -54,18 +54,30 @@ const UpgradeSuccess: React.FC = () => {
     
     if (name.includes('POWER')) {
       return {
-        title: 'NIVEL POWER ACTIVADO',
+        title: 'MEJORA LISTA',
         description: 'Has desbloqueado la infraestructura de máxima escala para empresas y trading de alta frecuencia.',
-        accentColor: 'text-amber-500',
-        glowColor: 'from-amber-500/20',
-        borderColor: 'border-amber-400/30',
-        badgeBg: 'bg-amber-500/10',
-        badgeText: 'text-amber-600',
-        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-amber-500/20',
-        icon: <Crown className="size-14 text-amber-500" />,
-        miniIcon: <Shield className="size-3 text-amber-500" />,
+        accentColor: 'text-[#D4AF37]',
+        glowColor: 'from-[#D4AF37]/20',
+        borderColor: 'border-[#D4AF37]/30',
+        badgeBg: 'bg-[#D4AF37]',
+        badgeText: 'text-white',
+        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-[#D4AF37]/20',
+        icon: (
+          <div className="relative flex items-center justify-center">
+            <div className="absolute size-24 rounded-full border-4 border-[#D4AF37] animate-pulse shadow-[0_0_20px_rgba(212,175,55,0.4)]"></div>
+            <CheckCircle2 className="size-14 text-[#D4AF37]" />
+          </div>
+        ),
+        miniIcon: <Shield className="size-3 text-white" />,
         capacity: '1,400 SMS / mes',
-        highlight: 'Soporte Prioritario 24/7'
+        highlight: 'CONTRATO VERIFICADO',
+        isPower: true,
+        summary: [
+          { label: 'Plan', value: 'POWER (Suscripción Activa)' },
+          { label: 'Capacidad', value: '1,400 Créditos SMS mensuales' },
+          { label: 'Seguridad', value: 'Control Empresarial y Escalabilidad activados' },
+          { label: 'Soporte', value: 'Prioritario 24/7 desbloqueado' }
+        ]
       };
     }
     
@@ -203,18 +215,42 @@ const UpgradeSuccess: React.FC = () => {
                 <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase">{renewalDate}</p>
              </div>
           </div>
+
+          {/* Resumen elegante para Plan POWER */}
+          {planConfig.isPower && planConfig.summary && (
+            <div className="w-full mt-8 space-y-3 border-t border-slate-100 dark:border-slate-800 pt-6">
+              {planConfig.summary.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-[9px]">
+                  <span className="font-black text-slate-400 uppercase tracking-widest">{item.label}:</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-right ml-4">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <button 
-          onClick={() => navigate('/dashboard/numbers')}
-          className={`group w-full h-16 ${planConfig.buttonClass} text-white font-black rounded-2xl shadow-lg flex items-center justify-between px-2 transition-all active:scale-[0.98]`}
-        >
-          <div className="size-12"></div>
-          <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
-          <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
-            <ArrowRight className="size-6" />
-          </div>
-        </button>
+        <div className="w-full space-y-4">
+          <button 
+            onClick={() => navigate('/dashboard/numbers')}
+            className={`group w-full h-16 ${planConfig.buttonClass} text-white font-black rounded-2xl shadow-lg flex items-center justify-between px-2 transition-all active:scale-[0.98]`}
+          >
+            <div className="size-12"></div>
+            <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
+            <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <ArrowRight className="size-6" />
+            </div>
+          </button>
+
+          {planConfig.isPower && (
+            <button 
+              onClick={() => navigate('/dashboard/numbers', { state: { openAutomation: true, phoneNumber } })}
+              className="w-full h-14 border-2 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-black rounded-2xl flex items-center justify-center gap-2 text-[11px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-[0.98]"
+            >
+              <Bot className="size-4" />
+              Configura tu Bot
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="absolute bottom-8 flex items-center gap-3 opacity-20 pointer-events-none">

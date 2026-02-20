@@ -189,6 +189,17 @@ const MyNumbers: React.FC = () => {
       }
     }, [location.state, slots]);
 
+    useEffect(() => {
+      if (location.state?.openAutomation && slots.length > 0) {
+        const slot = slots.find(s => s.phone_number === location.state.phoneNumber);
+        if (slot) {
+          openAutomationConfig(slot);
+          // Limpiamos el estado
+          window.history.replaceState({}, document.title);
+        }
+      }
+    }, [location.state, slots]);
+
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         const toast = document.createElement('div');
         toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'} backdrop-blur-md text-white px-8 py-4 rounded-2xl flex items-center gap-3 shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
