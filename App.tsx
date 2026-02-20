@@ -43,7 +43,7 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { unreadSmsCount } = useMessagesCount();
-  
+
   const isActive = (path: string) => location.pathname === path;
 
   const isSettingsActive = 

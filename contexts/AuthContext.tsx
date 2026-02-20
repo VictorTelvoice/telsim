@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 // Removed User and Session imports as they are not exported from @supabase/supabase-js in this environment

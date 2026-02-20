@@ -36,7 +36,7 @@ export interface SMSLog {
   sender: string;
   content: string;
   received_at: string;
-  slot_id: string; 
+  slot_id: string;
   service_name?: string;
   verification_code?: string;
   is_spam?: boolean;
@@ -44,7 +44,7 @@ export interface SMSLog {
 }
 
 export interface Slot {
-  slot_id: string; 
+  port_id: string;
   phone_number: string;
   plan_type: string;
   assigned_to: string;
@@ -52,7 +52,7 @@ export interface Slot {
   status?: string;
   region?: string;
   label?: string;
-  forwarding_active?: boolean;
+  is_forwarding_active?: boolean;
   forwarding_channel?: 'telegram' | 'discord' | 'webhook';
   forwarding_config?: string;
 }
