@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 
 export const config = { api: { bodyParser: false } };
 
-// Inicialización global
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
@@ -51,15 +50,17 @@ export default async function handler(req: any, res: any) {
           amount = (lines.data[0]?.price?.unit_amount || 0) / 100;
         }
 
-        // 1. PERSISTENCIA DEL CLIENTE (Tabla profiles)
+        // 1. CAPTURA Y PERSISTENCIA DEL CLIENTE (Tabla profiles)
+        // Extraemos el customer ID de Stripe y lo guardamos para habilitar 'One-Click Checkout'
         if (session.customer) {
             await supabaseAdmin.from('profiles').update({ 
                 stripe_customer_id: session.customer.toString() 
             }).eq('id', userId);
         }
 
-        // 2. AUDITORÍA DE UPGRADE (Lógica Intacta)
+        // 2. AUDITORÍA DE UPGRADE (Preservar Lógica)
         if (transactionType === 'UPGRADE') {
+          // Marcamos la suscripción previa del slot como cancelada antes de activar la nueva potencia
           await supabaseAdmin.from('subscriptions')
             .update({ status: 'canceled' })
             .eq('slot_id', slotId)
@@ -68,7 +69,7 @@ export default async function handler(req: any, res: any) {
 
         const { data: slot } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
         
-        // Evitar duplicidad con flujos instantáneos
+        // 3. REGISTRO DE SUSCRIPCIÓN (Evitar duplicidad con flujos instantáneos)
         const { data: exists } = await supabaseAdmin.from('subscriptions').select('id').eq('stripe_session_id', session.id).maybeSingle();
         
         if (!exists) {
@@ -80,7 +81,7 @@ export default async function handler(req: any, res: any) {
             });
         }
 
-        // 3. ACTUALIZACIÓN DE HARDWARE (Lógica Intacta)
+        // 4. ACTUALIZACIÓN DE ESTADO FÍSICO (Preservar Lógica)
         await supabaseAdmin.from('slots').update({ 
             status: 'ocupado', assigned_to: userId, plan_type: planName 
         }).eq('slot_id', slotId);
