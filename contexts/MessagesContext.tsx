@@ -37,6 +37,9 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     refreshUnreadCount();
     
+    const handleFocus = () => refreshUnreadCount();
+    window.addEventListener('focus', handleFocus);
+
     // Suscribirse a cambios en tiempo real en sms_logs
     const channel = supabase
       .channel('sms_unread_changes')
@@ -52,6 +55,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user]);
 

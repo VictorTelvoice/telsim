@@ -80,13 +80,18 @@ const Messages: React.FC = () => {
   const markAllAsRead = async () => {
     if (!user) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from('sms_logs')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
       
-      refreshUnreadCount();
+      if (!error) {
+        // Pequeño delay para asegurar que Supabase procesó el cambio antes de re-consultar
+        setTimeout(() => {
+          refreshUnreadCount();
+        }, 300);
+      }
     } catch (err) {
       console.debug("Error marking as read", err);
     }
@@ -99,6 +104,15 @@ const Messages: React.FC = () => {
 
     if (!user) return;
 
+    // Marcar como leído periódicamente mientras se está en esta pantalla
+    const interval = setInterval(() => {
+      markAllAsRead();
+    }, 5000); // Cada 5 segundos para mayor respuesta
+
+    // También marcar al enfocar la ventana
+    const handleFocus = () => markAllAsRead();
+    window.addEventListener('focus', handleFocus);
+
     // 3. Suscripción Realtime con filtro por user_id
     const channel = supabase
       .channel(`private_messages_${user.id}`)
@@ -110,12 +124,15 @@ const Messages: React.FC = () => {
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
         setMessages(prev => [newMsg, ...prev]);
-        refreshUnreadCount();
+        // Si el usuario está en la pantalla de mensajes, marcamos como leído inmediatamente
+        markAllAsRead();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user, fetchData]);
 
