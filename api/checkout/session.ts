@@ -1,4 +1,3 @@
-
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,7 +17,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id } = req.body;
+    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
@@ -33,9 +32,8 @@ export default async function handler(req: any, res: any) {
 
     const customerId = userData?.stripe_customer_id;
 
-    // 2. LÓGICA DE UPGRADE INSTANTÁNEO (ONE-CLICK)
-    if (isUpgrade && customerId && slot_id) {
-      // Buscamos la suscripción activa actual en nuestra DB para obtener el ID de Stripe
+    // 2. LÓGICA DE UPGRADE INSTANTÁNEO (Sólo si NO se fuerza manual)
+    if (isUpgrade && customerId && slot_id && !forceManual) {
       const { data: activeSub } = await supabaseAdmin
         .from('subscriptions')
         .select('stripe_session_id')
@@ -45,25 +43,24 @@ export default async function handler(req: any, res: any) {
 
       if (activeSub?.stripe_session_id) {
         try {
-          // Recuperamos la sesión para obtener el ID de la suscripción real
           const session = await stripe.checkout.sessions.retrieve(activeSub.stripe_session_id);
           const subscriptionId = session.subscription as string;
 
           if (subscriptionId) {
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
             
-            // Actualizamos la suscripción directamente
             await stripe.subscriptions.update(subscriptionId, {
               items: [{
                 id: subscription.items.data[0].id,
                 price: priceId,
               }],
-              proration_behavior: 'always_invoice', // Cobra la diferencia ahora
+              proration_behavior: 'always_invoice',
               metadata: {
                 transactionType: 'UPGRADE',
                 planName: planName,
                 limit: monthlyLimit,
-                slot_id: slot_id
+                slot_id: slot_id,
+                userId: userId // Se añade userId para el Webhook
               }
             });
 
@@ -71,36 +68,17 @@ export default async function handler(req: any, res: any) {
           }
         } catch (subErr: any) {
           console.error("[INSTANT UPGRADE FAIL]", subErr.message);
-          // Si falla el instantáneo (ej. requiere 3DS), continuamos al Checkout normal
         }
       }
     }
 
-    // 3. FLUJO ESTÁNDAR DE CHECKOUT (Con Customer ID si existe)
-    let finalSlotId = slot_id;
-    if (!isUpgrade && (!finalSlotId || finalSlotId === 'new')) {
-      const { data: freeSlot } = await supabaseAdmin
-        .from('slots')
-        .select('slot_id')
-        .eq('status', 'libre')
-        .order('slot_id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (!freeSlot) return res.status(503).json({ error: 'Sin puertos disponibles.' });
-      finalSlotId = freeSlot.slot_id;
-      
-      await supabaseAdmin.from('slots').update({ 
-        status: 'reservado', assigned_to: userId, plan_type: planName 
-      }).eq('slot_id', finalSlotId);
-    }
-
+    // 3. FLUJO ESTÁNDAR DE CHECKOUT
     const host = req.headers.host;
     const protocol = host?.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
 
     const session = await stripe.checkout.sessions.create({
-      customer: customerId || undefined, // REGLA CLAVE: Si existe, usa sus tarjetas guardadas
+      customer: customerId || undefined,
       customer_creation: customerId ? undefined : 'always',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
@@ -112,7 +90,7 @@ export default async function handler(req: any, res: any) {
       client_reference_id: userId,
       metadata: {
         userId, phoneNumber: phoneNumber || 'PENDING', planName,
-        limit: monthlyLimit || 400, slot_id: finalSlotId,
+        limit: monthlyLimit || 400, slot_id: slot_id,
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION'
       }
     });

@@ -1,4 +1,3 @@
-
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -76,10 +75,8 @@ export default async function handler(req: any, res: any) {
         const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
         if (!slotData) throw new Error("Slot no hallado.");
 
-        if (transactionType === 'UPGRADE') {
-          await supabaseAdmin.from('subscriptions').update({ status: 'canceled' })
-            .eq('slot_id', slotId).eq('user_id', userId).eq('status', 'active');
-        }
+        // Se elimina el .update({ status: 'canceled' }) manual ya que el trigger de DB lo manejará
+        // para mantener integridad histórica.
 
         await supabaseAdmin.from('subscriptions').insert({
             user_id: userId, slot_id: slotId, phone_number: slotData.phone_number,
@@ -111,24 +108,38 @@ export default async function handler(req: any, res: any) {
       const slotId = metadata.slot_id;
       const planName = metadata.planName;
       const monthlyLimit = Number(metadata.limit);
+      const userId = metadata.userId;
 
-      if (slotId) {
-        console.log(`[ONE-CLICK WEBHOOK] Sincronizando Upgrade para Slot ${slotId}`);
+      if (slotId && userId) {
+        console.log(`[ONE-CLICK WEBHOOK] Procesando historial de Upgrade para Slot ${slotId}`);
         
-        // Actualizamos suscripción existente
-        await supabaseAdmin.from('subscriptions')
-          .update({ 
-            plan_name: planName, 
-            monthly_limit: monthlyLimit,
-            credits_used: 0 // Reset de créditos por nuevo plan
-          })
-          .eq('slot_id', slotId)
-          .eq('status', 'active');
+        try {
+          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+          
+          if (slotData) {
+            // INSERTAMOS una nueva fila para auditoría financiera
+            await supabaseAdmin.from('subscriptions').insert({
+                user_id: userId,
+                slot_id: slotId,
+                phone_number: slotData.phone_number,
+                plan_name: planName,
+                monthly_limit: monthlyLimit,
+                credits_used: 0,
+                status: 'active',
+                stripe_session_id: subscription.id,
+                amount: subscription.items.data[0].price.unit_amount ? subscription.items.data[0].price.unit_amount / 100 : 0,
+                currency: subscription.currency || 'usd',
+                created_at: new Date().toISOString()
+            });
 
-        // Actualizamos hardware
-        await supabaseAdmin.from('slots')
-          .update({ plan_type: planName })
-          .eq('slot_id', slotId);
+            // Actualizamos solo el tipo de plan en el hardware
+            await supabaseAdmin.from('slots')
+              .update({ plan_type: planName })
+              .eq('slot_id', slotId);
+          }
+        } catch (err: any) {
+          console.error(`❌ ERROR EN UPDATE WEBHOOK: ${err.message}`);
+        }
       }
     }
   }
