@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -58,18 +57,15 @@ const MyNumbers: React.FC = () => {
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // Estados para edición de etiquetas
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
     const [savingLabel, setSavingLabel] = useState(false);
 
-    // Estados para el modal de liberación (Baja)
     const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
     const [slotToRelease, setSlotToRelease] = useState<SlotWithPlan | null>(null);
     const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
     const [releasing, setReleasing] = useState(false);
 
-    // Estados para el modal de automatización (ENGRANAJE)
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
     const [activeConfigSlot, setActiveConfigSlot] = useState<SlotWithPlan | null>(null);
     const [savingFwd, setSavingFwd] = useState(false);
@@ -79,7 +75,6 @@ const MyNumbers: React.FC = () => {
     const [tgChatId, setTgChatId] = useState('');
     const [slotFwdActive, setSlotFwdActive] = useState(false);
 
-    // NUEVO: Estados para Upgrade
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
 
@@ -273,6 +268,8 @@ const MyNumbers: React.FC = () => {
             state: {
                 phoneNumber: slotToUpgrade.phone_number,
                 planName: plan.id,
+                currentPlanName: slotToUpgrade.actual_plan_name,
+                currentLimit: slotToUpgrade.monthly_limit,
                 price: plan.price,
                 limit: plan.limit,
                 stripePriceId: plan.stripePriceId,
@@ -398,7 +395,6 @@ const MyNumbers: React.FC = () => {
                                             <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
                                         </button>
 
-                                        {/* BOTÓN UPGRADE RECUPERADO */}
                                         <button onClick={() => handleUpgradeSelect(slot)} className="size-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm">
                                             <TrendingUp className="size-4" />
                                         </button>
@@ -412,7 +408,6 @@ const MyNumbers: React.FC = () => {
                 )}
             </main>
 
-            {/* MODAL DE SELECCIÓN DE PLAN (UPGRADE) */}
             {isUpgradeModalOpen && slotToUpgrade && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
