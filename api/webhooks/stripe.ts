@@ -61,7 +61,7 @@ export default async function handler(req: any, res: any) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // EVENTO: Checkout completado con éxito
+  // EVENTO A: Checkout completado (Flujo nuevo o Upgrade con redirección)
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
@@ -69,88 +69,77 @@ export default async function handler(req: any, res: any) {
     const slotId = metadata.slot_id;
     const planName = metadata.planName;
     const monthlyLimit = metadata.limit ? Number(metadata.limit) : 400;
-    const transactionType = metadata.transactionType; // 'NEW_SUBSCRIPTION' o 'UPGRADE'
+    const transactionType = metadata.transactionType;
 
     if (userId && slotId) {
       try {
-        console.log(`[TELSIM LEDGER] Procesando ${transactionType} para usuario ${userId} en Slot ${slotId}`);
+        const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).single();
+        if (!slotData) throw new Error("Slot no hallado.");
 
-        // 1. OBTENER EL NÚMERO DEL HARDWARE VINCULADO
-        const { data: slotData, error: slotFetchError } = await supabaseAdmin
-          .from('slots')
-          .select('phone_number')
-          .eq('slot_id', slotId)
-          .single();
-
-        if (slotFetchError || !slotData) throw new Error(`Puerto ${slotId} no hallado en el inventario.`);
-
-        // 2. SI ES UN UPGRADE: Cancelar suscripciones activas previas para este slot
         if (transactionType === 'UPGRADE') {
-          console.log(`[TELSIM UPGRADE] Archivando plan anterior para el slot ${slotId}`);
-          await supabaseAdmin
-            .from('subscriptions')
-            .update({ status: 'canceled' })
-            .eq('slot_id', slotId)
-            .eq('user_id', userId)
-            .eq('status', 'active');
+          await supabaseAdmin.from('subscriptions').update({ status: 'canceled' })
+            .eq('slot_id', slotId).eq('user_id', userId).eq('status', 'active');
         }
 
-        // 3. INSERTAR LA NUEVA SUSCRIPCIÓN (REINICIANDO CICLO)
-        const { error: subError } = await supabaseAdmin
-          .from('subscriptions')
-          .insert({
-            user_id: userId,
-            slot_id: slotId,
-            phone_number: slotData.phone_number,
-            plan_name: planName,
-            monthly_limit: monthlyLimit,
-            credits_used: 0, // Reinicio de créditos por nuevo plan
-            status: 'active',
-            stripe_session_id: session.id,
+        await supabaseAdmin.from('subscriptions').insert({
+            user_id: userId, slot_id: slotId, phone_number: slotData.phone_number,
+            plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
+            status: 'active', stripe_session_id: session.id,
             amount: session.amount_total ? session.amount_total / 100 : 0,
-            currency: session.currency || 'usd',
-            created_at: new Date().toISOString()
-          });
+            currency: session.currency || 'usd', created_at: new Date().toISOString()
+        });
 
-        if (subError) throw subError;
+        await supabaseAdmin.from('slots').update({ 
+            status: 'ocupado', assigned_to: userId, plan_type: planName 
+        }).eq('slot_id', slotId);
 
-        // 4. ACTUALIZAR ESTADO DEL HARDWARE
-        await supabaseAdmin.from('slots')
-          .update({ 
-              status: 'ocupado',
-              assigned_to: userId,
-              plan_type: planName // Actualizar al nuevo nombre de plan (Starter -> Pro)
-          })
-          .eq('slot_id', slotId);
-
-        // 5. VINCULAR CUSTOMER ID SI ES NUEVO
         if (session.customer) {
-          await supabaseAdmin.from('users').update({ 
-            stripe_customer_id: session.customer 
-          }).eq('id', userId);
+          await supabaseAdmin.from('users').update({ stripe_customer_id: session.customer }).eq('id', userId);
         }
-
-        console.log(`[TELSIM WEBHOOK] ✅ ${transactionType} EXITOSO: ${slotData.phone_number} (${planName})`);
-
       } catch (err: any) {
-        console.error(`❌ PROVISION ERROR EN WEBHOOK: ${err.message}`);
+        console.error(`❌ PROVISION ERROR: ${err.message}`);
       }
     }
   }
 
-  // EVENTO: Pago fallido o expirado (Liberar reserva si no es un upgrade)
+  // EVENTO B: Suscripción actualizada (Flujo Upgrade Directo / One-Click)
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as Stripe.Subscription;
+    const metadata = subscription.metadata || {};
+    
+    if (metadata.transactionType === 'UPGRADE') {
+      const slotId = metadata.slot_id;
+      const planName = metadata.planName;
+      const monthlyLimit = Number(metadata.limit);
+
+      if (slotId) {
+        console.log(`[ONE-CLICK WEBHOOK] Sincronizando Upgrade para Slot ${slotId}`);
+        
+        // Actualizamos suscripción existente
+        await supabaseAdmin.from('subscriptions')
+          .update({ 
+            plan_name: planName, 
+            monthly_limit: monthlyLimit,
+            credits_used: 0 // Reset de créditos por nuevo plan
+          })
+          .eq('slot_id', slotId)
+          .eq('status', 'active');
+
+        // Actualizamos hardware
+        await supabaseAdmin.from('slots')
+          .update({ plan_type: planName })
+          .eq('slot_id', slotId);
+      }
+    }
+  }
+
   if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata || {};
     const slotId = metadata.slot_id;
-    const transactionType = metadata.transactionType;
-    
-    if (slotId && transactionType !== 'UPGRADE') {
-      console.log(`[TELSIM] Checkout fallido. Liberando reserva del slot ${slotId}`);
-      await supabaseAdmin.from('slots')
-        .update({ status: 'libre', assigned_to: null, plan_type: null })
-        .eq('slot_id', slotId)
-        .eq('status', 'reservado');
+    if (slotId && metadata.transactionType !== 'UPGRADE') {
+      await supabaseAdmin.from('slots').update({ status: 'libre', assigned_to: null, plan_type: null })
+        .eq('slot_id', slotId).eq('status', 'reservado');
     }
   }
 
