@@ -5,16 +5,15 @@ import {
   ArrowLeft, 
   Loader2, 
   ShieldCheck, 
-  Zap,
-  CheckCircle2,
-  Sparkles,
-  Crown,
-  Leaf,
-  AlertCircle,
+  CheckCircle2, 
   ArrowUpRight,
   TrendingDown,
   ChevronDown,
-  Info
+  AlertTriangle,
+  Lock,
+  Smartphone,
+  CreditCard,
+  Sparkles
 } from 'lucide-react';
 
 const UpgradeSummary: React.FC = () => {
@@ -57,41 +56,27 @@ const UpgradeSummary: React.FC = () => {
     
     const config: any = {
       isDowngrade,
-      accent: 'text-emerald-500',
-      bgAccent: 'bg-emerald-500/10',
-      borderAccent: 'border-emerald-500/20',
-      gradient: 'from-emerald-500 to-teal-600',
-      icon: <Leaf className="size-5" />,
-      title: 'MEJORA TU PLAN',
-      ctaText: 'ACTUALIZAR AHORA',
-      features: ['150 SMS Mensuales', 'Número SIM Real', 'Notificaciones Push'],
+      title: 'Resumen de Cambio de Plan',
+      ctaText: 'Actualizar Ahora',
+      features: ['Número SIM Real', 'Notificaciones tiempo real', 'Soporte vía Ticket'],
       warningMsg: '',
       lostFeatures: []
     };
 
     if (name.includes('POWER')) {
-      config.accent = 'text-amber-500'; config.bgAccent = 'bg-amber-500/10'; config.borderAccent = 'border-amber-500/20';
-      config.gradient = 'from-amber-500 to-orange-600'; config.icon = <Crown className="size-5" />;
       config.features = ['1,400 SMS Mensuales', 'Soporte Prioritario 24/7', 'Acceso API Full', 'Control Empresarial'];
     } else if (name.includes('PRO')) {
-      config.accent = 'text-blue-600'; config.bgAccent = 'bg-blue-500/10'; config.borderAccent = 'border-blue-500/20';
-      config.gradient = 'from-blue-600 to-indigo-700'; config.icon = <Zap className="size-5" />;
       config.features = ['400 SMS Mensuales', 'Automatización Webhook', 'Soporte vía Chat', 'Número SIM Real'];
     }
 
     if (isDowngrade) {
-        config.title = 'REDUCIR PLAN';
-        config.ctaText = 'CONFIRMAR CAMBIO DE PLAN';
-        config.gradient = 'from-slate-700 to-slate-900';
-        config.accent = 'text-slate-500';
-        config.bgAccent = 'bg-slate-100 dark:bg-slate-800';
+        config.title = 'Reducir Plan';
+        config.ctaText = 'Confirmar Cambio de Plan';
         
         if (currentName === 'POWER' && name === 'PRO') {
             config.warningMsg = 'Perderás el Soporte Prioritario 24/7 y las funciones de Seguridad y Control Empresarial.';
-            config.lostFeatures = ['Soporte 24/7', 'Control Empresarial', 'Capacidad 1,400 SMS'];
         } else if (name === 'STARTER') {
             config.warningMsg = 'Perderás el acceso a API y Webhooks, el Chat en vivo y la automatización del 100% de tus SMS.';
-            config.lostFeatures = ['API & Webhooks', 'Chat en vivo', 'Automatización 100%'];
         }
     }
     
@@ -131,93 +116,148 @@ const UpgradeSummary: React.FC = () => {
 
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased min-h-screen flex flex-col items-center">
-        <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl pb-40">
-            <div className="sticky top-0 z-50 flex items-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                <button onClick={() => !isProcessing && navigate(-1)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"><ArrowLeft className="size-5" /></button>
-                <h2 className="text-[11px] font-black flex-1 text-center pr-10 uppercase tracking-[0.2em]">Configuración de Red</h2>
+        <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
+            {/* Header - Clon Onboarding */}
+            <div className="sticky top-0 z-20 flex items-center bg-background-light/90 dark:bg-background-dark/90 px-4 py-3 backdrop-blur-sm">
+                <div 
+                    onClick={() => !isProcessing && navigate(-1)}
+                    className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer ${isProcessing ? 'opacity-30' : ''}`}
+                >
+                    <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
+                </div>
+                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10">{planConfig.title}</h2>
+            </div>
+            
+            <div className="flex flex-col gap-2 px-6 pt-2 pb-4">
+                <div className="flex justify-between items-center">
+                    <p className="text-primary dark:text-blue-400 text-sm font-bold leading-normal">Ajuste de Potencia</p>
+                    <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">{planName}</p>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-[#dbdfe6] dark:bg-gray-700 overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-500 ease-out" style={{width: '100%'}}></div>
+                </div>
             </div>
 
-            <div className="flex-1 flex flex-col px-5 pt-5 overflow-y-auto no-scrollbar">
-                <div className="mb-8">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${planConfig.bgAccent} ${planConfig.accent} border ${planConfig.borderAccent} text-[9px] font-black uppercase tracking-widest mb-3`}>
-                        {planConfig.isDowngrade ? <TrendingDown className="size-3" /> : planConfig.icon} 
-                        <span>Plan {planName}</span>
-                    </div>
-                    <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-2">
-                        {planConfig.title}
-                    </h1>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">${Number(price).toFixed(2)}</span>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">USD / Mes</span>
-                    </div>
+            <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
+                <div className="pb-6 pt-2">
+                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">Revisa el cambio</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles de la nueva configuración de red.</p>
                 </div>
 
-                {planConfig.isDowngrade && (
-                    <div className="mb-6 bg-rose-50 dark:bg-rose-950/20 border-2 border-rose-100 dark:border-rose-900/30 rounded-[2rem] p-6 animate-in fade-in slide-in-from-top-2 duration-500">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="size-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
-                                <AlertCircle className="size-6" />
-                            </div>
-                            <h3 className="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-widest">Impacto en el servicio</h3>
+                {/* Tarjeta Principal - Clon Onboarding */}
+                <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#1A2230] p-0 shadow-soft border border-slate-100 dark:border-slate-800 mb-6">
+                    <div className="flex items-center gap-4 p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="size-12 shrink-0 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900 flex items-center justify-center text-2xl">
+                           🇨🇱
                         </div>
-                        <p className="text-[11px] font-bold text-rose-800/80 dark:text-rose-400/80 leading-relaxed italic mb-4">
-                            "{planConfig.warningMsg}"
-                        </p>
-                        <div className="space-y-2 pt-4 border-t border-rose-200/50 dark:border-rose-800/50">
-                            <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest">Tu capacidad de créditos bajará:</p>
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-black text-rose-700 line-through opacity-50">{currentLimit} SMS</span>
-                                <ChevronDown className="size-3 text-rose-400" />
-                                <span className="text-sm font-black text-rose-700">{limit} SMS mensuales</span>
-                            </div>
+                        <div className="flex flex-col justify-center">
+                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">Puerto {formatPhoneNumber(phoneNumber)}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest mt-0.5 text-primary">Infraestructura Real (+56)</p>
                         </div>
-                    </div>
-                )}
-
-                <div className="bg-white dark:bg-[#1A2230] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-7 shadow-soft mb-6 relative overflow-hidden">
-                    <div className="flex flex-col gap-0.5 mb-6">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Hardware Destino</span>
-                        <span className="text-2xl font-mono font-black text-slate-900 dark:text-white tracking-tighter">{formatPhoneNumber(phoneNumber)}</span>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                             <Info className="size-3.5 text-primary" />
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Especificaciones del Plan</p>
+                    <div className="p-6 space-y-5">
+                        <div className="flex justify-between items-start">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">Nuevo Plan</span>
+                                <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+                                <span className="text-[10px] font-bold text-slate-500 mt-1">{limit} Créditos Mensuales</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
+                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest">/ Mes</span>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-3">
-                            {planConfig.features.map((feat: string, i: number) => (
-                                <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                                    <CheckCircle2 className={`size-4 shrink-0 ${planConfig.accent}`} />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{feat}</span>
-                                </div>
-                            ))}
+
+                        <div className="space-y-2">
+                           {planConfig.features.map((f: string, i: number) => (
+                             <div key={i} className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                                {f}
+                             </div>
+                           ))}
                         </div>
+
+                        {/* Bloque Informativo - Clon Onboarding (Aviso de Downgrade o Tarjeta) */}
+                        {planConfig.isDowngrade ? (
+                          <div className="rounded-2xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/40 p-4 animate-in fade-in slide-in-from-top-1">
+                              <div className="flex items-start gap-3 mb-3">
+                                  <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={20} />
+                                  <div className="flex flex-col">
+                                      <p className="text-rose-800 dark:text-rose-300 text-sm font-black leading-tight uppercase tracking-tight">Reducción de Beneficios</p>
+                                      <p className="text-rose-700 dark:text-rose-400/80 text-[11px] font-medium leading-relaxed mt-1">
+                                          {planConfig.warningMsg}
+                                      </p>
+                                  </div>
+                              </div>
+                              <div className="pt-3 border-t border-rose-500/10 flex justify-between items-center">
+                                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Capacidad anterior:</span>
+                                  <span className="text-[11px] font-black text-rose-700 dark:text-rose-300 line-through opacity-50">{currentLimit} SMS</span>
+                              </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-4">
+                              <div className="flex items-start gap-3 mb-3">
+                                  <CheckCircle2 className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" size={20} />
+                                  <div className="flex flex-col">
+                                      <p className="text-emerald-800 dark:text-emerald-300 text-sm font-black leading-tight uppercase tracking-tight">Mejora de Potencia</p>
+                                      <p className="text-emerald-700 dark:text-emerald-400/80 text-[11px] font-medium leading-relaxed mt-1">Tu línea se reconfigurará instantáneamente con las nuevas capacidades.</p>
+                                  </div>
+                              </div>
+                              <div className="pt-3 border-t border-emerald-500/10 flex justify-between items-center">
+                                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Sincronización:</span>
+                                  <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300">Inmediata</span>
+                              </div>
+                          </div>
+                        )}
                     </div>
                 </div>
 
-                {paymentInfo && !isProcessing && (
-                  <div className="p-5 bg-emerald-50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between animate-in fade-in duration-700">
-                    <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm text-emerald-500 shrink-0"><Zap className="size-5" /></div>
-                        <div>
-                            <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none">Tarjeta vinculada</p>
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{paymentInfo.brand} •• {paymentInfo.last4}</p>
-                        </div>
+                {/* Sección de Pago - Estilo Onboarding */}
+                {paymentInfo && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Método de Cobro</span>
+                        <Lock className="size-3 text-slate-300" />
                     </div>
-                    <div className="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                           <div className="size-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
+                              <CreditCard className="size-5 text-primary" />
+                           </div>
+                           <div>
+                              <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{paymentInfo.brand} •• {paymentInfo.last4}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Cargos procesados vía Stripe</p>
+                           </div>
+                        </div>
+                        <div className="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    </div>
                   </div>
                 )}
             </div>
 
-            <div className="fixed bottom-0 z-[60] w-full max-w-md bg-white/95 dark:bg-background-dark/95 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-3">
-                <button onClick={() => handleConfirmUpgrade(false)} disabled={isProcessing} className={`group w-full bg-gradient-to-r ${planConfig.gradient} hover:brightness-110 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-xl flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70`}>
-                    <div className="w-12 flex items-center justify-center">{isProcessing ? <Loader2 className="size-5 animate-spin text-white/80" /> : <ArrowUpRight className="size-6 text-white/40" />}</div>
-                    <span className="text-sm tracking-widest uppercase font-black flex-1 text-center">{isProcessing ? 'Sincronizando...' : planConfig.ctaText}</span>
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors"><Sparkles className="size-6 text-white" /></div>
+            {/* Footer de Acción - Clon Onboarding */}
+            <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-4">
+                <button 
+                    onClick={() => handleConfirmUpgrade(false)}
+                    disabled={isProcessing}
+                    className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70"
+                >
+                    <div className="w-12 flex items-center justify-center">
+                        {isProcessing ? <Loader2 className="size-5 animate-spin text-white/80" /> : <ArrowUpRight className="size-6 text-white/40" />}
+                    </div>
+                    <span className="text-[17px] tracking-wide uppercase font-black">
+                        {isProcessing ? 'Sincronizando...' : planConfig.ctaText}
+                    </span>
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <Sparkles className="size-6 text-white" />
+                    </div>
                 </button>
-                <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-2">Cambiar método de pago</button>
-                <div className="flex items-center justify-center gap-2 opacity-20 mt-1"><ShieldCheck className="size-3.5" /><p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">TELSIM CORE SECURE-LEDGER v4.0</p></div>
+                <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">Cambiar método de pago</button>
+                <div className="flex items-center justify-center gap-1.5 opacity-40">
+                    <Lock className="size-3" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">TELSIM SECURE CHECKOUT v4.0</p>
+                </div>
             </div>
         </div>
     </div>
