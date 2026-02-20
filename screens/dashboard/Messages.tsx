@@ -26,7 +26,7 @@ const Messages: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { refreshUnreadCount } = useMessagesCount();
+  const { unreadSmsCount, refreshUnreadCount } = useMessagesCount();
   
   const [messages, setMessages] = useState<SMSLog[]>([]);
   const [userSlots, setUserSlots] = useState<Slot[]>([]);
@@ -64,8 +64,6 @@ const Messages: React.FC = () => {
 
       if (error) throw error;
       setMessages(data || []);
-
-      await markAllAsRead();
     } catch (err) {
       console.error("Error fetching messages:", err);
       setMessages([]);
@@ -94,6 +92,13 @@ const Messages: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  // Marcar como leído automáticamente al entrar o cuando lleguen nuevos mensajes estando en la vista
+  useEffect(() => {
+    if (unreadSmsCount > 0) {
+      markAllAsRead();
+    }
+  }, [unreadSmsCount]);
 
   const handleCopy = (e: React.MouseEvent, code: string, id: string) => {
     e.stopPropagation();
