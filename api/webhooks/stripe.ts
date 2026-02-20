@@ -49,7 +49,7 @@ export default async function handler(req: any, res: any) {
 
     if (userId && slotId) {
       try {
-        // Obtenemos precio unitario real
+        // Obtenemos precio unitario real consultando el ítem de línea si amount_total es 0 (por trial)
         let amount = (session.amount_total || 0) / 100;
         if (amount === 0) {
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
@@ -59,7 +59,7 @@ export default async function handler(req: any, res: any) {
         }
 
         if (transactionType === 'UPGRADE') {
-          // 1. Cancelar suscripción activa previa para este slot
+          // 1. AUDITORÍA: Cancelar suscripción activa previa para este puerto físico
           await supabaseAdmin
             .from('subscriptions')
             .update({ status: 'canceled' })
@@ -83,7 +83,7 @@ export default async function handler(req: any, res: any) {
               created_at: new Date().toISOString()
           });
         } else {
-          // Flujo de Nueva Suscripción (Evitar duplicidad)
+          // Flujo de Nueva Suscripción (Evitar duplicidad con flujos instantáneos)
           const { data: existingSub } = await supabaseAdmin
             .from('subscriptions')
             .select('id')
@@ -103,7 +103,7 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        // Sincronizar hardware
+        // Sincronizar hardware y dueño
         await supabaseAdmin.from('slots').update({ 
             status: 'ocupado', assigned_to: userId, plan_type: planName 
         }).eq('slot_id', slotId);

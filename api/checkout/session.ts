@@ -44,6 +44,10 @@ export default async function handler(req: any, res: any) {
           .eq('status', 'active')
           .maybeSingle();
 
+        // Obtenemos precio real para el historial
+        const priceData = await stripe.prices.retrieve(priceId);
+        const amount = (priceData.unit_amount || 0) / 100;
+
         if (activeSub?.stripe_session_id) {
           try {
             const session = await stripe.checkout.sessions.retrieve(activeSub.stripe_session_id);
@@ -52,7 +56,7 @@ export default async function handler(req: any, res: any) {
             if (stripeSubId) {
               const subscription = await stripe.subscriptions.retrieve(stripeSubId);
               
-              // Actualizamos en Stripe
+              // Actualizamos en Stripe la suscripción física
               await stripe.subscriptions.update(stripeSubId, {
                 items: [{ id: subscription.items.data[0].id, price: priceId }],
                 proration_behavior: 'always_invoice',
@@ -65,10 +69,6 @@ export default async function handler(req: any, res: any) {
                 .update({ status: 'canceled' })
                 .eq('id', activeSub.id);
 
-              // Obtener precio real para el historial
-              const priceData = await stripe.prices.retrieve(priceId);
-              const amount = (priceData.unit_amount || 0) / 100;
-
               // 3. Crear NUEVO registro de suscripción
               const { data: newSub, error: insertError } = await supabaseAdmin
                 .from('subscriptions')
@@ -78,9 +78,9 @@ export default async function handler(req: any, res: any) {
                   phone_number: activeSub.phone_number,
                   plan_name: planName,
                   monthly_limit: monthlyLimit,
-                  credits_used: activeSub.credits_used || 0, // Arrastramos créditos usados si aplica
+                  credits_used: activeSub.credits_used || 0,
                   status: 'active',
-                  stripe_session_id: activeSub.stripe_session_id, // Mantenemos referencia a la sesión original
+                  stripe_session_id: activeSub.stripe_session_id,
                   amount: amount,
                   currency: priceData.currency || 'usd',
                   created_at: new Date().toISOString()
@@ -96,7 +96,7 @@ export default async function handler(req: any, res: any) {
               return res.status(200).json({ 
                 instant: true, 
                 subscriptionId: newSub.id, 
-                message: 'Contrato actualizado e historial registrado.' 
+                message: 'Upgrade procesado e historial registrado.' 
               });
             }
           } catch (subErr: any) {
@@ -105,7 +105,7 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // ESCENARIO B: Nueva línea (Flujo Estándar One-Click)
+      // ESCENARIO B: Nueva línea (Flujo Estándar One-Click sin cancelación previa)
       if (!isUpgrade) {
         let reservedSlotId: string | null = null;
         try {
@@ -113,6 +113,7 @@ export default async function handler(req: any, res: any) {
           const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
           if (defaultPaymentMethod) {
+            // 1. Buscar slot libre
             const { data: freeSlot } = await supabaseAdmin
               .from('slots')
               .select('slot_id, phone_number')
@@ -124,17 +125,20 @@ export default async function handler(req: any, res: any) {
             if (!freeSlot) throw new Error("Sin puertos físicos disponibles.");
             reservedSlotId = freeSlot.slot_id;
 
+            // 2. Bloquear Slot
             await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', reservedSlotId);
 
+            // 3. Cobro instantáneo
             const priceData = await stripe.prices.retrieve(priceId);
             const stripeSub = await stripe.subscriptions.create({
               customer: customerId,
               items: [{ price: priceId }],
               default_payment_method: defaultPaymentMethod as string,
               trial_period_days: 7,
-              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: reservedSlotId, transactionType: 'NEW_SUB_INSTANT' }
+              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: reservedSlotId, transactionType: 'NEW_SUBSCRIPTION' }
             });
 
+            // 4. Crear suscripción limpia
             const { data: newSub, error: subError } = await supabaseAdmin
               .from('subscriptions')
               .insert({
@@ -159,7 +163,7 @@ export default async function handler(req: any, res: any) {
                 instant: true, 
                 subscriptionId: newSub.id, 
                 phoneNumber: freeSlot.phone_number,
-                message: 'Nodo activado con historial de auditoría.' 
+                message: 'Nueva línea activada.' 
             });
           }
         } catch (err: any) {
@@ -176,15 +180,22 @@ export default async function handler(req: any, res: any) {
     const protocol = host?.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
 
-    const { data: redirectSlot } = await supabaseAdmin
-      .from('slots')
-      .select('slot_id, phone_number')
-      .eq('status', 'libre')
-      .order('slot_id', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    let targetSlotId = slot_id;
+    let targetPhoneNumber = phoneNumber;
 
-    if (!isUpgrade && !redirectSlot) throw new Error("Sin disponibilidad física.");
+    if (!isUpgrade) {
+      const { data: redirectSlot } = await supabaseAdmin
+        .from('slots')
+        .select('slot_id, phone_number')
+        .eq('status', 'libre')
+        .order('slot_id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!redirectSlot) throw new Error("Sin disponibilidad física.");
+      targetSlotId = redirectSlot.slot_id;
+      targetPhoneNumber = redirectSlot.phone_number;
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId || undefined,
@@ -194,16 +205,16 @@ export default async function handler(req: any, res: any) {
       mode: 'subscription',
       subscription_data: { trial_period_days: 7 },
       success_url: isUpgrade 
-        ? `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}&isUpgrade=true&slot_id=${slot_id}`
-        : `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}`,
+        ? `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}&isUpgrade=true&slot_id=${targetSlotId}`
+        : `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&plan=${planName}&slot_id=${targetSlotId}`,
       cancel_url: isUpgrade ? `${origin}/#/dashboard/numbers` : `${origin}/#/onboarding/payment`,
       client_reference_id: userId,
       metadata: { 
         userId, 
-        phoneNumber: isUpgrade ? (phoneNumber || 'PENDING') : redirectSlot?.phone_number, 
+        phoneNumber: targetPhoneNumber || 'PENDING', 
         planName, 
         limit: monthlyLimit || 400, 
-        slot_id: isUpgrade ? (slot_id || '') : redirectSlot?.slot_id, 
+        slot_id: targetSlotId || '', 
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUBSCRIPTION' 
       }
     });
