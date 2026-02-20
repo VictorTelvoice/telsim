@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export const config = { api: { bodyParser: false } };
 
+// Inicialización global
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
@@ -50,15 +51,15 @@ export default async function handler(req: any, res: any) {
           amount = (lines.data[0]?.price?.unit_amount || 0) / 100;
         }
 
-        // GUARDAR CUSTOMER ID PARA PERSISTENCIA DE PAGO
+        // 1. PERSISTENCIA DEL CLIENTE (Tabla profiles)
         if (session.customer) {
-            await supabaseAdmin.from('users').update({ 
+            await supabaseAdmin.from('profiles').update({ 
                 stripe_customer_id: session.customer.toString() 
             }).eq('id', userId);
         }
 
+        // 2. AUDITORÍA DE UPGRADE (Lógica Intacta)
         if (transactionType === 'UPGRADE') {
-          // Lógica de Auditoría: Marcar como cancelada la previa
           await supabaseAdmin.from('subscriptions')
             .update({ status: 'canceled' })
             .eq('slot_id', slotId)
@@ -79,6 +80,7 @@ export default async function handler(req: any, res: any) {
             });
         }
 
+        // 3. ACTUALIZACIÓN DE HARDWARE (Lógica Intacta)
         await supabaseAdmin.from('slots').update({ 
             status: 'ocupado', assigned_to: userId, plan_type: planName 
         }).eq('slot_id', slotId);

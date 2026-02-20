@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialización global para evitar errores de API Key no proporcionada
+// Inicialización global robusta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
@@ -21,28 +21,26 @@ export default async function handler(req: any, res: any) {
     const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual } = req.body;
 
     if (!priceId || !userId) {
-      return res.status(400).json({ error: 'Faltan parámetros: priceId o userId.' });
+      return res.status(400).json({ error: 'Parámetros insuficientes.' });
     }
 
-    // 1. RECUPERACIÓN DEL CLIENTE (Persistencia de pago)
-    // Se consulta el stripe_customer_id de la tabla de usuarios para vincularlo a la sesión
-    const { data: userData } = await supabaseAdmin
-      .from('users')
+    // 1. RECUPERACIÓN DE PERSISTENCIA (Tabla profiles)
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles')
       .select('stripe_customer_id')
       .eq('id', userId)
       .single();
 
-    const customerId = userData?.stripe_customer_id;
+    const customerId = profileData?.stripe_customer_id;
 
-    // --- FLUJO ONE-CLICK (PAGO RÁPIDO INTERNO) ---
-    // Esta lógica de auditoría y asignación se mantiene intacta según lo solicitado
+    // --- FLUJO DE PAGO INSTANTÁNEO (ONE-CLICK INTERNO) ---
     if (customerId && !forceManual) {
       try {
         const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
         const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
         if (defaultPaymentMethod) {
-          // CASO 1: UPGRADE (Audit Trail: Cancelar anterior / Crear nueva)
+          // ESCENARIO A: UPGRADE (Lógica de Auditoría Intacta)
           if (isUpgrade && slot_id) {
             const { data: activeSub } = await supabaseAdmin
               .from('subscriptions')
@@ -64,8 +62,10 @@ export default async function handler(req: any, res: any) {
                 });
               }
 
+              // AUDITORÍA: Marcar anterior como cancelada
               await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', activeSub.id);
 
+              // Insertar nueva suscripción
               const { data: newSub } = await supabaseAdmin
                 .from('subscriptions')
                 .insert({
@@ -89,7 +89,7 @@ export default async function handler(req: any, res: any) {
             }
           }
 
-          // CASO 2: COMPRA NUEVA ONE-CLICK
+          // ESCENARIO B: COMPRA NUEVA (Lógica de Slot Libre Intacta)
           if (!isUpgrade) {
             const { data: freeSlot } = await supabaseAdmin
               .from('slots')
@@ -99,7 +99,8 @@ export default async function handler(req: any, res: any) {
               .limit(1)
               .maybeSingle();
 
-            if (!freeSlot) throw new Error("Sin disponibilidad física.");
+            if (!freeSlot) throw new Error("Sin puertos físicos libres.");
+            
             await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
 
             const priceData = await stripe.prices.retrieve(priceId);
@@ -127,29 +128,27 @@ export default async function handler(req: any, res: any) {
           }
         }
       } catch (oneClickErr) {
-        console.warn("Fallo One-Click, redirigiendo a Stripe Checkout estándar...");
+        console.warn("One-Click falló, procediendo a Checkout estándar guiado.");
       }
     }
 
-    // --- FLUJO ESTÁNDAR (STRIPE CHECKOUT CON RECONOCIMIENTO DE TARJETA GUARDADA) ---
+    // --- FLUJO ESTÁNDAR (STRIPE CHECKOUT CON RECONOCIMIENTO DE CLIENTE) ---
     const host = req.headers.host;
     const origin = `${host?.includes('localhost') ? 'http' : 'https'}://${host}`;
     
     let targetSlotId = slot_id;
-    let targetPhone = phoneNumber;
 
     if (!isUpgrade) {
-      const { data: s } = await supabaseAdmin.from('slots').select('slot_id, phone_number').eq('status', 'libre').limit(1).single();
-      if (!s) throw new Error("Sin puertos libres.");
+      const { data: s } = await supabaseAdmin.from('slots').select('slot_id').eq('status', 'libre').limit(1).single();
+      if (!s) throw new Error("Sin capacidad en el nodo.");
       targetSlotId = s.slot_id;
-      targetPhone = s.phone_number;
     }
 
-    // Creación de sesión inyectando el Customer ID y optimizando la colección de métodos de pago
+    // Inyección de parámetros de persistencia en la sesión
     const session = await stripe.checkout.sessions.create({
-      customer: customerId || undefined, // INYECCIÓN: Reusar cliente si existe
-      customer_creation: customerId ? undefined : 'always', // No forzar creación si ya existe
-      payment_method_collection: customerId ? 'if_required' : 'always', // PRIORIZACIÓN: No pedir datos si ya tiene tarjeta guardada
+      customer: customerId || undefined, // RECONOCIMIENTO AUTOMÁTICO DE TARJETAS
+      customer_creation: customerId ? undefined : 'always',
+      payment_method_collection: customerId ? 'if_required' : 'always',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
