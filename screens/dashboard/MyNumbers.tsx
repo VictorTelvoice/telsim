@@ -121,7 +121,7 @@ const MyNumbers: React.FC = () => {
     const [tgChatId, setTgChatId] = useState('');
     const [slotFwdActive, setSlotFwdActive] = useState(false);
 
-    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [showUpgradeView, setShowUpgradeView] = useState(false);
     const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
 
     const fetchSlots = async () => {
@@ -305,7 +305,7 @@ const MyNumbers: React.FC = () => {
 
     const handleUpgradeSelect = (slot: SlotWithPlan) => {
         setSlotToUpgrade(slot);
-        setIsUpgradeModalOpen(true);
+        setShowUpgradeView(true);
     };
 
     const confirmUpgrade = (plan: any) => {
@@ -322,7 +322,7 @@ const MyNumbers: React.FC = () => {
                 slot_id: slotToUpgrade.slot_id
             }
         });
-        setIsUpgradeModalOpen(false);
+        setShowUpgradeView(false);
     };
 
     const getPlanStyle = (planName: string | undefined | null) => {
@@ -359,6 +359,104 @@ const MyNumbers: React.FC = () => {
             progressFill: 'bg-emerald-500'
         };
     };
+
+    if (showUpgradeView && slotToUpgrade) {
+      return (
+        <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col animate-in fade-in duration-300">
+            {/* Header Integrado */}
+            <header className="flex items-center justify-between px-6 py-6 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50">
+                <button onClick={() => setShowUpgradeView(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
+                    <ArrowLeft className="size-6" />
+                </button>
+                <div className="text-center flex-1">
+                   <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Cambiar Plan</h1>
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puerto {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
+                </div>
+                <div className="w-10"></div>
+            </header>
+
+            <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
+                <div className="text-center mb-2">
+                    <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">Elige tu plan</h2>
+                </div>
+
+                <div className="flex-1 flex flex-col gap-3">
+                    {OFFICIAL_PLANS_DATA.map((plan) => {
+                        const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
+                        
+                        return (
+                            <div 
+                                key={plan.id}
+                                onClick={() => !isCurrent && confirmUpgrade(plan)}
+                                className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${
+                                  isCurrent 
+                                  ? 'border-slate-100 dark:border-slate-800 opacity-60' 
+                                  : `hover:scale-[1.01] ${plan.border} shadow-sm`
+                                }`}
+                            >
+                                {/* Badges Integrados */}
+                                {plan.popularBadge && (
+                                  <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                    {plan.popularBadge}
+                                  </div>
+                                )}
+                                {plan.premiumBadge && (
+                                  <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                    {plan.premiumBadge}
+                                  </div>
+                                )}
+
+                                <div className="flex justify-between items-start">
+                                    <div className="flex gap-3 items-center">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
+                                            <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
+                                        </div>
+                                        <div>
+                                            <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{plan.subtitle}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {isCurrent ? (
+                                        <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                            <div className="size-1 rounded-full bg-emerald-500"></div>
+                                            <span className="text-[7px] font-black text-emerald-600 uppercase">Actual</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-baseline gap-0.5">
+                                            <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
+                                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2 mt-2">
+                                    {plan.features.map((feat, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
+                                                <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
+                                            </div>
+                                            <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {!isCurrent && (
+                                    <div className="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800/50 flex justify-end">
+                                        <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase tracking-widest">
+                                           Seleccionar
+                                           <ChevronRight className="size-4" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </main>
+        </div>
+      );
+    }
 
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
@@ -453,109 +551,6 @@ const MyNumbers: React.FC = () => {
                     </div>
                 )}
             </main>
-
-            {/* MODAL DE UPGRADE - MINIMALISTA & PROFESIONAL (ZERO SCROLL) */}
-            {isUpgradeModalOpen && slotToUpgrade && (
-                <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="w-full max-w-md h-[100dvh] bg-background-light dark:bg-background-dark rounded-t-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-10 duration-500 pb-safe">
-                        
-                        {/* Header Minimalista */}
-                        <header className="flex items-center justify-between px-6 pt-5 pb-1 relative z-10">
-                            <button onClick={() => setIsUpgradeModalOpen(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                <span className="material-symbols-outlined text-slate-900 dark:text-white" style={{fontSize: '22px'}}>arrow_back</span>
-                            </button>
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Marketplace</h2>
-                            <div className="w-10"></div> 
-                        </header>
-
-                        <div className="text-center px-6 mb-3">
-                            <h1 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight mb-1">
-                                Elige tu plan
-                            </h1>
-                            <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">
-                                Puerto: {formatPhoneNumber(slotToUpgrade.phone_number)}
-                            </p>
-                        </div>
-
-                        {/* Lista de Planes - Unificación tipográfica con Resumen de Pedido */}
-                        <div className="flex-1 flex flex-col gap-3 px-6 pb-10 overflow-hidden">
-                            {OFFICIAL_PLANS_DATA.map((plan) => {
-                                const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
-                                
-                                return (
-                                    <div 
-                                        key={plan.id}
-                                        onClick={() => !isCurrent && confirmUpgrade(plan)}
-                                        className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${
-                                          isCurrent 
-                                          ? 'border-slate-100 dark:border-slate-800 opacity-60' 
-                                          : `hover:scale-[1.01] ${plan.border} shadow-lg shadow-black/5`
-                                        }`}
-                                    >
-                                        {/* Badges Flotantes */}
-                                        {plan.popularBadge && (
-                                          <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                            {plan.popularBadge}
-                                          </div>
-                                        )}
-                                        {plan.premiumBadge && (
-                                          <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                            {plan.premiumBadge}
-                                          </div>
-                                        )}
-
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex gap-3 items-center">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
-                                                    <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
-                                                </div>
-                                                <div>
-                                                    <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{plan.subtitle}</p>
-                                                </div>
-                                            </div>
-                                            
-                                            {isCurrent ? (
-                                                <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                                    <div className="size-1 rounded-full bg-emerald-500"></div>
-                                                    <span className="text-[7px] font-black text-emerald-600 uppercase">Actual</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-baseline gap-0.5">
-                                                    <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
-                                                    <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Lista de Beneficios - Tipografía Unificada text-[11px] */}
-                                        <div className="grid grid-cols-1 gap-2 mt-2">
-                                            {plan.features.map((feat, i) => (
-                                                <div key={i} className="flex items-center gap-2">
-                                                    <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
-                                                        <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
-                                                    </div>
-                                                    <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Selector Indicador */}
-                                        {!isCurrent && (
-                                            <div className="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800/50 flex justify-end">
-                                                <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase tracking-widest">
-                                                   Configurar
-                                                   <ChevronRight className="size-4" />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {isReleaseModalOpen && slotToRelease && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
