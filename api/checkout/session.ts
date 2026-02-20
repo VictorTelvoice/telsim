@@ -24,7 +24,8 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Faltan parámetros: priceId o userId.' });
     }
 
-    // BUSCAR CLIENTE EXISTENTE PARA PERSISTENCIA DE PAGO
+    // 1. RECUPERACIÓN DEL CLIENTE (Persistencia de pago)
+    // Se consulta el stripe_customer_id de la tabla de usuarios para vincularlo a la sesión
     const { data: userData } = await supabaseAdmin
       .from('users')
       .select('stripe_customer_id')
@@ -34,6 +35,7 @@ export default async function handler(req: any, res: any) {
     const customerId = userData?.stripe_customer_id;
 
     // --- FLUJO ONE-CLICK (PAGO RÁPIDO INTERNO) ---
+    // Esta lógica de auditoría y asignación se mantiene intacta según lo solicitado
     if (customerId && !forceManual) {
       try {
         const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
@@ -62,7 +64,6 @@ export default async function handler(req: any, res: any) {
                 });
               }
 
-              // Lógica de Auditoría: No sobrescribir, cerrar anterior
               await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', activeSub.id);
 
               const { data: newSub } = await supabaseAdmin
@@ -130,7 +131,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // --- FLUJO ESTÁNDAR (STRIPE CHECKOUT CON PERSISTENCIA DE CLIENTE) ---
+    // --- FLUJO ESTÁNDAR (STRIPE CHECKOUT CON RECONOCIMIENTO DE TARJETA GUARDADA) ---
     const host = req.headers.host;
     const origin = `${host?.includes('localhost') ? 'http' : 'https'}://${host}`;
     
@@ -144,9 +145,11 @@ export default async function handler(req: any, res: any) {
       targetPhone = s.phone_number;
     }
 
+    // Creación de sesión inyectando el Customer ID y optimizando la colección de métodos de pago
     const session = await stripe.checkout.sessions.create({
-      customer: customerId || undefined, // REUSAR CLIENTE SI EXISTE
-      customer_creation: customerId ? undefined : 'always', // CREAR SI NO EXISTE
+      customer: customerId || undefined, // INYECCIÓN: Reusar cliente si existe
+      customer_creation: customerId ? undefined : 'always', // No forzar creación si ya existe
+      payment_method_collection: customerId ? 'if_required' : 'always', // PRIORIZACIÓN: No pedir datos si ya tiene tarjeta guardada
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
