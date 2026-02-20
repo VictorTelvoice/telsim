@@ -11,7 +11,6 @@ import {
   Crown,
   Leaf,
   AlertCircle,
-  XCircle,
   ArrowUpRight,
   TrendingDown,
   ChevronDown,
@@ -139,14 +138,18 @@ const UpgradeSummary: React.FC = () => {
             </div>
 
             <div className="flex-1 flex flex-col px-5 pt-5 overflow-y-auto no-scrollbar">
-                <div className="mb-6">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${planConfig.bgAccent} ${planConfig.accent} border ${planConfig.borderAccent} text-[9px] font-black uppercase tracking-widest mb-2`}>
+                <div className="mb-8">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${planConfig.bgAccent} ${planConfig.accent} border ${planConfig.borderAccent} text-[9px] font-black uppercase tracking-widest mb-3`}>
                         {planConfig.isDowngrade ? <TrendingDown className="size-3" /> : planConfig.icon} 
                         <span>Plan {planName}</span>
                     </div>
-                    <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-2">
                         {planConfig.title}
                     </h1>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">${Number(price).toFixed(2)}</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">USD / Mes</span>
+                    </div>
                 </div>
 
                 {planConfig.isDowngrade && (
@@ -180,7 +183,7 @@ const UpgradeSummary: React.FC = () => {
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
                              <Info className="size-3.5 text-primary" />
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nuevas Especificaciones</p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Especificaciones del Plan</p>
                         </div>
                         <div className="grid grid-cols-1 gap-3">
                             {planConfig.features.map((feat: string, i: number) => (
@@ -193,25 +196,8 @@ const UpgradeSummary: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-slate-900 dark:bg-slate-950 rounded-[2rem] p-7 text-white shadow-2xl relative overflow-hidden mb-6">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <Zap className="size-20" />
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">
-                        <span>Costo de Operación</span>
-                        <span className="text-white font-mono">${Number(price).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-end pt-4 border-t border-white/10">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-white/40 uppercase mb-1 tracking-widest">Inversión Hoy</span>
-                            <span className="text-4xl font-black tracking-tighter">${Number(price).toFixed(2)}</span>
-                        </div>
-                        <span className="text-[11px] font-black text-primary mb-1.5 uppercase">USD / Mes</span>
-                    </div>
-                </div>
-
                 {paymentInfo && !isProcessing && (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between animate-in fade-in duration-700">
+                  <div className="p-5 bg-emerald-50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between animate-in fade-in duration-700">
                     <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm text-emerald-500 shrink-0"><Zap className="size-5" /></div>
                         <div>
