@@ -77,31 +77,23 @@ const Messages: React.FC = () => {
     }
   }, [user]);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    setUnreadSmsCount(0);
-    try {
-      const { error } = await supabase
-        .from('sms_logs')
-        .update({ is_read: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
-      
-      if (!error) {
-        // Pequeño delay para asegurar que Supabase procesó el cambio antes de re-consultar
-        setTimeout(() => {
-          refreshUnreadCount();
-        }, 300);
-      }
-    } catch (err) {
-      console.debug("Error marking as read", err);
-    }
-  };
+    const { error, count } = await supabase
+      .from('sms_logs')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .select();
+    console.log('Marcados como leídos:', count, 'Error:', error);
+    refreshUnreadCount();
+  }, [user, refreshUnreadCount]);
 
   useEffect(() => {
     // Reset local state on user change for clean load
     setMessages([]);
     fetchData();
+    markAllAsRead();
 
     if (!user) return;
 

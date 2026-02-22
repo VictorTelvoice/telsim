@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { 
   CheckCircle2, 
   ArrowRight, 
@@ -21,21 +23,59 @@ const UpgradeSuccess: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
   const [isSyncing, setIsSyncing] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  const [finalPlanName, setFinalPlanName] = useState<string>('');
+  const [finalPhoneNumber, setFinalPhoneNumber] = useState<string>('');
   const hasExecutedRef = useRef(false);
 
   const sessionId = searchParams.get('session_id');
   const numParam = searchParams.get('num');
   const planParam = searchParams.get('plan');
 
-  const data = location.state || {
-      phoneNumber: numParam,
-      planName: planParam,
-      userId: 'pending'
-  };
+  useEffect(() => {
+    const resolveData = async () => {
+      // 1. Intentar desde location.state
+      if (location.state?.planName) {
+        setFinalPlanName(location.state.planName);
+        setFinalPhoneNumber(location.state.phoneNumber || '');
+        return;
+      }
 
-  const { phoneNumber, planName } = data;
+      // 2. Intentar desde URL params
+      if (planParam) {
+        setFinalPlanName(planParam);
+        setFinalPhoneNumber(numParam || '');
+        return;
+      }
+
+      // 3. Fallback: Supabase (Buscar última suscripción activa)
+      if (user) {
+        try {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('plan_name, phone_number')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (sub) {
+            setFinalPlanName(sub.plan_name);
+            setFinalPhoneNumber(sub.phone_number || '');
+          } else {
+            setFinalPlanName('Starter');
+          }
+        } catch (err) {
+          setFinalPlanName('Starter');
+        }
+      }
+    };
+
+    resolveData();
+  }, [location.state, planParam, numParam, user]);
 
   // Cálculo de fecha de renovación (30 días desde hoy)
   const renewalDate = useMemo(() => {
@@ -50,22 +90,22 @@ const UpgradeSuccess: React.FC = () => {
 
   // Configuración Visual y de Datos por Plan
   const planConfig = useMemo(() => {
-    const name = (planName || 'Starter').toUpperCase();
+    const name = (finalPlanName || 'Starter').toUpperCase();
     
     if (name.includes('POWER')) {
       return {
         title: 'MEJORA LISTA',
         description: 'Has desbloqueado la infraestructura de máxima escala para empresas y trading de alta frecuencia.',
-        accentColor: 'text-[#D4AF37]',
-        glowColor: 'from-[#D4AF37]/20',
-        borderColor: 'border-[#D4AF37]/30',
-        badgeBg: 'bg-[#D4AF37]',
+        accentColor: 'text-amber-500',
+        glowColor: 'from-amber-500/20',
+        borderColor: 'border-amber-500/30',
+        badgeBg: 'bg-amber-500',
         badgeText: 'text-white',
-        buttonClass: 'bg-gradient-to-r from-[#B49248] via-[#D4AF37] to-[#8C6B1C] shadow-[#D4AF37]/20',
+        buttonClass: 'bg-gradient-to-r from-amber-400 via-yellow-500 to-yellow-600 shadow-amber-500/20',
         icon: (
           <div className="relative flex items-center justify-center">
-            <div className="absolute size-24 rounded-full border-4 border-[#D4AF37] animate-pulse shadow-[0_0_20px_rgba(212,175,55,0.4)]"></div>
-            <CheckCircle2 className="size-14 text-[#D4AF37]" />
+            <div className="absolute size-24 rounded-full border-4 border-amber-500 animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]"></div>
+            <CheckCircle2 className="size-14 text-amber-500" />
           </div>
         ),
         miniIcon: <Shield className="size-3 text-white" />,
@@ -113,19 +153,19 @@ const UpgradeSuccess: React.FC = () => {
       capacity: '150 SMS / mes',
       highlight: 'Número SIM Real (+56)'
     };
-  }, [planName]);
+  }, [finalPlanName]);
 
   useEffect(() => {
-    if (!sessionId && !location.state) return;
+    if (!sessionId && !location.state && !planParam) return;
     
     const executePostPaymentLogic = async () => {
-      if (hasExecutedRef.current) return;
+      if (hasExecutedRef.current || !finalPlanName) return;
       hasExecutedRef.current = true;
 
       try {
         await addNotification({
           title: 'Mejora de Plan Exitosa',
-          message: `El Ledger ha confirmado tu upgrade. Tu línea ${phoneNumber} ya opera bajo el nivel ${planName}.`,
+          message: `El Ledger ha confirmado tu upgrade. Tu línea ${finalPhoneNumber} ya opera bajo el nivel ${finalPlanName}.`,
           type: 'subscription'
         });
       } catch (err) {
@@ -137,7 +177,7 @@ const UpgradeSuccess: React.FC = () => {
     };
 
     executePostPaymentLogic();
-  }, [sessionId, location.state, planName, phoneNumber, addNotification]);
+  }, [sessionId, location.state, planParam, finalPlanName, finalPhoneNumber, addNotification]);
 
   const formatPhoneNumber = (num: string) => {
     if (!num) return '';
@@ -148,7 +188,7 @@ const UpgradeSuccess: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
-  if (!sessionId && !location.state) {
+  if (!sessionId && !location.state && !planParam) {
     return <Navigate to="/dashboard/numbers" replace />;
   }
 
@@ -173,7 +213,7 @@ const UpgradeSuccess: React.FC = () => {
         
         <div className="mb-8">
           <div className="relative mb-8 flex justify-center">
-             <div className={`absolute inset-0 ${planConfig.badgeBg} blur-3xl rounded-full scale-150 animate-pulse`}></div>
+             <div className={`absolute inset-0 ${planConfig.glowColor} blur-3xl rounded-full scale-150 animate-pulse`}></div>
             <div className={`size-28 rounded-[2.5rem] bg-white dark:bg-slate-900 border-2 ${planConfig.borderColor} shadow-2xl flex items-center justify-center relative z-10 transition-colors duration-500`}>
               {planConfig.icon}
             </div>
@@ -197,7 +237,7 @@ const UpgradeSuccess: React.FC = () => {
           <div className="flex flex-col items-center gap-1 mb-10">
              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
              <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
-                {formatPhoneNumber(phoneNumber)}
+                {formatPhoneNumber(finalPhoneNumber)}
              </div>
           </div>
           
@@ -243,7 +283,7 @@ const UpgradeSuccess: React.FC = () => {
 
           {planConfig.isPower && (
             <button 
-              onClick={() => navigate('/dashboard/numbers', { state: { openAutomation: true, phoneNumber } })}
+              onClick={() => navigate('/dashboard/numbers', { state: { openAutomation: true, phoneNumber: finalPhoneNumber } })}
               className="w-full h-14 border-2 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-black rounded-2xl flex items-center justify-center gap-2 text-[11px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-[0.98]"
             >
               <Bot className="size-4" />
