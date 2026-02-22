@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 interface MessagesContextType {
   unreadSmsCount: number;
   refreshUnreadCount: () => Promise<void>;
+  setUnreadSmsCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
@@ -37,7 +38,10 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     refreshUnreadCount();
     
-    // Suscribirse a cambios en tiempo real
+    const handleFocus = () => refreshUnreadCount();
+    window.addEventListener('focus', handleFocus);
+
+    // Suscribirse a cambios en tiempo real en sms_logs
     const channel = supabase
       .channel('sms_unread_changes')
       .on('postgres_changes', { 
@@ -52,11 +56,12 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user]);
 
   return (
-    <MessagesContext.Provider value={{ unreadSmsCount, refreshUnreadCount }}>
+    <MessagesContext.Provider value={{ unreadSmsCount, refreshUnreadCount, setUnreadSmsCount }}>
       {children}
     </MessagesContext.Provider>
   );

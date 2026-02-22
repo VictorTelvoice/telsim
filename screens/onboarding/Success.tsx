@@ -1,29 +1,29 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { CheckCircle2, ArrowRight, ShieldCheck, RefreshCw, AlertTriangle, Zap } from 'lucide-react';
+import { CheckCircle2, ArrowRight, RefreshCw, AlertTriangle, Zap } from 'lucide-react';
 
 const Success: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  // VALIDACIÓN CRÍTICA: Bloquear acceso si no hay session_id de Stripe
+  // VALIDACIÓN: Bloquear si no hay sesión de Stripe ni número ya pasado por Processing
   const sessionId = searchParams.get('session_id');
-  if (!sessionId && !searchParams.get('assignedNumber')) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const initialNumber = searchParams.get('assignedNumber');
 
-  const [assignedNumber, setAssignedNumber] = useState<string | null>(searchParams.get('assignedNumber'));
+  const [assignedNumber, setAssignedNumber] = useState<string | null>(initialNumber);
   const [planName, setPlanName] = useState<string>(searchParams.get('planName') || 'Standard');
-  const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(assignedNumber ? 'success' : 'syncing');
+  const [status, setStatus] = useState<'syncing' | 'success' | 'error'>(initialNumber ? 'success' : 'syncing');
   const [showContent, setShowContent] = useState(false);
 
   const performRescueLookup = useCallback(async () => {
     if (!user) return;
 
     try {
+      // Buscamos la suscripción activa más reciente para el usuario
       const { data, error } = await supabase
         .from('subscriptions')
         .select('phone_number, plan_name')
@@ -40,7 +40,22 @@ const Success: React.FC = () => {
         if (data.plan_name) setPlanName(data.plan_name);
         setStatus('success');
       } else {
-        setStatus('error');
+        // Segundo intento: Buscar directamente en la tabla de slots
+        const { data: slotData } = await supabase
+            .from('slots')
+            .select('phone_number, plan_type')
+            .eq('assigned_to', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        
+        if (slotData) {
+            setAssignedNumber(slotData.phone_number);
+            setPlanName(slotData.plan_type || 'Starter');
+            setStatus('success');
+        } else {
+            setStatus('error');
+        }
       }
     } catch (err) {
       console.error("Rescue lookup failed:", err);
@@ -69,8 +84,13 @@ const Success: React.FC = () => {
   };
 
   const handleGoToDashboard = () => {
+    // Importante pasar el número a Dashboard para que lo seleccione automáticamente
     navigate(assignedNumber ? `/dashboard?new_line=${encodeURIComponent(assignedNumber)}` : '/dashboard');
   };
+
+  if (!sessionId && !assignedNumber) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   if (status === 'syncing') {
     return (
@@ -85,14 +105,12 @@ const Success: React.FC = () => {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 text-center font-display">
         <AlertTriangle className="size-12 text-amber-500 mb-6" />
-        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Suscripción Detectada</h1>
-        <p className="text-sm font-medium text-slate-500 mb-8">El pago fue exitoso pero el puerto físico está tardando en responder.</p>
-        <button onClick={() => navigate('/dashboard')} className="px-8 h-12 bg-primary text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Ir al Dashboard</button>
+        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Línea Vinculada</h1>
+        <p className="text-sm font-medium text-slate-500 mb-8">Tu pago fue exitoso. Si no ves tu número de inmediato, aparecerá en el panel en unos segundos.</p>
+        <button onClick={() => navigate('/dashboard')} className="px-8 h-14 bg-primary text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95">Ir al Dashboard</button>
       </div>
     );
   }
-
-  const countryCode = 'cl';
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden">
@@ -113,7 +131,7 @@ const Success: React.FC = () => {
           </p>
         </div>
 
-        <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 border-emerald-500/10 px-4 py-10 min-[380px]:px-8 flex flex-col items-center shadow-card mb-10 relative overflow-hidden">
+        <div className="w-full bg-white dark:bg-[#1A2230] rounded-[2.5rem] border-2 border-emerald-500/10 px-4 py-10 flex flex-col items-center shadow-card mb-10 relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full mb-6 border border-emerald-500/10">
@@ -121,11 +139,11 @@ const Success: React.FC = () => {
              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-[0.2em]">Línea Física Verificada</span>
           </div>
 
-          <div className="flex items-center gap-3 min-[380px]:gap-4 mb-8">
+          <div className="flex items-center gap-3 mb-8">
             <div className="size-10 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-              <img src={`https://flagcdn.com/w80/${countryCode}.png`} alt="Chile" className="w-full h-full object-cover" />
+              <img src="https://flagcdn.com/w80/cl.png" alt="Chile" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[26px] min-[380px]:text-[30px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
+            <div className="text-[26px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
               {formatPhoneNumber(assignedNumber!)}
             </div>
           </div>

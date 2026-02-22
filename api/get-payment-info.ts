@@ -1,13 +1,8 @@
 
-/**
- * TELSIM SERVER-SIDE PAYMENT ANALYTICS v1.0
- * Recupera el método de pago predeterminado de Stripe
- */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // Updated apiVersion to match required type '2026-01-28.clover'
   apiVersion: '2026-01-28.clover' as any,
 });
 
@@ -29,7 +24,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'ID de usuario requerido.' });
     }
 
-    // 1. Obtener el stripe_customer_id de la tabla de perfiles
+    // 1. Obtener el stripe_customer_id de la tabla de perfiles en Supabase
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('stripe_customer_id')
@@ -37,37 +32,35 @@ export default async function handler(req: any, res: any) {
       .single();
 
     if (userError || !userData?.stripe_customer_id) {
-      // Si no hay customer ID, es que el usuario nunca ha iniciado un flujo de pago
-      return res.status(200).json({ paymentMethod: null });
+      return res.status(200).json({ status: 'no_method', message: 'Usuario no registrado en la pasarela.' });
     }
 
     const customerId = userData.stripe_customer_id;
 
     // 2. Listar métodos de pago (tarjetas) del cliente en Stripe
-    // Por simplicidad en flujos de suscripción, el primer método devuelto suele ser el activo.
     const paymentMethods = await stripe.paymentMethods.list({
       customer: customerId,
       type: 'card',
+      limit: 1, // Solo nos interesa la principal para el resumen
     });
 
     if (paymentMethods.data.length === 0) {
-      return res.status(200).json({ paymentMethod: null });
+      return res.status(200).json({ status: 'no_method', message: 'No hay tarjetas guardadas.' });
     }
 
-    const pm = paymentMethods.data[0];
+    const primaryCard = paymentMethods.data[0].card;
     
+    // 3. Devolver JSON estructurado para el componente visual
     return res.status(200).json({
-      paymentMethod: {
-        id: pm.id,
-        brand: pm.card?.brand || 'card',
-        last4: pm.card?.last4 || '****',
-        exp_month: pm.card?.exp_month,
-        exp_year: pm.card?.exp_year,
-      }
+      status: 'success',
+      brand: primaryCard?.brand || 'card',
+      last4: primaryCard?.last4 || '****',
+      exp_month: primaryCard?.exp_month,
+      exp_year: primaryCard?.exp_year
     });
 
   } catch (err: any) {
-    console.error("[STRIPE PM ERROR]", err.message);
-    return res.status(500).json({ error: err.message });
+    console.error("[GET_PAYMENT_INFO_ERROR]", err.message);
+    return res.status(500).json({ error: 'Error interno al consultar Stripe.' });
   }
 }

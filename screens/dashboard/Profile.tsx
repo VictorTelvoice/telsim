@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -69,7 +70,8 @@ const Profile: React.FC = () => {
         .getPublicUrl(filePath);
 
       // 4. Actualizar Metadatos de Auth
-      const { error: authError } = await supabase.auth.updateUser({
+      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing updateUser
+      const { error: authError } = await (supabase.auth as any).updateUser({
         data: { avatar_url: publicUrl }
       });
       if (authError) throw authError;
@@ -93,7 +95,8 @@ const Profile: React.FC = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing updateUser
+      const { error } = await (supabase.auth as any).updateUser({
         data: {
           full_name: fullName,
           country: country,

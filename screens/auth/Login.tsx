@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -19,7 +20,8 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing signInWithPassword
+      const { data, error: signInError } = await (supabase.auth as any).signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -48,7 +50,8 @@ const Login: React.FC = () => {
   const handleSocialLogin = async (provider: 'google') => {
     setLoading(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      // Cast supabase.auth to any to bypass SupabaseAuthClient type missing signInWithOAuth
+      const { error: authError } = await (supabase.auth as any).signInWithOAuth({
         provider,
         options: {
           redirectTo: window.location.origin,

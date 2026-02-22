@@ -110,11 +110,6 @@ const Payment: React.FC = () => {
                         <Lock className="size-6 text-white" />
                     </div>
                 </button>
-                <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
-                    <p className="text-[9px] text-center font-black uppercase tracking-widest">
-                        TELSIM SECURE CHECKOUT v3.2 (SERVER-SIDE)
-                    </p>
-                </div>
             </div>
         </div>
     </div>
