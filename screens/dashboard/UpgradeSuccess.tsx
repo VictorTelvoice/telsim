@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
 import { 
   CheckCircle2, 
   ArrowRight, 
@@ -23,59 +21,21 @@ const UpgradeSuccess: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { addNotification } = useNotifications();
-  const { user } = useAuth();
   const [isSyncing, setIsSyncing] = useState(true);
   const [showContent, setShowContent] = useState(false);
-  const [finalPlanName, setFinalPlanName] = useState<string>('');
-  const [finalPhoneNumber, setFinalPhoneNumber] = useState<string>('');
   const hasExecutedRef = useRef(false);
 
   const sessionId = searchParams.get('session_id');
   const numParam = searchParams.get('num');
   const planParam = searchParams.get('plan');
 
-  useEffect(() => {
-    const resolveData = async () => {
-      // 1. Intentar desde location.state
-      if (location.state?.planName) {
-        setFinalPlanName(location.state.planName);
-        setFinalPhoneNumber(location.state.phoneNumber || '');
-        return;
-      }
+  const data = location.state || {
+      phoneNumber: numParam,
+      planName: planParam,
+      userId: 'pending'
+  };
 
-      // 2. Intentar desde URL params
-      if (planParam) {
-        setFinalPlanName(planParam);
-        setFinalPhoneNumber(numParam || '');
-        return;
-      }
-
-      // 3. Fallback: Supabase (Buscar última suscripción activa)
-      if (user) {
-        try {
-          const { data: sub } = await supabase
-            .from('subscriptions')
-            .select('plan_name, phone_number')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          if (sub) {
-            setFinalPlanName(sub.plan_name);
-            setFinalPhoneNumber(sub.phone_number || '');
-          } else {
-            setFinalPlanName('Starter');
-          }
-        } catch (err) {
-          setFinalPlanName('Starter');
-        }
-      }
-    };
-
-    resolveData();
-  }, [location.state, planParam, numParam, user]);
+  const { phoneNumber, planName } = data;
 
   // Cálculo de fecha de renovación (30 días desde hoy)
   const renewalDate = useMemo(() => {
@@ -90,7 +50,7 @@ const UpgradeSuccess: React.FC = () => {
 
   // Configuración Visual y de Datos por Plan
   const planConfig = useMemo(() => {
-    const name = (finalPlanName || 'Starter').toUpperCase();
+    const name = (planName || 'Starter').toUpperCase();
     
     if (name.includes('POWER')) {
       return {
@@ -153,19 +113,19 @@ const UpgradeSuccess: React.FC = () => {
       capacity: '150 SMS / mes',
       highlight: 'Número SIM Real (+56)'
     };
-  }, [finalPlanName]);
+  }, [planName]);
 
   useEffect(() => {
-    if (!sessionId && !location.state && !planParam) return;
+    if (!sessionId && !location.state) return;
     
     const executePostPaymentLogic = async () => {
-      if (hasExecutedRef.current || !finalPlanName) return;
+      if (hasExecutedRef.current) return;
       hasExecutedRef.current = true;
 
       try {
         await addNotification({
           title: 'Mejora de Plan Exitosa',
-          message: `El Ledger ha confirmado tu upgrade. Tu línea ${finalPhoneNumber} ya opera bajo el nivel ${finalPlanName}.`,
+          message: `El Ledger ha confirmado tu upgrade. Tu línea ${phoneNumber} ya opera bajo el nivel ${planName}.`,
           type: 'subscription'
         });
       } catch (err) {
@@ -177,7 +137,7 @@ const UpgradeSuccess: React.FC = () => {
     };
 
     executePostPaymentLogic();
-  }, [sessionId, location.state, planParam, finalPlanName, finalPhoneNumber, addNotification]);
+  }, [sessionId, location.state, planName, phoneNumber, addNotification]);
 
   const formatPhoneNumber = (num: string) => {
     if (!num) return '';
@@ -188,7 +148,7 @@ const UpgradeSuccess: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
-  if (!sessionId && !location.state && !planParam) {
+  if (!sessionId && !location.state) {
     return <Navigate to="/dashboard/numbers" replace />;
   }
 
@@ -237,7 +197,7 @@ const UpgradeSuccess: React.FC = () => {
           <div className="flex flex-col items-center gap-1 mb-10">
              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
              <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
-                {formatPhoneNumber(finalPhoneNumber)}
+                {formatPhoneNumber(phoneNumber)}
              </div>
           </div>
           
@@ -283,7 +243,7 @@ const UpgradeSuccess: React.FC = () => {
 
           {planConfig.isPower && (
             <button 
-              onClick={() => navigate('/dashboard/numbers', { state: { openAutomation: true, phoneNumber: finalPhoneNumber } })}
+              onClick={() => navigate('/dashboard/numbers', { state: { openAutomation: true, phoneNumber } })}
               className="w-full h-14 border-2 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-black rounded-2xl flex items-center justify-center gap-2 text-[11px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-[0.98]"
             >
               <Bot className="size-4" />
