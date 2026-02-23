@@ -116,10 +116,6 @@ const MyNumbers: React.FC = () => {
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
     const [activeConfigSlot, setActiveConfigSlot] = useState<SlotWithPlan | null>(null);
     const [savingFwd, setSavingFwd] = useState(false);
-    
-    const [tgEnabled, setTgEnabled] = useState(false);
-    const [tgToken, setTgToken] = useState('');
-    const [tgChatId, setTgChatId] = useState('');
     const [slotFwdActive, setSlotFwdActive] = useState(false);
 
     const [showUpgradeView, setShowUpgradeView] = useState(false);
@@ -140,18 +136,6 @@ const MyNumbers: React.FC = () => {
                 .select('phone_number, plan_name, monthly_limit, credits_used, slot_id')
                 .eq('user_id', user.id)
                 .eq('status', 'active');
-
-            const { data: userData } = await supabase
-                .from('users')
-                .select('telegram_token, telegram_chat_id, telegram_enabled')
-                .eq('id', user.id)
-                .single();
-
-            if (userData) {
-                setTgToken(userData.telegram_token || '');
-                setTgChatId(userData.telegram_chat_id || '');
-                setTgEnabled(userData.telegram_enabled || false);
-            }
 
             const enrichedSlots = (slotsData || []).map(slot => {
                 const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);
@@ -299,17 +283,6 @@ const MyNumbers: React.FC = () => {
         if (!user || !activeConfigSlot) return;
         setSavingFwd(true);
         try {
-            const { error: userErr } = await supabase
-                .from('users')
-                .update({
-                    telegram_enabled: tgEnabled,
-                    telegram_token: tgToken,
-                    telegram_chat_id: tgChatId
-                })
-                .eq('id', user.id);
-
-            if (userErr) throw userErr;
-
             const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ forwarding_active: slotFwdActive })
@@ -605,49 +578,20 @@ const MyNumbers: React.FC = () => {
                         </div>
                         
                         <div className="p-8 space-y-8">
-                            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-primary/20">
+                            <div className="flex items-center justify-between p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-primary/20">
                                 <div className="flex flex-col">
-                                    <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase">Redirección SMS</span>
-                                    <span className="text-[9px] font-bold text-slate-400">Estado del puerto</span>
+                                    <span className="text-[12px] font-black text-slate-900 dark:text-white uppercase">Reenvío a Telegram</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-1">Recibir SMS en tu Bot</span>
                                 </div>
                                 <button onClick={() => setSlotFwdActive(!slotFwdActive)} className="text-primary">
-                                    {slotFwdActive ? <ToggleRight className="size-10" /> : <ToggleLeft className="size-10 text-slate-300" />}
+                                    {slotFwdActive ? <ToggleRight className="size-12" /> : <ToggleLeft className="size-12 text-slate-300" />}
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1">
-                                    <Send className="size-4 text-primary" />
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telegram Bot Gateway</h3>
-                                    <button onClick={() => navigate('/dashboard/telegram-guide')} className="ml-auto text-[9px] font-black text-primary uppercase underline">¿Cómo configurar?</button>
-                                </div>
-                                
-                                <div className="space-y-4 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Bot API Token</label>
-                                        <input 
-                                            type="password" 
-                                            value={tgToken} 
-                                            onChange={(e) => setTgToken(e.target.value)} 
-                                            className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-mono"
-                                            placeholder="582910... (de BotFather)"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Chat ID</label>
-                                        <input 
-                                            type="text" 
-                                            value={tgChatId} 
-                                            onChange={(e) => setTgChatId(e.target.value)} 
-                                            className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-mono"
-                                            placeholder="91823... (de userinfobot)"
-                                        />
-                                    </div>
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input type="checkbox" checked={tgEnabled} onChange={(e) => setTgEnabled(e.target.checked)} className="size-4 rounded border-slate-200 text-primary focus:ring-primary" />
-                                        <span className="text-[10px] font-black text-slate-500 uppercase">Habilitar vía Telegram</span>
-                                    </label>
-                                </div>
+                            <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                <p className="text-[10px] font-bold text-slate-400 leading-relaxed italic">
+                                    Para que el reenvío funcione, asegúrate de haber configurado tu Token y Chat ID en <span className="text-primary font-black">Ajustes / Telegram Bot</span>.
+                                </p>
                             </div>
 
                             <button 
@@ -655,7 +599,7 @@ const MyNumbers: React.FC = () => {
                                 disabled={savingFwd}
                                 className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
                             >
-                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Actualizar Configuración'}
+                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Guardar Cambios'}
                             </button>
                         </div>
                     </div>

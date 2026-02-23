@@ -228,9 +228,33 @@ const Landing: React.FC = () => {
             <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
-            <a href="#beneficios" className="hover:text-primary transition-colors">Beneficios</a>
-            <a href="#como-funciona" className="hover:text-primary transition-colors">Cómo funciona</a>
-            <a href="#precios" className="hover:text-primary transition-colors">Precios</a>
+            <button 
+              onClick={() => {
+                const el = document.getElementById('beneficios');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }} 
+              className="hover:text-primary transition-colors"
+            >
+              Beneficios
+            </button>
+            <button 
+              onClick={() => {
+                const el = document.getElementById('como-funciona');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }} 
+              className="hover:text-primary transition-colors"
+            >
+              Cómo funciona
+            </button>
+            <button 
+              onClick={() => {
+                const el = document.getElementById('precios');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }} 
+              className="hover:text-primary transition-colors"
+            >
+              Precios
+            </button>
             <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
           </div>
           <div className="flex items-center gap-3">
@@ -245,7 +269,7 @@ const Landing: React.FC = () => {
         <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
-            SIM física real
+            Identidad Anti-Bloqueo
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
@@ -322,10 +346,10 @@ const Landing: React.FC = () => {
             {[
               { icon: 'sim_card', title: 'Número dedicado', desc: 'Un número SIM exclusivo para tu app, sistema o proceso. Sin compartir, sin conflictos.' },
               { icon: 'bolt', title: 'Validación en segundos', desc: 'Tu sistema recibe el OTP y lo procesa al instante. Sin esperas ni intervención manual.' },
-              { icon: 'verified_user', title: 'SIM real, no VoIP', desc: 'Los números virtuales son bloqueados por bancos y plataformas críticas. Una SIM real nunca falla.' },
+              { icon: 'verified_user', title: 'Identidad Anti-bloqueo', desc: 'Nuestra tecnología de SIMs físicas proporciona una Identidad Anti-Bloqueo que permite validaciones exitosas al 100%.' },
               { icon: 'shield', title: 'Privacidad total', desc: 'Tu número personal nunca queda expuesto. Cada proceso opera con su número aislado y seguro.', color: 'text-emerald-600', bg: 'bg-emerald-50' },
               { icon: 'trending_up', title: 'Escala sin límites', desc: 'Múltiples números para múltiples procesos. Todo gestionado desde un dashboard centralizado.' },
-              { icon: 'api', title: 'Integración simple', desc: 'API lista y documentada. Compatible con Make, n8n y Zapier en minutos.' }
+              { icon: 'api', title: 'Integración simple', desc: 'Conecta vía API, bot de Telegram o herramientas como Make, n8n y Zapier. Sin servidores, sin código complejo.' }
             ].map((b, i) => (
               <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100">
                 <div className={`w-10 h-10 ${b.bg || 'bg-blue-50'} rounded-xl flex items-center justify-center ${b.color || 'text-primary'} mb-4`}>
@@ -475,7 +499,7 @@ const Landing: React.FC = () => {
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Un número real<br/>para cada caso de uso</h2>
             <p className="text-slate-500 text-base mt-3 font-medium">Cualquier app, sistema o proceso que necesite validación SMS</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
               { icon: 'campaign', title: 'Agencias de Marketing', desc: 'Gestiona y verifica múltiples cuentas en Google Ads y Meta. Cada cuenta con su número propio, nunca bloqueada en un momento crítico de campaña.' },
               { icon: 'how_to_reg', title: 'Registro y Onboarding', desc: 'Valida usuarios en tu plataforma sin exponer números personales. Verificación limpia, segura y escalable desde el primer acceso.' },
@@ -486,7 +510,7 @@ const Landing: React.FC = () => {
               { icon: 'add_business', title: 'Registro masivo y venta de servicios', desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales. Ideal para ofrecer servicios a escala sin gestión manual de cuentas.' },
               { icon: 'integration_instructions', title: 'Desarrollo y QA de aplicaciones', desc: 'Prueba flujos de autenticación SMS en tus apps sin usar números personales ni pagar por servicios de testing caros. Números reales para entornos de desarrollo, staging y producción.' }
             ].map((c, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4">
+              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4 min-w-[85vw] md:min-w-0 snap-center">
                 <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-primary flex-shrink-0">
                   <span className="material-symbols-rounded text-[24px]">{c.icon}</span>
                 </div>
@@ -679,7 +703,15 @@ const Landing: React.FC = () => {
           </div>
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-400">
             <a href="#" className="hover:text-primary transition-colors">Inicio</a>
-            <a href="#precios" className="hover:text-primary transition-colors">Precios</a>
+            <button 
+              onClick={() => {
+                const el = document.getElementById('precios');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }} 
+              className="hover:text-primary transition-colors"
+            >
+              Precios
+            </button>
             <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
             <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">Soporte</button>
           </div>

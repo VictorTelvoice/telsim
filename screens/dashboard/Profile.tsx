@@ -36,6 +36,49 @@ const Profile: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState(user?.user_metadata?.phone_number || '');
   const [birthDate, setBirthDate] = useState(user?.user_metadata?.birth_date || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const [tgToken, setTgToken] = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+  const [savingTg, setSavingTg] = useState(false);
+
+  const fetchTelegramConfig = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('users')
+      .select('telegram_token, telegram_chat_id')
+      .eq('id', user.id)
+      .single();
+    
+    if (data) {
+      setTgToken(data.telegram_token || '');
+      setTgChatId(data.telegram_chat_id || '');
+    }
+  };
+
+  React.useEffect(() => {
+    fetchTelegramConfig();
+  }, [user]);
+
+  const handleSaveTelegram = async () => {
+    if (!user) return;
+    setSavingTg(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          telegram_token: tgToken,
+          telegram_chat_id: tgChatId
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      alert("Configuración de Telegram guardada");
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar configuración");
+    } finally {
+      setSavingTg(false);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -321,6 +364,39 @@ const Profile: React.FC = () => {
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.billing')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
+            </button>
+          </div>
+        </section>
+
+        <section className="px-5 mb-6">
+          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Telegram Bot</h4>
+          <div className="bg-surface-light dark:bg-surface-dark rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bot API Token</label>
+              <input 
+                type="password" 
+                value={tgToken} 
+                onChange={(e) => setTgToken(e.target.value)} 
+                className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 text-xs font-mono outline-none focus:border-primary transition-all"
+                placeholder="582910... (de BotFather)"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chat ID</label>
+              <input 
+                type="text" 
+                value={tgChatId} 
+                onChange={(e) => setTgChatId(e.target.value)} 
+                className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 text-xs font-mono outline-none focus:border-primary transition-all"
+                placeholder="91823... (de userinfobot)"
+              />
+            </div>
+            <button 
+              onClick={handleSaveTelegram}
+              disabled={savingTg}
+              className="w-full h-12 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {savingTg ? 'Guardando...' : 'Guardar Configuración'}
             </button>
           </div>
         </section>
