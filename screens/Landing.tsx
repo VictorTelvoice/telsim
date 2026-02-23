@@ -388,8 +388,14 @@ const Landing: React.FC = () => {
 
           <div className="w-full flex flex-col items-center gap-4">
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={() => navigate('/login')} className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]">
-                Obtener mi número gratis
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('precios');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }} 
+                className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
+              >
+                Probar Gratis
                 <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
               </button>
               <a href="#como-funciona" className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-7 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all">
@@ -879,8 +885,18 @@ const Landing: React.FC = () => {
             Tu bot merece<br/>su propio número
           </h2>
           <p className="text-slate-500 text-base font-medium">Sin contratos. Sin setup fees.<br/>Activación en menos de 5 minutos.</p>
-          <button onClick={() => navigate('/login')} className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]">
-            Activar mi número gratis
+          <button 
+            onClick={() => navigate('/onboarding/summary', { 
+              state: { 
+                planName: 'Starter', 
+                price: 19.90, 
+                monthlyLimit: 150, 
+                stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' 
+              } 
+            })} 
+            className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]"
+          >
+            Probar Gratis
             <span className="material-symbols-rounded">arrow_forward</span>
           </button>
           <p className="text-xs text-slate-400 font-medium">¿Tienes preguntas? <a href="mailto:info@telsim.io" className="text-primary hover:underline">info@telsim.io</a></p>

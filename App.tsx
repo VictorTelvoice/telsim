@@ -31,6 +31,7 @@ import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
 import TelegramConfig from './screens/dashboard/TelegramConfig';
+import Webhooks from './screens/dashboard/Webhooks';
 import ApiDocs from './screens/ApiDocs';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
@@ -246,6 +247,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/telegram-config" 
                           element={<ProtectedRoute><DashboardLayout><TelegramConfig /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/webhooks" 
+                          element={<ProtectedRoute><DashboardLayout><Webhooks /></DashboardLayout></ProtectedRoute>} 
                         />
                         <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />

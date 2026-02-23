@@ -18,7 +18,8 @@ import {
   QrCode,
   Languages,
   MapPin,
-  Loader2
+  Loader2,
+  Webhook
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -338,6 +339,19 @@ const Profile: React.FC = () => {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Telegram bot</p>
+              </div>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
+            </button>
+
+            <button 
+              onClick={() => navigate('/dashboard/webhooks')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
+              <div className="flex items-center justify-center size-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 shrink-0">
+                <Webhook className="size-5" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">API & Webhooks</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
