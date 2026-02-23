@@ -782,6 +782,93 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* COMPATIBILIDAD */}
+      <section className="py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+        <div className="max-w-5xl mx-auto px-6 mb-12 text-center">
+          <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-2">Infraestructura Global</span>
+          <h3 className="text-xl font-black text-white uppercase tracking-tight">Compatible con todas las plataformas</h3>
+        </div>
+        
+        <div className="flex flex-col gap-8">
+          {/* Single Row Carousel */}
+          <div className="flex overflow-hidden relative">
+            <motion.div 
+              className="flex gap-20 items-center whitespace-nowrap"
+              animate={{ x: [0, -2500] }}
+              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+            >
+              {[
+                { name: 'Telegram', slug: 'telegram' },
+                { name: 'WhatsApp', slug: 'whatsapp' },
+                { name: 'Uber', slug: 'uber' },
+                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Nike', slug: 'nike' },
+                { name: 'Airbnb', slug: 'airbnb' },
+                { name: 'Google', slug: 'google' },
+                { name: 'Apple', slug: 'apple' },
+                { name: 'WeChat', slug: 'wechat' },
+                { name: 'Discord', slug: 'discord' },
+                { name: 'Binance', slug: 'binance' },
+                { name: 'Coinbase', slug: 'coinbase' },
+                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Booking', slug: 'bookingdotcom' },
+                { name: 'Ebay', slug: 'ebay' },
+                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Shopify', slug: 'shopify' },
+                { name: 'Spotify', slug: 'spotify' },
+                { name: 'Netflix', slug: 'netflix' }
+              ].map((brand, i) => (
+                <div key={i} className="flex flex-col items-center gap-3 group">
+                  <img 
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                    alt={brand.name}
+                    className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest group-hover:text-white/50 transition-colors">
+                    {brand.name}
+                  </span>
+                </div>
+              ))}
+              {/* Duplicate for seamless loop */}
+              {[
+                { name: 'Telegram', slug: 'telegram' },
+                { name: 'WhatsApp', slug: 'whatsapp' },
+                { name: 'Uber', slug: 'uber' },
+                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Nike', slug: 'nike' },
+                { name: 'Airbnb', slug: 'airbnb' },
+                { name: 'Google', slug: 'google' },
+                { name: 'Apple', slug: 'apple' },
+                { name: 'WeChat', slug: 'wechat' },
+                { name: 'Discord', slug: 'discord' },
+                { name: 'Binance', slug: 'binance' },
+                { name: 'Coinbase', slug: 'coinbase' },
+                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Booking', slug: 'bookingdotcom' },
+                { name: 'Ebay', slug: 'ebay' },
+                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Shopify', slug: 'shopify' },
+                { name: 'Spotify', slug: 'spotify' },
+                { name: 'Netflix', slug: 'netflix' }
+              ].map((brand, i) => (
+                <div key={`dup-${i}`} className="flex flex-col items-center gap-3 group">
+                  <img 
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                    alt={brand.name}
+                    className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest group-hover:text-white/50 transition-colors">
+                    {brand.name}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA FINAL */}
       <section className="bg-white py-24">
         <div className="max-w-xl mx-auto px-6 text-center flex flex-col items-center gap-6">
