@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 interface MessagesContextType {
   unreadSmsCount: number;
   refreshUnreadCount: () => Promise<void>;
+  setUnreadSmsCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
@@ -60,7 +61,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user]);
 
   return (
-    <MessagesContext.Provider value={{ unreadSmsCount, refreshUnreadCount }}>
+    <MessagesContext.Provider value={{ unreadSmsCount, refreshUnreadCount, setUnreadSmsCount }}>
       {children}
     </MessagesContext.Provider>
   );

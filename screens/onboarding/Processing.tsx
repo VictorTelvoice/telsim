@@ -76,7 +76,15 @@ const Processing: React.FC = () => {
       const { data } = await query.maybeSingle();
 
       if (data?.status === 'active') {
-        setActivatedNumber(data.phone_number || 'Sincronizando...');
+        const phone = data.phone_number || 'Sincronizando...';
+        setActivatedNumber(phone);
+        
+        if (isUpgrade) {
+          const plan = searchParams.get('plan') || 'POWER';
+          navigate(`/dashboard/upgrade-success?num=${phone}&plan=${plan}`, { replace: true });
+          return;
+        }
+
         setIsSuccess(true);
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       }

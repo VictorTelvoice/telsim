@@ -151,99 +151,103 @@ const App: React.FC = () => {
           <NotificationsProvider>
             <MessagesProvider>
               <HashRouter>
-                <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
-                  <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route 
-                      path="/onboarding/region" 
-                      element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/onboarding/plan" 
-                      element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/onboarding/summary" 
-                      element={<ProtectedRoute><Summary /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/onboarding/payment" 
-                      element={<ProtectedRoute><Payment /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/onboarding/processing" 
-                      element={<ProtectedRoute><Processing /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/onboarding/success" 
-                      element={<ProtectedRoute><Success /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard" 
-                      element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/messages" 
-                      element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/numbers" 
-                      element={<ProtectedRoute><DashboardLayout><MyNumbers /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/profile" 
-                      element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/billing" 
-                      element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/security" 
-                      element={<ProtectedRoute><DashboardLayout><Security /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/identity-verification" 
-                      element={<ProtectedRoute><DashboardLayout><IdentityVerification /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/support" 
-                      element={<ProtectedRoute><DashboardLayout><Support /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/help" 
-                      element={<ProtectedRoute><DashboardLayout><HelpCenter /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/terms" 
-                      element={<ProtectedRoute><DashboardLayout><TermsPrivacy /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/notifications" 
-                      element={<ProtectedRoute><Notifications /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/upgrade-summary" 
-                      element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/upgrade-success" 
-                      element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} 
-                    />
-                    <Route 
-                      path="/dashboard/telegram-guide" 
-                      element={<ProtectedRoute><DashboardLayout><TelegramSetupGuide /></DashboardLayout></ProtectedRoute>} 
-                    />
-                    <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/secure-shopping" element={<ProtectedRoute><DashboardLayout><SecureShopping /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/use-case/scale-ads" element={<ProtectedRoute><DashboardLayout><ScaleAds /></DashboardLayout></ProtectedRoute>} />
-                  </Routes>
-                </div>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="*" element={
+                    <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
+                      <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route 
+                          path="/onboarding/region" 
+                          element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/plan" 
+                          element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/summary" 
+                          element={<ProtectedRoute><Summary /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/payment" 
+                          element={<ProtectedRoute><Payment /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/processing" 
+                          element={<ProtectedRoute><Processing /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/success" 
+                          element={<ProtectedRoute><Success /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard" 
+                          element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/messages" 
+                          element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/numbers" 
+                          element={<ProtectedRoute><DashboardLayout><MyNumbers /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/profile" 
+                          element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/billing" 
+                          element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/security" 
+                          element={<ProtectedRoute><DashboardLayout><Security /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/identity-verification" 
+                          element={<ProtectedRoute><DashboardLayout><IdentityVerification /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/support" 
+                          element={<ProtectedRoute><DashboardLayout><Support /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/help" 
+                          element={<ProtectedRoute><DashboardLayout><HelpCenter /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/terms" 
+                          element={<ProtectedRoute><DashboardLayout><TermsPrivacy /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/notifications" 
+                          element={<ProtectedRoute><Notifications /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/upgrade-summary" 
+                          element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/upgrade-success" 
+                          element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/telegram-guide" 
+                          element={<ProtectedRoute><DashboardLayout><TelegramSetupGuide /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/use-case/bypass-antibots" element={<ProtectedRoute><DashboardLayout><BypassAntibots /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/use-case/sniper-bots" element={<ProtectedRoute><DashboardLayout><SniperBots /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/use-case/secure-shopping" element={<ProtectedRoute><DashboardLayout><SecureShopping /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/use-case/scale-ads" element={<ProtectedRoute><DashboardLayout><ScaleAds /></DashboardLayout></ProtectedRoute>} />
+                      </Routes>
+                    </div>
+                  } />
+                </Routes>
               </HashRouter>
             </MessagesProvider>
           </NotificationsProvider>
