@@ -1,9 +1,79 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
+  const beneficiosRef = useRef<HTMLDivElement>(null);
+  const casosUsoRef = useRef<HTMLDivElement>(null);
+  const preciosRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
+      if (!ref.current) return;
+      const container = ref.current;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      
+      if (scrollWidth <= clientWidth) return;
+
+      const interval = setInterval(() => {
+        if (container.scrollLeft + clientWidth >= scrollWidth - 10) {
+          container.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          container.scrollBy({ left: clientWidth * 0.8, behavior: 'smooth' });
+        }
+      }, 10000);
+
+      return () => clearInterval(interval);
+    };
+
+    const autoScrollPricing = (ref: React.RefObject<HTMLDivElement | null>) => {
+      if (!ref.current) return;
+      const container = ref.current;
+      
+      // Inicialmente centrar en PRO (segunda tarjeta)
+      setTimeout(() => {
+        if (container) {
+          const cardWidth = container.scrollWidth / 3;
+          container.scrollTo({ left: cardWidth, behavior: 'auto' });
+        }
+      }, 100);
+
+      const interval = setInterval(() => {
+        const scrollWidth = container.scrollWidth;
+        const clientWidth = container.clientWidth;
+        const cardWidth = scrollWidth / 3;
+        
+        // Lógica: Pro -> Power -> Starter -> Pro
+        // Si estamos en Pro (centro), vamos a Power (derecha)
+        // Si estamos en Power (derecha), vamos a Starter (izquierda)
+        // Si estamos en Starter (izquierda), vamos a Pro (centro)
+        
+        const currentPos = container.scrollLeft;
+        if (currentPos >= cardWidth * 1.5) { // Estamos en Power
+          container.scrollTo({ left: 0, behavior: 'smooth' }); // Ir a Starter
+        } else if (currentPos <= cardWidth * 0.5) { // Estamos en Starter
+          container.scrollTo({ left: cardWidth, behavior: 'smooth' }); // Ir a Pro
+        } else { // Estamos en Pro
+          container.scrollTo({ left: cardWidth * 2, behavior: 'smooth' }); // Ir a Power
+        }
+      }, 10000);
+
+      return () => clearInterval(interval);
+    };
+
+    const cleanupBeneficios = autoScroll(beneficiosRef);
+    const cleanupCasosUso = autoScroll(casosUsoRef);
+    const cleanupPrecios = autoScrollPricing(preciosRef);
+
+    return () => {
+      cleanupBeneficios?.();
+      cleanupCasosUso?.();
+      cleanupPrecios?.();
+    };
+  }, []);
   const { user, loading } = useAuth();
 
   const handlePlanSelect = (planId: string) => {
@@ -342,7 +412,7 @@ const Landing: React.FC = () => {
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Beneficios</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Un número propio<br/>para cada uso</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
               { icon: 'sim_card', title: 'Número dedicado', desc: 'Un número SIM exclusivo para tu app, sistema o proceso. Sin compartir, sin conflictos.' },
               { icon: 'bolt', title: 'Validación en segundos', desc: 'Tu sistema recibe el OTP y lo procesa al instante. Sin esperas ni intervención manual.' },
@@ -351,7 +421,7 @@ const Landing: React.FC = () => {
               { icon: 'trending_up', title: 'Escala sin límites', desc: 'Múltiples números para múltiples procesos. Todo gestionado desde un dashboard centralizado.' },
               { icon: 'api', title: 'Integración simple', desc: 'Conecta vía API, bot de Telegram o herramientas como Make, n8n y Zapier. Sin servidores, sin código complejo.' }
             ].map((b, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100">
+              <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100 min-w-[calc(50%-0.5rem)] md:min-w-0 snap-center">
                 <div className={`w-10 h-10 ${b.bg || 'bg-blue-50'} rounded-xl flex items-center justify-center ${b.color || 'text-primary'} mb-4`}>
                   <span className="material-symbols-rounded text-[22px]">{b.icon}</span>
                 </div>
@@ -454,38 +524,78 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg pt-24 pb-12">
+      <section id="como-funciona" className="tech-bg pt-24 pb-12 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Proceso</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Listo en 3 pasos</h2>
-          </div>
-          <div className="flex flex-col md:flex-row items-start gap-20 md:gap-0 mb-4 relative">
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">sim_card</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">1</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Obtén tu número SIM</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Se te asignará un número telefónico aleatorio real de nuestro inventario. Ese número será tuyo de forma exclusiva — nadie más lo usará.</p>
+          </motion.div>
+          
+          <div className="relative">
+            {/* Desktop Connector Line */}
+            <div className="hidden md:block absolute top-[28px] left-[15%] right-[15%] h-0.5 bg-slate-100 z-0">
+              <motion.div 
+                className="h-full bg-primary origin-left"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+              />
             </div>
-            <div className="hidden md:block step-connector mt-7"></div>
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">settings_suggest</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">2</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Configura tu API o bot</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Conecta tu API o bot de Telegram en minutos. Desde ahí podrás recibir y distribuir automáticamente todos los SMS que lleguen a tu SIM.</p>
-            </div>
-            <div className="hidden md:block step-connector mt-7"></div>
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">smart_toy</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">3</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Opera 24/7 solo</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Tu sistema procesa OTP y verificaciones de forma autónoma. Sin ayuda humana, sin interrupciones.</p>
+
+            <div className="flex flex-col md:flex-row items-start gap-12 md:gap-0 mb-4 relative z-10">
+              {[
+                { icon: 'sim_card', step: '1', title: 'Obtén tu número SIM', desc: 'Se te asignará un número telefónico aleatorio real de nuestro inventario. Ese número será tuyo de forma exclusiva — nadie más lo usará.' },
+                { icon: 'settings_suggest', step: '2', title: 'Configura tu API o bot', desc: 'Conecta tu API o bot de Telegram en minutos. Desde ahí podrás recibir y distribuir automáticamente todos los SMS que lleguen a tu SIM.' },
+                { icon: 'smart_toy', step: '3', title: 'Opera 24/7 solo', desc: 'Tu sistema procesa OTP y verificaciones de forma autónoma. Sin ayuda humana, sin interrupciones.' }
+              ].map((item, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.3, duration: 0.6 }}
+                  className="flex-1 flex flex-col items-center text-center px-6 relative"
+                >
+                  {/* Mobile Connector Line */}
+                  {i < 2 && (
+                    <div className="md:hidden absolute top-[60px] bottom-[-48px] left-1/2 w-0.5 bg-slate-100 -translate-x-1/2 z-0">
+                      <motion.div 
+                        className="w-full bg-primary origin-top"
+                        initial={{ scaleY: 0 }}
+                        whileInView={{ scaleY: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, delay: i * 0.3 + 0.3 }}
+                      />
+                    </div>
+                  )}
+
+                  <motion.div 
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10"
+                  >
+                    <span className="material-symbols-rounded text-white text-[26px]">{item.icon}</span>
+                  </motion.div>
+                  
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20, delay: i * 0.3 + 0.2 }}
+                    className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm z-10"
+                  >
+                    {item.step}
+                  </motion.div>
+                  
+                  <h3 className="font-bold text-slate-900 text-base mb-2">{item.title}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">{item.desc}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
         </div>
@@ -499,7 +609,7 @@ const Landing: React.FC = () => {
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Un número real<br/>para cada caso de uso</h2>
             <p className="text-slate-500 text-base mt-3 font-medium">Cualquier app, sistema o proceso que necesite validación SMS</p>
           </div>
-          <div className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+          <div ref={casosUsoRef} className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
               { icon: 'campaign', title: 'Agencias de Marketing', desc: 'Gestiona y verifica múltiples cuentas en Google Ads y Meta. Cada cuenta con su número propio, nunca bloqueada en un momento crítico de campaña.' },
               { icon: 'how_to_reg', title: 'Registro y Onboarding', desc: 'Valida usuarios en tu plataforma sin exponer números personales. Verificación limpia, segura y escalable desde el primer acceso.' },
@@ -552,9 +662,9 @@ const Landing: React.FC = () => {
             <p className="text-slate-500 text-base mt-3 font-medium">7 días gratis en nuestro plan Starter</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
-            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300">
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300 min-w-[85vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
@@ -593,7 +703,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* PRO */}
-            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)]" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
+            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)] min-w-[85vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
                 <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">⚡ MÁS POPULAR</div>
               </div>
@@ -633,7 +743,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* POWER */}
-            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)]" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)] min-w-[85vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Power</span>
