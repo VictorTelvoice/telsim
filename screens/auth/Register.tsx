@@ -58,6 +58,14 @@ const Register: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background-light dark:bg-background-dark font-display relative overflow-hidden">
+      {/* Back Button */}
+      <button 
+        onClick={() => navigate('/')}
+        className="absolute top-6 left-6 z-20 w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-500 hover:text-primary hover:border-primary transition-all shadow-soft"
+      >
+        <span className="material-symbols-rounded text-[24px]">arrow_back</span>
+      </button>
+
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
 

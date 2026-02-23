@@ -224,12 +224,12 @@ const Landing: React.FC = () => {
         <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
-            Sistema operativo · SIM física real
+            SIM física real
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">shield</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-            Crea y Valida tus cuentas<br/>y transacciones.<br/><span className="text-primary">Sin bloqueos. Sin humanos.</span>
+            Valida tus cuentas y transacciones.<br/><span className="text-primary">Sin bloqueos. Sin humanos.</span>
           </h1>
 
           <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch] text-center">
@@ -255,9 +255,8 @@ const Landing: React.FC = () => {
               {[
                 { label: 'Número SIM Real', sub: '(no VoIP)' },
                 { label: 'Notificaciones en tiempo real' },
-                { label: 'Visualización en App' },
                 { label: 'SMS 100% automatizados', sub: '(Sin intervención)' },
-                { label: 'Acceso a API y Webhooks' },
+                { label: 'Acceso a API, Webhooks, y TelegramBot' },
                 { label: 'Soporte Prioritario 24/7' }
               ].map((f, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -286,14 +285,13 @@ const Landing: React.FC = () => {
             <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center">
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>100% autonomía</span>
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>Activación en 5 min</span>
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>7 días gratis</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* BENEFICIOS */}
-      <section id="beneficios" className="bg-white py-24">
+      <section id="beneficios" className="bg-white pt-12 pb-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Beneficios</span>
@@ -326,7 +324,13 @@ const Landing: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col gap-6">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 w-fit">
-                <span className="text-[11px] font-black text-white/80 uppercase tracking-widest">Sin código requerido</span>
+                <span className="text-[11px] font-black tracking-widest flex items-center gap-1.5">
+                  <svg className="w-3 h-3 fill-[#54a3f5]" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.499 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.798-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.481-.428-.008-1.252-.241-1.865-.44-.751-.244-1.348-.372-1.296-.785.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386.402-1.627.674-1.627.06 0 .195.012.284.048.074.03.175.087.218.158.046.076.076.171.089.273z"/>
+                  </svg>
+                  <span className="text-[#54a3f5]">Telegram</span>
+                  <span className="text-white">Bot</span>
+                </span>
               </div>
               <h2 className="text-4xl font-black text-white leading-tight tracking-tight">
                 Recibe tus SMS<br/>directo en<br/><span style={{ color: '#54a3f5' }}>Telegram</span>
@@ -526,7 +530,7 @@ const Landing: React.FC = () => {
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
-                {['Número SIM Real (no VoIP baratos)', 'Notificaciones en tiempo real', 'Visualización en App', 'Capacidad: 150 SMS mensuales', 'Soporte técnico vía Ticket'].map((f, i) => (
+                {['Número SIM Real (no VoIP baratos)', 'Notificaciones en tiempo real', 'Capacidad: 150 SMS mensuales', 'Soporte técnico vía Ticket'].map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
                     <span className="text-xs font-semibold text-slate-700">{f}</span>
@@ -566,7 +570,7 @@ const Landing: React.FC = () => {
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
-                {['Todo lo incluido en Starter', 'SMS 100% automatizados (Sin intervención)', 'Acceso a API y Webhooks', 'Capacidad: 400 SMS mensuales', 'Soporte técnico vía Ticket y Chat en vivo'].map((f, i) => (
+                {['Todo lo incluido en Starter', 'SMS 100% automatizados (Sin intervención)', 'Acceso a API, Webhooks, y TelegramBot', 'Capacidad: 400 SMS mensuales', 'Soporte técnico vía Ticket y Chat en vivo'].map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
                     <span className="text-xs font-semibold text-slate-700">{f}</span>
