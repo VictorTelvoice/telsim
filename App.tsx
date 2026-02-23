@@ -6,6 +6,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
 import Register from './screens/auth/Register';
@@ -29,6 +30,7 @@ import TermsPrivacy from './screens/dashboard/TermsPrivacy';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
+import ApiDocs from './screens/ApiDocs';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
@@ -151,8 +153,10 @@ const App: React.FC = () => {
           <NotificationsProvider>
             <MessagesProvider>
               <HashRouter>
+                <ScrollToTop />
                 <Routes>
                   <Route path="/" element={<Landing />} />
+                  <Route path="/api-docs" element={<ApiDocs />} />
                   <Route path="*" element={
                     <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>

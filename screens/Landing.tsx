@@ -6,6 +6,11 @@ const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
+  const handlePlanSelect = (planId: string) => {
+    localStorage.setItem('selected_plan', planId);
+    navigate('/register');
+  };
+
   useEffect(() => {
     if (!loading && user) {
       navigate('/dashboard');
@@ -195,6 +200,22 @@ const Landing: React.FC = () => {
           background: #10B981;
           box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
         }
+
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(84, 163, 245, 0); border-color: rgba(255,255,255,0.2); }
+          50% { box-shadow: 0 0 15px 2px rgba(84, 163, 245, 0.4); border-color: rgba(84, 163, 245, 0.5); }
+        }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+        .use-case-card {
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .use-case-card:hover {
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+          border-color: rgba(29, 78, 216, 0.3);
+          background-color: white;
+        }
       `}</style>
 
       {/* NAV */}
@@ -210,7 +231,7 @@ const Landing: React.FC = () => {
             <a href="#beneficios" className="hover:text-primary transition-colors">Beneficios</a>
             <a href="#como-funciona" className="hover:text-primary transition-colors">Cómo funciona</a>
             <a href="#precios" className="hover:text-primary transition-colors">Precios</a>
-            <a href="#" className="hover:text-primary transition-colors">API Docs</a>
+            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/login')} className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Login</button>
@@ -225,11 +246,11 @@ const Landing: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
             SIM física real
-            <span className="material-symbols-rounded text-emerald-500 text-[15px]">shield</span>
+            <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-            Valida tus cuentas y transacciones.<br/><span className="text-primary">Sin bloqueos. Sin humanos.</span>
+            Autenticación humana, automatizada.<br/><span className="text-primary">Número real para bots reales.</span>
           </h1>
 
           <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch] text-center">
@@ -255,7 +276,7 @@ const Landing: React.FC = () => {
               {[
                 { label: 'Número SIM Real', sub: '(no VoIP)' },
                 { label: 'Notificaciones en tiempo real' },
-                { label: 'SMS 100% automatizados', sub: '(Sin intervención)' },
+                { label: 'SMS 100% automatizados' },
                 { label: 'Acceso a API, Webhooks, y TelegramBot' },
                 { label: 'Soporte Prioritario 24/7' }
               ].map((f, i) => (
@@ -322,8 +343,8 @@ const Landing: React.FC = () => {
       <section className="py-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="flex flex-col gap-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 w-fit">
+            <div className="flex flex-col gap-6 items-center md:items-start text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 w-fit pulse-glow">
                 <span className="text-[11px] font-black tracking-widest flex items-center gap-1.5">
                   <svg className="w-3 h-3 fill-[#54a3f5]" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.499 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.798-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.481-.428-.008-1.252-.241-1.865-.44-.751-.244-1.348-.372-1.296-.785.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386.402-1.627.674-1.627.06 0 .195.012.284.048.074.03.175.087.218.158.046.076.076.171.089.273z"/>
@@ -355,8 +376,8 @@ const Landing: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button onClick={() => navigate('/login')} className="inline-flex items-center gap-2 bg-white text-primary font-black py-3.5 px-6 rounded-2xl w-fit hover:bg-blue-50 transition-colors text-sm shadow-lg">
-                <span className="material-symbols-rounded text-[18px]">send</span>
+              <button onClick={() => navigate('/login')} className="inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-4 px-8 rounded-2xl w-full md:w-fit hover:bg-blue-50 transition-all text-sm shadow-xl active:scale-95 mt-6">
+                <span className="material-symbols-rounded text-[20px]">send</span>
                 Conectar mi bot de Telegram
               </button>
             </div>
@@ -409,13 +430,13 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg py-24">
+      <section id="como-funciona" className="tech-bg pt-24 pb-12">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Proceso</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Listo en 3 pasos</h2>
           </div>
-          <div className="flex flex-col md:flex-row items-start gap-0 mb-14 relative">
+          <div className="flex flex-col md:flex-row items-start gap-20 md:gap-0 mb-4 relative">
             <div className="flex-1 flex flex-col items-center text-center px-6">
               <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
                 <span className="material-symbols-rounded text-white text-[26px]">sim_card</span>
@@ -465,7 +486,7 @@ const Landing: React.FC = () => {
               { icon: 'add_business', title: 'Registro masivo y venta de servicios', desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales. Ideal para ofrecer servicios a escala sin gestión manual de cuentas.' },
               { icon: 'integration_instructions', title: 'Desarrollo y QA de aplicaciones', desc: 'Prueba flujos de autenticación SMS en tus apps sin usar números personales ni pagar por servicios de testing caros. Números reales para entornos de desarrollo, staging y producción.' }
             ].map((c, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-6 hover-lift border border-slate-100 flex gap-4">
+              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4">
                 <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-primary flex-shrink-0">
                   <span className="material-symbols-rounded text-[24px]">{c.icon}</span>
                 </div>
@@ -509,7 +530,7 @@ const Landing: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* STARTER */}
-            <button onClick={() => navigate('/login')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300">
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
@@ -548,7 +569,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* PRO */}
-            <button onClick={() => navigate('/login')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)]" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
+            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)]" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
                 <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">⚡ MÁS POPULAR</div>
               </div>
@@ -588,7 +609,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* POWER */}
-            <button onClick={() => navigate('/login')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)]" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)]" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Power</span>
@@ -659,8 +680,8 @@ const Landing: React.FC = () => {
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-400">
             <a href="#" className="hover:text-primary transition-colors">Inicio</a>
             <a href="#precios" className="hover:text-primary transition-colors">Precios</a>
-            <a href="#" className="hover:text-primary transition-colors">API Docs</a>
-            <a href="#" className="hover:text-primary transition-colors">Soporte</a>
+            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
+            <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">Soporte</button>
           </div>
           <p className="text-xs text-slate-400 font-medium">© 2026 Telsim by Telvoice</p>
         </div>
