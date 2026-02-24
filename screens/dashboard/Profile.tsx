@@ -12,12 +12,14 @@ import {
   Mail, 
   Globe, 
   Phone, 
+  Send,
   User as UserIcon, 
   Calendar as CalendarIcon,
   QrCode,
   Languages,
   MapPin,
-  Loader2
+  Loader2,
+  Webhook
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -328,6 +330,32 @@ const Profile: React.FC = () => {
         <section className="px-5 mb-6">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.settings')}</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
+            <button 
+              onClick={() => navigate('/dashboard/telegram-config')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
+              <div className="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary shrink-0">
+                <Send className="size-5" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Telegram bot</p>
+              </div>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
+            </button>
+
+            <button 
+              onClick={() => navigate('/dashboard/webhooks')}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+            >
+              <div className="flex items-center justify-center size-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 shrink-0">
+                <Webhook className="size-5" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">API & Webhooks</p>
+              </div>
+              <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
+            </button>
+
             <div className="w-full flex items-center gap-4 px-4 py-4">
               <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
                 <span className="material-icons text-[20px]">notifications</span>
