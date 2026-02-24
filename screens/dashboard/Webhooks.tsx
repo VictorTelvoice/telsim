@@ -15,10 +15,12 @@ import {
   Code,
   CheckCircle2
 } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const Webhooks: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   
   const [webhookUrl, setWebhookUrl] = useState('');
   const [isActive, setIsActive] = useState(false);
@@ -69,7 +71,7 @@ const Webhooks: React.FC = () => {
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       console.error(err);
-      alert("Error al guardar la configuración");
+      alert(t('webhooks.error_saving'));
     } finally {
       setSaving(false);
     }
@@ -100,7 +102,7 @@ const Webhooks: React.FC = () => {
           <ArrowLeft className="size-5" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">Desarrolladores</h1>
+          <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">{t('webhooks.developers')}</h1>
         </div>
         <div className="size-9"></div>
       </header>
@@ -110,16 +112,16 @@ const Webhooks: React.FC = () => {
           <div className="size-16 bg-emerald-500/10 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shadow-sm">
             <Webhook className="size-8" />
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Webhooks</h2>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{t('webhooks.title')}</h2>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[35ch] mx-auto leading-relaxed">
-            Automatiza tu flujo recibiendo eventos de SMS directamente en tu servidor.
+            {t('webhooks.desc')}
           </p>
         </div>
 
         {showSuccess && (
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-4 rounded-2xl flex items-center gap-3 animate-reveal-number">
             <CheckCircle2 className="size-5 text-emerald-500" />
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Configuración actualizada correctamente</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{t('webhooks.success')}</p>
           </div>
         )}
 
@@ -127,16 +129,16 @@ const Webhooks: React.FC = () => {
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
               <Globe className="size-3" />
-              Webhook URL
+              {t('webhooks.url_label')}
             </label>
             <input 
               type="url" 
               value={webhookUrl} 
               onChange={(e) => setWebhookUrl(e.target.value)} 
               className="w-full h-14 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 text-sm font-mono outline-none focus:border-primary transition-all"
-              placeholder="https://tu-servidor.com/webhook"
+              placeholder={t('webhooks.url_placeholder')}
             />
-            <p className="text-[10px] text-slate-400 font-medium ml-1">Debe ser una URL HTTPS válida</p>
+            <p className="text-[10px] text-slate-400 font-medium ml-1">{t('webhooks.url_hint')}</p>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -145,8 +147,8 @@ const Webhooks: React.FC = () => {
                 <Zap className="size-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Estado del Webhook</p>
-                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{isActive ? 'Activo' : 'Inactivo'}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{t('webhooks.status_label')}</p>
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{isActive ? t('webhooks.active') : t('webhooks.inactive')}</p>
               </div>
             </div>
             <button 
@@ -166,12 +168,12 @@ const Webhooks: React.FC = () => {
               {saving ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Guardando...
+                  {t('webhooks.saving')}
                 </>
               ) : (
                 <>
                   <Save className="size-4" />
-                  Guardar Configuración
+                  {t('webhooks.save')}
                 </>
               )}
             </button>
@@ -182,17 +184,16 @@ const Webhooks: React.FC = () => {
           <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-3xl border border-blue-100 dark:border-blue-800/50 space-y-3">
             <div className="flex items-center gap-2 text-primary">
               <Info className="size-5" />
-              <p className="text-xs font-bold uppercase tracking-wider">¿Qué es un Webhook?</p>
+              <p className="text-xs font-bold uppercase tracking-wider">{t('webhooks.what_is_title')}</p>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-              Un webhook es una forma de que Telsim envíe información a tu aplicación en tiempo real. 
-              Cuando tu número SIM recibe un SMS, nosotros enviamos una petición HTTP POST a la URL que configures arriba con los detalles del mensaje.
+              {t('webhooks.what_is_desc')}
             </p>
             <button 
               onClick={() => navigate('/dashboard/webhooks/guide')}
               className="w-full py-3 bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-800 rounded-xl text-[10px] font-black text-primary uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors"
             >
-              Ver Guía de Configuración
+              {t('webhooks.view_guide')}
               <ExternalLink className="size-3" />
             </button>
           </div>
@@ -201,7 +202,7 @@ const Webhooks: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-400">
                 <Code className="size-4" />
-                <p className="text-[10px] font-black uppercase tracking-widest">Payload de ejemplo (JSON)</p>
+                <p className="text-[10px] font-black uppercase tracking-widest">{t('webhooks.payload_example')}</p>
               </div>
               <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>

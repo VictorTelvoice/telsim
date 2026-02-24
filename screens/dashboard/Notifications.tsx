@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Notification } from '../../types';
 import { 
   ArrowLeft, 
@@ -17,6 +18,7 @@ import {
 
 const Notifications: React.FC = () => {
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
   const { notifications, markAsRead, clearAll } = useNotifications();
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
@@ -27,21 +29,21 @@ const Notifications: React.FC = () => {
           icon: <Smartphone className="size-6" />, 
           color: 'bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400',
           accent: 'border-primary/30 dark:border-blue-500/30',
-          label: 'Nueva Línea'
+          label: t('notif.type.new_line')
         };
       case 'subscription':
         return { 
           icon: <CreditCard className="size-6" />, 
           color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400',
           accent: 'border-violet-200 dark:border-violet-800',
-          label: 'Compra Exitosa'
+          label: t('notif.type.success_purchase')
         };
       case 'success':
         return { 
           icon: <CheckCircle2 className="size-6" />, 
           color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400',
           accent: 'border-emerald-200 dark:border-emerald-800',
-          label: 'Éxito'
+          label: t('notif.type.success')
         };
       case 'security':
       case 'error':
@@ -49,14 +51,14 @@ const Notifications: React.FC = () => {
           icon: <ShieldCheck className="size-6" />, 
           color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400',
           accent: 'border-rose-200 dark:border-rose-800',
-          label: 'Seguridad'
+          label: t('notif.type.security')
         };
       default:
         return { 
           icon: <History className="size-6" />, 
           color: 'bg-slate-100 dark:bg-slate-800 text-slate-500',
           accent: 'border-slate-200 dark:border-slate-700',
-          label: 'Sistema'
+          label: t('notif.type.system')
         };
     }
   };
@@ -71,10 +73,10 @@ const Notifications: React.FC = () => {
     const now = new Date();
     const diffInMin = Math.floor((now.getTime() - date.getTime()) / 60000);
     
-    if (diffInMin < 1) return 'Ahora';
+    if (diffInMin < 1) return t('messages.now');
     if (diffInMin < 60) return `${diffInMin}m`;
     if (diffInMin < 1440) return `${Math.floor(diffInMin / 60)}h`;
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short' });
   };
 
   return (
@@ -83,7 +85,7 @@ const Notifications: React.FC = () => {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Centro de Control</h1>
+        <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('notif.control_center')}</h1>
         <button onClick={clearAll} className="p-2 -mr-2 text-slate-400 hover:text-rose-500">
           <Trash2 className="size-5" />
         </button>
@@ -95,11 +97,11 @@ const Notifications: React.FC = () => {
             <div className="size-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
                <History className="size-10" />
             </div>
-            <p className="text-sm font-bold text-slate-400 italic">No hay registros de actividad recientes.</p>
+            <p className="text-sm font-bold text-slate-400 italic">{t('notif.no_activity')}</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 mb-6">Logs de Infraestructura</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 mb-6">{t('notif.infra_logs')}</h3>
             {notifications.map((notif, idx) => {
               const config = getNotifConfig(notif.type);
               return (
@@ -149,18 +151,18 @@ const Notifications: React.FC = () => {
                 <div className="space-y-6">
                   <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
                     <div className="flex flex-col gap-1 mb-4">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Puerto Asignado</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('notif.assigned_port')}</span>
                       <span className="font-mono font-black text-slate-900 dark:text-white text-2xl tracking-tighter">
                           {selectedNotif.details.number}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-4">
                       <div>
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Servicio</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{t('notif.service')}</span>
                         <span className="text-[10px] font-black text-primary uppercase">{selectedNotif.details.plan}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Activación</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{t('notif.activation')}</span>
                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{selectedNotif.details.activationDate}</span>
                       </div>
                     </div>
@@ -170,8 +172,8 @@ const Notifications: React.FC = () => {
                         <Cpu className="size-5" />
                      </div>
                      <div>
-                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">Infraestructura Física</p>
-                        <p className="text-[9px] font-bold text-slate-400">Línea conectada al nodo CL-SOUTH-1</p>
+                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">{t('notif.physical_infra')}</p>
+                        <p className="text-[9px] font-bold text-slate-400">{t('notif.line_connected')}</p>
                      </div>
                   </div>
                 </div>
@@ -181,7 +183,7 @@ const Notifications: React.FC = () => {
                 </div>
               )}
               <button onClick={() => setSelectedNotif(null)} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white h-14 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95">
-                Cerrar Registro
+                {t('notif.close_record')}
               </button>
             </div>
           </div>

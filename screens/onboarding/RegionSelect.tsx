@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const RegionSelect: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<string>('CL');
 
   const regions = [
@@ -46,10 +48,10 @@ const RegionSelect: React.FC = () => {
 
         <div className="space-y-4 max-w-xs">
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Paso 1: <br/>Elige tu región
+            {t('onboarding.step1_title')}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-[15px] leading-relaxed">
-            Selecciona Chile para obtener un número local físico y real. Argentina y Perú estarán disponibles próximamente.
+            {t('onboarding.step1_desc')}
           </p>
         </div>
 
@@ -69,7 +71,7 @@ const RegionSelect: React.FC = () => {
             >
               {!reg.available && (
                 <div className="absolute top-0 right-0 bg-slate-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase tracking-tighter z-10">
-                  Pronto
+                  {t('onboarding.soon')}
                 </div>
               )}
               <span className={`text-2xl ${!reg.available ? 'grayscale' : ''}`}>{reg.flag}</span>
@@ -85,13 +87,13 @@ const RegionSelect: React.FC = () => {
           className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
         >
           <div className="w-12"></div> 
-          <span className="text-[17px] tracking-wide uppercase font-bold">SIGUIENTE</span>
+          <span className="text-[17px] tracking-wide uppercase font-bold">{t('onboarding.next')}</span>
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <span className="material-symbols-outlined text-white">arrow_forward</span>
           </div>
         </button>
         <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6 font-medium">
-          Paso 1 de 3
+          {t('onboarding.step_of', { current: 1, total: 3 })}
         </p>
       </div>
     </div>

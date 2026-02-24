@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
   const [isNavigating, setIsNavigating] = useState(false);
   
   const planData = useMemo(() => {
@@ -34,31 +36,31 @@ const Summary: React.FC = () => {
       Starter: { 
         price: 19.90, 
         limit: 150,
-        features: ['Número SIM Real', 'Notificaciones tiempo real', 'Soporte vía Ticket']
+        features: [t('sniper.feature_real_sim'), t('sniper.feature_real_time'), t('sniper.feature_ticket_support')]
       },
       Pro: { 
         price: 39.90, 
         limit: 400,
-        features: ['API & Webhooks', 'Automatización 100%', 'Soporte vía Chat']
+        features: [t('sniper.feature_api_webhooks'), t('sniper.feature_automated'), t('sniper.feature_chat_support')]
       },
       Power: { 
         price: 99.00, 
         limit: 1400,
-        features: ['Seguridad Empresarial', 'Escalabilidad P2P', 'Soporte 24/7']
+        features: [t('sniper.feature_enterprise_security'), t('sniper.feature_scalability'), t('sniper.feature_priority_support')]
       }
     };
     return plans[planName] || plans.Pro;
-  }, [planName]);
+  }, [planName, t]);
 
   const billingDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
-    return date.toLocaleDateString('es-ES', { 
+    return date.toLocaleDateString(t('common.locale') === 'es' ? 'es-ES' : 'en-US', { 
       day: '2-digit', 
       month: 'long', 
       year: 'numeric' 
     });
-  }, []);
+  }, [t]);
 
   const handleNext = () => {
     if (isNavigating) return;
@@ -83,13 +85,13 @@ const Summary: React.FC = () => {
                 >
                     <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
                 </div>
-                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10">Resumen de Pedido</h2>
+                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10">{t('onboarding.summary_title')}</h2>
             </div>
             
             <div className="flex flex-col gap-2 px-6 pt-2 pb-4">
                 <div className="flex justify-between items-center">
-                    <p className="text-primary dark:text-blue-400 text-sm font-bold leading-normal">Paso 3 de 3</p>
-                    <p className="text-gray-400 text-xs font-medium">Finalizar</p>
+                    <p className="text-primary dark:text-blue-400 text-sm font-bold leading-normal">{t('onboarding.step_of', { current: 3, total: 3 })}</p>
+                    <p className="text-gray-400 text-xs font-medium">{t('onboarding.finish')}</p>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-[#dbdfe6] dark:bg-gray-700 overflow-hidden">
                     <div className="h-full bg-primary transition-all duration-500 ease-out" style={{width: '100%'}}></div>
@@ -98,8 +100,8 @@ const Summary: React.FC = () => {
 
             <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
                 <div className="pb-6 pt-2">
-                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">Revisa tu suscripción</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles antes de proceder al pago seguro.</p>
+                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">{t('onboarding.review_subscription')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">{t('onboarding.confirm_details')}</p>
                 </div>
 
                 <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#1A2230] p-0 shadow-soft border border-slate-100 dark:border-slate-800 mb-6">
@@ -108,21 +110,21 @@ const Summary: React.FC = () => {
                            🇨🇱
                         </div>
                         <div className="flex flex-col justify-center">
-                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">Línea Física Chile</p>
-                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest mt-0.5 text-primary">Infraestructura Real (+56)</p>
+                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">{t('onboarding.chile_line')}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest mt-0.5 text-primary">{t('onboarding.real_infra')}</p>
                         </div>
                     </div>
                     
                     <div className="p-6 space-y-5">
                         <div className="flex justify-between items-start">
                             <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">Plan Seleccionado</span>
+                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">{t('onboarding.selected_plan')}</span>
                                 <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
-                                <span className="text-[10px] font-bold text-slate-500 mt-1">{planDetails.limit} Créditos Mensuales</span>
+                                <span className="text-[10px] font-bold text-slate-500 mt-1">{t('onboarding.monthly_credits', { limit: planDetails.limit })}</span>
                             </div>
                             <div className="text-right">
                                 <span className="text-[#111318] dark:text-white font-black text-xl">${planDetails.price.toFixed(2)}</span>
-                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest">/ Mes</span>
+                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest">{t('onboarding.per_month')}</span>
                             </div>
                         </div>
 
@@ -139,12 +141,12 @@ const Summary: React.FC = () => {
                             <div className="flex items-start gap-3 mb-3">
                                 <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{fontSize: '20px'}}>verified_user</span>
                                 <div className="flex flex-col">
-                                    <p className="text-emerald-800 dark:text-emerald-300 text-sm font-black leading-tight uppercase tracking-tight">7 Días de Prueba Gratis</p>
-                                    <p className="text-emerald-700 dark:text-emerald-400/80 text-[11px] font-medium leading-relaxed mt-1">Disfruta de la potencia total de TELSIM sin cargos iniciales.</p>
+                                    <p className="text-emerald-800 dark:text-emerald-300 text-sm font-black leading-tight uppercase tracking-tight">{t('onboarding.free_trial_title')}</p>
+                                    <p className="text-emerald-700 dark:text-emerald-400/80 text-[11px] font-medium leading-relaxed mt-1">{t('onboarding.free_trial_desc')}</p>
                                 </div>
                             </div>
                             <div className="pt-3 border-t border-emerald-500/10 flex justify-between items-center">
-                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Primer cobro:</span>
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{t('onboarding.first_billing')}</span>
                                 <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300">{billingDate}</span>
                             </div>
                         </div>
@@ -153,16 +155,16 @@ const Summary: React.FC = () => {
 
                 <div className="flex flex-col gap-3 mb-6 px-2">
                     <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 text-[11px] font-black uppercase tracking-widest">
-                        <span>Subtotal</span>
+                        <span>{t('onboarding.subtotal')}</span>
                         <span>${planDetails.price.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 text-[11px] font-black uppercase tracking-widest">
-                        <span>Descuento Trial (7 días)</span>
+                        <span>{t('onboarding.trial_discount')}</span>
                         <span>-${planDetails.price.toFixed(2)}</span>
                     </div>
                     <div className="my-2 h-px w-full bg-gray-200 dark:bg-gray-800"></div>
                     <div className="flex justify-between items-center">
-                        <span className="text-[#111318] dark:text-white text-lg font-black uppercase tracking-tighter">Total a pagar hoy</span>
+                        <span className="text-[#111318] dark:text-white text-lg font-black uppercase tracking-tighter">{t('onboarding.total_today')}</span>
                         <span className="text-[#111318] dark:text-white text-3xl font-black tracking-tighter">$0.00</span>
                     </div>
                 </div>
@@ -176,7 +178,7 @@ const Summary: React.FC = () => {
                 >
                     <div className="w-12"></div>
                     <span className="text-[17px] tracking-wide uppercase">
-                        Iniciar Prueba Gratis
+                        {t('onboarding.start_free_trial')}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <span className="material-symbols-outlined text-white">arrow_forward</span>

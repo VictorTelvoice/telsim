@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 // CONFIGURACIÓN INMUTABLE DE PRECIOS TELSIM VINCULADA A STRIPE
 const OFFICIAL_PLANS = {
@@ -10,58 +11,59 @@ const OFFICIAL_PLANS = {
 
 const PlanSelect: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<'Starter' | 'Pro' | 'Power'>('Pro');
 
   const plans = [
     {
       id: 'Starter',
       name: 'Starter',
-      subtitle: '150 Créditos SMS',
+      subtitle: t('onboarding.monthly_credits', { limit: 150 }),
       price: OFFICIAL_PLANS.Starter.amount,
       limit: OFFICIAL_PLANS.Starter.limit,
       icon: 'shield',
-      idealFor: 'Usuarios individuales y Desarrolladores.',
+      idealFor: t('sniper.ideal_for_starter'),
       features: [
-        'Número SIM Real (no VoIP baratos)',
-        'Notificaciones en tiempo real',
-        'Visualización en App',
-        'Capacidad: 150 SMS mensuales',
-        'Soporte técnico vía Ticket'
+        t('sniper.feature_real_sim'),
+        t('sniper.feature_real_time'),
+        t('sniper.feature_app_view'),
+        t('onboarding.monthly_credits', { limit: 150 }),
+        t('sniper.feature_ticket_support')
       ],
       recommended: false
     },
     {
       id: 'Pro',
       name: 'Pro',
-      subtitle: '400 Créditos SMS',
+      subtitle: t('onboarding.monthly_credits', { limit: 400 }),
       price: OFFICIAL_PLANS.Pro.amount,
       limit: OFFICIAL_PLANS.Pro.limit,
       icon: 'bolt',
-      idealFor: 'Equipos DevOps y Automatizadores.',
-      popularBadge: 'MÁS POPULAR',
+      idealFor: t('sniper.ideal_for_pro'),
+      popularBadge: t('onboarding.most_popular'),
       features: [
-        'Todo lo incluido en Starter',
-        'SMS 100% automatizados (Sin intervención)',
-        'Acceso a API y Webhooks',
-        'Capacidad: 400 SMS mensuales',
-        'Soporte técnico vía Ticket y Chat en vivo'
+        t('sniper.feature_all_starter'),
+        t('sniper.feature_automated'),
+        t('sniper.feature_api_webhooks'),
+        t('onboarding.monthly_credits', { limit: 400 }),
+        t('sniper.feature_chat_support')
       ],
       recommended: true
     },
     {
       id: 'Power',
       name: 'Power',
-      subtitle: '1,400 Créditos SMS',
+      subtitle: t('onboarding.monthly_credits', { limit: 1400 }),
       price: OFFICIAL_PLANS.Power.amount,
       limit: OFFICIAL_PLANS.Power.limit,
       icon: 'electric_bolt',
-      idealFor: 'Fintech, Corporativos y Plataformas P2P.',
+      idealFor: t('sniper.ideal_for_power'),
       features: [
-        'Todo lo incluido en Pro',
-        'Seguridad y Control Empresarial',
-        'Integraciones Personalizadas y Escalabilidad',
-        'Capacidad: 1,400 SMS mensuales',
-        'Soporte Prioritario 24/7'
+        t('sniper.feature_all_pro'),
+        t('sniper.feature_enterprise_security'),
+        t('sniper.feature_scalability'),
+        t('onboarding.monthly_credits', { limit: 1400 }),
+        t('sniper.feature_priority_support')
       ],
       recommended: false
     }
@@ -100,10 +102,10 @@ const PlanSelect: React.FC = () => {
 
             <div className="text-center mb-6">
                 <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
-                    Elige tu plan
+                    {t('onboarding.step2_title')}
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed max-w-[32ch] mx-auto">
-                    Selecciona la potencia de tu nueva línea privada
+                    {t('onboarding.step2_desc')}
                 </p>
             </div>
 
@@ -146,7 +148,7 @@ const PlanSelect: React.FC = () => {
                         <div className="mb-4 border-b border-slate-50 dark:border-slate-800 pb-3 pt-1">
                             <div className="flex items-baseline gap-1">
                                 <span className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">${plan.price.toFixed(2)}</span>
-                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest ml-1">/mes</span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest ml-1">{t('onboarding.per_month')}</span>
                             </div>
                         </div>
 
@@ -163,7 +165,7 @@ const PlanSelect: React.FC = () => {
 
                         <div className="pt-3 border-t border-slate-50 dark:border-slate-800">
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 lowercase flex items-center gap-1">
-                            ideal para: <span className="text-slate-500 dark:text-slate-300 italic font-bold ml-0.5">{plan.idealFor}</span>
+                            {t('onboarding.ideal_for')} <span className="text-slate-500 dark:text-slate-300 italic font-bold ml-0.5">{plan.idealFor}</span>
                           </p>
                         </div>
                     </div>
@@ -177,7 +179,7 @@ const PlanSelect: React.FC = () => {
                 >
                     <div className="w-12"></div>
                     <span className="text-[17px] tracking-wide uppercase">
-                      Configurar {selected}
+                      {t('onboarding.configure_plan', { plan: selected })}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <span className="material-symbols-outlined text-white">arrow_forward</span>

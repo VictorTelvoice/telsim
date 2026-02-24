@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { 
   CheckCircle2, 
@@ -24,6 +25,7 @@ const UpgradeSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { addNotification } = useNotifications();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [isSyncing, setIsSyncing] = useState(true);
   const [showContent, setShowContent] = useState(false);
   const [finalPlanName, setFinalPlanName] = useState<string>('');
@@ -81,12 +83,12 @@ const UpgradeSuccess: React.FC = () => {
   const renewalDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 30);
-    return date.toLocaleDateString('es-ES', { 
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { 
       day: '2-digit', 
       month: 'long', 
       year: 'numeric' 
     });
-  }, []);
+  }, [language]);
 
   // Configuración Visual y de Datos por Plan
   const planConfig = useMemo(() => {
@@ -94,8 +96,8 @@ const UpgradeSuccess: React.FC = () => {
     
     if (name.includes('POWER')) {
       return {
-        title: 'MEJORA LISTA',
-        description: 'Has desbloqueado la infraestructura de máxima escala para empresas y trading de alta frecuencia.',
+        title: t('upgrade.power_title'),
+        description: t('upgrade.power_desc'),
         accentColor: 'text-amber-500',
         glowColor: 'from-amber-500/20',
         borderColor: 'border-amber-500/30',
@@ -109,22 +111,22 @@ const UpgradeSuccess: React.FC = () => {
           </div>
         ),
         miniIcon: <Shield className="size-3 text-white" />,
-        capacity: '1,400 SMS / mes',
-        highlight: 'CONTRATO VERIFICADO',
+        capacity: t('upgrade.power_capacity'),
+        highlight: t('upgrade.power_highlight'),
         isPower: true,
         summary: [
-          { label: 'Plan', value: 'POWER (Suscripción Activa)' },
-          { label: 'Capacidad', value: '1,400 Créditos SMS mensuales' },
-          { label: 'Seguridad', value: 'Control Empresarial y Escalabilidad activados' },
-          { label: 'Soporte', value: 'Prioritario 24/7 desbloqueado' }
+          { label: t('billing.plan'), value: t('upgrade.power_summary_plan') },
+          { label: t('billing.capacity'), value: t('upgrade.power_summary_capacity') },
+          { label: t('security.title'), value: t('upgrade.power_summary_security') },
+          { label: t('billing.support'), value: t('upgrade.power_summary_support') }
         ]
       };
     }
     
     if (name.includes('PRO')) {
       return {
-        title: 'POTENCIA PRO ACTIVA',
-        description: 'Tu puerto ahora es compatible con automatización total vía API y Webhooks en tiempo real.',
+        title: t('upgrade.pro_title'),
+        description: t('upgrade.pro_desc'),
         accentColor: 'text-primary',
         glowColor: 'from-primary/20',
         borderColor: 'border-primary/30',
@@ -133,15 +135,15 @@ const UpgradeSuccess: React.FC = () => {
         buttonClass: 'bg-primary shadow-blue-500/20',
         icon: <Zap className="size-14 text-primary" />,
         miniIcon: <Bot className="size-3 text-primary" />,
-        capacity: '400 SMS / mes',
-        highlight: 'Acceso a API & Webhooks'
+        capacity: t('upgrade.pro_capacity'),
+        highlight: t('upgrade.pro_highlight')
       };
     }
 
     // Default: STARTER
     return {
-      title: 'PLAN BÁSICO VINCULADO',
-      description: 'Tu número SIM real ha sido configurado para recibir verificaciones SMS de forma segura.',
+      title: t('upgrade.starter_title'),
+      description: t('upgrade.starter_desc'),
       accentColor: 'text-emerald-500',
       glowColor: 'from-emerald-500/20',
       borderColor: 'border-emerald-500/20',
@@ -150,10 +152,10 @@ const UpgradeSuccess: React.FC = () => {
       buttonClass: 'bg-emerald-600 shadow-emerald-500/20',
       icon: <CheckCircle2 className="size-14 text-emerald-500" />,
       miniIcon: <ShieldCheck className="size-3 text-emerald-500" />,
-      capacity: '150 SMS / mes',
-      highlight: 'Número SIM Real (+56)'
+      capacity: t('upgrade.starter_capacity'),
+      highlight: t('upgrade.starter_highlight')
     };
-  }, [finalPlanName]);
+  }, [finalPlanName, t]);
 
   useEffect(() => {
     if (!sessionId && !location.state && !planParam) return;
@@ -164,8 +166,10 @@ const UpgradeSuccess: React.FC = () => {
 
       try {
         await addNotification({
-          title: 'Mejora de Plan Exitosa',
-          message: `El Ledger ha confirmado tu upgrade. Tu línea ${finalPhoneNumber} ya opera bajo el nivel ${finalPlanName}.`,
+          title: t('upgrade.notification_title'),
+          message: t('upgrade.notification_message')
+            .replace('{{phone}}', finalPhoneNumber)
+            .replace('{{plan}}', finalPlanName),
           type: 'subscription'
         });
       } catch (err) {
@@ -177,7 +181,7 @@ const UpgradeSuccess: React.FC = () => {
     };
 
     executePostPaymentLogic();
-  }, [sessionId, location.state, planParam, finalPlanName, finalPhoneNumber, addNotification]);
+  }, [sessionId, location.state, planParam, finalPlanName, finalPhoneNumber, addNotification, t]);
 
   const formatPhoneNumber = (num: string) => {
     if (!num) return '';
@@ -197,8 +201,8 @@ const UpgradeSuccess: React.FC = () => {
       <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-8 gap-6 font-display">
           <Loader2 className="size-12 text-primary animate-spin" />
           <div className="text-center">
-            <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-[0.3em] mb-1">Reconfigurando Nodo</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando con el Ledger...</p>
+            <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-[0.3em] mb-1">{t('upgrade.reconfiguring_node')}</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">{t('upgrade.syncing_ledger')}</p>
           </div>
       </div>
     );
@@ -219,7 +223,7 @@ const UpgradeSuccess: React.FC = () => {
             </div>
           </div>
           <h1 className={`text-3xl font-black tracking-tighter uppercase mb-3 px-4 leading-tight ${planConfig.accentColor}`}>
-            Mejora Lista
+            {t('upgrade.success_title')}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed max-w-[32ch] mx-auto italic">
             "{planConfig.description}"
@@ -235,7 +239,7 @@ const UpgradeSuccess: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center gap-1 mb-10">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Número de SIM:</p>
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t('upgrade.sim_number')}:</p>
              <div className="text-[28px] font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">
                 {formatPhoneNumber(finalPhoneNumber)}
              </div>
@@ -244,13 +248,13 @@ const UpgradeSuccess: React.FC = () => {
           <div className="w-full grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-8">
              <div className="flex flex-col items-start gap-1">
                 <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                   <Layers className="size-3" /> Nueva Capacidad
+                   <Layers className="size-3" /> {t('upgrade.new_capacity')}
                 </div>
                 <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase">{planConfig.capacity}</p>
              </div>
              <div className="flex flex-col items-end gap-1 text-right">
                 <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                   <Calendar className="size-3" /> Próxima Renovación
+                   <Calendar className="size-3" /> {t('upgrade.next_renewal')}
                 </div>
                 <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase">{renewalDate}</p>
              </div>
@@ -275,7 +279,7 @@ const UpgradeSuccess: React.FC = () => {
             className={`group w-full h-16 ${planConfig.buttonClass} text-white font-black rounded-2xl shadow-lg flex items-center justify-between px-2 transition-all active:scale-[0.98]`}
           >
             <div className="size-12"></div>
-            <span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span>
+            <span className="text-[14px] uppercase tracking-widest">{t('upgrade.enter_panel')}</span>
             <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
               <ArrowRight className="size-6" />
             </div>
@@ -287,7 +291,7 @@ const UpgradeSuccess: React.FC = () => {
               className="w-full h-14 border-2 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-black rounded-2xl flex items-center justify-center gap-2 text-[11px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-[0.98]"
             >
               <Bot className="size-4" />
-              Configura tu Bot
+              {t('upgrade.setup_bot')}
             </button>
           )}
         </div>

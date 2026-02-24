@@ -88,7 +88,7 @@ const Profile: React.FC = () => {
       setAvatarUrl(publicUrl);
     } catch (err) {
       console.error("Error subiendo avatar:", err);
-      alert("Hubo un error al subir la imagen. Asegúrate de que el bucket 'avatars' exista.");
+      alert(t('common.error') + ": " + t('profile.upload_error'));
     } finally {
       setUploading(false);
     }
@@ -158,7 +158,7 @@ const Profile: React.FC = () => {
               {uploading ? (
                 <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex flex-col items-center justify-center text-white">
                    <Loader2 className="size-8 animate-spin mb-1" />
-                   <span className="text-[8px] font-black uppercase tracking-tighter">Subiendo</span>
+                   <span className="text-[8px] font-black uppercase tracking-tighter">{t('profile.uploading')}</span>
                 </div>
               ) : avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -184,7 +184,7 @@ const Profile: React.FC = () => {
           {/* User Info Display */}
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-              {user?.user_metadata?.full_name || 'Usuario Telsim'}
+              {user?.user_metadata?.full_name || t('profile.user_telsim')}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
               {user?.email}
@@ -195,12 +195,12 @@ const Profile: React.FC = () => {
           <div className="flex items-center gap-4 mt-5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] bg-slate-50 dark:bg-slate-800/50 px-5 py-2.5 rounded-full border border-slate-100 dark:border-slate-800">
              <div className="flex items-center gap-1.5">
                 <MapPin className="size-3.5 text-primary" />
-                {user?.user_metadata?.country || 'Región Global'}
+                {user?.user_metadata?.country || t('profile.global_region')}
              </div>
              <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
              <div className="flex items-center gap-1.5">
                 <Phone className="size-3.5 text-emerald-500" />
-                {user?.user_metadata?.phone_number || 'Sin Teléfono'}
+                {user?.user_metadata?.phone_number || t('profile.no_phone')}
              </div>
           </div>
 
@@ -209,7 +209,7 @@ const Profile: React.FC = () => {
               onClick={() => setIsEditing(!isEditing)}
               className="text-primary text-[10px] font-black uppercase tracking-[0.2em] px-6 py-2 bg-primary/5 rounded-xl border border-primary/10 hover:bg-primary/10 transition-all"
             >
-              {isEditing ? 'Cerrar Edición' : t('profile.update')}
+              {isEditing ? t('profile.close_edit') : t('profile.update')}
             </button>
           </div>
         </div>
@@ -219,7 +219,7 @@ const Profile: React.FC = () => {
           <section className="px-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-8 border border-primary shadow-2xl shadow-primary/5 space-y-5">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.full_name')}</label>
                 <div className="relative">
                   <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                   <input 
@@ -233,7 +233,7 @@ const Profile: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.country')}</label>
                   <div className="relative">
                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                     <input 
@@ -245,7 +245,7 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">F. Nacimiento</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.birth_date')}</label>
                   <div className="relative">
                     <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                     <input 
@@ -259,7 +259,7 @@ const Profile: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número de Teléfono</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.phone_number')}</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                   <input 
@@ -276,14 +276,14 @@ const Profile: React.FC = () => {
                   onClick={() => setIsEditing(false)}
                   className="flex-1 h-12 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button 
                   onClick={handleSave}
                   disabled={loading}
                   className="flex-1 h-12 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  {loading ? 'Guardando...' : 'Guardar Datos'}
+                  {loading ? t('profile.saving') : t('profile.save_data')}
                 </button>
               </div>
             </div>
@@ -292,7 +292,7 @@ const Profile: React.FC = () => {
 
         {/* SECCIONES INFERIORES */}
         <section className="px-5 mb-6">
-          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Cuenta</h4>
+          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.account')}</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <button 
               onClick={() => navigate('/dashboard/security')}
@@ -302,7 +302,7 @@ const Profile: React.FC = () => {
                 <span className="material-icons text-[20px]">lock</span>
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Seguridad y Contraseña</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.security_pass')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
@@ -310,7 +310,7 @@ const Profile: React.FC = () => {
         </section>
 
         <section className="px-5 mb-6">
-          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">Finanzas</h4>
+          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 pl-2">{t('profile.finances')}</h4>
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl overflow-hidden shadow-[0_1px_2_0_rgba(0,0,0,0.05)] divide-y divide-slate-100 dark:divide-slate-800 transition-colors duration-200 border border-slate-100 dark:border-slate-800">
             <button 
               onClick={() => navigate('/dashboard/billing')}
@@ -338,7 +338,7 @@ const Profile: React.FC = () => {
                 <Send className="size-5" />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Telegram bot</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.telegram_bot')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
@@ -351,7 +351,7 @@ const Profile: React.FC = () => {
                 <Webhook className="size-5" />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">API & Webhooks</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.api_webhooks')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
@@ -361,7 +361,7 @@ const Profile: React.FC = () => {
                 <span className="material-icons text-[20px]">notifications</span>
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white">Notificaciones Push</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white">{t('profile.push_notifications')}</p>
               </div>
               <label className="inline-flex items-center cursor-pointer">
                 <input defaultChecked className="sr-only peer" type="checkbox" value=""/>
@@ -397,7 +397,7 @@ const Profile: React.FC = () => {
                 <span className="material-icons text-[20px]">dark_mode</span>
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white">Modo Oscuro</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white">{t('profile.dark_mode')}</p>
               </div>
               <label className="inline-flex items-center cursor-pointer">
                 <input 
@@ -435,7 +435,7 @@ const Profile: React.FC = () => {
                 <span className="material-icons text-[20px]">support_agent</span>
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Contactar Soporte 24/7</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.contact_support')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>
@@ -447,7 +447,7 @@ const Profile: React.FC = () => {
                 <span className="material-icons text-[20px]">description</span>
               </div>
               <div className="flex-1 text-left">
-                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">Términos y Privacidad</p>
+                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('profile.terms_privacy')}</p>
               </div>
               <span className="material-icons text-slate-400 text-[20px]">chevron_right</span>
             </button>

@@ -1,9 +1,82 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { motion, useScroll, useTransform } from 'framer-motion';
+
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const beneficiosRef = useRef<HTMLDivElement>(null);
+  const casosUsoRef = useRef<HTMLDivElement>(null);
+  const preciosRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
+      if (!ref.current) return;
+      const container = ref.current;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      
+      if (scrollWidth <= clientWidth) return;
+
+      const interval = setInterval(() => {
+        if (container.scrollLeft + clientWidth >= scrollWidth - 10) {
+          container.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          container.scrollBy({ left: clientWidth * 0.8, behavior: 'smooth' });
+        }
+      }, 10000);
+
+      return () => clearInterval(interval);
+    };
+
+    const autoScrollPricing = (ref: React.RefObject<HTMLDivElement | null>) => {
+      if (!ref.current) return;
+      const container = ref.current;
+      
+      // Inicialmente centrar en PRO (segunda tarjeta)
+      setTimeout(() => {
+        if (container) {
+          const cardWidth = container.scrollWidth / 3;
+          container.scrollTo({ left: cardWidth, behavior: 'auto' });
+        }
+      }, 100);
+
+      const interval = setInterval(() => {
+        const scrollWidth = container.scrollWidth;
+        const clientWidth = container.clientWidth;
+        const cardWidth = scrollWidth / 3;
+        
+        // Lógica: Pro -> Power -> Starter -> Pro
+        // Si estamos en Pro (centro), vamos a Power (derecha)
+        // Si estamos en Power (derecha), vamos a Starter (izquierda)
+        // Si estamos en Starter (izquierda), vamos a Pro (centro)
+        
+        const currentPos = container.scrollLeft;
+        if (currentPos >= cardWidth * 1.5) { // Estamos en Power
+          container.scrollTo({ left: 0, behavior: 'smooth' }); // Ir a Starter
+        } else if (currentPos <= cardWidth * 0.5) { // Estamos en Starter
+          container.scrollTo({ left: cardWidth, behavior: 'smooth' }); // Ir a Pro
+        } else { // Estamos en Pro
+          container.scrollTo({ left: cardWidth * 2, behavior: 'smooth' }); // Ir a Power
+        }
+      }, 10000);
+
+      return () => clearInterval(interval);
+    };
+
+    const cleanupBeneficios = autoScroll(beneficiosRef);
+    const cleanupCasosUso = autoScroll(casosUsoRef);
+    const cleanupPrecios = autoScrollPricing(preciosRef);
+
+    return () => {
+      cleanupBeneficios?.();
+      cleanupCasosUso?.();
+      cleanupPrecios?.();
+    };
+  }, []);
   const { user, loading } = useAuth();
 
   const handlePlanSelect = (planId: string) => {
@@ -235,7 +308,7 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              Beneficios
+              {t('landing.nav.benefits')}
             </button>
             <button 
               onClick={() => {
@@ -244,7 +317,7 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              Cómo funciona
+              {t('landing.nav.how_it_works')}
             </button>
             <button 
               onClick={() => {
@@ -253,13 +326,13 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              Precios
+              {t('landing.nav.pricing')}
             </button>
-            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
+            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/login')} className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Login</button>
-            <button onClick={() => navigate('/login')} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">Empezar gratis</button>
+            <button onClick={() => navigate('/login')} className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">{t('landing.nav.login')}</button>
+            <button onClick={() => navigate('/login')} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">{t('landing.nav.start')}</button>
           </div>
         </div>
       </nav>
@@ -269,40 +342,40 @@ const Landing: React.FC = () => {
         <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
-            Identidad Anti-Bloqueo
+            {t('landing.hero.badge')}
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-            Autenticación humana, automatizada.<br/><span className="text-primary">Número real para bots reales.</span>
+            {t('landing.hero.title')}<br/><span className="text-primary">{t('landing.hero.subtitle')}</span>
           </h1>
 
           <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch] text-center">
-            Un bot sin número es un bot limitado. Con Telsim, tus automatizaciones adquieren la capacidad de interactuar con el mundo real: validar transferencias, abrir aplicativos protegidos y ejecutar flujos de autenticación humana. Dale a tu bot la autonomía que necesita.
+            {t('landing.hero.desc')}
           </p>
 
           {/* Feature card */}
           <div className="relative bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 w-full max-w-lg text-left border border-gray-100 overflow-hidden mx-auto">
             <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded-bl-2xl shadow-sm tracking-wide">
-              7 DÍAS GRATIS
+              {t('landing.hero.trial_badge')}
             </div>
 
             <div className="mb-6 pt-1">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">PRUEBA TELSIM</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{t('landing.pricing.tag')}</p>
               <div className="flex items-baseline gap-2 flex-wrap mb-1">
-                <h2 className="text-4xl font-extrabold text-emerald-500 tracking-tight">GRATIS</h2>
-                <span className="text-xl font-bold text-[#1B3A6B]">los primeros 7 días</span>
+                <h2 className="text-4xl font-extrabold text-emerald-500 tracking-tight">{t('landing.hero.trial_title')}</h2>
+                <span className="text-xl font-bold text-[#1B3A6B]">{t('landing.hero.trial_sub')}</span>
               </div>
-              <p className="text-sm font-medium text-gray-400">Luego desde $19.90 USD/mes. Sin contratos.</p>
+              <p className="text-sm font-medium text-gray-400">{t('landing.hero.trial_footer')}</p>
             </div>
 
             <div className="space-y-4">
               {[
-                { label: 'Número SIM Real', sub: '(no VoIP)' },
-                { label: 'Notificaciones en tiempo real' },
-                { label: 'SMS 100% automatizados' },
-                { label: 'Acceso a API, Webhooks, y TelegramBot' },
-                { label: 'Soporte Prioritario 24/7' }
+                { label: t('landing.hero.feature1'), sub: t('landing.hero.feature1_sub') },
+                { label: t('landing.hero.feature2') },
+                { label: t('landing.hero.feature3') },
+                { label: t('landing.hero.feature4') },
+                { label: t('landing.hero.feature5') }
               ].map((f, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5">
@@ -318,18 +391,24 @@ const Landing: React.FC = () => {
 
           <div className="w-full flex flex-col items-center gap-4">
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={() => navigate('/login')} className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]">
-                Obtener mi número gratis
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('precios');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }} 
+                className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
+              >
+                {t('common.try_free')}
                 <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
               </button>
               <a href="#como-funciona" className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-7 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all">
                 <span className="material-symbols-rounded text-[20px]">play_circle</span>
-                Ver cómo funciona
+                {t('common.see_how')}
               </a>
             </div>
             <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center">
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>100% autonomía</span>
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>Activación en 5 min</span>
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
             </div>
           </div>
         </div>
@@ -339,19 +418,19 @@ const Landing: React.FC = () => {
       <section id="beneficios" className="bg-white pt-12 pb-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Beneficios</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Un número propio<br/>para cada uso</h2>
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.benefits.title').replace('<br/>', '<br/>') }}></h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
-              { icon: 'sim_card', title: 'Número dedicado', desc: 'Un número SIM exclusivo para tu app, sistema o proceso. Sin compartir, sin conflictos.' },
-              { icon: 'bolt', title: 'Validación en segundos', desc: 'Tu sistema recibe el OTP y lo procesa al instante. Sin esperas ni intervención manual.' },
-              { icon: 'verified_user', title: 'Identidad Anti-bloqueo', desc: 'Nuestra tecnología de SIMs físicas proporciona una Identidad Anti-Bloqueo que permite validaciones exitosas al 100%.' },
-              { icon: 'shield', title: 'Privacidad total', desc: 'Tu número personal nunca queda expuesto. Cada proceso opera con su número aislado y seguro.', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { icon: 'trending_up', title: 'Escala sin límites', desc: 'Múltiples números para múltiples procesos. Todo gestionado desde un dashboard centralizado.' },
-              { icon: 'api', title: 'Integración simple', desc: 'API lista y documentada. Compatible con Make, n8n y Zapier en minutos.' }
+              { icon: 'sim_card', title: t('landing.benefits.item1.title'), desc: t('landing.benefits.item1.desc') },
+              { icon: 'bolt', title: t('landing.benefits.item2.title'), desc: t('landing.benefits.item2.desc') },
+              { icon: 'verified_user', title: t('landing.benefits.item3.title'), desc: t('landing.benefits.item3.desc') },
+              { icon: 'shield', title: t('landing.benefits.item4.title'), desc: t('landing.benefits.item4.desc'), color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { icon: 'trending_up', title: t('landing.benefits.item5.title'), desc: t('landing.benefits.item5.desc') },
+              { icon: 'api', title: t('landing.benefits.item6.title'), desc: t('landing.benefits.item6.desc') }
             ].map((b, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100">
+              <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100 min-w-[calc(50%-0.5rem)] md:min-w-0 snap-center">
                 <div className={`w-10 h-10 ${b.bg || 'bg-blue-50'} rounded-xl flex items-center justify-center ${b.color || 'text-primary'} mb-4`}>
                   <span className="material-symbols-rounded text-[22px]">{b.icon}</span>
                 </div>
@@ -377,17 +456,15 @@ const Landing: React.FC = () => {
                   <span className="text-white">Bot</span>
                 </span>
               </div>
-              <h2 className="text-4xl font-black text-white leading-tight tracking-tight">
-                Recibe tus SMS<br/>directo en<br/><span style={{ color: '#54a3f5' }}>Telegram</span>
-              </h2>
+              <h2 className="text-4xl font-black text-white leading-tight tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.telegram.title').replace('<br/>', '<br/>') }}></h2>
               <p className="text-slate-300 text-base leading-relaxed font-medium">
-                ¿No tienes un desarrollador? No importa. Conecta tu número SIM a un bot de Telegram y cada SMS llegará al instante a tu chat — sin escribir una sola línea de código.
+                {t('landing.telegram.desc')}
               </p>
               <div className="flex flex-col gap-3">
                 {[
-                  { icon: 'bolt', title: 'Notificación instantánea', desc: 'Cada SMS que llega a tu SIM aparece en segundos en tu bot de Telegram.' },
-                  { icon: 'hub', title: 'Reenvío y distribución', desc: 'Distribuye los SMS a múltiples chats, grupos o usuarios automáticamente.' },
-                  { icon: 'code_off', title: 'Cero configuración técnica', desc: 'Ideal si no tienes equipo técnico. Funciona desde el primer día sin APIs ni servidores.' }
+                  { icon: 'bolt', title: t('landing.telegram.feature1.title'), desc: t('landing.telegram.feature1.desc') },
+                  { icon: 'hub', title: t('landing.telegram.feature2.title'), desc: t('landing.telegram.feature2.desc') },
+                  { icon: 'code_off', title: t('landing.telegram.feature3.title'), desc: t('landing.telegram.feature3.desc') }
                 ].map((f, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -402,7 +479,7 @@ const Landing: React.FC = () => {
               </div>
               <button onClick={() => navigate('/login')} className="inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-4 px-8 rounded-2xl w-full md:w-fit hover:bg-blue-50 transition-all text-sm shadow-xl active:scale-95 mt-6">
                 <span className="material-symbols-rounded text-[20px]">send</span>
-                Conectar mi bot de Telegram
+                {t('landing.telegram.btn')}
               </button>
             </div>
 
@@ -454,38 +531,78 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg pt-24 pb-12">
+      <section id="como-funciona" className="tech-bg pt-24 pb-12 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Proceso</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Listo en 3 pasos</h2>
-          </div>
-          <div className="flex flex-col md:flex-row items-start gap-20 md:gap-0 mb-4 relative">
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">sim_card</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">1</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Obtén tu número SIM</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Se te asignará un número telefónico aleatorio real de nuestro inventario. Ese número será tuyo de forma exclusiva — nadie más lo usará.</p>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.process.tag')}</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.process.title')}</h2>
+          </motion.div>
+          
+          <div className="relative">
+            {/* Desktop Connector Line */}
+            <div className="hidden md:block absolute top-[28px] left-[15%] right-[15%] h-0.5 bg-slate-100 z-0">
+              <motion.div 
+                className="h-full bg-primary origin-left"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+              />
             </div>
-            <div className="hidden md:block step-connector mt-7"></div>
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">settings_suggest</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">2</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Configura tu API o bot</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Conecta tu API o bot de Telegram en minutos. Desde ahí podrás recibir y distribuir automáticamente todos los SMS que lleguen a tu SIM.</p>
-            </div>
-            <div className="hidden md:block step-connector mt-7"></div>
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10">
-                <span className="material-symbols-rounded text-white text-[26px]">smart_toy</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm">3</div>
-              <h3 className="font-bold text-slate-900 text-base mb-2">Opera 24/7 solo</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">Tu sistema procesa OTP y verificaciones de forma autónoma. Sin ayuda humana, sin interrupciones.</p>
+
+            <div className="flex flex-col md:flex-row items-start gap-12 md:gap-0 mb-4 relative z-10">
+              {[
+                { icon: 'sim_card', step: '1', title: t('landing.process.step1.title'), desc: t('landing.process.step1.desc') },
+                { icon: 'settings_suggest', step: '2', title: t('landing.process.step2.title'), desc: t('landing.process.step2.desc') },
+                { icon: 'smart_toy', step: '3', title: t('landing.process.step3.title'), desc: t('landing.process.step3.desc') }
+              ].map((item, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.3, duration: 0.6 }}
+                  className="flex-1 flex flex-col items-center text-center px-6 relative"
+                >
+                  {/* Mobile Connector Line */}
+                  {i < 2 && (
+                    <div className="md:hidden absolute top-[60px] bottom-[-48px] left-1/2 w-0.5 bg-slate-100 -translate-x-1/2 z-0">
+                      <motion.div 
+                        className="w-full bg-primary origin-top"
+                        initial={{ scaleY: 0 }}
+                        whileInView={{ scaleY: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, delay: i * 0.3 + 0.3 }}
+                      />
+                    </div>
+                  )}
+
+                  <motion.div 
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10"
+                  >
+                    <span className="material-symbols-rounded text-white text-[26px]">{item.icon}</span>
+                  </motion.div>
+                  
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20, delay: i * 0.3 + 0.2 }}
+                    className="w-8 h-8 rounded-full bg-blue-50 border-2 border-primary flex items-center justify-center mb-3 text-primary font-black text-sm z-10"
+                  >
+                    {item.step}
+                  </motion.div>
+                  
+                  <h3 className="font-bold text-slate-900 text-base mb-2">{item.title}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">{item.desc}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
         </div>
@@ -495,22 +612,22 @@ const Landing: React.FC = () => {
       <section className="bg-white py-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Casos de uso</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Un número real<br/>para cada caso de uso</h2>
-            <p className="text-slate-500 text-base mt-3 font-medium">Cualquier app, sistema o proceso que necesite validación SMS</p>
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
+            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div ref={casosUsoRef} className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
-              { icon: 'campaign', title: 'Agencias de Marketing', desc: 'Gestiona y verifica múltiples cuentas en Google Ads y Meta. Cada cuenta con su número propio, nunca bloqueada en un momento crítico de campaña.' },
-              { icon: 'how_to_reg', title: 'Registro y Onboarding', desc: 'Valida usuarios en tu plataforma sin exponer números personales. Verificación limpia, segura y escalable desde el primer acceso.' },
-              { icon: 'candlestick_chart', title: 'Trading y Finanzas', desc: 'Valida operaciones, retiros y transferencias con 2FA de forma autónoma en exchanges y plataformas financieras. Sin depender de disponibilidad humana.' },
-              { icon: 'precision_manufacturing', title: 'Automatización RPA', desc: 'Integra Telsim en tus flujos de Make, n8n, UiPath o Power Automate. Resuelve el bloqueo SMS en procesos internos de ERP, nómina o portales corporativos.' },
-              { icon: 'storefront', title: 'E-commerce y Marketplaces', desc: 'Opera múltiples cuentas de vendedor en Mercado Libre, Amazon o Shopify sin vincularlas entre sí. Cada cuenta con su número independiente y verificado.' },
-              { icon: 'manage_accounts', title: 'Bots en Redes Sociales', desc: 'Crea y opera cuentas en Instagram, TikTok, X o Facebook de forma autónoma. Tu bot publica, interactúa y crece — verificado con un número SIM real desde el primer día.' },
-              { icon: 'add_business', title: 'Registro masivo y venta de servicios', desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales. Ideal para ofrecer servicios a escala sin gestión manual de cuentas.' },
-              { icon: 'integration_instructions', title: 'Desarrollo y QA de aplicaciones', desc: 'Prueba flujos de autenticación SMS en tus apps sin usar números personales ni pagar por servicios de testing caros. Números reales para entornos de desarrollo, staging y producción.' }
+              { icon: 'campaign', title: t('landing.use_cases.item1.title'), desc: t('landing.use_cases.item1.desc') },
+              { icon: 'how_to_reg', title: t('landing.use_cases.item2.title'), desc: t('landing.use_cases.item2.desc') },
+              { icon: 'candlestick_chart', title: t('landing.use_cases.item3.title'), desc: t('landing.use_cases.item3.desc') },
+              { icon: 'precision_manufacturing', title: t('landing.use_cases.item4.title'), desc: t('landing.use_cases.item4.desc') },
+              { icon: 'storefront', title: t('landing.use_cases.item5.title'), desc: t('landing.use_cases.item5.desc') },
+              { icon: 'manage_accounts', title: t('landing.use_cases.item6.title'), desc: t('landing.use_cases.item6.desc') },
+              { icon: 'add_business', title: t('landing.use_cases.item7.title'), desc: t('landing.use_cases.item7.desc') },
+              { icon: 'integration_instructions', title: t('landing.use_cases.item8.title'), desc: t('landing.use_cases.item8.desc') }
             ].map((c, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4">
+              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4 min-w-[85vw] md:min-w-0 snap-center">
                 <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-primary flex-shrink-0">
                   <span className="material-symbols-rounded text-[24px]">{c.icon}</span>
                 </div>
@@ -529,10 +646,10 @@ const Landing: React.FC = () => {
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { val: '5 min', label: 'Tiempo de activación' },
-              { val: '99.9%', label: 'Uptime garantizado' },
-              { val: '100%', label: 'Sin intervención humana' },
-              { val: '24/7', label: 'Monitoreo activo' }
+              { val: t('landing.stats.item1.val'), label: t('landing.stats.item1.label') },
+              { val: t('landing.stats.item2.val'), label: t('landing.stats.item2.label') },
+              { val: t('landing.stats.item3.val'), label: t('landing.stats.item3.label') },
+              { val: t('landing.stats.item4.val'), label: t('landing.stats.item4.label') }
             ].map((s, i) => (
               <div key={i}>
                 <p className="text-4xl font-black text-white mb-1">{s.val}</p>
@@ -547,35 +664,35 @@ const Landing: React.FC = () => {
       <section id="precios" className="tech-bg py-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Precios</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Elige tu plan</h2>
-            <p className="text-slate-500 text-base mt-3 font-medium">7 días gratis en nuestro plan Starter</p>
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.pricing.tag')}</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.pricing.title')}</h2>
+            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.pricing.subtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
-            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300">
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300 min-w-[85vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Starter</span>
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('landing.pricing.starter.name')}</span>
                   <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-slate-200 group-hover:scale-110 transition-all flex items-center justify-center">
                     <span className="material-symbols-rounded text-slate-500 text-[18px]">sim_card</span>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-slate-100 group-hover:bg-slate-200 transition-colors px-3 py-1.5 rounded-full mb-5">
                   <span className="material-symbols-rounded text-slate-500 text-[13px]">sms</span>
-                  <span className="text-[11px] font-black text-slate-600">150 Créditos SMS</span>
+                  <span className="text-[11px] font-black text-slate-600">{t('landing.pricing.starter.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">$19.90</span>
-                  <span className="text-slate-400 font-semibold">/mes</span>
+                  <span className="text-slate-400 font-semibold">/mo</span>
                 </div>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
-                {['Número SIM Real (no VoIP baratos)', 'Notificaciones en tiempo real', 'Capacidad: 150 SMS mensuales', 'Soporte técnico vía Ticket'].map((f, i) => (
+                {(t('landing.pricing.features.starter') as any).map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
                     <span className="text-xs font-semibold text-slate-700">{f}</span>
@@ -583,39 +700,39 @@ const Landing: React.FC = () => {
                 ))}
               </div>
               <div className="relative bg-slate-50 group-hover:bg-slate-100 transition-colors rounded-2xl px-4 py-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Ideal para</p>
-                <p className="text-xs font-bold text-slate-600">Usuarios individuales y Desarrolladores</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">{t('common.learn_more')}</p>
+                <p className="text-xs font-bold text-slate-600">{t('landing.pricing.starter.desc')}</p>
               </div>
               <div className="relative flex items-center justify-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors pt-1">
-                <span className="text-sm font-black">Comenzar gratis</span>
+                <span className="text-sm font-black">{t('common.start_free')}</span>
                 <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </div>
             </button>
 
             {/* PRO */}
-            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)]" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
+            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)] min-w-[85vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
-                <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">⚡ MÁS POPULAR</div>
+                <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">{t('landing.pricing.pro.badge')}</div>
               </div>
               <div className="relative pt-5">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black text-primary uppercase tracking-widest">Pro</span>
+                  <span className="text-[11px] font-black text-primary uppercase tracking-widest">{t('landing.pricing.pro.name')}</span>
                   <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 group-hover:scale-110 transition-all flex items-center justify-center">
                     <span className="material-symbols-rounded text-primary text-[18px]">rocket_launch</span>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-blue-100 group-hover:bg-blue-200 transition-colors px-3 py-1.5 rounded-full mb-5">
                   <span className="material-symbols-rounded text-primary text-[13px]">sms</span>
-                  <span className="text-[11px] font-black text-primary">400 Créditos SMS</span>
+                  <span className="text-[11px] font-black text-primary">{t('landing.pricing.pro.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">$39.90</span>
-                  <span className="text-slate-400 font-semibold">/mes</span>
+                  <span className="text-slate-400 font-semibold">/mo</span>
                 </div>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
-                {['Todo lo incluido en Starter', 'SMS 100% automatizados (Sin intervención)', 'Acceso a API, Webhooks, y TelegramBot', 'Capacidad: 400 SMS mensuales', 'Soporte técnico vía Ticket y Chat en vivo'].map((f, i) => (
+                {(t('landing.pricing.features.pro') as any).map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
                     <span className="text-xs font-semibold text-slate-700">{f}</span>
@@ -623,36 +740,36 @@ const Landing: React.FC = () => {
                 ))}
               </div>
               <div className="relative bg-blue-50 group-hover:bg-blue-100 transition-colors rounded-2xl px-4 py-3">
-                <p className="text-[9px] font-black text-primary/50 uppercase tracking-wider mb-0.5">Ideal para</p>
-                <p className="text-xs font-bold text-primary">Equipos DevOps y Automatizadores</p>
+                <p className="text-[9px] font-black text-primary/50 uppercase tracking-wider mb-0.5">{t('common.learn_more')}</p>
+                <p className="text-xs font-bold text-primary">{t('landing.pricing.pro.desc')}</p>
               </div>
               <div className="relative flex items-center justify-center gap-1.5 text-primary pt-1">
-                <span className="text-sm font-black">Comenzar gratis</span>
+                <span className="text-sm font-black">{t('common.start_free')}</span>
                 <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </div>
             </button>
 
             {/* POWER */}
-            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)]" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)] min-w-[85vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Power</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('landing.pricing.power.name')}</span>
                   <div className="w-9 h-9 rounded-xl group-hover:scale-110 transition-transform flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
                     <span className="material-symbols-rounded text-[18px]" style={{ color: '#D97706' }}>workspace_premium</span>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-5" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
                   <span className="material-symbols-rounded text-[13px]" style={{ color: '#D97706' }}>sms</span>
-                  <span className="text-[11px] font-black" style={{ color: '#D97706' }}>1,400 Créditos SMS</span>
+                  <span className="text-[11px] font-black" style={{ color: '#D97706' }}>{t('landing.pricing.power.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-black text-slate-900 transition-colors duration-300">$99.00</span>
-                  <span className="text-slate-400 font-semibold">/mes</span>
+                  <span className="text-slate-400 font-semibold">/mo</span>
                 </div>
               </div>
               <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' }}></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
-                {['Todo lo incluido en Pro', 'Seguridad y Control Empresarial', 'Integraciones Personalizadas y Escalabilidad', 'Capacidad: 1,400 SMS mensuales', 'Soporte Prioritario 24/7'].map((f, i) => (
+                {(t('landing.pricing.features.power') as any).map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
                     <span className="text-xs font-semibold text-slate-700">{f}</span>
@@ -660,14 +777,101 @@ const Landing: React.FC = () => {
                 ))}
               </div>
               <div className="relative rounded-2xl px-4 py-3" style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)' }}>
-                <p className="text-[9px] font-black uppercase tracking-wider mb-0.5" style={{ color: '#D97706', opacity: 0.7 }}>Ideal para</p>
-                <p className="text-xs font-bold" style={{ color: '#92400E' }}>Fintech, Corporativos y Plataformas P2P</p>
+                <p className="text-[9px] font-black uppercase tracking-wider mb-0.5" style={{ color: '#D97706', opacity: 0.7 }}>{t('common.learn_more')}</p>
+                <p className="text-xs font-bold" style={{ color: '#92400E' }}>{t('landing.pricing.power.desc')}</p>
               </div>
               <div className="relative flex items-center justify-center gap-1.5 pt-1">
-                <span className="text-sm font-black group-hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Comenzar gratis</span>
+                <span className="text-sm font-black group-hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('common.start_free')}</span>
                 <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform" style={{ color: '#F5A623' }}>arrow_forward</span>
               </div>
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* COMPATIBILIDAD */}
+      <section className="py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+        <div className="max-w-5xl mx-auto px-6 mb-12 text-center">
+          <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-2">{t('landing.compatibility.tag')}</span>
+          <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
+        </div>
+        
+        <div className="flex flex-col gap-8">
+          {/* Single Row Carousel */}
+          <div className="flex overflow-hidden relative">
+            <motion.div 
+              className="flex gap-20 items-center whitespace-nowrap"
+              animate={{ x: [0, -2500] }}
+              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+            >
+              {[
+                { name: 'Telegram', slug: 'telegram' },
+                { name: 'WhatsApp', slug: 'whatsapp' },
+                { name: 'Uber', slug: 'uber' },
+                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Nike', slug: 'nike' },
+                { name: 'Airbnb', slug: 'airbnb' },
+                { name: 'Google', slug: 'google' },
+                { name: 'Apple', slug: 'apple' },
+                { name: 'WeChat', slug: 'wechat' },
+                { name: 'Discord', slug: 'discord' },
+                { name: 'Binance', slug: 'binance' },
+                { name: 'Coinbase', slug: 'coinbase' },
+                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Booking', slug: 'bookingdotcom' },
+                { name: 'Ebay', slug: 'ebay' },
+                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Shopify', slug: 'shopify' },
+                { name: 'Spotify', slug: 'spotify' },
+                { name: 'Netflix', slug: 'netflix' }
+              ].map((brand, i) => (
+                <div key={i} className="flex flex-col items-center gap-3 group">
+                  <img 
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                    alt={brand.name}
+                    className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest group-hover:text-white/50 transition-colors">
+                    {brand.name}
+                  </span>
+                </div>
+              ))}
+              {/* Duplicate for seamless loop */}
+              {[
+                { name: 'Telegram', slug: 'telegram' },
+                { name: 'WhatsApp', slug: 'whatsapp' },
+                { name: 'Uber', slug: 'uber' },
+                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Nike', slug: 'nike' },
+                { name: 'Airbnb', slug: 'airbnb' },
+                { name: 'Google', slug: 'google' },
+                { name: 'Apple', slug: 'apple' },
+                { name: 'WeChat', slug: 'wechat' },
+                { name: 'Discord', slug: 'discord' },
+                { name: 'Binance', slug: 'binance' },
+                { name: 'Coinbase', slug: 'coinbase' },
+                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Booking', slug: 'bookingdotcom' },
+                { name: 'Ebay', slug: 'ebay' },
+                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Shopify', slug: 'shopify' },
+                { name: 'Spotify', slug: 'spotify' },
+                { name: 'Netflix', slug: 'netflix' }
+              ].map((brand, i) => (
+                <div key={`dup-${i}`} className="flex flex-col items-center gap-3 group">
+                  <img 
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                    alt={brand.name}
+                    className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest group-hover:text-white/50 transition-colors">
+                    {brand.name}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
           </div>
         </div>
       </section>
@@ -679,11 +883,21 @@ const Landing: React.FC = () => {
             <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
           </div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            Tu bot merece<br/>su propio número
+            {t('landing.hero.title')}
           </h2>
-          <p className="text-slate-500 text-base font-medium">Sin contratos. Sin setup fees.<br/>Activación en menos de 5 minutos.</p>
-          <button onClick={() => navigate('/login')} className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]">
-            Activar mi número gratis
+          <p className="text-slate-500 text-base font-medium">{t('landing.hero.trial_footer')}</p>
+          <button 
+            onClick={() => navigate('/onboarding/summary', { 
+              state: { 
+                planName: 'Starter', 
+                price: 19.90, 
+                monthlyLimit: 150, 
+                stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' 
+              } 
+            })} 
+            className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]"
+          >
+            {t('common.try_free')}
             <span className="material-symbols-rounded">arrow_forward</span>
           </button>
           <p className="text-xs text-slate-400 font-medium">¿Tienes preguntas? <a href="mailto:info@telsim.io" className="text-primary hover:underline">info@telsim.io</a></p>
@@ -699,10 +913,10 @@ const Landing: React.FC = () => {
             </div>
             <span className="font-extrabold text-slate-900">Telsim</span>
             <span className="text-slate-300">·</span>
-            <span className="text-slate-400 text-xs font-medium">Infraestructura SIM física para automatización</span>
+            <span className="text-slate-400 text-xs font-medium">{t('landing.compatibility.tag')}</span>
           </div>
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-400">
-            <a href="#" className="hover:text-primary transition-colors">Inicio</a>
+            <a href="#" className="hover:text-primary transition-colors">{t('landing.nav.benefits')}</a>
             <button 
               onClick={() => {
                 const el = document.getElementById('precios');
@@ -710,10 +924,10 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              Precios
+              {t('landing.nav.pricing')}
             </button>
-            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">API Docs</button>
-            <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">Soporte</button>
+            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
+            <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">{t('profile.help')}</button>
           </div>
           <p className="text-xs text-slate-400 font-medium">© 2026 Telsim by Telvoice</p>
         </div>

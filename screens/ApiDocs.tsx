@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   Code, 
@@ -17,6 +18,7 @@ import {
 
 const ApiDocs: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
@@ -63,7 +65,7 @@ const ApiDocs: React.FC = () => {
             <div className="size-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Code className="size-4 text-white" />
             </div>
-            <h1 className="text-xl font-black tracking-tight">API Documentation</h1>
+            <h1 className="text-xl font-black tracking-tight">{t('api.title')}</h1>
           </div>
         </div>
       </header>
@@ -76,10 +78,10 @@ const ApiDocs: React.FC = () => {
             <span className="text-[10px] font-black text-primary uppercase tracking-widest">v1.0 Stable</span>
           </div>
           <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-            Integra TELSIM en tus flujos de trabajo
+            {t('api.subtitle')}
           </h2>
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-            Nuestra API te permite gestionar números SIM físicos, recibir SMS en tiempo real y configurar webhooks para automatizar cualquier proceso de verificación.
+            {t('api.description')}
           </p>
         </section>
 
@@ -89,10 +91,10 @@ const ApiDocs: React.FC = () => {
             <div className="size-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600">
               <Lock className="size-5" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight">Autenticación</h3>
+            <h3 className="text-2xl font-black tracking-tight">{t('api.auth_title')}</h3>
           </div>
           <p className="text-slate-600 dark:text-slate-400 font-medium">
-            Todas las solicitudes deben incluir tu API Key en el encabezado <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-primary font-bold">X-TELSIM-KEY</code>. Puedes generar tus llaves desde el panel de ajustes.
+            {t('api.auth_desc')}
           </p>
           <CodeBlock 
             id="auth-example"
@@ -108,7 +110,7 @@ const ApiDocs: React.FC = () => {
             <div className="size-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600">
               <Globe className="size-5" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight">Endpoints Principales</h3>
+            <h3 className="text-2xl font-black tracking-tight">{t('api.endpoints_title')}</h3>
           </div>
 
           <div className="space-y-12">
@@ -119,7 +121,7 @@ const ApiDocs: React.FC = () => {
                 <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">/v1/numbers</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-                Retorna una lista de todos tus números activos y su estado actual.
+                {t('api.list_numbers_desc')}
               </p>
               <CodeBlock 
                 id="get-numbers"
@@ -146,7 +148,7 @@ const ApiDocs: React.FC = () => {
                 <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">/v1/messages/:number_id</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-                Obtén los últimos mensajes recibidos en un número específico.
+                {t('api.get_sms_desc')}
               </p>
               <CodeBlock 
                 id="get-messages"
@@ -173,18 +175,18 @@ const ApiDocs: React.FC = () => {
             <div className="size-10 rounded-xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-600">
               <Webhook className="size-5" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight">Webhooks</h3>
+            <h3 className="text-2xl font-black tracking-tight">{t('api.webhooks_title')}</h3>
           </div>
           <p className="text-slate-600 dark:text-slate-400 font-medium">
-            Configura una URL de destino para recibir notificaciones PUSH cada vez que llegue un SMS. Enviamos un POST con el payload del mensaje.
+            {t('api.webhooks_desc')}
           </p>
           <div className="bg-white dark:bg-surface-dark border border-slate-100 dark:border-slate-800 rounded-3xl p-8 space-y-4 shadow-soft">
             <div className="flex items-center gap-3 text-primary">
               <ShieldCheck className="size-5" />
-              <span className="text-xs font-black uppercase tracking-widest">Seguridad de Webhooks</span>
+              <span className="text-xs font-black uppercase tracking-widest">{t('api.webhooks_security_title')}</span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-              Cada solicitud de webhook incluye una firma <code className="text-primary font-bold">X-TELSIM-SIGNATURE</code> generada con tu secreto de webhook para que puedas validar que la solicitud proviene de nuestros servidores.
+              {t('api.webhooks_security_desc')}
             </p>
           </div>
         </section>
@@ -196,8 +198,8 @@ const ApiDocs: React.FC = () => {
               <div className="size-12 rounded-2xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-900 dark:text-white">
                 <Terminal className="size-6" />
               </div>
-              <h4 className="text-lg font-black tracking-tight">Node.js SDK</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Instala nuestro cliente oficial para Node.js y comienza en segundos.</p>
+              <h4 className="text-lg font-black tracking-tight">{t('api.sdk_node_title')}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{t('api.sdk_node_desc')}</p>
               <code className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl text-[10px] font-mono text-primary font-bold">npm install @telsim/node</code>
             </div>
 
@@ -205,15 +207,15 @@ const ApiDocs: React.FC = () => {
               <div className="size-12 rounded-2xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-900 dark:text-white">
                 <Cpu className="size-6" />
               </div>
-              <h4 className="text-lg font-black tracking-tight">Python Library</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Perfecto para scripts de automatización y bots de scraping.</p>
+              <h4 className="text-lg font-black tracking-tight">{t('api.sdk_python_title')}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{t('api.sdk_python_desc')}</p>
               <code className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl text-[10px] font-mono text-primary font-bold">pip install telsim-py</code>
             </div>
           </div>
         </section>
 
         <footer className="text-center pt-12 opacity-30">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">TELSIM API Reference v1.0.4</p>
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">{t('api.footer')}</p>
         </footer>
       </main>
     </div>

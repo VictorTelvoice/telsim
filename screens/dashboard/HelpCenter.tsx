@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   Search, 
@@ -21,43 +22,44 @@ interface FAQItem {
   answer: string;
 }
 
-const FAQ_DATA: FAQItem[] = [
-  {
-    id: 1,
-    question: "¿Son estas SIMs realmente físicas?",
-    answer: "Sí, a diferencia de los servicios VoIP convencionales, TELSIM opera con infraestructura de puertos físicos reales. Esto garantiza que las plataformas (como WhatsApp, Bancos o Google) detecten el número como un dispositivo móvil legítimo."
-  },
-  {
-    id: 2,
-    question: "¿Cómo recibo mis códigos SMS?",
-    answer: "Una vez activado tu número, cualquier SMS enviado a ese puerto llegará instantáneamente a tu sección de 'Mensajes' en el panel de control de TELSIM."
-  },
-  {
-    id: 3,
-    question: "¿Puedo renovar mi número después del mes?",
-    answer: "Por supuesto. Puedes activar la renovación automática en los ajustes de tu número para asegurar que conservas el puerto indefinidamente."
-  },
-  {
-    id: 4,
-    question: "¿Qué pasa si pierdo el acceso a mi cuenta?",
-    answer: "Contamos con protocolos de recuperación de identidad. Si tienes activada la Verificación de Identidad en tus ajustes, podrás recuperar tu saldo y números vinculados."
-  }
-];
-
 const HelpCenter: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const FAQ_DATA: FAQItem[] = [
+    {
+      id: 1,
+      question: t('help.faq1.q'),
+      answer: t('help.faq1.a')
+    },
+    {
+      id: 2,
+      question: t('help.faq2.q'),
+      answer: t('help.faq2.a')
+    },
+    {
+      id: 3,
+      question: t('help.faq3.q'),
+      answer: t('help.faq3.a')
+    },
+    {
+      id: 4,
+      question: t('help.faq4.q'),
+      answer: t('help.faq4.a')
+    }
+  ];
 
   const toggleFAQ = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
   const categories = [
-    { icon: <Smartphone className="size-5" />, label: "SIMs y Números", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
-    { icon: <CreditCard className="size-5" />, label: "Pagos y Planes", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-    { icon: <ShieldCheck className="size-5" />, label: "Privacidad", color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
-    { icon: <Zap className="size-5" />, label: "Técnico / API", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-900/20" },
+    { icon: <Smartphone className="size-5" />, label: t('help.cat.sims'), color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
+    { icon: <CreditCard className="size-5" />, label: t('help.cat.payments'), color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+    { icon: <ShieldCheck className="size-5" />, label: t('help.cat.privacy'), color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
+    { icon: <Zap className="size-5" />, label: t('help.cat.technical'), color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-900/20" },
   ];
 
   return (
@@ -70,14 +72,14 @@ const HelpCenter: React.FC = () => {
           >
             <ArrowLeft className="size-5" />
           </button>
-          <h1 className="text-xl font-black tracking-tight">Centro de Ayuda</h1>
+          <h1 className="text-xl font-black tracking-tight">{t('help.title')}</h1>
         </div>
         
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
           <input 
             type="text" 
-            placeholder="¿Cómo podemos ayudarte?"
+            placeholder={t('help.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-14 pl-12 pr-4 bg-white dark:bg-surface-dark border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm outline-none focus:border-primary transition-all font-bold text-sm"
@@ -108,7 +110,7 @@ const HelpCenter: React.FC = () => {
         <section className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <HelpCircle className="size-4 text-primary" />
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Preguntas Frecuentes</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('help.faqs')}</h3>
           </div>
           <div className="space-y-3">
             {FAQ_DATA.map((faq) => (
@@ -143,15 +145,15 @@ const HelpCenter: React.FC = () => {
 
         {/* Canales de Contacto */}
         <section className="space-y-4 pt-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 text-center">¿No encontraste lo que buscabas?</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 text-center">{t('help.not_found')}</h3>
           <div className="grid grid-cols-1 gap-3">
             <button className="flex items-center gap-4 p-5 bg-primary rounded-3xl text-white shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all group">
               <div className="size-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
                 <MessageCircle className="size-6" />
               </div>
               <div className="text-left flex-1">
-                <p className="text-sm font-black uppercase tracking-widest">Chat en Vivo</p>
-                <p className="text-[10px] font-bold text-white/70">Tiempo de respuesta: ~5 min</p>
+                <p className="text-sm font-black uppercase tracking-widest">{t('help.live_chat')}</p>
+                <p className="text-[10px] font-bold text-white/70">{t('help.response_time')}</p>
               </div>
               <ChevronDown className="-rotate-90 size-5 opacity-50 group-hover:translate-x-1 transition-transform" />
             </button>
@@ -161,8 +163,8 @@ const HelpCenter: React.FC = () => {
                 <Mail className="size-6" />
               </div>
               <div className="text-left flex-1">
-                <p className="text-sm font-black uppercase tracking-widest">Soporte vía Email</p>
-                <p className="text-[10px] font-bold text-slate-400">Atención las 24 horas</p>
+                <p className="text-sm font-black uppercase tracking-widest">{t('help.email_support')}</p>
+                <p className="text-[10px] font-bold text-slate-400">{t('help.support_24h')}</p>
               </div>
               <ChevronDown className="-rotate-90 size-5 opacity-30 group-hover:translate-x-1 transition-transform" />
             </button>

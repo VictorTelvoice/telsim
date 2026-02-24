@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot, SMSLog } from '../../types';
 import { 
@@ -27,6 +28,7 @@ const Messages: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const { refreshUnreadCount, setUnreadSmsCount } = useMessagesCount();
   
   const [messages, setMessages] = useState<SMSLog[]>([]);
@@ -166,14 +168,14 @@ const Messages: React.FC = () => {
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
 
-    if (diffInMinutes < 1) return 'Ahora';
-    if (diffInMinutes < 60) return `Hace ${diffInMinutes} min`;
+    if (diffInMinutes < 1) return t('messages.now');
+    if (diffInMinutes < 60) return `${t('messages.ago')} ${diffInMinutes} ${t('messages.min')}`;
     
     const isToday = date.toDateString() === now.toDateString();
     if (isToday) {
-      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString(language === 'es' ? 'es-ES' : 'en-US', { hour: '2-digit', minute: '2-digit' });
     }
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short' });
   };
 
   const getServiceStyle = (serviceName: string | undefined, sender: string) => {
@@ -229,9 +231,9 @@ const Messages: React.FC = () => {
           <div>
             <button onClick={() => navigate('/dashboard')} className="mb-2 flex items-center gap-1 text-primary font-bold text-sm">
               <span className="material-icons-round text-lg">chevron_left</span>
-              Atrás
+              {t('messages.back')}
             </button>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Mensajería</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{t('messages.title')}</h1>
           </div>
           <button 
             onClick={fetchData} 
@@ -247,7 +249,7 @@ const Messages: React.FC = () => {
             onClick={() => toggleFilter(null)}
             className={`whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${!filterNum ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
           >
-            Todos los Puertos
+            {t('messages.all_ports')}
           </button>
           {userSlots.map((slot) => (
             <button 
@@ -262,8 +264,8 @@ const Messages: React.FC = () => {
         </div>
 
         <div className="bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl flex items-center mb-2">
-            <button onClick={() => setActiveTab('verifications')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>Verificaciones</button>
-            <button onClick={() => setActiveTab('others')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'others' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>Otros</button>
+            <button onClick={() => setActiveTab('verifications')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>{t('messages.verifications')}</button>
+            <button onClick={() => setActiveTab('others')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'others' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>{t('messages.others')}</button>
         </div>
       </header>
       
@@ -271,15 +273,15 @@ const Messages: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Infraestructura...</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('messages.syncing')}</p>
           </div>
         ) : filteredMessages.length === 0 ? (
           <div className="text-center py-32 px-12 animate-in fade-in zoom-in-95 duration-700">
             <div className="size-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm text-slate-200 dark:text-slate-700 border border-slate-100 dark:border-slate-700">
               <span className="material-symbols-rounded text-[40px] opacity-20">{filterNum ? 'filter_alt_off' : (activeTab === 'verifications' ? 'key' : 'mail')}</span>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{filterNum ? 'Sin tráfico de red' : (activeTab === 'verifications' ? 'Esperando códigos' : 'Bandeja vacía')}</h3>
-            <p className="text-sm text-slate-400 font-medium leading-relaxed italic">{filterNum ? `No hay registros entrantes para ${formatPhoneNumber(filterNum)} en esta categoría.` : 'Tus códigos SMS aparecerán aquí automáticamente.'}</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{filterNum ? t('messages.no_traffic') : (activeTab === 'verifications' ? t('messages.waiting_codes') : t('messages.empty_inbox'))}</h3>
+            <p className="text-sm text-slate-400 font-medium leading-relaxed italic">{filterNum ? t('messages.no_records_for').replace('{num}', formatPhoneNumber(filterNum)) : t('messages.codes_appear_here')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -295,7 +297,7 @@ const Messages: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="text-[15px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{style.label}</h3>
-                        <p className="text-[9px] font-black text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-widest">Línea: {formatPhoneNumber(realNumber)}</p>
+                        <p className="text-[9px] font-black text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-widest">{t('dashboard.port')}: {formatPhoneNumber(realNumber)}</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold text-slate-300 tabular-nums">{formatTime(msg.received_at)}</span>
@@ -304,7 +306,7 @@ const Messages: React.FC = () => {
                   {msg.verification_code && (
                     <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700/50 p-4 flex items-center justify-between group overflow-hidden relative">
                        <div className="flex flex-col relative z-10">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DETECTADO</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('dashboard.traffic.code_detected')}</span>
                           <span className="text-3xl font-black font-mono tracking-[0.2em] text-slate-900 dark:text-white tabular-nums leading-none">{msg.verification_code}</span>
                        </div>
                        <button onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)} className={`size-12 rounded-xl flex items-center justify-center transition-all relative z-10 ${copyingId === msg.id ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm border border-slate-100 dark:border-slate-600 active:scale-90'}`}>

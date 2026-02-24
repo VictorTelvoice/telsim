@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   ShieldCheck, 
@@ -33,6 +34,7 @@ interface Session {
 
 const Security: React.FC = () => {
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   
   const [loading, setLoading] = useState(false);
@@ -73,7 +75,7 @@ const Security: React.FC = () => {
       // Cast supabase.auth to any to bypass SupabaseAuthClient type missing updateUser
       const { error } = await (supabase.auth as any).updateUser({ password: newPassword });
       if (error) throw error;
-      alert("Contraseña actualizada con éxito");
+      alert(t('security.password_updated'));
       setShowPasswordForm(false);
       setNewPassword('');
     } catch (err: any) {
@@ -117,9 +119,9 @@ const Security: React.FC = () => {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = (now.getTime() - date.getTime()) / 1000;
-    if (diff < 60) return 'Hace un momento';
-    if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
-    return date.toLocaleDateString();
+    if (diff < 60) return t('security.just_now');
+    if (diff < 3600) return `${t('security.ago')} ${Math.floor(diff/60)} min`;
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US');
   };
 
   return (
@@ -129,7 +131,7 @@ const Security: React.FC = () => {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.25em]">Seguridad</h1>
+        <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.25em]">{t('security.title')}</h1>
         <div className="size-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
             <ShieldCheck className="size-4 text-emerald-500" />
         </div>
@@ -139,7 +141,7 @@ const Security: React.FC = () => {
         
         {/* SECCIÓN A: ACCESO */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Acceso a la cuenta</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('security.account_access')}</h3>
           
           <div className="bg-white dark:bg-surface-dark rounded-[2rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
             {/* Password Item */}
@@ -151,9 +153,9 @@ const Security: React.FC = () => {
                         <Key className="size-5" />
                      </div>
                      <div>
-                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Contraseña</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{t('security.password')}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          {user?.updated_at ? `Actualizada: ${new Date(user.updated_at).toLocaleDateString()}` : 'Actualizada recientemente'}
+                          {user?.updated_at ? `${t('security.updated')}: ${new Date(user.updated_at).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}` : t('security.updated_recently')}
                         </p>
                      </div>
                    </div>
@@ -161,21 +163,21 @@ const Security: React.FC = () => {
                     onClick={() => setShowPasswordForm(true)}
                     className="text-[10px] font-black text-primary uppercase tracking-widest px-4 py-2 bg-primary/5 rounded-xl"
                    >
-                     Cambiar
+                     {t('security.change')}
                    </button>
                  </div>
                ) : (
                  <form onSubmit={handleUpdatePassword} className="space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center justify-between mb-2">
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nueva Contraseña</span>
-                       <button type="button" onClick={() => setShowPasswordForm(false)} className="text-[10px] font-black text-slate-300 uppercase">Cancelar</button>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('security.new_password')}</span>
+                       <button type="button" onClick={() => setShowPasswordForm(false)} className="text-[10px] font-black text-slate-300 uppercase">{t('security.cancel')}</button>
                     </div>
                     <div className="relative">
                        <input 
                         type={showPass ? "text" : "password"}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder={t('security.min_chars')}
                         className="w-full h-12 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 text-sm font-bold outline-none focus:border-primary transition-all"
                        />
                        <button 
@@ -191,7 +193,7 @@ const Security: React.FC = () => {
                       disabled={loading || newPassword.length < 6}
                       className="w-full h-12 bg-primary text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 disabled:opacity-50"
                     >
-                      {loading ? 'Sincronizando...' : 'Confirmar Nueva Clave'}
+                      {loading ? t('security.syncing') : t('security.confirm_new_password')}
                     </button>
                  </form>
                )}
@@ -202,13 +204,13 @@ const Security: React.FC = () => {
         {/* SECCIÓN B: DISPOSITIVOS */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sesiones Iniciadas</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('security.sessions')}</h3>
             <button 
               onClick={closeAllSessions}
               disabled={loading || sessions.length <= 1}
               className="text-[9px] font-black text-primary uppercase tracking-widest disabled:opacity-30"
             >
-              Cerrar todas las remotas
+              {t('security.close_all_remote')}
             </button>
           </div>
           
@@ -216,11 +218,11 @@ const Security: React.FC = () => {
             {fetching ? (
               <div className="py-12 flex flex-col items-center gap-3">
                 <RefreshCw className="size-6 text-slate-300 animate-spin" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sincronizando sesiones...</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('security.syncing_sessions')}</span>
               </div>
             ) : sessions.length === 0 ? (
               <div className="p-10 text-center bg-white dark:bg-surface-dark rounded-3xl border border-dashed border-slate-200">
-                <p className="text-xs font-bold text-slate-400 italic">No hay sesiones activas registradas.</p>
+                <p className="text-xs font-bold text-slate-400 italic">{t('security.no_sessions')}</p>
               </div>
             ) : (
               sessions.map((session) => {
@@ -235,7 +237,7 @@ const Security: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{session.device_name}</h4>
                             {session.is_current && (
-                              <span className="text-[7px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded uppercase">Actual</span>
+                              <span className="text-[7px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded uppercase">{t('security.current')}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -265,9 +267,9 @@ const Security: React.FC = () => {
              <ShieldAlert className="size-5" />
            </div>
            <div className="space-y-1">
-              <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.15em]">Zona de Riesgo</p>
-              <button className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed hover:text-rose-500 transition-colors">
-                ¿Sospechas de un acceso no autorizado? Cambia tu contraseña inmediatamente y contacta al nodo de soporte.
+              <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.15em]">{t('security.risk_zone')}</p>
+              <button className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed hover:text-rose-500 transition-colors text-left">
+                {t('security.unauthorized_access')}
               </button>
            </div>
         </div>
@@ -275,9 +277,9 @@ const Security: React.FC = () => {
         <div className="flex flex-col items-center gap-6 pt-12 pb-6">
            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full">
               <History className="size-4 text-slate-400" />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logs de Auditoría Disponibles</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('security.audit_logs')}</span>
            </div>
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-8">Telsim Crypto-Vault Protection v4.2</p>
+           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-8">{t('security.vault_protection')}</p>
         </div>
 
       </main>

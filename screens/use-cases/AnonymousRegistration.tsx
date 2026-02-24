@@ -1,26 +1,28 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { ShieldCheck, ArrowLeft, MessageSquare, Smartphone, Lock, CheckCircle, ArrowRight, Zap } from 'lucide-react';
 
 const AnonymousRegistration: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const steps = [
     {
       icon: <Smartphone className="size-6" />,
-      title: "1. Obtén tu número SIM",
-      desc: "Elige una región (Chile, Argentina o Perú) y activa tu línea física real en segundos."
+      title: t('anonymous.step1_title'),
+      desc: t('anonymous.step1_desc')
     },
     {
       icon: <MessageSquare className="size-6" />,
-      title: "2. Solicita el código",
-      desc: "Ingresa tu nuevo número TELSIM en la App que quieras verificar (WhatsApp, Telegram, etc)."
+      title: t('anonymous.step2_title'),
+      desc: t('anonymous.step2_desc')
     },
     {
       icon: <Lock className="size-6" />,
-      title: "3. Recibe en tu Inbox",
-      desc: "El código SMS aparecerá instantáneamente en tu panel de TELSIM. Copia y listo."
+      title: t('anonymous.step3_title'),
+      desc: t('anonymous.step3_desc')
     }
   ];
 
@@ -38,7 +40,7 @@ const AnonymousRegistration: React.FC = () => {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full bg-white/10 backdrop-blur-md text-white border border-white/10">
             <ArrowLeft className="size-5" />
           </button>
-          <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em]">Caso de Uso</span>
+          <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em]">{t('anonymous.use_case')}</span>
           <div className="w-9"></div>
         </header>
 
@@ -47,7 +49,7 @@ const AnonymousRegistration: React.FC = () => {
             <ShieldCheck className="size-8" />
           </div>
           <h1 className="text-3xl font-black text-white leading-tight tracking-tight">
-            Registro 100% <br/>Anónimo
+            {t('anonymous.title').split(' ')[0]} {t('anonymous.title').split(' ')[1]} <br/>{t('anonymous.title').split(' ').slice(2).join(' ')}
           </h1>
         </div>
       </div>
@@ -56,7 +58,7 @@ const AnonymousRegistration: React.FC = () => {
         {/* Intro Card */}
         <div className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-800">
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
-            Protege tu privacidad digital. Con TELSIM puedes registrarte en cualquier plataforma sin exponer tu número personal a bases de datos de spam o estafas.
+            {t('anonymous.intro')}
           </p>
           
           <div className="mt-6 flex flex-wrap gap-2">
@@ -70,7 +72,7 @@ const AnonymousRegistration: React.FC = () => {
 
         {/* Steps */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Proceso de Verificación</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('anonymous.verification_process')}</h3>
           {steps.map((step, idx) => (
             <div key={idx} className="bg-white dark:bg-surface-dark rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-soft flex items-start gap-5 group transition-all hover:border-primary/30">
               <div className="size-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-primary flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
@@ -90,15 +92,10 @@ const AnonymousRegistration: React.FC = () => {
         <div className="bg-primary/5 dark:bg-blue-950/20 rounded-[2.5rem] p-8 border border-primary/10">
           <div className="flex items-center gap-3 mb-4">
              <Zap className="text-primary size-5" />
-             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">¿Por qué usar TELSIM?</h3>
+             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('anonymous.why_telsim')}</h3>
           </div>
           <ul className="space-y-3">
-            {[
-              "SIMs Físicas Reales (No son números virtuales VoIP)",
-              "Privacidad total: Sin vinculación a tu identidad",
-              "Bypass de seguridad en bancos y redes sociales",
-              "Control total desde tu panel web"
-            ].map((text, i) => (
+            {(t('anonymous.reasons_list') as unknown as string[]).map((text, i) => (
               <li key={i} className="flex items-start gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
                 <CheckCircle className="size-4 text-emerald-500 shrink-0 mt-0.5" />
                 {text}
@@ -115,7 +112,7 @@ const AnonymousRegistration: React.FC = () => {
           className="group w-full max-w-md mx-auto h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
-          <span className="text-[15px] uppercase tracking-widest">Activar Mi Línea Ahora</span>
+          <span className="text-[15px] uppercase tracking-widest">{t('anonymous.activate_now')}</span>
           <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-colors">
             <ArrowRight className="size-6" />
           </div>

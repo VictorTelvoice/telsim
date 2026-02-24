@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   Shield, 
@@ -15,6 +16,7 @@ type Tab = 'terms' | 'privacy';
 
 const TermsPrivacy: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>('terms');
 
   const handleBack = () => {
@@ -32,7 +34,7 @@ const TermsPrivacy: React.FC = () => {
           >
             <ArrowLeft className="size-5" />
           </button>
-          <h1 className="text-xl font-black tracking-tight">Legal</h1>
+          <h1 className="text-xl font-black tracking-tight">{t('legal.title')}</h1>
         </div>
 
         {/* Selector de Pestañas (Segmented Control) */}
@@ -45,7 +47,7 @@ const TermsPrivacy: React.FC = () => {
               : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
-            Términos
+            {t('legal.terms')}
           </button>
           <button 
             onClick={() => setActiveTab('privacy')}
@@ -55,7 +57,7 @@ const TermsPrivacy: React.FC = () => {
               : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
-            Privacidad
+            {t('legal.privacy')}
           </button>
         </div>
       </header>
@@ -72,10 +74,10 @@ const TermsPrivacy: React.FC = () => {
             {activeTab === 'terms' ? <FileText className="size-10" /> : <Shield className="size-10" />}
           </div>
           <h2 className="text-2xl font-black tracking-tight mb-2">
-            {activeTab === 'terms' ? 'Términos de Servicio' : 'Política de Privacidad'}
+            {activeTab === 'terms' ? t('legal.terms_title') : t('legal.privacy_title')}
           </h2>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-            Última actualización: Noviembre 2023
+            {t('legal.last_update')}
           </p>
         </div>
 
@@ -84,39 +86,39 @@ const TermsPrivacy: React.FC = () => {
           {activeTab === 'terms' ? (
             <div className="space-y-8">
               <Section 
-                title="1. Aceptación del Servicio"
-                content="Al utilizar TELSIM, usted acepta cumplir con estos términos. Nuestro servicio consiste en el arrendamiento temporal de numeración física privada para la recepción de mensajes SMS de validación."
+                title={t('legal.terms_s1_title')}
+                content={t('legal.terms_s1_content')}
               />
               <Section 
-                title="2. Uso Responsable"
-                content="Queda estrictamente prohibido el uso de TELSIM para actividades ilícitas, acoso, fraude bancario o envío de spam masivo. TELSIM se reserva el derecho de suspender cualquier cuenta que viole estas normas."
+                title={t('legal.terms_s2_title')}
+                content={t('legal.terms_s2_content')}
               />
               <Section 
-                title="3. Suscripción y Pagos"
-                content="Los planes se cobran mensualmente por adelantado. Usted puede cancelar su suscripción en cualquier momento desde los ajustes, pero no se realizarán reembolsos por periodos parciales ya utilizados."
+                title={t('legal.terms_s3_title')}
+                content={t('legal.terms_s3_content')}
               />
               <Section 
-                title="4. Disponibilidad del Puerto"
-                content="Garantizamos una disponibilidad del 99.8% de nuestra infraestructura física. En caso de mantenimiento programado, los usuarios serán notificados con 24h de antelación."
+                title={t('legal.terms_s4_title')}
+                content={t('legal.terms_s4_content')}
               />
             </div>
           ) : (
             <div className="space-y-8">
               <Section 
-                title="1. Recolección de Datos"
-                content="Solo recolectamos los datos necesarios para operar el servicio: su correo electrónico para acceso y los metadatos de los SMS recibidos para mostrárselos en su panel."
+                title={t('legal.privacy_s1_title')}
+                content={t('legal.privacy_s1_content')}
               />
               <Section 
-                title="2. Encriptación End-to-End"
-                content="Sus mensajes SMS son procesados a través de canales encriptados y solo son accesibles mediante su sesión autenticada. No compartimos sus mensajes con terceros."
+                title={t('legal.privacy_s2_title')}
+                content={t('legal.privacy_s2_content')}
               />
               <Section 
-                title="3. Eliminación de Registros"
-                content="Usted tiene derecho a solicitar la eliminación total de su historial de mensajes y datos de cuenta en cualquier momento mediante una solicitud a soporte."
+                title={t('legal.privacy_s3_title')}
+                content={t('legal.privacy_s3_content')}
               />
               <Section 
-                title="4. Cookies y Rastreo"
-                content="TELSIM no utiliza cookies de seguimiento publicitario de terceros. Solo utilizamos cookies técnicas esenciales para mantener su sesión activa de forma segura."
+                title={t('legal.privacy_s4_title')}
+                content={t('legal.privacy_s4_content')}
               />
             </div>
           )}
@@ -128,8 +130,8 @@ const TermsPrivacy: React.FC = () => {
             <Lock className="size-6 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Tu privacidad es ley</p>
-            <p className="text-[10px] font-medium text-slate-500 leading-relaxed uppercase tracking-wider">Cumplimos con estándares internacionales de protección de datos.</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">{t('legal.privacy_is_law')}</p>
+            <p className="text-[10px] font-medium text-slate-500 leading-relaxed uppercase tracking-wider">{t('legal.privacy_desc')}</p>
           </div>
         </div>
 

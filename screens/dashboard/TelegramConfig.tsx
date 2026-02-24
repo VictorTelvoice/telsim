@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   Send, 
@@ -17,6 +18,7 @@ import {
 
 const TelegramConfig: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { user } = useAuth();
   
   const [tgToken, setTgToken] = useState('');
@@ -62,11 +64,11 @@ const TelegramConfig: React.FC = () => {
         .eq('id', user.id);
       
       if (error) throw error;
-      alert("Configuración de Telegram guardada correctamente");
+      alert(t('tg.config_saved'));
       navigate(-1);
     } catch (err) {
       console.error(err);
-      alert("Error al guardar la configuración");
+      alert(t('tg.save_error'));
     } finally {
       setSaving(false);
     }
@@ -87,7 +89,7 @@ const TelegramConfig: React.FC = () => {
           <ArrowLeft className="size-5" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">Configuración Bot</h1>
+          <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">{t('tg.config_title')}</h1>
         </div>
         <div className="size-9"></div>
       </header>
@@ -97,9 +99,9 @@ const TelegramConfig: React.FC = () => {
           <div className="size-16 bg-blue-500/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-blue-500/20 shadow-sm">
             <Bot className="size-8" />
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Telegram Bot</h2>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{t('tg.bot_title')}</h2>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">
-            Vincula tu bot para recibir notificaciones de SMS en tiempo real.
+            {t('tg.bot_desc')}
           </p>
         </div>
 
@@ -107,7 +109,7 @@ const TelegramConfig: React.FC = () => {
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
               <Key className="size-3" />
-              Bot API Token
+              {t('tg.bot_token')}
             </label>
             <input 
               type="password" 
@@ -116,13 +118,13 @@ const TelegramConfig: React.FC = () => {
               className="w-full h-14 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 text-sm font-mono outline-none focus:border-primary transition-all"
               placeholder="Ej: 582910..."
             />
-            <p className="text-[10px] text-slate-400 font-medium ml-1">Obtenlo de @BotFather en Telegram</p>
+            <p className="text-[10px] text-slate-400 font-medium ml-1">{t('tg.botfather_hint')}</p>
           </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
               <User className="size-3" />
-              Chat ID
+              {t('tg.chat_id')}
             </label>
             <input 
               type="text" 
@@ -131,7 +133,7 @@ const TelegramConfig: React.FC = () => {
               className="w-full h-14 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 text-sm font-mono outline-none focus:border-primary transition-all"
               placeholder="Ej: 91823..."
             />
-            <p className="text-[10px] text-slate-400 font-medium ml-1">Obtenlo de @userinfobot</p>
+            <p className="text-[10px] text-slate-400 font-medium ml-1">{t('tg.userinfobot_hint')}</p>
           </div>
 
           <div className="pt-4">
@@ -143,12 +145,12 @@ const TelegramConfig: React.FC = () => {
               {saving ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Guardando...
+                  {t('tg.saving')}
                 </>
               ) : (
                 <>
                   <Save className="size-4" />
-                  Guardar Configuración
+                  {t('tg.save_config')}
                 </>
               )}
             </button>
@@ -158,15 +160,15 @@ const TelegramConfig: React.FC = () => {
         <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-3xl border border-blue-100 dark:border-blue-800/50 flex gap-4">
           <Info className="size-5 text-primary shrink-0 mt-0.5" />
           <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-900 dark:text-white">¿No sabes cómo obtener estos datos?</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white">{t('tg.dont_know_how')}</p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Hemos preparado una guía paso a paso para que puedas crear tu bot y obtener tu ID en menos de 2 minutos.
+              {t('tg.guide_desc')}
             </p>
             <button 
               onClick={() => navigate('/dashboard/telegram-guide')}
               className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:underline"
             >
-              Ver guía de configuración
+              {t('tg.view_guide')}
               <ExternalLink className="size-3" />
             </button>
           </div>

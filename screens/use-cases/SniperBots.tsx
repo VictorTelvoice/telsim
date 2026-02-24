@@ -1,26 +1,28 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Target, ArrowLeft, Clock, ShoppingCart, Zap, ArrowRight, CheckCircle2, Flame, Timer } from 'lucide-react';
 
 const SniperBots: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const steps = [
     {
       icon: <Timer className="size-6" />,
-      title: "1. Reserva de Puerto Flash",
-      desc: "Nuestras SIMs de baja latencia se reservan exclusivamente para tu cuenta minutos antes del drop, garantizando disponibilidad total."
+      title: t('sniper.step1_title'),
+      desc: t('sniper.step1_desc')
     },
     {
       icon: <Zap className="size-6" />,
-      title: "2. Disparo Instantáneo",
-      desc: "Tu bot detecta el SMS al instante. No hay colas de espera ni procesamiento compartido. El código se entrega en milisegundos."
+      title: t('sniper.step2_title'),
+      desc: t('sniper.step2_desc')
     },
     {
       icon: <ShoppingCart className="size-6" />,
-      title: "3. Checkout Exitoso",
-      desc: "Supera la verificación SMS de la pasarela de pago antes de que el stock se agote. Ideal para lanzamientos de segundos."
+      title: t('sniper.step3_title'),
+      desc: t('sniper.step3_desc')
     }
   ];
 
@@ -38,7 +40,7 @@ const SniperBots: React.FC = () => {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full bg-white/5 backdrop-blur-md text-white border border-white/10">
             <ArrowLeft className="size-5" />
           </button>
-          <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.3em]">Protocolo Low Latency</span>
+          <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.3em]">{t('sniper.latency_protocol')}</span>
           <div className="w-9"></div>
         </header>
 
@@ -58,27 +60,27 @@ const SniperBots: React.FC = () => {
           <div className="flex items-center gap-3 mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30">
             <Flame className="text-orange-500 size-5 shrink-0" />
             <p className="text-[11px] font-black text-orange-700 dark:text-amber-400 uppercase tracking-tight">
-              Diseñado para Drops de Alta Demanda
+              {t('sniper.designed_for_drops')}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center text-center">
                 <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">&lt; 450ms</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Latencia SMS</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('sniper.sms_latency')}</span>
              </div>
              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center text-center">
                 <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">99.9%</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tasa de Éxito</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('sniper.success_rate')}</span>
              </div>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed text-center px-4">
-            Cada milisegundo cuenta. Nuestra arquitectura omite el procesamiento en nube estándar para entregar el código directamente a tu socket.
+            {t('sniper.expert_desc')}
           </p>
         </div>
 
         {/* Steps */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Estrategia de Ejecución</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('sniper.execution_strategy')}</h3>
           {steps.map((step, idx) => (
             <div key={idx} className="bg-white dark:bg-surface-dark rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-soft flex items-start gap-5 group transition-all">
               <div className="size-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900/30 group-hover:scale-110 transition-transform duration-300">
@@ -98,7 +100,7 @@ const SniperBots: React.FC = () => {
         <div className="bg-slate-900 dark:bg-orange-950/20 rounded-[2.5rem] p-8 border border-white/5">
           <div className="flex items-center gap-3 mb-6">
              <div className="size-2 bg-amber-500 rounded-full animate-pulse"></div>
-             <h3 className="text-sm font-black text-white uppercase tracking-widest">Tiendas Compatibles</h3>
+             <h3 className="text-sm font-black text-white uppercase tracking-widest">{t('sniper.compatible_stores')}</h3>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -122,7 +124,7 @@ const SniperBots: React.FC = () => {
           className="group w-full max-w-md mx-auto h-16 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(234,88,12,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
-          <span className="text-[15px] uppercase tracking-widest">Activar Sniper Mode</span>
+          <span className="text-[15px] uppercase tracking-widest">{t('sniper.activate_mode')}</span>
           <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-colors">
             <ArrowRight className="size-6" />
           </div>

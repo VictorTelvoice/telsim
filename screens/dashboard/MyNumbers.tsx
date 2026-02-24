@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
 import { 
@@ -38,18 +39,12 @@ const OFFICIAL_PLANS_DATA = [
   { 
     id: 'Starter', 
     name: 'Starter', 
-    subtitle: '150 Créditos SMS',
+    subtitleKey: 'landing.pricing.starter.credits',
     price: 19.90, 
     limit: 150, 
     stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', 
     icon: 'shield',
-    features: [
-        'Número SIM Real (no VoIP baratos)',
-        'Notificaciones en tiempo real',
-        'Visualización en App',
-        'Capacidad: 150 SMS mensuales',
-        'Soporte técnico vía Ticket'
-    ],
+    featuresKey: 'landing.pricing.features.starter',
     accent: 'text-slate-400',
     iconBg: 'bg-slate-100',
     border: 'border-slate-100 dark:border-slate-800'
@@ -57,19 +52,13 @@ const OFFICIAL_PLANS_DATA = [
   { 
     id: 'Pro', 
     name: 'Pro', 
-    subtitle: '400 Créditos SMS',
+    subtitleKey: 'landing.pricing.pro.credits',
     price: 39.90, 
     limit: 400, 
     stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', 
     icon: 'bolt',
-    features: [
-        'Todo lo incluido en Starter',
-        'SMS 100% automatizados',
-        'Acceso a API y Webhooks',
-        'Capacidad: 400 SMS mensuales',
-        'Soporte vía Ticket y Chat'
-    ],
-    popularBadge: 'MÁS POPULAR',
+    featuresKey: 'landing.pricing.features.pro',
+    popularBadgeKey: 'landing.pricing.pro.popular',
     accent: 'text-[#0047FF]',
     iconBg: 'bg-blue-50 dark:bg-blue-900/20',
     border: 'border-blue-500/40'
@@ -77,19 +66,13 @@ const OFFICIAL_PLANS_DATA = [
   { 
     id: 'Power', 
     name: 'Power', 
-    subtitle: '1,400 Créditos SMS',
+    subtitleKey: 'landing.pricing.power.credits',
     price: 99.00, 
     limit: 1400, 
     stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', 
     icon: 'electric_bolt',
-    features: [
-        'Todo lo incluido en Pro',
-        'Seguridad y Control Empresarial',
-        'Integraciones y Escalabilidad',
-        'Capacidad: 1,400 SMS mensuales',
-        'Soporte Prioritario 24/7'
-    ],
-    premiumBadge: 'POTENCIA TOTAL',
+    featuresKey: 'landing.pricing.features.power',
+    premiumBadgeKey: 'landing.pricing.power.premium',
     accent: 'text-[#B49248]',
     iconBg: 'bg-amber-50 dark:bg-amber-900/20',
     border: 'border-amber-400/50'
@@ -100,6 +83,7 @@ const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { t } = useLanguage();
     const { refreshUnreadCount } = useMessagesCount();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -198,7 +182,7 @@ const MyNumbers: React.FC = () => {
     const handleCopy = (num: string) => {
         const formatted = formatPhoneNumber(num);
         navigator.clipboard.writeText(formatted);
-        showToast("Número Copiado");
+        showToast(t('mynumbers.number_copied'));
     };
 
     const handleSaveLabel = async (slotId: string) => {
@@ -260,14 +244,14 @@ const MyNumbers: React.FC = () => {
             if (slotError) throw slotError;
             
             refreshUnreadCount();
-            showToast("Número liberado con éxito.");
+            showToast(t('mynumbers.release_success'));
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
             setConfirmReleaseCheck(false);
             fetchSlots();
         } catch (err: any) {
             console.error("[RELEASE ERROR]", err);
-            showToast(err.message || "Fallo en la comunicación con el Ledger", "error");
+            showToast(err.message || (t('common.error')), "error");
         } finally {
             setReleasing(false);
         }
@@ -290,12 +274,12 @@ const MyNumbers: React.FC = () => {
 
             if (slotErr) throw slotErr;
 
-            showToast("Automatización guardada");
+            showToast(t('mynumbers.automation_saved'));
             setIsFwdModalOpen(false);
             fetchSlots();
         } catch (err) {
             console.error(err);
-            showToast("Error al guardar config.", "error");
+            showToast(t('common.error'), "error");
         } finally {
             setSavingFwd(false);
         }
@@ -367,7 +351,7 @@ const MyNumbers: React.FC = () => {
                     <ArrowLeft className="size-6" />
                 </button>
                 <div className="text-center flex-1">
-                   <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Cambiar Plan</h1>
+                   <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">{t('mynumbers.change_plan')}</h1>
                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puerto {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
                 </div>
                 <div className="w-10"></div>
@@ -375,7 +359,7 @@ const MyNumbers: React.FC = () => {
 
             <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
                 <div className="text-center mb-2">
-                    <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">Elige tu plan</h2>
+                    <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">{t('mynumbers.choose_plan')}</h2>
                 </div>
 
                 <div className="flex-1 flex flex-col gap-3">
@@ -393,14 +377,14 @@ const MyNumbers: React.FC = () => {
                                 }`}
                             >
                                 {/* Badges Integrados */}
-                                {plan.popularBadge && (
+                                {plan.popularBadgeKey && (
                                   <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                    {plan.popularBadge}
+                                    {t(plan.popularBadgeKey)}
                                   </div>
                                 )}
-                                {plan.premiumBadge && (
+                                {plan.premiumBadgeKey && (
                                   <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                    {plan.premiumBadge}
+                                    {t(plan.premiumBadgeKey)}
                                   </div>
                                 )}
 
@@ -411,14 +395,14 @@ const MyNumbers: React.FC = () => {
                                         </div>
                                         <div>
                                             <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                                            <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{plan.subtitle}</p>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{t(plan.subtitleKey)}</p>
                                         </div>
                                     </div>
                                     
                                     {isCurrent ? (
                                         <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                                             <div className="size-1 rounded-full bg-emerald-500"></div>
-                                            <span className="text-[7px] font-black text-emerald-600 uppercase">Actual</span>
+                                            <span className="text-[7px] font-black text-emerald-600 uppercase">{t('mynumbers.current_plan')}</span>
                                         </div>
                                     ) : (
                                         <div className="flex items-baseline gap-0.5">
@@ -429,7 +413,7 @@ const MyNumbers: React.FC = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-2 mt-2">
-                                    {plan.features.map((feat, i) => (
+                                    {(t(plan.featuresKey) as unknown as string[]).map((feat, i) => (
                                         <div key={i} className="flex items-center gap-2">
                                             <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
                                                 <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
@@ -453,7 +437,7 @@ const MyNumbers: React.FC = () => {
                 <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
                     <ArrowLeft className="size-5" />
                 </button>
-                <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Mis Tarjetas Sim</h1>
+                <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.title')}</h1>
                 <button onClick={() => navigate('/onboarding/region')} className="p-2 -mr-2 text-primary dark:text-blue-400">
                     <PlusCircle className="size-5" />
                 </button>
@@ -463,7 +447,7 @@ const MyNumbers: React.FC = () => {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <Loader2 className="size-10 text-primary animate-spin" />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando puertos...</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('mynumbers.syncing')}</p>
                     </div>
                 ) : (
                     <div className="space-y-14">
@@ -487,7 +471,7 @@ const MyNumbers: React.FC = () => {
                                                     ) : (
                                                         <button onClick={() => { setEditingLabelId(slot.slot_id); setTempLabelValue(slot.label || ''); }} className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
                                                             <span className="text-[10px] font-black uppercase tracking-widest italic truncate max-w-[120px]">
-                                                                {(slot.label || 'Mi Línea').toUpperCase()}
+                                                                {(slot.label || t('mynumbers.my_line')).toUpperCase()}
                                                             </span>
                                                             <Pencil className="size-2.5 opacity-40" />
                                                         </button>
@@ -521,7 +505,7 @@ const MyNumbers: React.FC = () => {
                                     </div>
 
                                     <div className="mt-5 flex items-center justify-center gap-3">
-                                        <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> Bandeja</button>
+                                        <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}</button>
                                         <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
                                         
                                         <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:text-primary transition-colors">
@@ -546,19 +530,19 @@ const MyNumbers: React.FC = () => {
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
                         <div className="bg-rose-500 p-8 text-white">
                             <AlertTriangle className="size-10 mb-4" />
-                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Confirmar Baja</h2>
+                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">{t('mynumbers.release_confirm')}</h2>
                         </div>
                         <div className="p-8 space-y-6">
-                            <p className="text-sm font-bold text-slate-500 leading-relaxed italic">Esta acción cancelará tu suscripción y liberará el puerto físico {formatPhoneNumber(slotToRelease.phone_number)} inmediatamente.</p>
+                            <p className="text-sm font-bold text-slate-500 leading-relaxed italic">{t('mynumbers.release_warning')}</p>
                             <label className="flex items-start gap-3 cursor-pointer">
                                 <input type="checkbox" checked={confirmReleaseCheck} onChange={(e) => setConfirmReleaseCheck(e.target.checked)} className="mt-1 size-5 rounded border-slate-200 text-rose-500 focus:ring-rose-500" />
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Entiendo que esta acción es permanente y no hay reembolsos.</span>
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">{t('mynumbers.release_understand')}</span>
                             </label>
                             <div className="flex flex-col gap-3">
                                 <button onClick={handleReleaseSlot} disabled={!confirmReleaseCheck || releasing} className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-600 text-white shadow-xl active:scale-95' : 'bg-slate-100 text-slate-300'}`}>
-                                    {releasing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'CONFIRMAR BAJA TOTAL'}
+                                    {releasing ? <Loader2 className="size-4 animate-spin mx-auto" /> : t('mynumbers.confirm_release_btn')}
                                 </button>
-                                <button onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
+                                <button onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }} className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">{t('common.cancel')}</button>
                             </div>
                         </div>
                     </div>
@@ -573,15 +557,15 @@ const MyNumbers: React.FC = () => {
                                 <X className="size-5" />
                             </button>
                             <Bot className="size-10 mb-4" />
-                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Automatización</h2>
+                            <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">{t('mynumbers.automation')}</h2>
                             <p className="text-[10px] font-black uppercase text-white/60 tracking-widest mt-1">Línea: {formatPhoneNumber(activeConfigSlot.phone_number)}</p>
                         </div>
                         
                         <div className="p-8 space-y-8">
                             <div className="flex items-center justify-between p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-primary/20">
                                 <div className="flex flex-col">
-                                    <span className="text-[12px] font-black text-slate-900 dark:text-white uppercase">Reenvío a Telegram</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-1">Recibir SMS en tu Bot</span>
+                                    <span className="text-[12px] font-black text-slate-900 dark:text-white uppercase">{t('mynumbers.telegram_forwarding')}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-1">{t('mynumbers.receive_sms_bot')}</span>
                                 </div>
                                 <button onClick={() => setSlotFwdActive(!slotFwdActive)} className="text-primary">
                                     {slotFwdActive ? <ToggleRight className="size-12" /> : <ToggleLeft className="size-12 text-slate-300" />}
@@ -590,7 +574,7 @@ const MyNumbers: React.FC = () => {
 
                             <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                                 <p className="text-[10px] font-bold text-slate-400 leading-relaxed italic">
-                                    Para que el reenvío funcione, asegúrate de haber configurado tu Token y Chat ID en <span className="text-primary font-black">Ajustes / Telegram Bot</span>.
+                                    {t('mynumbers.telegram_warning')}
                                 </p>
                             </div>
 
@@ -599,7 +583,7 @@ const MyNumbers: React.FC = () => {
                                 disabled={savingFwd}
                                 className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
                             >
-                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Guardar Cambios'}
+                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : t('common.save_changes')}
                             </button>
                         </div>
                     </div>

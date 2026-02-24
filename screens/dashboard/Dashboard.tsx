@@ -57,49 +57,49 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
     {
       id: 'vault-2fa',
       icon: <Vault className="size-6" />,
-      title: "Bóveda 2FA",
-      desc: "Separa tus claves bancarias o Crypto de tu teléfono diario para evitar hackeos.",
-      tag: "Seguridad Alta"
+      title: "use_cases.vault.title",
+      desc: "use_cases.vault.desc",
+      tag: "use_cases.vault.tag"
     },
     {
       id: 'anonymous',
       icon: <Lock className="size-6" />,
-      title: "Registro Anónimo",
-      desc: "Verifica WhatsApp, Telegram o Tinder sin revelar tu número personal.",
-      tag: "Popular"
+      title: "use_cases.anonymous.title",
+      desc: "use_cases.anonymous.desc",
+      tag: "use_cases.anonymous.tag"
     },
     {
       id: 'secure-shopping',
       icon: <ShoppingBag className="size-6" />,
-      title: "Compras Seguras",
-      desc: "Ideal para MercadoLibre o Marketplace. Evita spam y estafas."
+      title: "use_cases.shopping.title",
+      desc: "use_cases.shopping.desc"
     }
   ],
   automation: [
     {
       id: 'bypass-antibots',
       icon: <Zap className="size-6" />,
-      title: "Bypass Antibots",
-      desc: "Nuestras SIMs reales superan validaciones bancarias (3D Secure) que bloquean a la competencia.",
+      title: "use_cases.bypass.title",
+      desc: "use_cases.bypass.desc",
       isPro: true
     },
     {
       id: 'sniper-bots',
       icon: <Target className="size-6" />,
-      title: "Sniper Bots",
-      desc: "Compra ediciones limitadas (Nike, Ticketmaster) automatizando la recepción del SMS.",
+      title: "use_cases.sniper.title",
+      desc: "use_cases.sniper.desc",
       isPro: true
     },
     {
       icon: <CandlestickChart className="size-6" />,
-      title: "Arbitraje Crypto",
-      desc: "Valida retiros en exchanges automáticamente vía API para trading de alta frecuencia.",
+      title: "use_cases.arbitrage.title",
+      desc: "use_cases.arbitrage.desc",
       isPro: true
     },
     {
       icon: <Terminal className="size-6" />,
-      title: "QA Testing",
-      desc: "Prueba flujos de registro en tus Apps con números reales integrados a tu CI/CD.",
+      title: "use_cases.qa.title",
+      desc: "use_cases.qa.desc",
       isPro: true
     }
   ],
@@ -107,13 +107,13 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
     {
       id: 'scale-ads',
       icon: <Megaphone className="size-6" />,
-      title: "Escala tus Ads",
-      desc: "Crea múltiples cuentas de Facebook/Google Ads sin bloqueos por teléfono repetido."
+      title: "use_cases.scale_ads.title",
+      desc: "use_cases.scale_ads.desc"
     },
     {
       icon: <Globe className="size-5" />,
-      title: "Cuentas Globales",
-      desc: "Accede a servicios de streaming o software geobloqueados en otros países."
+      title: "use_cases.global.title",
+      desc: "use_cases.global.desc"
     }
   ]
 };
@@ -121,11 +121,12 @@ const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
 const UseCasesShowcase: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryId>('privacy');
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const categories = [
-    { id: 'privacy', label: "🛡️ Privacidad", icon: <ShieldCheck className="size-4" /> },
-    { id: 'automation', label: "🤖 Automatización", icon: <Bot className="size-4" /> },
-    { id: 'growth', label: "📈 Growth", icon: <TrendingUp className="size-4" /> }
+    { id: 'privacy', label: t('dashboard.use_cases.privacy'), icon: <ShieldCheck className="size-4" /> },
+    { id: 'automation', label: t('dashboard.use_cases.automation'), icon: <Bot className="size-4" /> },
+    { id: 'growth', label: t('dashboard.use_cases.growth'), icon: <TrendingUp className="size-4" /> }
   ];
 
   const handleUseCaseClick = (useCase: UseCaseCardData) => {
@@ -149,7 +150,7 @@ const UseCasesShowcase: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Guías de Uso</h3>
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('dashboard.use_cases.title')}</h3>
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -191,16 +192,16 @@ const UseCasesShowcase: React.FC = () => {
 
             {useCase.tag && (
               <span className="absolute top-6 right-6 text-[8px] font-black bg-blue-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">
-                {useCase.tag}
+                {t(useCase.tag)}
               </span>
             )}
 
             <h4 className={`text-base font-black mb-2 leading-tight ${useCase.isPro ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-              {useCase.title}
+              {t(useCase.title)}
             </h4>
             
             <p className={`text-[11px] font-medium leading-relaxed mb-6 line-clamp-3 ${useCase.isPro ? 'text-white/60' : 'text-slate-500 dark:text-slate-400'}`}>
-              {useCase.desc}
+              {t(useCase.desc)}
             </p>
 
             <div 
@@ -208,7 +209,7 @@ const UseCasesShowcase: React.FC = () => {
                 useCase.isPro ? 'text-blue-400 group-hover:text-white' : 'text-primary group-hover:text-blue-700'
               }`}
             >
-              <span>Ver Más</span>
+              <span>{t('dashboard.use_cases.view_more')}</span>
               <ArrowRight className="size-3 transition-transform group-hover:translate-x-1" />
             </div>
           </div>
@@ -220,6 +221,7 @@ const UseCasesShowcase: React.FC = () => {
 
 const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleCopy = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
@@ -253,7 +255,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     if (name.includes('tiktok')) return { bg: 'bg-black border-l-4 border-cyan-400', text: 'text-white', icon: <Music className="size-6 text-[#ff0050]" />, label: 'TikTok' };
     if (name.includes('telegram')) return { bg: 'bg-[#0088cc]', text: 'text-white', icon: <Send className="size-6" />, label: 'Telegram' };
     if (name.includes('ebay')) return { bg: 'bg-white border-2 border-blue-500 shadow-sm', text: 'text-slate-900', icon: <ShoppingCart className="size-6 text-blue-600" />, label: 'eBay' };
-    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return { bg: 'bg-slate-700 dark:bg-slate-900', text: 'text-white', icon: <Landmark className="size-6 text-blue-300" />, label: 'Entidad Bancaria' };
+    if (name.includes('bank') || name.includes('banco') || name.includes('santander') || name.includes('bci')) return { bg: 'bg-slate-700 dark:bg-slate-900', text: 'text-white', icon: <Landmark className="size-6 text-blue-300" />, label: t('dashboard.traffic.bank_entity') };
 
     return {
       bg: isPhoneNumber ? 'bg-slate-200 dark:bg-slate-800' : 'bg-slate-100 dark:bg-slate-800',
@@ -267,7 +269,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
-    if (diffInMinutes < 1) return 'Ahora';
+    if (diffInMinutes < 1) return t('dashboard.traffic.now');
     if (diffInMinutes < 60) return `${diffInMinutes}m`;
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -276,10 +278,10 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Monitor de Tráfico</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('dashboard.traffic.title')}</h3>
             <div className="flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                 <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">On-Air</span>
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">{t('dashboard.traffic.on_air')}</span>
             </div>
         </div>
       </div>
@@ -287,7 +289,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
       {messages.length === 0 ? (
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 py-8 flex flex-col items-center text-center px-6">
             <RefreshCw className="size-6 text-slate-300 dark:text-slate-600 animate-spin mb-3" />
-            <p className="text-[11px] font-bold text-slate-400 italic">Esperando tráfico entrante...</p>
+            <p className="text-[11px] font-bold text-slate-400 italic">{t('dashboard.traffic.waiting')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -318,7 +320,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                                   {formatTime(msg.received_at)}
                               </span>
                           </div>
-                          <p className="text-[9px] font-medium text-slate-400 truncate uppercase tracking-widest">de: {formatSenderNumber(msg.sender)}</p>
+                          <p className="text-[9px] font-medium text-slate-400 truncate uppercase tracking-widest">{t('dashboard.traffic.from')}: {formatSenderNumber(msg.sender)}</p>
                       </div>
                   </div>
                   
@@ -331,7 +333,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
                   {msg.verification_code && (
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">CÓDIGO DETECTADO</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('dashboard.traffic.code_detected')}</span>
                           <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
                               {msg.verification_code}
                           </span>
@@ -499,7 +501,7 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-2 truncate flex-1">
                         <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
                             {loading ? (
-                                <span className="animate-pulse">Sincronizando...</span>
+                                <span className="animate-pulse">{t('dashboard.syncing')}</span>
                             ) : activeSlot ? (
                                 <>
                                     <div className="size-5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
@@ -510,7 +512,7 @@ const Dashboard: React.FC = () => {
                                     </div>
                                 </>
                             ) : (
-                                <span className="text-slate-400 italic">Sin puertos activos</span>
+                                <span className="text-slate-400 italic">{t('dashboard.no_active_ports')}</span>
                             )}
                         </span>
                     </div>
@@ -522,7 +524,7 @@ const Dashboard: React.FC = () => {
                         <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setMenuOpen(false)}></div>
                         <div className="absolute top-full left-0 mt-3 w-80 bg-white dark:bg-surface-dark rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700/60 z-50 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700/50">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Infraestructura Vinculada</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.linked_infra')}</span>
                             </div>
                             <div className="p-1.5 space-y-1 max-h-[320px] overflow-y-auto no-scrollbar">
                                 {allSlots.length > 0 ? (
@@ -538,7 +540,7 @@ const Dashboard: React.FC = () => {
                                       <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-900 dark:text-white truncate tabular-nums">{formatPhoneNumber(slot.phone_number)}</span>
                                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate">
-                                            Puerto: {slot.slot_id}
+                                            {t('dashboard.port')}: {slot.slot_id}
                                           </span>
                                       </div>
                                       {activeSlot?.slot_id === slot.slot_id && (
@@ -547,7 +549,7 @@ const Dashboard: React.FC = () => {
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="p-4 text-center text-xs text-slate-400 italic">Inicia una activación en la tienda</div>
+                                  <div className="p-4 text-center text-xs text-slate-400 italic">{t('dashboard.start_activation')}</div>
                                 )}
                             </div>
                         </div>
@@ -566,7 +568,7 @@ const Dashboard: React.FC = () => {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                        {activeSlot ? 'NODO ACTIVO' : 'SIN ASIGNACIÓN'}
+                        {activeSlot ? t('dashboard.node_active') : t('dashboard.no_assignment')}
                     </span>
                 </div>
                 <button 
@@ -583,14 +585,14 @@ const Dashboard: React.FC = () => {
                 </button>
             </div>
             <div className="text-center mb-6">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Línea Principal TELSIM</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('dashboard.main_line')}</p>
                 <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
                     {activeSlot ? formatPhoneNumber(activeSlot.phone_number) : '--- --- ---'}
                 </h2>
                 {activeSlot && (
                     <div className="mt-4 text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center justify-center gap-2">
                         <span className="material-icons-round text-xs">signal_cellular_alt</span>
-                        CONECTADO A LA RED
+                        {t('dashboard.connected')}
                     </div>
                 )}
             </div>
@@ -598,18 +600,18 @@ const Dashboard: React.FC = () => {
             {activeSlot ? (
               <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => { navigator.clipboard.writeText(formatPhoneNumber(activeSlot.phone_number)); showToast("Número Copiado"); }}
+                  onClick={() => { navigator.clipboard.writeText(formatPhoneNumber(activeSlot.phone_number)); showToast(t('dashboard.number_copied')); }}
                   className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">content_copy</span>
-                    <span>Copiar</span>
+                    <span>{t('common.copy')}</span>
                 </button>
                 <button 
                   onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`)}
                   className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">chat_bubble</span>
-                    <span>Bandeja</span>
+                    <span>{t('dashboard.inbox')}</span>
                 </button>
               </div>
             ) : (

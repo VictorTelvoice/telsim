@@ -12,12 +12,14 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationsContext';
+import { useLanguage } from '../contexts/LanguageContext';
 // Fix: Notification type is defined in types.ts
 import { Notification } from '../types';
 
 const NotificationsMenu: React.FC = () => {
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll, loading } = useNotifications();
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -44,10 +46,10 @@ const NotificationsMenu: React.FC = () => {
     const now = new Date();
     const diffInMin = Math.floor((now.getTime() - date.getTime()) / 60000);
     
-    if (diffInMin < 1) return 'Ahora';
+    if (diffInMin < 1) return t('notifications_menu.now');
     if (diffInMin < 60) return `${diffInMin}m`;
     if (diffInMin < 1440) return `${Math.floor(diffInMin / 60)}h`;
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short' });
   };
 
   const getNotifIcon = (type: string) => {
@@ -93,16 +95,16 @@ const NotificationsMenu: React.FC = () => {
         <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden z-[100] animate-in slide-in-from-top-2 duration-300">
           <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
             <div className="flex flex-col">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Notificaciones</h3>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sincronizado en tiempo real</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{t('notifications_menu.title')}</h3>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('notifications_menu.sync_realtime')}</p>
             </div>
             <button 
               onClick={(e) => { e.stopPropagation(); clearAll(); }}
               className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-all flex items-center gap-1 group/btn"
-              title="Limpiar todo"
+              title={t('notifications_menu.clear_all')}
             >
               <Trash2 className="size-4" />
-              <span className="text-[8px] font-black uppercase opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">Limpiar</span>
+              <span className="text-[8px] font-black uppercase opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">{t('notifications_menu.clear')}</span>
             </button>
           </div>
 
@@ -110,14 +112,14 @@ const NotificationsMenu: React.FC = () => {
             {loading ? (
                <div className="py-12 flex flex-col items-center justify-center gap-3">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consultando Ledger...</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('notifications_menu.consulting_ledger')}</span>
                </div>
             ) : notifications.length === 0 ? (
               <div className="py-20 flex flex-col items-center text-center px-8 animate-in fade-in">
                 <div className="size-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-200 mb-4 border-2 border-dashed border-slate-200 dark:border-slate-700">
                   <Bell className="size-10" />
                 </div>
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin alertas nuevas</h4>
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('notifications_menu.no_new_alerts')}</h4>
               </div>
             ) : (
               <div className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -148,7 +150,7 @@ const NotificationsMenu: React.FC = () => {
                       </p>
                       {notif.link && (
                         <div className="mt-2.5 flex items-center gap-1.5 text-[9px] font-black text-primary uppercase tracking-[0.1em]">
-                          <span>Resolver ahora</span>
+                          <span>{t('notifications_menu.resolve_now')}</span>
                           <ExternalLink className="size-3" />
                         </div>
                       )}
@@ -164,7 +166,7 @@ const NotificationsMenu: React.FC = () => {
                 onClick={() => { navigate('/dashboard/notifications'); setIsOpen(false); }}
                 className="w-full h-11 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-black/10 active:scale-95 transition-all flex items-center justify-center gap-2 group"
              >
-                Ir al centro de control
+                {t('notifications_menu.go_to_control_center')}
                 <CheckCheck className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
              </button>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   Loader2, 
@@ -21,6 +22,7 @@ const UpgradeSummary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{status: string, brand: string, last4: string} | null>(null);
@@ -58,9 +60,9 @@ const UpgradeSummary: React.FC = () => {
     // Configuración base (STARTER)
     const config: any = {
       isDowngrade,
-      title: isDowngrade ? 'Reducir Plan' : 'Resumen de Cambio de Plan',
-      ctaText: isDowngrade ? 'Confirmar Cambio de Plan' : 'Actualizar Ahora',
-      features: ['Número SIM Real', 'Notificaciones tiempo real', 'Soporte vía Ticket'],
+      title: isDowngrade ? t('upgrade_summary.downgrade_title') : t('upgrade_summary.title'),
+      ctaText: isDowngrade ? t('upgrade_summary.cta_downgrade') : t('upgrade_summary.cta_upgrade'),
+      features: t('upgrade_summary.starter_features').split(', '),
       warningMsg: '',
       // Identidad cromática (Default Starter)
       accentColor: 'text-primary',
@@ -72,7 +74,7 @@ const UpgradeSummary: React.FC = () => {
     };
 
     if (name.includes('POWER')) {
-      config.features = ['1,400 SMS Mensuales', 'Soporte Prioritario 24/7', 'Acceso API Full', 'Control Empresarial'];
+      config.features = t('upgrade_summary.power_features').split(', ');
       config.accentColor = 'text-amber-600';
       config.barColor = 'bg-gradient-to-r from-amber-400 to-yellow-600';
       config.buttonGradient = 'from-[#B49248] via-[#D4AF37] to-[#8C6B1C]';
@@ -80,7 +82,7 @@ const UpgradeSummary: React.FC = () => {
       config.icon = <Crown className="size-4" />;
       config.checkColor = 'text-amber-500';
     } else if (name.includes('PRO')) {
-      config.features = ['400 SMS Mensuales', 'Automatización Webhook', 'Soporte vía Chat', 'Número SIM Real'];
+      config.features = t('upgrade_summary.pro_features').split(', ');
       config.accentColor = 'text-blue-600';
       config.barColor = 'bg-blue-600';
       config.buttonGradient = 'from-blue-600 to-indigo-800';
@@ -91,14 +93,14 @@ const UpgradeSummary: React.FC = () => {
 
     if (isDowngrade) {
         if (currentName === 'POWER' && name === 'PRO') {
-            config.warningMsg = 'Perderás el Soporte Prioritario 24/7 y las funciones de Seguridad y Control Empresarial.';
+            config.warningMsg = t('upgrade_summary.power_to_pro_warning');
         } else if (name === 'STARTER') {
-            config.warningMsg = 'Perderás el acceso a API y Webhooks, el Chat en vivo y la automatización del 100% de tus SMS.';
+            config.warningMsg = t('upgrade_summary.to_starter_warning');
         }
     }
     
     return config;
-  }, [upgradeData]);
+  }, [upgradeData, t]);
 
   if (!user || !upgradeData || !planConfig) return <Navigate to="/dashboard/numbers" replace />;
 
@@ -122,7 +124,7 @@ const UpgradeSummary: React.FC = () => {
         return;
       }
       if (data.url) window.location.href = data.url;
-    } catch (err: any) { alert(err.message || "Error al procesar."); setIsProcessing(false); }
+    } catch (err: any) { alert(err.message || t('common.error')); setIsProcessing(false); }
   };
 
   const handleBack = () => {
@@ -158,7 +160,7 @@ const UpgradeSummary: React.FC = () => {
             
             <div className="flex flex-col gap-2 px-6 pt-2 pb-4">
                 <div className="flex justify-between items-center">
-                    <p className={`${planConfig.accentColor} text-sm font-bold leading-normal`}>Ajuste de Potencia</p>
+                    <p className={`${planConfig.accentColor} text-sm font-bold leading-normal`}>{t('billing.plan_adjustment')}</p>
                     <p className="text-gray-400 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
                        {planConfig.icon}
                        {planName}
@@ -171,8 +173,8 @@ const UpgradeSummary: React.FC = () => {
 
             <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
                 <div className="pb-6 pt-2">
-                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">Revisa el cambio</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">Confirma los detalles de la nueva configuración de SIM.</p>
+                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">{t('upgrade_summary.review_change')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">{t('upgrade_summary.confirm_details')}</p>
                 </div>
 
                 {/* Tarjeta Principal */}
@@ -182,7 +184,7 @@ const UpgradeSummary: React.FC = () => {
                            🇨🇱
                         </div>
                         <div className="flex flex-col justify-center">
-                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">Puerto {formatPhoneNumber(phoneNumber)}</p>
+                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">{t('upgrade_summary.port')} {formatPhoneNumber(phoneNumber)}</p>
                             <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${planConfig.accentColor}`}>Infraestructura Real (+56)</p>
                         </div>
                     </div>
@@ -190,13 +192,13 @@ const UpgradeSummary: React.FC = () => {
                     <div className="p-6 space-y-5">
                         <div className="flex justify-between items-start">
                             <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">Nuevo Plan</span>
+                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">{t('upgrade_summary.new_plan')}</span>
                                 <span className={`font-black text-xl uppercase tracking-tight ${planConfig.accentColor}`}>{planName}</span>
-                                <span className="text-[10px] font-bold text-slate-500 mt-1">{limit} Créditos Mensuales</span>
+                                <span className="text-[10px] font-bold text-slate-500 mt-1">{limit} {t('upgrade_summary.monthly_credits')}</span>
                             </div>
                             <div className="text-right">
                                 <span className="text-[#111318] dark:text-white font-black text-2xl tracking-tighter">${Number(price).toFixed(2)}</span>
-                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest mt-0.5">/ Mes</span>
+                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest mt-0.5">{t('upgrade_summary.per_month')}</span>
                             </div>
                         </div>
 
@@ -215,14 +217,14 @@ const UpgradeSummary: React.FC = () => {
                               <div className="flex items-start gap-3 mb-3">
                                   <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={20} />
                                   <div className="flex flex-col">
-                                      <p className="text-rose-800 dark:text-rose-300 text-sm font-black leading-tight uppercase tracking-tight">Reducción de Beneficios</p>
+                                      <p className="text-rose-800 dark:text-rose-300 text-sm font-black leading-tight uppercase tracking-tight">{t('upgrade_summary.benefit_reduction')}</p>
                                       <p className="text-rose-700 dark:text-rose-400/80 text-[11px] font-medium leading-relaxed mt-1 italic">
                                           "{planConfig.warningMsg}"
                                       </p>
                                   </div>
                               </div>
                               <div className="pt-3 border-t border-rose-500/10 flex justify-between items-center">
-                                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Capacidad anterior:</span>
+                                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{t('upgrade_summary.previous_capacity')}:</span>
                                   <span className="text-[11px] font-black text-rose-700 dark:text-rose-300 line-through opacity-50">{currentLimit} SMS</span>
                               </div>
                           </div>
@@ -235,13 +237,13 @@ const UpgradeSummary: React.FC = () => {
                                     <CheckCircle2 className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" size={20} />
                                   )}
                                   <div className="flex flex-col">
-                                      <p className={`text-sm font-black leading-tight uppercase tracking-tight ${planName.toUpperCase().includes('POWER') ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`}>Mejora de Potencia</p>
-                                      <p className={`text-[11px] font-medium leading-relaxed mt-1 ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-400/80' : 'text-emerald-700 dark:text-emerald-400/80'}`}>Tu línea se reconfigurará instantáneamente con las nuevas capacidades {planName}.</p>
+                                      <p className={`text-sm font-black leading-tight uppercase tracking-tight ${planName.toUpperCase().includes('POWER') ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`}>{t('upgrade_summary.power_upgrade')}</p>
+                                      <p className={`text-[11px] font-medium leading-relaxed mt-1 ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-400/80' : 'text-emerald-700 dark:text-emerald-400/80'}`}>{t('upgrade_summary.reconfigure_instantly').replace('{{plan}}', planName)}</p>
                                   </div>
                               </div>
                               <div className={`pt-3 border-t flex justify-between items-center ${planName.toUpperCase().includes('POWER') ? 'border-amber-500/10' : 'border-emerald-500/10'}`}>
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${planName.toUpperCase().includes('POWER') ? 'text-amber-600' : 'text-emerald-600'}`}>Sincronización:</span>
-                                  <span className={`text-[11px] font-black ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Inmediata</span>
+                                  <span className={`text-[10px] font-black uppercase tracking-widest ${planName.toUpperCase().includes('POWER') ? 'text-amber-600' : 'text-emerald-600'}`}>{t('upgrade_summary.sync')}:</span>
+                                  <span className={`text-[11px] font-black ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>{t('upgrade_summary.immediate')}</span>
                               </div>
                           </div>
                         )}
@@ -252,7 +254,7 @@ const UpgradeSummary: React.FC = () => {
                 {paymentInfo && (
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Método de Cobro</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('upgrade_summary.payment_method')}</span>
                         <Lock className="size-3 text-slate-300" />
                     </div>
                     <div className="flex items-center justify-between">
@@ -262,7 +264,7 @@ const UpgradeSummary: React.FC = () => {
                            </div>
                            <div>
                               <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{paymentInfo.brand} •• {paymentInfo.last4}</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Cargos procesados vía Stripe</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('upgrade_summary.processed_via')}</p>
                            </div>
                         </div>
                         <div className={`size-2 rounded-full animate-pulse ${planName.toUpperCase().includes('POWER') ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
@@ -282,13 +284,13 @@ const UpgradeSummary: React.FC = () => {
                         {isProcessing ? <Loader2 className="size-5 animate-spin text-white/80" /> : <ArrowUpRight className="size-6 text-white/40" />}
                     </div>
                     <span className="text-[17px] tracking-wide uppercase font-black">
-                        {isProcessing ? 'Sincronizando...' : planConfig.ctaText}
+                        {isProcessing ? t('upgrade_summary.sincronizando') : planConfig.ctaText}
                     </span>
                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
                         <Sparkles className="size-6 text-white" />
                     </div>
                 </button>
-                <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">Cambiar método de pago</button>
+                <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">{t('upgrade_summary.change_payment_method')}</button>
             </div>
         </div>
     </div>

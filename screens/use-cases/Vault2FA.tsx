@@ -1,26 +1,28 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Vault, ArrowLeft, ShieldCheck, Key, Fingerprint, Lock, ArrowRight, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 const Vault2FA: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const steps = [
     {
       icon: <Key className="size-6" />,
-      title: "1. Crea tu puerto aislado",
-      desc: "Activa una línea TELSIM que no esté vinculada a tus redes sociales ni correo personal."
+      title: t('vault.step1_title'),
+      desc: t('vault.step1_desc')
     },
     {
       icon: <ShieldCheck className="size-6" />,
-      title: "2. Migra tus Accesos",
-      desc: "Cambia el número de recuperación en tu banco o Exchange (Binance, Coinbase) por tu nueva línea."
+      title: t('vault.step2_title'),
+      desc: t('vault.step2_desc')
     },
     {
       icon: <Fingerprint className="size-6" />,
-      title: "3. Blindaje Total",
-      desc: "Incluso si roban tu teléfono físico, tus códigos 2FA están seguros en la nube de TELSIM."
+      title: t('vault.step3_title'),
+      desc: t('vault.step3_desc')
     }
   ];
 
@@ -38,7 +40,7 @@ const Vault2FA: React.FC = () => {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full bg-white/5 backdrop-blur-md text-white border border-white/10">
             <ArrowLeft className="size-5" />
           </button>
-          <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em]">Protocolo de Seguridad</span>
+          <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em]">{t('vault.security_protocol')}</span>
           <div className="w-9"></div>
         </header>
 
@@ -47,7 +49,7 @@ const Vault2FA: React.FC = () => {
             <Vault className="size-10" />
           </div>
           <h1 className="text-3xl font-black text-white leading-tight tracking-tight">
-            Bóveda <span className="text-cyan-400">2FA</span> Blindada
+            {t('vault.title').split(' ')[0]} <span className="text-cyan-400">{t('vault.title').split(' ')[1]}</span> {t('vault.title').split(' ').slice(2).join(' ')}
           </h1>
         </div>
       </div>
@@ -58,17 +60,17 @@ const Vault2FA: React.FC = () => {
           <div className="flex items-center gap-3 mb-4 p-3 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/30">
             <ShieldAlert className="text-rose-500 size-5 shrink-0" />
             <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-tight">
-              Evita el SIM Swapping y Robo de Identidad
+              {t('vault.risk_warning')}
             </p>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed px-1">
-            Separar tus códigos de acceso de tu número personal es la medida de seguridad #1 recomendada por expertos en ciberseguridad.
+            {t('vault.expert_recommendation')}
           </p>
         </div>
 
         {/* The Steps */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Configuración de Seguridad</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('vault.security_setup')}</h3>
           {steps.map((step, idx) => (
             <div key={idx} className="bg-white dark:bg-surface-dark rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-soft flex items-start gap-5 group transition-all">
               <div className="size-12 rounded-2xl bg-cyan-50 dark:bg-cyan-950/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-900/30">
@@ -88,14 +90,10 @@ const Vault2FA: React.FC = () => {
         <div className="bg-slate-900 dark:bg-blue-950/20 rounded-[2.5rem] p-8 border border-white/5">
           <div className="flex items-center gap-3 mb-6">
              <div className="size-2 bg-cyan-500 rounded-full animate-pulse"></div>
-             <h3 className="text-sm font-black text-white uppercase tracking-widest">Servicios Protegidos</h3>
+             <h3 className="text-sm font-black text-white uppercase tracking-widest">{t('vault.protected_services')}</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {[
-              "Banca Móvil", "Exchanges Crypto", 
-              "Email Crítico", "Gestores de Clave",
-              "Admin de Servidores", "E-Wallets"
-            ].map((text, i) => (
+            {(t('vault.services_list') as unknown as string[]).map((text, i) => (
               <div key={i} className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
                 <CheckCircle2 className="size-3 text-cyan-500" />
                 {text}
@@ -112,7 +110,7 @@ const Vault2FA: React.FC = () => {
           className="group w-full max-w-md mx-auto h-16 bg-slate-900 dark:bg-cyan-600 hover:bg-black dark:hover:bg-cyan-700 text-white font-black rounded-2xl shadow-2xl flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
-          <span className="text-[15px] uppercase tracking-widest">Blindar Mis Cuentas</span>
+          <span className="text-[15px] uppercase tracking-widest">{t('vault.shield_accounts')}</span>
           <div className="size-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-white/20 transition-colors">
             <ArrowRight className="size-6" />
           </div>

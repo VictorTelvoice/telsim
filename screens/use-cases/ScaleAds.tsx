@@ -1,26 +1,28 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Megaphone, ArrowLeft, ShieldCheck, TrendingUp, Layers, Rocket, ArrowRight, Target } from 'lucide-react';
 
 const ScaleAds: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const steps = [
     {
       icon: <Layers className="size-6" />,
-      title: "1. Aislamiento de Perfiles",
-      desc: "Asigna un número físico único a cada Business Manager o cuenta publicitaria para evitar vinculaciones de riesgo."
+      title: t('ads.step1_title'),
+      desc: t('ads.step1_desc')
     },
     {
       icon: <ShieldCheck className="size-6" />,
-      title: "2. Bypass de Checkpoints",
-      desc: "Recibe los códigos de verificación de Meta o Google instantáneamente para validar identidades comerciales."
+      title: t('ads.step2_title'),
+      desc: t('ads.step2_desc')
     },
     {
       icon: <Rocket className="size-6" />,
-      title: "3. Escalabilidad Infinita",
-      desc: "Replica tus campañas en múltiples cuentas sin ser detectado por 'huella telefónica' repetida."
+      title: t('ads.step3_title'),
+      desc: t('ads.step3_desc')
     }
   ];
 
@@ -38,7 +40,7 @@ const ScaleAds: React.FC = () => {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full bg-white/10 backdrop-blur-md text-white border border-white/10 transition-colors hover:bg-white/20">
             <ArrowLeft className="size-5" />
           </button>
-          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em]">Protocolo Growth-Scale</span>
+          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em]">{t('ads.protocol')}</span>
           <div className="w-9"></div>
         </header>
 
@@ -47,9 +49,9 @@ const ScaleAds: React.FC = () => {
             <Megaphone className="size-10" />
           </div>
           <h1 className="text-3xl font-black text-white leading-tight tracking-tight">
-            Escala tus <span className="text-indigo-400">Ads</span>
+            {t('ads.title').split(' ').slice(0, -1).join(' ')} <span className="text-indigo-400">{t('ads.title').split(' ').slice(-1)}</span>
           </h1>
-          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.2em] mt-2">Marketing de Precisión Multi-Cuenta</p>
+          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.2em] mt-2">{t('ads.precision_marketing')}</p>
         </div>
       </div>
 
@@ -59,29 +61,29 @@ const ScaleAds: React.FC = () => {
           <div className="flex items-center gap-3 mb-6 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
             <TrendingUp className="text-indigo-600 size-5 shrink-0" />
             <p className="text-[11px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-tight">
-              Optimización de Trust-Score Publicitario
+              {t('ads.trust_score')}
             </p>
           </div>
           
           <div className="grid grid-cols-2 gap-4 mb-4">
              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center text-center">
                 <span className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">100%</span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Aislamiento</span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{t('ads.isolation')}</span>
              </div>
              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center text-center">
                 <span className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">Zero</span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Shadowbans</span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{t('ads.shadowbans')}</span>
              </div>
           </div>
           
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed text-center px-4">
-            No permitas que la caída de una cuenta afecte a toda tu red. Usa números SIM independientes para una infraestructura publicitaria resiliente.
+            {t('ads.resilient_infra')}
           </p>
         </div>
 
         {/* The Steps */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Estrategia de Cuentas</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('ads.account_strategy')}</h3>
           {steps.map((step, idx) => (
             <div key={idx} className="bg-white dark:bg-surface-dark rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-soft flex items-start gap-5 group transition-all hover:border-indigo-500/30">
               <div className="size-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900/30 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
@@ -105,7 +107,7 @@ const ScaleAds: React.FC = () => {
           className="group w-full max-w-md mx-auto h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(29,78,216,0.3)] flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="w-12"></div>
-          <span className="text-[15px] uppercase tracking-widest">Desplegar Infraestructura</span>
+          <span className="text-[15px] uppercase tracking-widest">{t('ads.deploy_infra')}</span>
           <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-colors">
             <ArrowRight className="size-6" />
           </div>

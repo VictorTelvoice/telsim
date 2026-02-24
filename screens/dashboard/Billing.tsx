@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Subscription {
   id: string;
@@ -44,6 +45,7 @@ interface PaymentMethod {
 const Billing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -115,7 +117,7 @@ const Billing: React.FC = () => {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "No se pudo abrir el portal de gestión. Asegúrate de tener una suscripción activa.");
+        alert(data.error || (language === 'es' ? "No se pudo abrir el portal de gestión. Asegúrate de tener una suscripción activa." : "Could not open management portal. Make sure you have an active subscription."));
         setIsCreatingPortal(false);
       }
     } catch (err) {
@@ -146,7 +148,7 @@ const Billing: React.FC = () => {
   const formatFriendlyDate = (dateStr: string) => {
     if (!dateStr) return '—';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('es-ES', { 
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { 
       day: '2-digit', 
       month: 'long', 
       year: 'numeric' 
@@ -157,7 +159,7 @@ const Billing: React.FC = () => {
     return (
       <div className="min-h-screen bg-white dark:bg-background-dark flex flex-col items-center justify-center p-6">
         <RefreshCw className="size-6 text-primary animate-spin mb-4" />
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sincronizando Facturación...</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('billing.syncing')}</p>
       </div>
     );
   }
@@ -170,7 +172,7 @@ const Billing: React.FC = () => {
           <ArrowLeft className="size-6" />
         </button>
         <div className="text-right">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Mensual</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('billing.total_monthly')}</p>
            <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalMonthlySpend)}</p>
         </div>
       </header>
@@ -179,18 +181,18 @@ const Billing: React.FC = () => {
         
         {/* TÍTULO PRINCIPAL */}
         <div>
-           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Facturación</h1>
-           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Gestiona tus métodos de pago y planes activos.</p>
+           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">{t('billing.title')}</h1>
+           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('billing.subtitle')}</p>
         </div>
 
         {/* SECCIÓN A: MÉTODO DE PAGO */}
         <section className="space-y-4">
-          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Método de Pago Predeterminado</h3>
+          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">{t('billing.default_payment')}</h3>
           
           {loadingPM ? (
             <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center gap-3">
               <Loader2 className="size-5 text-primary animate-spin" />
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Consultando Stripe...</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('billing.consulting_stripe')}</span>
             </div>
           ) : paymentMethod ? (
             <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group animate-in fade-in duration-500">
@@ -206,7 +208,7 @@ const Billing: React.FC = () => {
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {paymentMethod.brand} •••• {paymentMethod.last4}
                   </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Expira: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">{t('onboarding.expires')}: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
                 </div>
               </div>
               <button 
@@ -214,7 +216,7 @@ const Billing: React.FC = () => {
                 disabled={isCreatingPortal}
                 className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
               >
-                {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : 'Editar'}
+                {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : t('billing.manage')}
               </button>
             </div>
           ) : (
@@ -225,7 +227,7 @@ const Billing: React.FC = () => {
                <div className="size-10 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
                   <Plus className="size-5" />
                </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300">Vincular tarjeta en Stripe</span>
+               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300">{t('billing.link_card_stripe')}</span>
             </button>
           )}
         </section>
@@ -233,14 +235,14 @@ const Billing: React.FC = () => {
         {/* SECCIÓN B: SERVICIOS ACTIVOS */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus Servicios Activos</h3>
-            <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} Planes</span>
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">{t('billing.active_services')}</h3>
+            <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} {t('billing.plans')}</span>
           </div>
 
           <div className="space-y-3">
             {activeServices.length === 0 ? (
               <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-slate-400 italic">No tienes servicios contratados.</p>
+                <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
               </div>
             ) : (
               activeServices.map((sub) => (
@@ -262,7 +264,7 @@ const Billing: React.FC = () => {
                       <p className="text-sm font-black text-slate-900 dark:text-white mb-1">{formatCurrency(sub.amount)}</p>
                       <div className="flex items-center gap-1.5 justify-end">
                          <div className="size-1.5 rounded-full bg-emerald-500"></div>
-                         <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Activo</span>
+                         <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{t('billing.active')}</span>
                       </div>
                    </div>
                 </div>
@@ -277,7 +279,7 @@ const Billing: React.FC = () => {
             <summary className="list-none cursor-pointer flex items-center justify-between px-1">
               <div className="flex items-center gap-2 text-slate-400">
                 <History className="size-4" />
-                <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">Ver servicios cancelados</h3>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">{t('billing.view_canceled')}</h3>
               </div>
               <ChevronRight className="size-4 text-slate-300 transition-transform group-open:rotate-90" />
             </summary>
@@ -291,7 +293,7 @@ const Billing: React.FC = () => {
                    </div>
                    <div className="text-right">
                       <p className="text-xs font-bold text-slate-400 line-through">{formatCurrency(sub.amount)}</p>
-                      <span className="text-[8px] font-black text-slate-300 uppercase">Cancelado</span>
+                      <span className="text-[8px] font-black text-slate-300 uppercase">{t('billing.canceled')}</span>
                    </div>
                 </div>
               ))}
@@ -303,7 +305,7 @@ const Billing: React.FC = () => {
         <div className="flex flex-col items-center gap-6 pt-8">
            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full">
               <ShieldCheck className="size-4 text-slate-400" />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pago Seguro via Stripe Gateway</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('billing.secure_payment')}</span>
            </div>
            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] text-center">Telsim Financial Infra v2.8</p>
         </div>
@@ -314,7 +316,7 @@ const Billing: React.FC = () => {
       {selectedSub && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setSelectedSub(null)}>
           <div 
-            className="w-full max-w-sm bg-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+            className="w-full max-sm bg-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Modal */}
@@ -338,22 +340,22 @@ const Billing: React.FC = () => {
 
                <div className="grid grid-cols-2 gap-px bg-white/5 rounded-3xl border border-white/5 overflow-hidden">
                   <div className="p-5 bg-slate-900/40 space-y-1">
-                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Número</span>
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">{t('dashboard.port')}</span>
                      <p className="text-xs font-black text-white font-mono">{selectedSub.phone_number}</p>
                   </div>
                   <div className="p-5 bg-slate-900/40 space-y-1">
-                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Estado</span>
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">{t('common.status')}</span>
                      <div className="flex items-center gap-1.5">
                         <div className="size-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-[9px] font-black text-emerald-500 uppercase">Activo</span>
+                        <span className="text-[9px] font-black text-emerald-500 uppercase">{t('billing.active')}</span>
                      </div>
                   </div>
                   <div className="p-5 bg-slate-900/40 space-y-1">
-                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Inicio</span>
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">{t('billing.start')}</span>
                      <p className="text-[10px] font-bold text-white/80">{formatFriendlyDate(selectedSub.created_at)}</p>
                   </div>
                   <div className="p-5 bg-slate-900/40 space-y-1">
-                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Próximo Cobro</span>
+                     <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">{t('billing.next_billing')}</span>
                      <p className="text-[10px] font-bold text-white/80">{formatFriendlyDate(selectedSub.next_billing_date)}</p>
                   </div>
                </div>
@@ -368,15 +370,15 @@ const Billing: React.FC = () => {
                         )}
                      </div>
                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Método de pago</span>
-                        <p className="text-[11px] font-bold text-white">{paymentMethod ? `${paymentMethod.brand} •••• ${paymentMethod.last4}` : 'No vinculado'}</p>
+                        <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{t('billing.payment_method')}</span>
+                        <p className="text-[11px] font-bold text-white">{paymentMethod ? `${paymentMethod.brand} •••• ${paymentMethod.last4}` : t('billing.not_linked')}</p>
                      </div>
                   </div>
                   <button 
                     onClick={handleOpenStripePortal}
                     className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
                   >
-                    {isCreatingPortal ? '...' : 'Gestionar'}
+                    {isCreatingPortal ? '...' : t('billing.manage')}
                   </button>
                </div>
 
@@ -385,11 +387,11 @@ const Billing: React.FC = () => {
                     onClick={() => setSelectedSub(null)}
                     className="w-full h-14 bg-white text-slate-900 font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
                   >
-                    Cerrar Detalle
+                    {t('billing.close_detail')}
                   </button>
                   <button className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white transition-colors">
                      <ShieldAlert className="size-3" />
-                     Reportar problema con la línea
+                     {t('billing.report_problem')}
                   </button>
                </div>
             </div>

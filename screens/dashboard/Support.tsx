@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   ArrowLeft, 
   MessageSquare, 
@@ -16,23 +17,24 @@ import {
 
 const Support: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const supportChannels = [
     {
       id: 'chat',
       icon: <MessageSquare className="size-6" />,
-      title: "Chat en Vivo",
-      desc: "Conversa con un agente ahora mismo.",
+      title: t('support.live_chat'),
+      desc: t('support.live_chat_desc'),
       wait: "< 2 min",
       primary: true,
       color: "bg-primary text-white",
-      tag: "Recomendado"
+      tag: t('support.recommended')
     },
     {
       id: 'whatsapp',
       icon: <Smartphone className="size-6" />,
-      title: "WhatsApp Directo",
-      desc: "Soporte rápido desde tu móvil.",
+      title: t('support.whatsapp'),
+      desc: t('support.whatsapp_desc'),
       wait: "~ 5 min",
       primary: false,
       color: "bg-emerald-500 text-white",
@@ -40,9 +42,9 @@ const Support: React.FC = () => {
     {
       id: 'ticket',
       icon: <Mail className="size-6" />,
-      title: "Enviar Ticket",
-      desc: "Para consultas técnicas complejas.",
-      wait: "1-4 horas",
+      title: t('support.send_ticket'),
+      desc: t('support.send_ticket_desc'),
+      wait: "1-4 hours",
       primary: false,
       color: "bg-slate-900 dark:bg-slate-800 text-white",
     }
@@ -55,7 +57,7 @@ const Support: React.FC = () => {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.25em]">Centro de Soporte</h1>
+        <h1 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.25em]">{t('support.title')}</h1>
         <div className="size-8 rounded-full bg-blue-500/10 flex items-center justify-center">
             <Headphones className="size-4 text-primary" />
         </div>
@@ -70,18 +72,18 @@ const Support: React.FC = () => {
            <div className="relative z-10">
               <div className="flex items-center gap-2 mb-4">
                  <div className="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Soporte Operativo 24/7</span>
+                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{t('support.operational_247')}</span>
               </div>
-              <h2 className="text-2xl font-black mb-2 tracking-tight">¿En qué podemos <br/>ayudarte hoy?</h2>
+              <h2 className="text-2xl font-black mb-2 tracking-tight" dangerouslySetInnerHTML={{ __html: t('support.how_can_we_help').replace('?', '? <br/>') }}></h2>
               <p className="text-white/50 text-xs font-medium leading-relaxed max-w-[28ch]">
-                 Nuestros ingenieros de red están listos para asistirte con tus puertos físicos y planes.
+                 {t('support.engineers_ready')}
               </p>
            </div>
         </section>
 
         {/* CHANNELS GRID */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Canales de Atención</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{t('support.attention_channels')}</h3>
           
           <div className="space-y-4">
             {supportChannels.map((channel) => (
@@ -103,7 +105,7 @@ const Support: React.FC = () => {
                     <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{channel.desc}</p>
                     <div className="flex items-center gap-1.5 mt-2">
                        <Clock className="size-3 text-slate-300" />
-                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Espera: {channel.wait}</span>
+                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('support.wait_time')}: {channel.wait}</span>
                     </div>
                  </div>
 
@@ -117,7 +119,7 @@ const Support: React.FC = () => {
         <div className="bg-primary/5 dark:bg-blue-950/10 rounded-[2.5rem] p-8 border border-primary/10 space-y-6">
            <div className="flex items-center gap-3">
               <Zap className="size-5 text-primary" />
-              <h3 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.15em]">Respuestas Instantáneas</h3>
+              <h3 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.15em]">{t('support.instant_answers')}</h3>
            </div>
            
            <div className="grid grid-cols-1 gap-3">
@@ -127,7 +129,7 @@ const Support: React.FC = () => {
               >
                  <div className="flex items-center gap-3">
                     <HelpCircle className="size-4 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Explorar Centro de Ayuda</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('support.explore_help')}</span>
                  </div>
                  <ExternalLink className="size-3 text-slate-300 group-hover:text-primary" />
               </button>
@@ -135,7 +137,7 @@ const Support: React.FC = () => {
               <button className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 group">
                  <div className="flex items-center gap-3">
                     <ShieldCheck className="size-4 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Reportar Bug de Seguridad</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('support.report_bug')}</span>
                  </div>
                  <ExternalLink className="size-3 text-slate-300 group-hover:text-primary" />
               </button>
@@ -145,9 +147,9 @@ const Support: React.FC = () => {
         {/* FOOTER INFO */}
         <div className="flex flex-col items-center gap-6 pt-8">
            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Soporte disponible en Español e Inglés</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('support.available_languages')}</span>
            </div>
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-12">ID DE NODO: TS-SUP-GLOBAL-882</p>
+           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-12">{t('support.node_id')}: TS-SUP-GLOBAL-882</p>
         </div>
 
       </main>
