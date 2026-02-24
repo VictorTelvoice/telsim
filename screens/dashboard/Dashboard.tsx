@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useMessagesCount } from '../../contexts/MessagesContext';
 import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
 import NotificationsMenu from '../../components/NotificationsMenu';
@@ -367,6 +368,7 @@ const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { unreadSmsCount, refreshUnreadCount } = useMessagesCount();
 
   const fetchData = useCallback(async (forcedLine?: string) => {
     if (!user) return;
@@ -424,6 +426,7 @@ const Dashboard: React.FC = () => {
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
         setRecentMessages(prev => [newMsg, ...prev.slice(0, 4)]);
+        showToast("Nuevo SMS Recibido");
       })
       .subscribe();
 
@@ -461,6 +464,24 @@ const Dashboard: React.FC = () => {
         toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
         setTimeout(() => toast.remove(), 300);
     }, 2000);
+  };
+
+  const handleMarkAsReadAndRedirect = async () => {
+    if (!user || !activeSlot) return;
+    
+    try {
+      await supabase
+        .from('sms_logs')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+      
+      await refreshUnreadCount();
+      navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`);
+    } catch (err) {
+      console.error("Error marking as read:", err);
+      navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`);
+    }
   };
 
   return (
@@ -548,9 +569,18 @@ const Dashboard: React.FC = () => {
                         {activeSlot ? 'NODO ACTIVO' : 'SIN ASIGNACIÓN'}
                     </span>
                 </div>
-                <div className="size-8 bg-primary rounded-lg items-center justify-center text-white flex shadow-sm">
+                <button 
+                  onClick={handleMarkAsReadAndRedirect}
+                  disabled={!activeSlot}
+                  className="size-8 bg-primary rounded-lg items-center justify-center text-white flex shadow-sm hover:scale-110 active:scale-95 transition-transform disabled:opacity-50 disabled:hover:scale-100 relative"
+                >
                    <span className="material-symbols-outlined text-[18px]">sim_card</span>
-                </div>
+                   {unreadSmsCount > 0 && (
+                     <span className="absolute -top-1 -right-1 size-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-surface-dark animate-bounce">
+                       {unreadSmsCount}
+                     </span>
+                   )}
+                </button>
             </div>
             <div className="text-center mb-6">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Línea Principal TELSIM</p>

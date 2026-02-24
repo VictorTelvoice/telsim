@@ -189,10 +189,10 @@ const Webhooks: React.FC = () => {
               Cuando tu número SIM recibe un SMS, nosotros enviamos una petición HTTP POST a la URL que configures arriba con los detalles del mensaje.
             </p>
             <button 
-              onClick={() => window.open('https://webhook.site', '_blank')}
+              onClick={() => navigate('/dashboard/webhooks/guide')}
               className="w-full py-3 bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-800 rounded-xl text-[10px] font-black text-primary uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors"
             >
-              Probar con webhook.site
+              Ver Guía de Configuración
               <ExternalLink className="size-3" />
             </button>
           </div>
