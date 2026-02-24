@@ -6,10 +6,29 @@ const Summary: React.FC = () => {
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
   
-  const planData = location.state || {};
+  const planData = useMemo(() => {
+    if (location.state && location.state.planName) return location.state;
+    
+    const savedPlanId = localStorage.getItem('selected_plan');
+    if (savedPlanId) {
+      const mapping: Record<string, any> = {
+        starter: { planName: 'Starter', stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' },
+        pro:     { planName: 'Pro',     stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM' },
+        power:   { planName: 'Power',   stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe' }
+      };
+      return mapping[savedPlanId] || {};
+    }
+    return {};
+  }, [location.state]);
+
   const planName = planData.planName || 'Pro';
   const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
   
+  // Clear the saved plan once it's been loaded into the component state
+  React.useEffect(() => {
+    localStorage.removeItem('selected_plan');
+  }, []);
+
   const planDetails = useMemo(() => {
     const plans: Record<string, { price: number; limit: number; features: string[] }> = {
       Starter: { 
