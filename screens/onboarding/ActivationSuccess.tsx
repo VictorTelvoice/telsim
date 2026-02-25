@@ -13,7 +13,7 @@ interface ActivationData {
   monthlyLimit: number;
 }
 
-const UpgradeSuccess: React.FC = () => {
+const ActivationSuccess: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -24,14 +24,11 @@ const UpgradeSuccess: React.FC = () => {
   const notifSent = useRef(false);
 
   const sessionId = new URLSearchParams(location.search).get('session_id');
-  const planParam = new URLSearchParams(location.search).get('plan');
-  const numParam = new URLSearchParams(location.search).get('num');
 
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 7);
   const renewal = new Date();
-  renewal.setDate(renewal.getDate() + 30);
-  const nextRenewal = new Date();
-  nextRenewal.setDate(nextRenewal.getDate() + 60);
-  
+  renewal.setDate(renewal.getDate() + 37);
   const fmt = (d: Date) => d.toLocaleDateString(language === 'es' ? 'es-CL' : 'en-US', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const formatPhone = (num: string) => {
@@ -49,58 +46,32 @@ const UpgradeSuccess: React.FC = () => {
   };
 
   useEffect(() => {
-    const resolveData = async () => {
-      // 1. Intentar desde location.state
-      if (location.state?.planName) {
+    const load = async () => {
+      // Datos desde location.state (viene de Processing.tsx)
+      if (location.state?.phoneNumber) {
         setData(location.state as ActivationData);
         return;
       }
-
-      // 2. Intentar desde URL params
-      if (planParam) {
-        setData({
-          planName: planParam,
-          phoneNumber: numParam || '',
-          amount: 0, // Fallback if not provided
-          currency: 'usd',
-          monthlyLimit: 0
-        });
-        // We might want to fetch full data from supabase if we only have params
-      }
-
-      // 3. Fallback: Supabase (Buscar última suscripción activa)
+      // Fallback: consultar Supabase
       if (user) {
         const { data: sub } = await supabase
           .from('subscriptions')
           .select('phone_number, plan_name, amount, currency, monthly_limit')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1)
+          .eq('stripe_session_id', sessionId)
           .maybeSingle();
-        
-        if (sub) {
-          setData({
-            phoneNumber: sub.phone_number,
-            planName: sub.plan_name,
-            amount: sub.amount,
-            currency: sub.currency,
-            monthlyLimit: sub.monthly_limit
-          });
-        }
+        if (sub) setData({ phoneNumber: sub.phone_number, planName: sub.plan_name, amount: sub.amount, currency: sub.currency, monthlyLimit: sub.monthly_limit });
       }
     };
-
-    resolveData();
-  }, [user, sessionId, location.state, planParam, numParam]);
+    load();
+  }, [user, sessionId]);
 
   // Enviar notificación una sola vez
   useEffect(() => {
     if (!data || notifSent.current) return;
     notifSent.current = true;
     addNotification({
-      title: '🔄 Plan Actualizado',
-      message: `Tu plan ${data.planName} está activo. Número: ${formatPhone(data.phoneNumber)}.`,
+      title: '✅ Nueva Suscripción Activada',
+      message: `Tu plan ${data.planName} está activo. Número asignado: ${formatPhone(data.phoneNumber)}. Primer cobro el ${fmt(trialEnd)}.`,
       type: 'subscription'
     });
   }, [data]);
@@ -133,14 +104,14 @@ const UpgradeSuccess: React.FC = () => {
 
           <div style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 12px', background:colors.accentBg, border:`1px solid ${colors.accentBorder}`, borderRadius:'999px', marginBottom:'14px' }}>
             <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:colors.accent, animation:'pulse 1.8s ease-in-out infinite' }} />
-            <span style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em', color:colors.accent }}>Plan Actualizado</span>
+            <span style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em', color:colors.accent }}>Línea Activada</span>
           </div>
 
           <h1 className="text-slate-900 dark:text-white" style={{ fontSize:'26px', fontWeight:600, textTransform:'uppercase', letterSpacing:'-0.02em', lineHeight:1.15, marginBottom:'8px' }}>
-            ¡Upgrade<br/>Completo!
+            ¡Activación<br/>Completa!
           </h1>
           <p className="text-slate-500 dark:text-slate-400" style={{ fontSize:'13px', fontWeight:400, lineHeight:1.5 }}>
-            Tu plan ha sido actualizado con éxito.
+            Tu SIM física está operativa y lista para su uso.
           </p>
         </div>
 
@@ -191,9 +162,9 @@ const UpgradeSuccess: React.FC = () => {
             <span className="text-slate-900 dark:text-white" style={{ fontSize:'10px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>Ciclo de Facturación</span>
           </div>
           {[
-            { dot:'#10b981', label:'HOY — UPGRADE APLICADO', desc:'Cambio de plan procesado con éxito', color:'#10b981', line:true },
-            { dot:colors.accent, label:fmt(renewal).toUpperCase(), desc:`Próxima renovación · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
-            { dot:'rgba(148,163,184,0.3)', label:fmt(nextRenewal).toUpperCase(), desc:'Siguiente ciclo · y así cada 30 días', color:'#94a3b8', line:false },
+            { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
+            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
+            { dot:'rgba(148,163,184,0.3)', label:fmt(renewal).toUpperCase(), desc:'Segunda renovación · y así cada 30 días', color:'#94a3b8', line:false },
           ].map((row, i) => (
             <div key={i} style={{ display:'flex', gap:'10px' }}>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'10px', flexShrink:0, paddingTop:'2px' }}>
@@ -212,7 +183,7 @@ const UpgradeSuccess: React.FC = () => {
         <div className="relative z-10" style={{ borderRadius:'14px', border:`1px solid ${colors.accentBorder}`, background:colors.accentBg, padding:'14px', display:'flex', gap:'10px', marginBottom:'24px' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:'1px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <p className="text-slate-500 dark:text-slate-400" style={{ fontSize:'11px', fontWeight:400, lineHeight:1.6 }}>
-            Servicio prepago. Tu nueva tarifa se aplicará en la próxima fecha de cobro. Sin permanencia mínima.
+            Servicio prepago. Cancela antes del <strong className="text-slate-900 dark:text-white" style={{ fontWeight:700 }}>{fmt(trialEnd)}</strong> y no se realiza ningún cobro. Sin permanencia mínima.
           </p>
         </div>
 
@@ -248,4 +219,4 @@ const UpgradeSuccess: React.FC = () => {
   );
 };
 
-export default UpgradeSuccess;
+export default ActivationSuccess;

@@ -33,14 +33,18 @@ export default async function handler(req: any, res: any) {
     // 2. Verificar si ya existe en nuestra DB (procesado por webhook)
     const { data: subscription } = await supabaseAdmin
       .from('subscriptions')
-      .select('phone_number')
+      .select('phone_number, plan_name, amount, currency, monthly_limit')
       .eq('stripe_session_id', sessionId)
       .maybeSingle();
 
     if (subscription) {
       return res.status(200).json({ 
         status: 'completed', 
-        phoneNumber: subscription.phone_number 
+        phoneNumber: subscription.phone_number,
+        planName: subscription.plan_name,
+        amount: subscription.amount,
+        currency: subscription.currency,
+        monthlyLimit: subscription.monthly_limit
       });
     }
 

@@ -16,6 +16,7 @@ import Summary from './screens/onboarding/Summary';
 import Payment from './screens/onboarding/Payment';
 import Processing from './screens/onboarding/Processing';
 import Success from './screens/onboarding/Success';
+import ActivationSuccess from './screens/onboarding/ActivationSuccess';
 import Dashboard from './screens/dashboard/Dashboard';
 import MyNumbers from './screens/dashboard/MyNumbers';
 import Profile from './screens/dashboard/Profile';
@@ -188,6 +189,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/onboarding/success" 
                           element={<ProtectedRoute><Success /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/onboarding/activation-success" 
+                          element={<ProtectedRoute><ActivationSuccess /></ProtectedRoute>} 
                         />
                         <Route 
                           path="/dashboard" 

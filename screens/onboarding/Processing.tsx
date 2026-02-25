@@ -61,7 +61,7 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, status').eq('status', 'active');
+      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').eq('status', 'active');
       
       if (subId) {
         query = query.eq('id', subId);
@@ -79,12 +79,29 @@ const Processing: React.FC = () => {
         const phone = data.phone_number || '';
         if (isUpgrade) {
           const plan = searchParams.get('plan') || 'POWER';
-          navigate(`/dashboard/upgrade-success?num=${encodeURIComponent(phone)}&plan=${plan}`, { replace: true });
+          navigate(`/dashboard/upgrade-success?num=${encodeURIComponent(phone)}&plan=${plan}`, { 
+            replace: true,
+            state: {
+              phoneNumber: data.phone_number,
+              planName: data.plan_name,
+              amount: data.amount,
+              currency: data.currency,
+              monthlyLimit: data.monthly_limit
+            }
+          });
           return;
         }
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        setActivatedNumber(phone);
-        setTimeout(() => setIsSuccess(true), 100);
+        navigate('/onboarding/activation-success', {
+          replace: true,
+          state: {
+            phoneNumber: data.phone_number,
+            planName: data.plan_name,
+            amount: data.amount,
+            currency: data.currency,
+            monthlyLimit: data.monthly_limit
+          }
+        });
       }
     } catch (err) { console.debug("Polling retry...", err); }
   };

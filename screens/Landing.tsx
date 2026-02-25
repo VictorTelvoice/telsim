@@ -7,75 +7,21 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const beneficiosRef = useRef<HTMLDivElement>(null);
   const casosUsoRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
-      if (!ref.current) return;
-      const container = ref.current;
-      const scrollWidth = container.scrollWidth;
-      const clientWidth = container.clientWidth;
-      
-      if (scrollWidth <= clientWidth) return;
+    // Inicialmente centrar en PRO (segunda tarjeta)
+    setTimeout(() => {
+      if (preciosRef.current) {
+        const cardWidth = preciosRef.current.scrollWidth / 3;
+        preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
+      }
+    }, 100);
 
-      const interval = setInterval(() => {
-        if (container.scrollLeft + clientWidth >= scrollWidth - 10) {
-          container.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          container.scrollBy({ left: clientWidth * 0.8, behavior: 'smooth' });
-        }
-      }, 10000);
-
-      return () => clearInterval(interval);
-    };
-
-    const autoScrollPricing = (ref: React.RefObject<HTMLDivElement | null>) => {
-      if (!ref.current) return;
-      const container = ref.current;
-      
-      // Inicialmente centrar en PRO (segunda tarjeta)
-      setTimeout(() => {
-        if (container) {
-          const cardWidth = container.scrollWidth / 3;
-          container.scrollTo({ left: cardWidth, behavior: 'auto' });
-        }
-      }, 100);
-
-      const interval = setInterval(() => {
-        const scrollWidth = container.scrollWidth;
-        const clientWidth = container.clientWidth;
-        const cardWidth = scrollWidth / 3;
-        
-        // Lógica: Pro -> Power -> Starter -> Pro
-        // Si estamos en Pro (centro), vamos a Power (derecha)
-        // Si estamos en Power (derecha), vamos a Starter (izquierda)
-        // Si estamos en Starter (izquierda), vamos a Pro (centro)
-        
-        const currentPos = container.scrollLeft;
-        if (currentPos >= cardWidth * 1.5) { // Estamos en Power
-          container.scrollTo({ left: 0, behavior: 'smooth' }); // Ir a Starter
-        } else if (currentPos <= cardWidth * 0.5) { // Estamos en Starter
-          container.scrollTo({ left: cardWidth, behavior: 'smooth' }); // Ir a Pro
-        } else { // Estamos en Pro
-          container.scrollTo({ left: cardWidth * 2, behavior: 'smooth' }); // Ir a Power
-        }
-      }, 10000);
-
-      return () => clearInterval(interval);
-    };
-
-    const cleanupBeneficios = autoScroll(beneficiosRef);
-    const cleanupCasosUso = autoScroll(casosUsoRef);
-    const cleanupPrecios = autoScrollPricing(preciosRef);
-
-    return () => {
-      cleanupBeneficios?.();
-      cleanupCasosUso?.();
-      cleanupPrecios?.();
-    };
+    return () => {};
   }, []);
   const { user, loading } = useAuth();
 
@@ -326,19 +272,32 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              {t('landing.nav.pricing')}
+              Planes
             </button>
             <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Language Switcher */}
+            <button 
+              onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors text-[11px] font-black text-slate-500 border border-slate-100"
+              title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+            >
+              <span className="material-symbols-rounded text-[18px]">translate</span>
+              <span className="uppercase">{language === 'es' ? 'EN' : 'ES'}</span>
+            </button>
+
             <button onClick={() => navigate('/login')} className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">{t('landing.nav.login')}</button>
-            <button onClick={() => navigate('/login')} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">{t('landing.nav.start')}</button>
+            <button onClick={() => navigate('/login')} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">
+              <span className="hidden sm:inline">{t('landing.nav.start')}</span>
+              <span className="sm:hidden">{t('landing.nav.start_mobile')}</span>
+            </button>
           </div>
         </div>
       </nav>
 
       {/* HERO */}
-      <section className="tech-bg pt-6 pb-20">
+      <section className="tech-bg pt-10 pb-12">
         <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
@@ -415,9 +374,9 @@ const Landing: React.FC = () => {
       </section>
 
       {/* BENEFICIOS */}
-      <section id="beneficios" className="bg-white pt-12 pb-24">
+      <section id="beneficios" className="bg-white py-12">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.benefits.title').replace('<br/>', '<br/>') }}></h2>
           </div>
@@ -443,7 +402,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TELEGRAM SECTION */}
-      <section className="py-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col gap-6 items-center md:items-start text-center md:text-left">
@@ -531,13 +490,13 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg pt-24 pb-12 overflow-hidden">
+      <section id="como-funciona" className="tech-bg py-12 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-8"
           >
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.process.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.process.title')}</h2>
@@ -609,9 +568,9 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CASOS DE USO */}
-      <section className="bg-white py-24">
+      <section className="bg-white py-12">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
             <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
@@ -642,7 +601,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* STATS */}
-      <section className="py-16" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-10" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
@@ -661,17 +620,17 @@ const Landing: React.FC = () => {
       </section>
 
       {/* PRECIOS */}
-      <section id="precios" className="tech-bg py-24">
+      <section id="precios" className="tech-bg py-12">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.pricing.tag')}</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.pricing.title')}</h2>
+          <div className="text-center mb-8">
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Planes</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Elige tu plan</h2>
             <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.pricing.subtitle')}</p>
           </div>
 
           <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
-            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300 min-w-[85vw] md:min-w-0 snap-center">
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[85vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
@@ -750,11 +709,11 @@ const Landing: React.FC = () => {
             </button>
 
             {/* POWER */}
-            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.3)] min-w-[85vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.45)] min-w-[85vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', transition: 'all 0.3s' }}>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('landing.pricing.power.name')}</span>
-                  <div className="w-9 h-9 rounded-xl group-hover:scale-110 transition-transform flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
+                  <div className="w-9 h-9 rounded-xl group-hover:scale-110 group-hover:shadow-[0_0_12px_rgba(245,166,35,0.5)] transition-all flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
                     <span className="material-symbols-rounded text-[18px]" style={{ color: '#D97706' }}>workspace_premium</span>
                   </div>
                 </div>
@@ -790,9 +749,9 @@ const Landing: React.FC = () => {
       </section>
 
       {/* COMPATIBILIDAD */}
-      <section className="py-10 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
-        <div className="max-w-5xl mx-auto px-6 mb-6 text-center">
-          <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-2">{t('landing.compatibility.tag')}</span>
+      <section className="py-6 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+        <div className="max-w-5xl mx-auto px-6 mb-8 text-center">
+          <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-1">{t('landing.compatibility.tag')}</span>
           <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
         </div>
         
@@ -877,7 +836,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CTA FINAL */}
-      <section className="bg-white py-24">
+      <section className="bg-white py-12">
         <div className="max-w-xl mx-auto px-6 text-center flex flex-col items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-button">
             <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
@@ -924,7 +883,7 @@ const Landing: React.FC = () => {
               }} 
               className="hover:text-primary transition-colors"
             >
-              {t('landing.nav.pricing')}
+              Planes
             </button>
             <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
             <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">{t('profile.help')}</button>
