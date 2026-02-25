@@ -27,7 +27,7 @@ const Landing: React.FC = () => {
 
   const handlePlanSelect = (planId: string) => {
     localStorage.setItem('selected_plan', planId);
-    navigate('/register');
+    navigate('/onboarding/checkout');
   };
 
   useEffect(() => {

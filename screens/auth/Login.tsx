@@ -41,7 +41,7 @@ const Login: React.FC = () => {
         
         const savedPlan = localStorage.getItem('selected_plan');
         if (savedPlan) {
-          navigate('/onboarding/summary');
+          navigate('/onboarding/checkout');
         } else {
           navigate('/dashboard');
         }
