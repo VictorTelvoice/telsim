@@ -298,58 +298,25 @@ const Landing: React.FC = () => {
 
       {/* HERO */}
       <section className="tech-bg pt-10 pb-12">
-        <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
-            <div className="signal-dot"></div>
-            {t('landing.hero.badge')}
-            <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
-          </div>
-
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-            {t('landing.hero.title')}<br/><span className="text-primary">{t('landing.hero.subtitle')}</span>
-          </h1>
-
-          <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch] text-center">
-            {t('landing.hero.desc')}
-          </p>
-
-          {/* Feature card */}
-          <div className="relative bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 w-full max-w-lg text-left border border-gray-100 overflow-hidden mx-auto">
-            <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded-bl-2xl shadow-sm tracking-wide">
-              {t('landing.hero.trial_badge')}
+        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-end fade-in">
+          {/* Columna Izquierda */}
+          <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
+              <div className="signal-dot"></div>
+              {t('landing.hero.badge')}
+              <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
             </div>
 
-            <div className="mb-6 pt-1">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{t('landing.pricing.tag')}</p>
-              <div className="flex items-baseline gap-2 flex-wrap mb-1">
-                <h2 className="text-4xl font-extrabold text-emerald-500 tracking-tight">{t('landing.hero.trial_title')}</h2>
-                <span className="text-xl font-bold text-[#1B3A6B]">{t('landing.hero.trial_sub')}</span>
-              </div>
-              <p className="text-sm font-medium text-gray-400">{t('landing.hero.trial_footer')}</p>
-            </div>
+            <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
+              {t('landing.hero.title')}<br/><span className="text-primary">{t('landing.hero.subtitle')}</span>
+            </h1>
 
-            <div className="space-y-4">
-              {[
-                { label: t('landing.hero.feature1'), sub: t('landing.hero.feature1_sub') },
-                { label: t('landing.hero.feature2') },
-                { label: t('landing.hero.feature3') },
-                { label: t('landing.hero.feature4') },
-                { label: t('landing.hero.feature5') }
-              ].map((f, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5">
-                    <span className="material-symbols-rounded text-white text-[13px]">check</span>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-600">
-                    {f.label} {f.sub && <span className="text-slate-400">{f.sub}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+            <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch]">
+              {t('landing.hero.desc')}
+            </p>
 
-          <div className="w-full flex flex-col items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Botones Mobile */}
+            <div className="flex flex-col sm:flex-row gap-3 md:hidden w-full">
               <button 
                 onClick={() => {
                   const el = document.getElementById('precios');
@@ -365,9 +332,66 @@ const Landing: React.FC = () => {
                 {t('common.see_how')}
               </a>
             </div>
-            <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center">
+
+            <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
+            </div>
+          </div>
+
+          {/* Columna Derecha */}
+          <div className="w-full md:w-[360px] flex flex-col gap-0">
+            {/* Feature card */}
+            <div className="relative bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 w-full text-left border border-gray-100 overflow-hidden">
+              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded-bl-2xl shadow-sm tracking-wide">
+                {t('landing.hero.trial_badge')}
+              </div>
+
+              <div className="mb-6 pt-1">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{t('landing.pricing.tag')}</p>
+                <div className="flex items-baseline gap-2 flex-wrap mb-1">
+                  <h2 className="text-4xl font-extrabold text-emerald-500 tracking-tight">{t('landing.hero.trial_title')}</h2>
+                  <span className="text-xl font-bold text-[#1B3A6B]">{t('landing.hero.trial_sub')}</span>
+                </div>
+                <p className="text-sm font-medium text-gray-400">{t('landing.hero.trial_footer')}</p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { label: t('landing.hero.feature1'), sub: t('landing.hero.feature1_sub') },
+                  { label: t('landing.hero.feature2') },
+                  { label: t('landing.hero.feature3') },
+                  { label: t('landing.hero.feature4') },
+                  { label: t('landing.hero.feature5') }
+                ].map((f, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5">
+                      <span className="material-symbols-rounded text-white text-[13px]">check</span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-600">
+                      {f.label} {f.sub && <span className="text-slate-400">{f.sub}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botones Desktop */}
+            <div className="hidden md:flex gap-2.5 mt-3.5">
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('precios');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }} 
+                className="bg-primary hover:bg-primary-dark text-white font-bold py-3.5 px-5 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98] whitespace-nowrap"
+              >
+                {t('common.try_free')}
+                <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
+              </button>
+              <a href="#como-funciona" className="bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all whitespace-nowrap">
+                <span className="material-symbols-rounded text-[20px]">play_circle</span>
+                {t('common.see_how')}
+              </a>
             </div>
           </div>
         </div>
