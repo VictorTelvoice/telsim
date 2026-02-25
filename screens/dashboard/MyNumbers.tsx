@@ -100,6 +100,7 @@ const MyNumbers: React.FC = () => {
     const [isFwdModalOpen, setIsFwdModalOpen] = useState(false);
     const [activeConfigSlot, setActiveConfigSlot] = useState<SlotWithPlan | null>(null);
     const [savingFwd, setSavingFwd] = useState(false);
+    const [testingTg, setTestingTg] = useState(false);
     const [slotFwdActive, setSlotFwdActive] = useState(false);
 
     const [showUpgradeView, setShowUpgradeView] = useState(false);
@@ -282,6 +283,41 @@ const MyNumbers: React.FC = () => {
             showToast(t('common.error'), "error");
         } finally {
             setSavingFwd(false);
+        }
+    };
+
+    const handleTestTelegram = async () => {
+        if (!user) return;
+        setTestingTg(true);
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('telegram_token, telegram_chat_id')
+                .eq('id', user.id)
+                .single();
+            
+            if (error) throw error;
+            if (!data?.telegram_token || !data?.telegram_chat_id) {
+                showToast(t('tg.test_error'), "error");
+                return;
+            }
+
+            const response = await fetch(`https://api.telegram.org/bot${data.telegram_token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: data.telegram_chat_id,
+                    text: t('tg.test_message')
+                }),
+            });
+
+            if (!response.ok) throw new Error('Telegram API error');
+            showToast(t('tg.test_success'));
+        } catch (err) {
+            console.error(err);
+            showToast(t('tg.test_error'), "error");
+        } finally {
+            setTestingTg(false);
         }
     };
 
@@ -578,13 +614,23 @@ const MyNumbers: React.FC = () => {
                                 </p>
                             </div>
 
-                            <button 
-                                onClick={handleSaveAutomation}
-                                disabled={savingFwd}
-                                className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
-                            >
-                                {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : t('common.save_changes')}
-                            </button>
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={handleTestTelegram}
+                                    disabled={testingTg || savingFwd}
+                                    className="w-full h-12 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    {testingTg ? <Loader2 className="size-4 animate-spin" /> : <><Send className="size-4" /> {t('tg.test_connection')}</>}
+                                </button>
+
+                                <button 
+                                    onClick={handleSaveAutomation}
+                                    disabled={savingFwd || testingTg}
+                                    className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                                >
+                                    {savingFwd ? <Loader2 className="size-4 animate-spin mx-auto" /> : t('common.save_changes')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

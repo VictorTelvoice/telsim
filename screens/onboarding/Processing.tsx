@@ -76,17 +76,15 @@ const Processing: React.FC = () => {
       const { data } = await query.maybeSingle();
 
       if (data?.status === 'active') {
-        const phone = data.phone_number || 'Sincronizando...';
-        setActivatedNumber(phone);
-        
+        const phone = data.phone_number || '';
         if (isUpgrade) {
           const plan = searchParams.get('plan') || 'POWER';
-          navigate(`/dashboard/upgrade-success?num=${phone}&plan=${plan}`, { replace: true });
+          navigate(`/dashboard/upgrade-success?num=${encodeURIComponent(phone)}&plan=${plan}`, { replace: true });
           return;
         }
-
-        setIsSuccess(true);
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setActivatedNumber(phone);
+        setTimeout(() => setIsSuccess(true), 100);
       }
     } catch (err) { console.debug("Polling retry...", err); }
   };

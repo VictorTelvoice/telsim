@@ -4,12 +4,13 @@ type Language = 'en' | 'es';
 
 interface Translations {
   [key: string]: {
-    [key: string]: string;
+    [key: string]: string | string[];
   };
 }
 
 const translations: Translations = {
   en: {
+    'common.locale': 'en',
     'common.copy': 'Copy',
     'common.copied': 'Copied',
     'common.loading': 'Loading...',
@@ -54,6 +55,8 @@ const translations: Translations = {
     'landing.hero.feature5': '24/7 Priority Support',
     'landing.hero.autonomy': '100% autonomy',
     'landing.hero.activation': '5 min activation',
+
+    'landing.cta.title': 'Your bot deserves its own number.',
 
     'landing.nav.benefits': 'Benefits',
     'landing.nav.how_it_works': 'How it works',
@@ -438,6 +441,11 @@ const translations: Translations = {
     'tg.view_guide': 'View configuration guide',
     'tg.config_saved': 'Telegram configuration saved correctly',
     'tg.save_error': 'Error saving configuration',
+    'tg.test_connection': 'Test Connection',
+    'tg.testing': 'Testing...',
+    'tg.test_success': 'Test message sent! Check your Telegram.',
+    'tg.test_error': 'Error sending test message. Check your Token and Chat ID.',
+    'tg.test_message': '🚀 TELSIM: Connection test successful! Your bot is ready to receive SMS.',
 
     'tg_guide.title': 'Setup Guide',
     'tg_guide.header': '🤖 Configure your Telegram Bot',
@@ -609,21 +617,6 @@ const translations: Translations = {
     'webhook_guide.download_pdf': 'Download PDF Manual',
     'webhook_guide.doubts': 'Questions? support@telsim.io',
 
-    'onboarding.step': 'Step',
-    'onboarding.of': 'of',
-    'onboarding.next': 'Next',
-    'onboarding.region_title': 'Step 1: Choose your region',
-    'onboarding.region_sub': 'Select between Chile, Argentina or Peru to get a real local physical number.',
-    'onboarding.plan_title': 'Choose your plan',
-    'onboarding.plan_sub': 'Select the power your communication needs.',
-    'onboarding.summary_title': 'Review your subscription',
-    'onboarding.summary_sub': 'Confirm details before proceeding to secure payment.',
-    'onboarding.total_today': 'Total today',
-    'onboarding.free_trial_btn': 'Start Free Trial',
-    'onboarding.success_title': 'All ready!',
-    'onboarding.success_sub_flex': 'Your private number has been successfully activated and you can now receive SMS.',
-    'onboarding.success_sub_power': 'Automation infrastructure initialized successfully.',
-    'onboarding.enter_panel': 'Enter Panel',
     'vault.security_protocol': 'Security Protocol',
     'vault.title': 'Armored 2FA Vault',
     'vault.risk_warning': 'Avoid SIM Swapping and Identity Theft',
@@ -671,6 +664,21 @@ const translations: Translations = {
     'sniper.step3_desc': 'Beat the payment gateway SMS verification before stock runs out. Ideal for second-long launches.',
     'sniper.compatible_stores': 'Compatible Stores',
     'sniper.activate_mode': 'Activate Sniper Mode',
+    'sniper.feature_real_sim': 'Real SIM Number (no VoIP)',
+    'sniper.feature_real_time': 'Real-time notifications',
+    'sniper.feature_app_view': 'SMS in App',
+    'sniper.feature_ticket_support': 'Technical support via Ticket',
+    'sniper.feature_all_starter': 'Everything in Starter',
+    'sniper.feature_automated': '100% automated SMS (No intervention)',
+    'sniper.feature_api_webhooks': 'API, Webhooks and TelegramBot access',
+    'sniper.feature_chat_support': 'Technical support via Ticket and Live Chat',
+    'sniper.feature_all_pro': 'Everything in Pro',
+    'sniper.feature_enterprise_security': 'Enterprise Security and Control',
+    'sniper.feature_scalability': 'Custom Integrations and Scalability',
+    'sniper.feature_priority_support': '24/7 Priority Support',
+    'sniper.ideal_for_starter': 'Individual users and Developers',
+    'sniper.ideal_for_pro': 'DevOps teams and Automators',
+    'sniper.ideal_for_power': 'Fintech, Corporates and P2P Platforms',
     'bypass.automation_protocol': 'Pro Automation Protocol',
     'bypass.title': 'Bypass Antibots',
     'bypass.real_sim_tech': 'Real Physical SIM Technology',
@@ -845,6 +853,8 @@ const translations: Translations = {
     'landing.hero.feature5': 'Soporte Prioritario 24/7',
     'landing.hero.autonomy': '100% autonomía',
     'landing.hero.activation': 'Activación en 5 min',
+
+    'landing.cta.title': 'Tu bot merece su propio número.',
 
     'landing.nav.benefits': 'Beneficios',
     'landing.nav.how_it_works': 'Cómo funciona',
@@ -1229,6 +1239,11 @@ const translations: Translations = {
     'tg.view_guide': 'Ver guía de configuración',
     'tg.config_saved': 'Configuración de Telegram guardada correctamente',
     'tg.save_error': 'Error al guardar la configuración',
+    'tg.test_connection': 'Probar Conexión',
+    'tg.testing': 'Probando...',
+    'tg.test_success': '¡Mensaje de prueba enviado! Revisa tu Telegram.',
+    'tg.test_error': 'Error al enviar mensaje de prueba. Revisa tu Token y Chat ID.',
+    'tg.test_message': '🚀 TELSIM: ¡Prueba de conexión exitosa! Tu bot está listo para recibir SMS.',
 
     'tg_guide.title': 'Guía de Configuración',
     'tg_guide.header': '🤖 Configura tu Bot de Telegram',
@@ -1400,21 +1415,6 @@ const translations: Translations = {
     'webhook_guide.download_pdf': 'Descargar Manual PDF',
     'webhook_guide.doubts': '¿Dudas? soporte@telsim.io',
 
-    'onboarding.step': 'Paso',
-    'onboarding.of': 'de',
-    'onboarding.next': 'Siguiente',
-    'onboarding.region_title': 'Paso 1: Elige tu región',
-    'onboarding.region_sub': 'Selecciona entre Chile, Argentina o Perú para obtener un número local físico y real.',
-    'onboarding.plan_title': 'Elige tu plan',
-    'onboarding.plan_sub': 'Selecciona la potencia que necesita tu comunicación.',
-    'onboarding.summary_title': 'Revisa tu suscripción',
-    'onboarding.summary_sub': 'Confirma los detalles antes de proceder al pago seguro.',
-    'onboarding.total_today': 'Total hoy',
-    'onboarding.free_trial_btn': 'Iniciar Prueba Gratis',
-    'onboarding.success_title': '¡Todo listo!',
-    'onboarding.success_sub_flex': 'Tu número privado ha sido activado con éxito y ya puedes recibir SMS.',
-    'onboarding.success_sub_power': 'Infraestructura de automatización inicializada correctamente.',
-    'onboarding.enter_panel': 'Entrar al Panel',
     'vault.security_protocol': 'Protocolo de Seguridad',
     'vault.title': 'Bóveda 2FA Blindada',
     'vault.risk_warning': 'Evita el SIM Swapping y Robo de Identidad',
@@ -1462,6 +1462,21 @@ const translations: Translations = {
     'sniper.step3_desc': 'Supera la verificación SMS de la pasarela de pago antes de que el stock se agote. Ideal para lanzamientos de segundos.',
     'sniper.compatible_stores': 'Tiendas Compatibles',
     'sniper.activate_mode': 'Activar Sniper Mode',
+    'sniper.feature_real_sim': 'Número SIM Real (no VoIP)',
+    'sniper.feature_real_time': 'Notificaciones en tiempo real',
+    'sniper.feature_app_view': 'Visualización en App',
+    'sniper.feature_ticket_support': 'Soporte técnico vía Ticket',
+    'sniper.feature_all_starter': 'Todo lo incluido en Starter',
+    'sniper.feature_automated': 'SMS 100% automatizados (Sin intervención)',
+    'sniper.feature_api_webhooks': 'Acceso a API, Webhooks y TelegramBot',
+    'sniper.feature_chat_support': 'Soporte técnico vía Ticket y Chat en vivo',
+    'sniper.feature_all_pro': 'Todo lo incluido en Pro',
+    'sniper.feature_enterprise_security': 'Seguridad y Control Empresarial',
+    'sniper.feature_scalability': 'Integraciones Personalizadas y Escalabilidad',
+    'sniper.feature_priority_support': 'Soporte Prioritario 24/7',
+    'sniper.ideal_for_starter': 'Usuarios individuales y Desarrolladores',
+    'sniper.ideal_for_pro': 'Equipos DevOps y Automatizadores',
+    'sniper.ideal_for_power': 'Fintech, Corporativos y Plataformas P2P',
     'bypass.automation_protocol': 'Protocolo Pro Automation',
     'bypass.title': 'Bypass Antibots',
     'bypass.real_sim_tech': 'Tecnología SIM Física Real',
@@ -1596,7 +1611,7 @@ const translations: Translations = {
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -1611,8 +1626,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('telsim_lang', language);
   }, [language]);
 
-  const t = (key: string) => {
-    return translations[language][key] || key;
+  const t = (key: string, vars?: Record<string, string | number>) => {
+    let text = translations[language][key] as string || key;
+    if (vars) {
+      Object.entries(vars).forEach(([k, v]) => {
+        text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      });
+    }
+    return text;
   };
 
   return (

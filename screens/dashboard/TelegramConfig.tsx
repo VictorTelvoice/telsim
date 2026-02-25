@@ -25,6 +25,7 @@ const TelegramConfig: React.FC = () => {
   const [tgChatId, setTgChatId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -50,6 +51,35 @@ const TelegramConfig: React.FC = () => {
 
     fetchConfig();
   }, [user]);
+
+  const handleTestConnection = async () => {
+    if (!tgToken || !tgChatId) {
+      alert(t('tg.test_error'));
+      return;
+    }
+    setTesting(true);
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text: t('tg.test_message')
+        }),
+      });
+
+      if (!response.ok) throw new Error('Telegram API error');
+      
+      alert(t('tg.test_success'));
+    } catch (err) {
+      console.error(err);
+      alert(t('tg.test_error'));
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -136,10 +166,28 @@ const TelegramConfig: React.FC = () => {
             <p className="text-[10px] text-slate-400 font-medium ml-1">{t('tg.userinfobot_hint')}</p>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 space-y-4">
+            <button 
+              onClick={handleTestConnection}
+              disabled={testing || saving}
+              className="w-full h-14 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 border border-blue-500/20 shadow-sm"
+            >
+              {testing ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t('tg.testing')}
+                </>
+              ) : (
+                <>
+                  <Send className="size-4" />
+                  {t('tg.test_connection')}
+                </>
+              )}
+            </button>
+
             <button 
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || testing}
               className="w-full h-16 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving ? (

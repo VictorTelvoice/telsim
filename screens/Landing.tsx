@@ -338,7 +338,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO */}
-      <section className="tech-bg py-20">
+      <section className="tech-bg pt-6 pb-20">
         <div className="max-w-3xl mx-auto px-6 flex flex-col items-center text-center gap-6 fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
             <div className="signal-dot"></div>
@@ -790,8 +790,8 @@ const Landing: React.FC = () => {
       </section>
 
       {/* COMPATIBILIDAD */}
-      <section className="py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
-        <div className="max-w-5xl mx-auto px-6 mb-12 text-center">
+      <section className="py-10 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+        <div className="max-w-5xl mx-auto px-6 mb-6 text-center">
           <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-2">{t('landing.compatibility.tag')}</span>
           <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
         </div>
@@ -883,7 +883,7 @@ const Landing: React.FC = () => {
             <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
           </div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            {t('landing.hero.title')}
+            {t('landing.cta.title')}
           </h2>
           <p className="text-slate-500 text-base font-medium">{t('landing.hero.trial_footer')}</p>
           <button 
