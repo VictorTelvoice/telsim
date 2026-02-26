@@ -8,6 +8,7 @@ import { useMessagesCount } from '../../contexts/MessagesContext';
 import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
 import NotificationsMenu from '../../components/NotificationsMenu';
+import SideDrawer from '../../components/SideDrawer';
 import { 
   ShieldCheck, 
   Bot, 
@@ -361,6 +362,7 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
 
 const Dashboard: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [allSlots, setAllSlots] = useState<Slot[]>([]);
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [recentMessages, setRecentMessages] = useState<SMSLog[]>([]);
@@ -369,8 +371,12 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language: currentLang, setLanguage: handleLangChange } = useLanguage();
   const { unreadSmsCount, refreshUnreadCount } = useMessagesCount();
+  const { unreadCount: unreadNotificationsCount } = useNotifications();
+
+  const userName = user?.user_metadata?.full_name || user?.email || 'Usuario';
+  const userPlan = user?.user_metadata?.plan || 'Starter';
 
   const fetchData = useCallback(async (forcedLine?: string) => {
     if (!user) return;
@@ -489,7 +495,10 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
       <header className="flex items-center gap-3 px-6 py-4 bg-background-light dark:bg-background-dark sticky top-0 z-50">
-        <button className="p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition text-slate-800 dark:text-white flex-shrink-0">
+        <button 
+          onClick={() => setDrawerOpen(true)}
+          className="p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition text-slate-800 dark:text-white flex-shrink-0"
+        >
             <span className="material-icons-round">menu</span>
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0 relative">
@@ -629,6 +638,16 @@ const Dashboard: React.FC = () => {
 
         <UseCasesShowcase />
       </main>
+
+      <SideDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        user={{ name: userName, plan: userPlan }}
+        unreadMessages={unreadSmsCount}
+        unreadNotifications={unreadNotificationsCount}
+        currentLang={currentLang}
+        onLangChange={handleLangChange as (lang: string) => void}
+      />
     </div>
   );
 };

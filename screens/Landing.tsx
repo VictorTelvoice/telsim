@@ -16,6 +16,7 @@ const Landing: React.FC = () => {
   const [beneficiosPage, setBeneficiosPage] = useState(0);
   const [casosPage, setCasosPage] = useState(0);
   const [planesPage, setPlanesPage] = useState(0);
+  const [testimoniosPage, setTestimoniosPage] = useState(0);
 
   useEffect(() => {
     // Inicialmente centrar en PRO (segunda tarjeta)
@@ -42,6 +43,7 @@ const Landing: React.FC = () => {
     const benefEl = beneficiosRef.current;
     const casosEl = casosUsoRef.current;
     const planesEl = preciosRef.current;
+    const testimEl = testimonialsRef.current;
 
     const handleBeneficios = () => {
       if (!benefEl) return;
@@ -55,10 +57,15 @@ const Landing: React.FC = () => {
       if (!planesEl) return;
       setPlanesPage(Math.round(planesEl.scrollLeft / (planesEl.scrollWidth / 3)));
     };
+    const handleTestimonios = () => {
+      if (!testimEl) return;
+      setTestimoniosPage(Math.round(testimEl.scrollLeft / (testimEl.scrollWidth / 6)));
+    };
 
     benefEl?.addEventListener('scroll', handleBeneficios, { passive: true });
     casosEl?.addEventListener('scroll', handleCasos, { passive: true });
     planesEl?.addEventListener('scroll', handlePlanes, { passive: true });
+    testimEl?.addEventListener('scroll', handleTestimonios, { passive: true });
 
     // Hint scroll — desliza y vuelve para indicar que hay más cards
     const hintScroll = (el: HTMLDivElement | null, delay = 900) => {
@@ -71,12 +78,14 @@ const Landing: React.FC = () => {
     hintScroll(benefEl, 900);
     hintScroll(casosEl, 1100);
     hintScroll(planesEl, 1300);
+    hintScroll(testimEl, 1500);
 
     return () => {
       cleanupTestimonials?.();
       benefEl?.removeEventListener('scroll', handleBeneficios);
       casosEl?.removeEventListener('scroll', handleCasos);
       planesEl?.removeEventListener('scroll', handlePlanes);
+      testimEl?.removeEventListener('scroll', handleTestimonios);
     };
   }, []);
   const { user, loading } = useAuth();
@@ -888,6 +897,9 @@ const Landing: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="md:hidden">
+              <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
             </div>
             <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-6">
               Miles de bots activos confían en Telsim
