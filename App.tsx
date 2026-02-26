@@ -151,6 +151,19 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
 };
 
 const App: React.FC = () => {
+  React.useEffect(() => {
+    const lockOrientation = async () => {
+      try {
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('portrait');
+        }
+      } catch (_) {
+        // No todos los navegadores soportan lock, se ignora silenciosamente
+      }
+    };
+    lockOrientation();
+  }, []);
+
   return (
     <ThemeProvider>
       <LanguageProvider>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
@@ -12,6 +12,10 @@ const Landing: React.FC = () => {
   const casosUsoRef = useRef<HTMLDivElement>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
+  const [beneficiosPage, setBeneficiosPage] = useState(0);
+  const [casosPage, setCasosPage] = useState(0);
+  const [planesPage, setPlanesPage] = useState(0);
 
   useEffect(() => {
     // Inicialmente centrar en PRO (segunda tarjeta)
@@ -35,14 +39,84 @@ const Landing: React.FC = () => {
 
     const cleanupTestimonials = autoScroll(testimonialsRef);
 
+    const benefEl = beneficiosRef.current;
+    const casosEl = casosUsoRef.current;
+    const planesEl = preciosRef.current;
+
+    const handleBeneficios = () => {
+      if (!benefEl) return;
+      setBeneficiosPage(Math.round(benefEl.scrollLeft / (benefEl.scrollWidth / 6)));
+    };
+    const handleCasos = () => {
+      if (!casosEl) return;
+      setCasosPage(Math.round(casosEl.scrollLeft / (casosEl.scrollWidth / 8)));
+    };
+    const handlePlanes = () => {
+      if (!planesEl) return;
+      setPlanesPage(Math.round(planesEl.scrollLeft / (planesEl.scrollWidth / 3)));
+    };
+
+    benefEl?.addEventListener('scroll', handleBeneficios, { passive: true });
+    casosEl?.addEventListener('scroll', handleCasos, { passive: true });
+    planesEl?.addEventListener('scroll', handlePlanes, { passive: true });
+
+    // Hint scroll — desliza y vuelve para indicar que hay más cards
+    const hintScroll = (el: HTMLDivElement | null, delay = 900) => {
+      if (!el) return;
+      setTimeout(() => {
+        el.scrollTo({ left: 52, behavior: 'smooth' });
+        setTimeout(() => el.scrollTo({ left: 0, behavior: 'smooth' }), 520);
+      }, delay);
+    };
+    hintScroll(benefEl, 900);
+    hintScroll(casosEl, 1100);
+    hintScroll(planesEl, 1300);
+
     return () => {
       cleanupTestimonials?.();
+      benefEl?.removeEventListener('scroll', handleBeneficios);
+      casosEl?.removeEventListener('scroll', handleCasos);
+      planesEl?.removeEventListener('scroll', handlePlanes);
     };
   }, []);
   const { user, loading } = useAuth();
 
   const handlePlanSelect = (planId: string) => {
-    localStorage.setItem('selected_plan', planId);
+    const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; name: string; limit: number }> = {
+      starter: {
+        monthly: 'price_1SzJRLEADSrtMyiaQaDEp44E',
+        annual:  'price_1T52jPEADSrtMyiayfSm4e8m',
+        monthlyPrice: 19.90,
+        annualPrice: 199.00,
+        name: 'Starter',
+        limit: 150,
+      },
+      pro: {
+        monthly: 'price_1SzJS9EADSrtMyiagxHUI2qM',
+        annual:  'price_1T52kUEADSrtMyiavL3rwWqH',
+        monthlyPrice: 39.90,
+        annualPrice: 399.00,
+        name: 'Pro',
+        limit: 400,
+      },
+      power: {
+        monthly: 'price_1SzJSbEADSrtMyiaPEMzNKUe',
+        annual:  'price_1T52l1EADSrtMyiaGkuLXqy5',
+        monthlyPrice: 99.00,
+        annualPrice: 990.00,
+        name: 'Power',
+        limit: 1400,
+      },
+    };
+    const selected = plans[planId];
+    localStorage.setItem('selected_plan', JSON.stringify({
+      planId,
+      planName: selected.name,
+      stripePriceId: isAnnual ? selected.annual : selected.monthly,
+      price: isAnnual ? selected.annualPrice : selected.monthlyPrice,
+      monthlyLimit: selected.limit,
+      billing: isAnnual ? 'annual' : 'monthly',
+    }));
     navigate('/onboarding/checkout');
   };
 
@@ -155,6 +229,40 @@ const Landing: React.FC = () => {
     { name: 'Andrea López', initials: 'AL', color: '#fce7f3', textColor: '#db2777', stars: 5, title: 'Soporte excepcional', body: 'Tuve una duda técnica a las 2am y el equipo respondió en 20 minutos. El servicio es de primera y el número funciona perfecto con todas las apps.' },
     { name: 'Rodrigo Gómez', initials: 'RG', color: '#ecfdf5', textColor: '#059669', stars: 5, title: 'Automatización real', body: 'Probé soluciones VoIP antes y siempre me bloqueaban. Con Telsim tengo una SIM real que ningún servicio detecta como bot. Vale cada peso.' },
   ];
+
+  const ScrollDots = ({
+    total,
+    current,
+    scrollRef,
+  }: {
+    total: number;
+    current: number;
+    scrollRef: React.RefObject<HTMLDivElement | null>;
+  }) => (
+    <div className="flex items-center justify-center gap-1.5 mt-3 md:hidden">
+      {Array.from({ length: total }).map((_, i) => {
+        const diff = Math.abs(i - current);
+        return (
+          <div
+            key={i}
+            onClick={() => {
+              const el = scrollRef.current;
+              if (!el) return;
+              el.scrollTo({ left: (el.scrollWidth / total) * i, behavior: 'smooth' });
+            }}
+            style={{
+              height: '6px',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+              width: diff === 0 ? '20px' : diff === 1 ? '8px' : '6px',
+              background: diff === 0 ? '#1d4ed8' : diff === 1 ? '#cbd5e1' : '#e2e8f0',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
 
   if (loading) return null;
 
@@ -504,6 +612,7 @@ const Landing: React.FC = () => {
               </div>
             ))}
           </div>
+          <ScrollDots total={6} current={beneficiosPage} scrollRef={beneficiosRef} />
         </div>
       </section>
 
@@ -595,6 +704,60 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* CASOS DE USO */}
+      <section className="bg-white py-12">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
+            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
+          </div>
+
+          {/* Mobile: carousel con peek animation */}
+          <div className="md:hidden relative">
+            <div
+              ref={casosUsoRef}
+              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 -mx-6 px-6"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {casosUso.map((c, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-[82vw] snap-start bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3"
+                  style={{ animation: i === 0 ? 'peekHint 1.2s ease-out 0.8s both' : 'none' }}
+                >
+                  <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
+                    <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Fade right edge hint */}
+            <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+            <ScrollDots total={8} current={casosPage} scrollRef={casosUsoRef} />
+          </div>
+
+          {/* Desktop: grid 2 columnas */}
+          <div className="hidden md:grid md:grid-cols-2 gap-2.5">
+            {casosUso.map((c, i) => (
+              <div
+                key={i}
+                className="group bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-blue-100 cursor-pointer"
+              >
+                <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
+                  <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
+                </div>
+                <span className="text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-sm flex-shrink-0 mt-1">→</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CÓMO FUNCIONA */}
       <section id="como-funciona" className="tech-bg py-12 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
@@ -669,59 +832,6 @@ const Landing: React.FC = () => {
                 </motion.div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CASOS DE USO */}
-      <section className="bg-white py-12">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
-            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
-          </div>
-
-          {/* Mobile: carousel con peek animation */}
-          <div className="md:hidden relative">
-            <div
-              ref={casosUsoRef}
-              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 -mx-6 px-6"
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {casosUso.map((c, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0 w-[82vw] snap-start bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3"
-                  style={{ animation: i === 0 ? 'peekHint 1.2s ease-out 0.8s both' : 'none' }}
-                >
-                  <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
-                    <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Fade right edge hint */}
-            <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
-          </div>
-
-          {/* Desktop: grid 2 columnas */}
-          <div className="hidden md:grid md:grid-cols-2 gap-2.5">
-            {casosUso.map((c, i) => (
-              <div
-                key={i}
-                className="group bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-blue-100 cursor-pointer"
-              >
-                <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
-                  <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
-                </div>
-                <span className="text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-sm flex-shrink-0 mt-1">→</span>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -814,6 +924,24 @@ const Landing: React.FC = () => {
             <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.pricing.subtitle')}</p>
           </div>
 
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <span className={`text-sm font-bold transition-colors ${!isAnnual ? 'text-slate-900' : 'text-slate-400'}`}>
+              Mensual
+            </span>
+            <button
+              onClick={() => setIsAnnual(!isAnnual)}
+              className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isAnnual ? 'bg-primary' : 'bg-slate-200'}`}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${isAnnual ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+            <span className={`text-sm font-bold transition-colors ${isAnnual ? 'text-slate-900' : 'text-slate-400'}`}>
+              Anual
+            </span>
+            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 transition-all duration-200 ${isAnnual ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+              Ahorra hasta 17%
+            </span>
+          </div>
+
           <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
             <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
@@ -830,10 +958,15 @@ const Landing: React.FC = () => {
                   <span className="material-symbols-rounded text-slate-500 text-[13px]">sms</span>
                   <span className="text-[11px] font-black text-slate-600">{t('landing.pricing.starter.credits')}</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">$19.90</span>
-                  <span className="text-slate-400 font-semibold">/mo</span>
+                <div className="flex items-baseline gap-1 flex-wrap">
+                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
+                    {isAnnual ? '$199' : '$19.90'}
+                  </span>
+                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
+                {isAnnual && (
+                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $39.80 vs plan mensual</p>
+                )}
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -870,10 +1003,15 @@ const Landing: React.FC = () => {
                   <span className="material-symbols-rounded text-primary text-[13px]">sms</span>
                   <span className="text-[11px] font-black text-primary">{t('landing.pricing.pro.credits')}</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">$39.90</span>
-                  <span className="text-slate-400 font-semibold">/mo</span>
+                <div className="flex items-baseline gap-1 flex-wrap">
+                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
+                    {isAnnual ? '$399' : '$39.90'}
+                  </span>
+                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
+                {isAnnual && (
+                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $79.80 vs plan mensual</p>
+                )}
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -907,10 +1045,15 @@ const Landing: React.FC = () => {
                   <span className="material-symbols-rounded text-[13px]" style={{ color: '#D97706' }}>sms</span>
                   <span className="text-[11px] font-black" style={{ color: '#D97706' }}>{t('landing.pricing.power.credits')}</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-slate-900 transition-colors duration-300">$99.00</span>
-                  <span className="text-slate-400 font-semibold">/mo</span>
+                <div className="flex items-baseline gap-1 flex-wrap">
+                  <span className="text-5xl font-black text-slate-900 transition-colors duration-300">
+                    {isAnnual ? '$990' : '$99.00'}
+                  </span>
+                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
+                {isAnnual && (
+                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $198.00 vs plan mensual</p>
+                )}
               </div>
               <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' }}></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -930,6 +1073,9 @@ const Landing: React.FC = () => {
                 <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform" style={{ color: '#F5A623' }}>arrow_forward</span>
               </div>
             </button>
+          </div>
+          <div className="md:hidden">
+            <ScrollDots total={3} current={planesPage} scrollRef={preciosRef} />
           </div>
         </div>
       </section>
