@@ -10,6 +10,7 @@ const Landing: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const beneficiosRef = useRef<HTMLDivElement>(null);
   const casosUsoRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,7 +22,22 @@ const Landing: React.FC = () => {
       }
     }, 100);
 
-    return () => {};
+    const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
+      const el = ref.current;
+      if (!el) return;
+      const interval = setInterval(() => {
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        if (el.scrollLeft >= maxScroll) el.scrollLeft = 0;
+        else el.scrollLeft += 316;
+      }, 3500);
+      return () => clearInterval(interval);
+    };
+
+    const cleanupTestimonials = autoScroll(testimonialsRef);
+
+    return () => {
+      cleanupTestimonials?.();
+    };
   }, []);
   const { user, loading } = useAuth();
 
@@ -79,6 +95,15 @@ const Landing: React.FC = () => {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  const testimonials = [
+    { name: 'Valentina Reyes', initials: 'VR', color: '#dbeafe', textColor: '#1d4ed8', stars: 5, title: 'La herramienta perfecta para mi bot', body: 'Increíble ahorro de tiempo. Accedo a todos los servicios que requieren verificación OTP sin intervención manual. Totalmente automatizado.' },
+    { name: 'William Davis', initials: 'WD', color: '#dcfce7', textColor: '#16a34a', stars: 5, title: 'Muy genial', body: 'Es una aplicación increíble para automatizar verificaciones. Este servicio me ahorra horas al día procesando OTPs para mis flujos de trabajo.' },
+    { name: 'Isabella P.', initials: 'IP', color: '#fef3c7', textColor: '#d97706', stars: 5, title: '¡Increíblemente bueno!', body: 'Es increíble lo inteligente que es. Los resultados que recibo son consistentemente excelentes para mis procesos de autenticación empresarial.' },
+    { name: 'Carlos Mendoza', initials: 'CM', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'API sencilla y confiable', body: 'Integré el webhook en menos de una hora. Mi bot de Telegram ahora recibe los códigos al instante. Sin caídas en 3 meses de uso continuo.' },
+    { name: 'Andrea López', initials: 'AL', color: '#fce7f3', textColor: '#db2777', stars: 5, title: 'Soporte excepcional', body: 'Tuve una duda técnica a las 2am y el equipo respondió en 20 minutos. El servicio es de primera y el número funciona perfecto con todas las apps.' },
+    { name: 'Rodrigo Gómez', initials: 'RG', color: '#ecfdf5', textColor: '#059669', stars: 5, title: 'Automatización real', body: 'Probé soluciones VoIP antes y siempre me bloqueaban. Con Telsim tengo una SIM real que ningún servicio detecta como bot. Vale cada peso.' },
+  ];
 
   if (loading) return null;
 
@@ -624,6 +649,66 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* TESTIMONIOS */}
+      <section className="bg-white py-12">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
+              Testimonios
+            </span>
+          </div>
+
+          {/* Carrusel — mismo patrón que las otras secciones */}
+          <div className="relative">
+            <div
+              ref={testimonialsRef}
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {testimonials.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-[300px] snap-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+                >
+                  {/* Estrellas */}
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: t.stars }).map((_, s) => (
+                      <span key={s} className="text-amber-400 text-sm">★</span>
+                    ))}
+                  </div>
+                  {/* Título */}
+                  <p className="font-black text-slate-900 text-[15px] leading-tight tracking-tight">
+                    {t.title}
+                  </p>
+                  {/* Cuerpo */}
+                  <p className="text-slate-500 text-[13px] font-medium leading-relaxed flex-1">
+                    {t.body}
+                  </p>
+                  {/* Footer */}
+                  <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                      style={{ background: t.color, color: t.textColor }}
+                    >
+                      {t.initials}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-slate-900">{t.name}</p>
+                      <p className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
+                        ✓ Cliente verificado
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-6">
+              Miles de bots activos confían en Telsim
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* STATS */}
       <section className="py-10" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
@@ -654,7 +739,7 @@ const Landing: React.FC = () => {
 
           <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
-            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[85vw] md:min-w-0 snap-center">
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
@@ -693,7 +778,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* PRO */}
-            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)] min-w-[85vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
+            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)] min-w-[78vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
                 <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">{t('landing.pricing.pro.badge')}</div>
               </div>
@@ -733,7 +818,7 @@ const Landing: React.FC = () => {
             </button>
 
             {/* POWER */}
-            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.45)] min-w-[85vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', transition: 'all 0.3s' }}>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.45)] min-w-[78vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', transition: 'all 0.3s' }}>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('landing.pricing.power.name')}</span>
