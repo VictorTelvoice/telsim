@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SideDrawerProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ export default function SideDrawer({
   isOpen, onClose, user, unreadMessages, unreadNotifications, currentLang, onLangChange
 }: SideDrawerProps) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   if (!isOpen) return null;
 
@@ -25,17 +28,17 @@ export default function SideDrawer({
   }) => (
     <div
       onClick={() => { onClick(); onClose(); }}
-      className={`flex items-center gap-3 px-[18px] py-[10px] cursor-pointer relative transition-colors ${active ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+      className={`flex items-center gap-3 px-[18px] py-[10px] cursor-pointer relative transition-colors ${active ? 'bg-blue-50 dark:bg-blue-900/20' : 'active:bg-slate-50 dark:active:bg-slate-800'}`}
     >
       {active && <div className="absolute left-0 top-[5px] bottom-[5px] w-[3px] rounded-r-sm bg-primary" />}
-      <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0 relative ${active ? 'bg-blue-100' : 'bg-[#eef2f7]'}`}>
-        <div className={active ? '[&_svg]:stroke-primary' : '[&_svg]:stroke-[#1e3a8a]'}>
+      <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0 relative ${active ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-[#eef2f7] dark:bg-slate-800'}`}>
+        <div className={active ? '[&_svg]:stroke-primary dark:[&_svg]:stroke-blue-400' : '[&_svg]:stroke-[#1e3a8a] dark:[&_svg]:stroke-slate-400'}>
           {icon}
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-[12.5px] font-bold leading-tight ${active ? 'text-primary' : 'text-slate-900'}`}>{title}</p>
-        <p className="text-[10px] font-medium text-slate-400 mt-0.5">{sub}</p>
+        <p className={`text-[14.5px] font-medium leading-tight ${active ? 'text-primary dark:text-blue-400' : 'text-slate-900 dark:text-white'}`}>{title}</p>
+        <p className="text-[12px] font-normal text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>
       </div>
       {right && <div className="flex items-center gap-1 flex-shrink-0">{right}</div>}
     </div>
@@ -46,29 +49,33 @@ export default function SideDrawer({
   );
 
   const IconBadge = ({ count }: { count: number }) => count > 0 ? (
-    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[8px] font-black text-white leading-none">
+    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-white leading-none">
       {count > 9 ? '9+' : count}
     </span>
   ) : null;
 
   const Badge = ({ label, color }: { label: string; color: 'blue' | 'green' | 'red' }) => {
-    const colors = { blue: 'bg-blue-100 text-primary', green: 'bg-emerald-100 text-emerald-600', red: 'bg-red-100 text-red-500' };
+    const colors = { 
+      blue: 'bg-blue-100 dark:bg-blue-900/30 text-primary dark:text-blue-400', 
+      green: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400', 
+      red: 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400' 
+    };
     return <span className={`text-[9.5px] font-black px-1.5 py-0.5 rounded-full ${colors[color]}`}>{label}</span>;
   };
 
   const SectionLabel = ({ label }: { label: string }) => (
-    <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 px-[18px] pt-[10px] pb-[3px]">{label}</p>
+    <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 px-[18px] pt-[10px] pb-[3px]">{label}</p>
   );
 
-  const Divider = () => <div className="h-px bg-slate-50 mx-3.5 my-[3px]" />;
+  const Divider = () => <div className="h-px bg-slate-50 dark:bg-slate-800 mx-3.5 my-[3px]" />;
 
   return (
     <>
       {/* Overlay */}
-      <div className="fixed inset-0 bg-slate-900/50 z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/50 dark:bg-black/70 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed top-0 left-0 bottom-0 w-[295px] bg-white rounded-r-[28px] z-50 flex flex-col overflow-hidden shadow-2xl animate-slideIn">
+      <div className="fixed top-0 left-0 bottom-0 w-[295px] bg-white dark:bg-slate-900 rounded-r-[28px] z-50 flex flex-col overflow-hidden shadow-2xl animate-slideIn">
 
         {/* Header */}
         <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb] px-5 pt-12 pb-[18px] relative overflow-hidden flex-shrink-0">
@@ -115,9 +122,9 @@ export default function SideDrawer({
             icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>}
             title="Idioma" sub="Español / English" onClick={() => {}}
             right={
-              <div className="flex bg-slate-100 rounded-lg overflow-hidden text-[10px] font-black">
-                <span onClick={(e) => { e.stopPropagation(); onLangChange('es'); }} className={`px-[7px] py-1 cursor-pointer transition-all ${currentLang==='es' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400'}`}>ES</span>
-                <span onClick={(e) => { e.stopPropagation(); onLangChange('en'); }} className={`px-[7px] py-1 cursor-pointer transition-all ${currentLang==='en' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400'}`}>EN</span>
+              <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden text-[10px] font-black">
+                <span onClick={(e) => { e.stopPropagation(); onLangChange('es'); }} className={`px-[7px] py-1 cursor-pointer transition-all ${currentLang==='es' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400 dark:text-slate-500'}`}>ES</span>
+                <span onClick={(e) => { e.stopPropagation(); onLangChange('en'); }} className={`px-[7px] py-1 cursor-pointer transition-all ${currentLang==='en' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400 dark:text-slate-500'}`}>EN</span>
               </div>
             }
           />
@@ -136,13 +143,13 @@ export default function SideDrawer({
         </div>
 
         {/* Footer */}
-        <div className="px-3.5 pt-2.5 pb-8 border-t border-slate-50 flex-shrink-0">
-          <div onClick={() => window.open('https://telsim.app', '_blank')} className="flex items-center justify-center gap-2 bg-gradient-to-br from-slate-900 to-slate-800 text-white px-4 py-3 rounded-[13px] text-[12.5px] font-black cursor-pointer mb-1.5 active:opacity-85">
+        <div className="px-3.5 pt-2.5 pb-8 border-t border-slate-50 dark:border-slate-800 flex-shrink-0">
+          <div onClick={() => window.open('https://telsim.app', '_blank')} className="flex items-center justify-center gap-2 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-950 text-white px-4 py-3 rounded-[13px] text-[12.5px] font-black cursor-pointer mb-1.5 active:opacity-85">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             Ir al sitio web
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
-          <div onClick={() => { /* tu función de logout existente */ }} className="flex items-center justify-center gap-1.5 py-2.5 rounded-[11px] text-[12px] font-bold text-red-500 cursor-pointer active:bg-red-50">
+          <div onClick={() => { /* tu función de logout existente */ }} className="flex items-center justify-center gap-1.5 py-2.5 rounded-[11px] text-[12px] font-bold text-red-500 cursor-pointer active:bg-red-50 dark:active:bg-red-900/20">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.3" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Cerrar sesión
           </div>
