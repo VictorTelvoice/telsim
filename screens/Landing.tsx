@@ -96,6 +96,57 @@ const Landing: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  const casosUso = [
+    {
+      iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="4" y="12" width="10" height="8" rx="2" fill="#1d4ed8" opacity="0.85"/><path d="M14 13L24 8V24L14 19V13Z" fill="#3b82f6"/><path d="M8 20L10 27" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"/><path d="M26 12C27.8 13.8 27.8 18.2 26 20" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" fill="none"/><path d="M29 10C31.5 12.5 31.5 19.5 29 22" stroke="#bfdbfe" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6"/></svg>,
+      title: t('landing.use_cases.item1.title'),
+      desc: 'Gestiona y verifica decenas de cuentas publicitarias en Google Ads y Meta con números independientes. Cada cuenta opera con su propia identidad SIM, sin riesgo de bloqueo en medio de una campaña activa.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" fill="#10b981" opacity="0.15"/><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" stroke="#10b981" strokeWidth="1.8" fill="none"/><path d="M11 16L14.5 19.5L21 13" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      title: t('landing.use_cases.item2.title'),
+      desc: 'Valida el acceso de nuevos usuarios en tu plataforma usando un número real sin exponer datos personales. Ofrece verificación SMS limpia, segura y completamente escalable desde el primer acceso.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="6" y="15" width="4" height="9" rx="1" fill="#f59e0b"/><line x1="8" y1="11" x2="8" y2="15" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><line x1="8" y1="24" x2="8" y2="27" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><rect x="14" y="9" width="4" height="11" rx="1" fill="#10b981"/><line x1="16" y1="5" x2="16" y2="9" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="20" x2="16" y2="23" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/><rect x="22" y="12" width="4" height="8" rx="1" fill="#f59e0b"/><line x1="24" y1="9" x2="24" y2="12" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><line x1="24" y1="20" x2="24" y2="24" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><path d="M5 25L12 19L18 22L27 13" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 1.5" opacity="0.6"/></svg>,
+      title: t('landing.use_cases.item3.title'),
+      desc: 'Autentica operaciones, retiros y transferencias con 2FA de forma completamente autónoma en exchanges como Binance o Coinbase. Tu bot actúa sin depender de intervención humana en ningún paso del flujo.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="10" y="5" width="12" height="10" rx="3" fill="#0ea5e9" opacity="0.18"/><rect x="10" y="5" width="12" height="10" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none"/><circle cx="13.5" cy="10" r="1.5" fill="#0ea5e9"/><circle cx="18.5" cy="10" r="1.5" fill="#0ea5e9"/><line x1="16" y1="5" x2="16" y2="3" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><circle cx="16" cy="2" r="1.2" fill="#0ea5e9"/><rect x="8" y="16" width="16" height="11" rx="3" fill="#0ea5e9" opacity="0.1"/><rect x="8" y="16" width="16" height="11" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none"/><path d="M8 19H4C3 19 3 22 4 22H8" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><path d="M24 19H28C29 19 29 22 28 22H24" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><line x1="16" y1="15" x2="16" y2="16" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round"/></svg>,
+      title: t('landing.use_cases.item4.title'),
+      desc: 'Integra Telsim en tus flujos de Make, n8n, UiPath o Power Automate y resuelve el bloqueo por SMS en ERP, nóminas y portales corporativos. La autenticación deja de ser el cuello de botella de tu automatización.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#fdf4ff,#fae8ff)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M3 11L7 5H25L29 11H3Z" fill="#a855f7" opacity="0.15"/><path d="M3 11L7 5H25L29 11" stroke="#a855f7" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 11V26C3 27.1 3.9 28 5 28H27C28.1 28 29 27.1 29 26V11" stroke="#a855f7" strokeWidth="1.7" fill="none"/><rect x="12" y="18" width="8" height="10" rx="1.5" fill="#a855f7" opacity="0.18"/><rect x="12" y="18" width="8" height="10" rx="1.5" stroke="#a855f7" strokeWidth="1.4" fill="none"/><rect x="6" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3"/><rect x="22" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3"/><circle cx="25" cy="8" r="4" fill="#a855f7"/><path d="M23 8L24.5 9.5L27 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      title: t('landing.use_cases.item5.title'),
+      desc: 'Opera decenas de cuentas de vendedor en Mercado Libre, Amazon o Shopify sin vincularlas entre sí. Cada cuenta cuenta con su número independiente y verificado, minimizando el riesgo de suspensiones masivas.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#fff1f2,#ffe4e6)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="9" y="4" width="14" height="22" rx="3" fill="#f43f5e" opacity="0.1"/><rect x="9" y="4" width="14" height="22" rx="3" stroke="#f43f5e" strokeWidth="1.8" fill="none"/><path d="M16 18C16 18 12 15.5 12 13C12 11.3 13.3 10 15 10C15.7 10 16.3 10.3 16.7 10.8C17.1 10.3 17.7 10 18.5 10C20.2 10 21.5 11.3 21.5 13C21.5 15.5 16 18 16 18Z" fill="#f43f5e" opacity="0.7"/><circle cx="16" cy="23" r="1.2" fill="#f43f5e"/><path d="M25 11C26.5 12.5 26.5 15.5 25 17" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" fill="none"/><path d="M27.5 9C30 11.5 30 18.5 27.5 21" stroke="#fda4af" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity="0.5"/></svg>,
+      title: t('landing.use_cases.item6.title'),
+      desc: 'Crea y opera cuentas en Instagram, TikTok, X o Facebook de forma completamente autónoma. Tu bot publica, interactúa y crece verificado con un número SIM real desde el primer día de operación.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="24" rx="3" fill="#059669" opacity="0.07"/><rect x="5" y="5" width="22" height="24" rx="3" stroke="#059669" strokeWidth="1.7" fill="none"/><circle cx="10" cy="12" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="12" x2="23" y2="12" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="10" cy="17" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="17" x2="23" y2="17" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="10" cy="22" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="22" x2="23" y2="22" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="24" cy="7" r="5" fill="#059669"/><path d="M21.5 7L23.2 8.8L26.5 5.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      title: t('landing.use_cases.item7.title'),
+      desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales sin intervención manual. Ideal para agencias que necesitan escalar cuentas verificadas de forma rápida y eficiente.',
+    },
+    {
+      iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="3" y="6" width="26" height="20" rx="3" fill="#1d4ed8" opacity="0.07"/><rect x="3" y="6" width="26" height="20" rx="3" stroke="#1d4ed8" strokeWidth="1.7" fill="none"/><rect x="3" y="6" width="26" height="5.5" rx="3" fill="#1d4ed8" opacity="0.1"/><circle cx="7.5" cy="8.8" r="1.2" fill="#f43f5e" opacity="0.8"/><circle cx="11.5" cy="8.8" r="1.2" fill="#f59e0b" opacity="0.8"/><circle cx="15.5" cy="8.8" r="1.2" fill="#10b981" opacity="0.8"/><path d="M9 17L7 19L9 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M23 17L25 19L23 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/><line x1="18" y1="15" x2="14" y2="23" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/></svg>,
+      title: t('landing.use_cases.item8.title'),
+      desc: 'Prueba y valida flujos de autenticación SMS en entornos de desarrollo, staging y producción sin usar números personales ni pagar por servicios de testing caros. Números reales para cada entorno de prueba.',
+    },
+  ];
+
   const testimonials = [
     { name: 'Valentina Reyes', initials: 'VR', color: '#dbeafe', textColor: '#1d4ed8', stars: 5, title: 'La herramienta perfecta para mi bot', body: 'Increíble ahorro de tiempo. Accedo a todos los servicios que requieren verificación OTP sin intervención manual. Totalmente automatizado.' },
     { name: 'William Davis', initials: 'WD', color: '#dcfce7', textColor: '#16a34a', stars: 5, title: 'Muy genial', body: 'Es una aplicación increíble para automatizar verificaciones. Este servicio me ahorra horas al día procesando OTPs para mis flujos de trabajo.' },
@@ -260,6 +311,12 @@ const Landing: React.FC = () => {
           border-color: rgba(29, 78, 216, 0.3);
           background-color: white;
         }
+
+        @keyframes peekHint {
+          0%   { transform: translateX(0); }
+          40%  { transform: translateX(-28px); }
+          100% { transform: translateX(0); }
+        }
       `}</style>
 
       {/* NAV */}
@@ -323,7 +380,7 @@ const Landing: React.FC = () => {
 
       {/* HERO */}
       <section className="tech-bg pt-10 pb-12">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-end fade-in">
+        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-center fade-in">
           {/* Columna Izquierda */}
           <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
@@ -402,7 +459,7 @@ const Landing: React.FC = () => {
             </div>
 
             {/* Botones Desktop */}
-            <div className="hidden md:flex gap-2.5 mt-3.5">
+            <div className="hidden md:flex gap-2.5 mt-5">
               <button 
                 onClick={() => {
                   const el = document.getElementById('precios');
@@ -624,25 +681,45 @@ const Landing: React.FC = () => {
             <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
             <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
           </div>
-          <div ref={casosUsoRef} className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
-            {[
-              { icon: 'campaign', title: t('landing.use_cases.item1.title'), desc: t('landing.use_cases.item1.desc') },
-              { icon: 'how_to_reg', title: t('landing.use_cases.item2.title'), desc: t('landing.use_cases.item2.desc') },
-              { icon: 'candlestick_chart', title: t('landing.use_cases.item3.title'), desc: t('landing.use_cases.item3.desc') },
-              { icon: 'precision_manufacturing', title: t('landing.use_cases.item4.title'), desc: t('landing.use_cases.item4.desc') },
-              { icon: 'storefront', title: t('landing.use_cases.item5.title'), desc: t('landing.use_cases.item5.desc') },
-              { icon: 'manage_accounts', title: t('landing.use_cases.item6.title'), desc: t('landing.use_cases.item6.desc') },
-              { icon: 'add_business', title: t('landing.use_cases.item7.title'), desc: t('landing.use_cases.item7.desc') },
-              { icon: 'integration_instructions', title: t('landing.use_cases.item8.title'), desc: t('landing.use_cases.item8.desc') }
-            ].map((c, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-6 use-case-card border border-slate-100 flex gap-4 min-w-[85vw] md:min-w-0 snap-center">
-                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-primary flex-shrink-0">
-                  <span className="material-symbols-rounded text-[24px]">{c.icon}</span>
+
+          {/* Mobile: carousel con peek animation */}
+          <div className="md:hidden relative">
+            <div
+              ref={casosUsoRef}
+              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 -mx-6 px-6"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {casosUso.map((c, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-[82vw] snap-start bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3"
+                  style={{ animation: i === 0 ? 'peekHint 1.2s ease-out 0.8s both' : 'none' }}
+                >
+                  <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
+                    <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 mb-1">{c.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed font-medium">{c.desc}</p>
+              ))}
+            </div>
+            {/* Fade right edge hint */}
+            <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+          </div>
+
+          {/* Desktop: grid 2 columnas */}
+          <div className="hidden md:grid md:grid-cols-2 gap-2.5">
+            {casosUso.map((c, i) => (
+              <div
+                key={i}
+                className="group bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-blue-100 cursor-pointer"
+              >
+                <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
+                  <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
                 </div>
+                <span className="text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-sm flex-shrink-0 mt-1">→</span>
               </div>
             ))}
           </div>
@@ -650,9 +727,9 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TESTIMONIOS */}
-      <section className="bg-white py-12">
+      <section className="bg-white pt-8 pb-12">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
               Testimonios
             </span>
