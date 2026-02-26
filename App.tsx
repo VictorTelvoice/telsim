@@ -29,6 +29,7 @@ import IdentityVerification from './screens/dashboard/IdentityVerification';
 import Support from './screens/dashboard/Support';
 import HelpCenter from './screens/dashboard/HelpCenter';
 import TermsPrivacy from './screens/dashboard/TermsPrivacy';
+import SettingsScreen from './screens/dashboard/Settings';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
@@ -55,6 +56,7 @@ const BottomNav = () => {
 
   const isSettingsActive = 
     isActive('/dashboard/profile') || 
+    isActive('/dashboard/settings') || 
     isActive('/dashboard/help') || 
     isActive('/dashboard/terms') || 
     isActive('/dashboard/security') ||
@@ -124,7 +126,7 @@ const BottomNav = () => {
         </button>
 
         <button 
-          onClick={() => navigate('/dashboard/profile')}
+          onClick={() => navigate('/dashboard/settings')}
           className="flex-1 flex flex-col items-center justify-center gap-1 group"
         >
           <Settings 
@@ -248,6 +250,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/terms" 
                           element={<ProtectedRoute><DashboardLayout><TermsPrivacy /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/settings" 
+                          element={<ProtectedRoute><DashboardLayout><SettingsScreen /></DashboardLayout></ProtectedRoute>} 
                         />
                         <Route 
                           path="/dashboard/notifications" 
