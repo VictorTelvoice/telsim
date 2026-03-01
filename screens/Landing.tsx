@@ -12,6 +12,8 @@ const Landing: React.FC = () => {
   const casosUsoRef = useRef<HTMLDivElement>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
+  const pricingSectionRef = useRef<HTMLDivElement>(null);
+  const pricingAnimatedRef = useRef(false);
   const [isAnnual, setIsAnnual] = useState(false);
   const [beneficiosPage, setBeneficiosPage] = useState(0);
   const [casosPage, setCasosPage] = useState(0);
@@ -19,13 +21,33 @@ const Landing: React.FC = () => {
   const [testimoniosPage, setTestimoniosPage] = useState(0);
 
   useEffect(() => {
-    // Inicialmente centrar en PRO (segunda tarjeta)
-    setTimeout(() => {
-      if (preciosRef.current) {
-        const cardWidth = preciosRef.current.scrollWidth / 3;
-        preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
-      }
-    }, 100);
+    // En desktop, centrar en PRO inmediatamente sin animación
+    if (window.innerWidth >= 768 && preciosRef.current) {
+      const cardWidth = preciosRef.current.scrollWidth / 3;
+      preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
+    }
+
+    // En móvil: IntersectionObserver — anima de Starter → PRO al entrar en viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !pricingAnimatedRef.current && window.innerWidth < 768) {
+            pricingAnimatedRef.current = true;
+            const el = preciosRef.current;
+            if (!el) return;
+            // Paso 1: posicionar en Starter (sin animación)
+            el.scrollTo({ left: 0, behavior: 'auto' });
+            // Paso 2: después de 500ms deslizar al PRO suavemente
+            setTimeout(() => {
+              const cardWidth = el.scrollWidth / 3;
+              el.scrollTo({ left: cardWidth, behavior: 'smooth' });
+            }, 500);
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+    if (pricingSectionRef.current) observer.observe(pricingSectionRef.current);
 
     const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
       const el = ref.current;
@@ -77,10 +99,10 @@ const Landing: React.FC = () => {
     };
     hintScroll(benefEl, 900);
     hintScroll(casosEl, 1100);
-    hintScroll(planesEl, 1300);
     hintScroll(testimEl, 1500);
 
     return () => {
+      observer.disconnect();
       cleanupTestimonials?.();
       benefEl?.removeEventListener('scroll', handleBeneficios);
       casosEl?.removeEventListener('scroll', handleCasos);
@@ -928,7 +950,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* PRECIOS */}
-      <section id="precios" className="tech-bg py-12">
+      <section id="precios" ref={pricingSectionRef} className="tech-bg py-12">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Planes</span>
