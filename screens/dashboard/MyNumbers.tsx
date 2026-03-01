@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
+import TrialBanner from '../../components/TrialBanner';
 import { 
   Copy, 
   Trash2, 
@@ -480,6 +481,7 @@ const MyNumbers: React.FC = () => {
             </header>
 
             <main className="px-5 py-8 space-y-12 max-w-lg mx-auto">
+                <TrialBanner />
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <Loader2 className="size-10 text-primary animate-spin" />

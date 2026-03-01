@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
 import NotificationsMenu from '../../components/NotificationsMenu';
 import SideDrawer from '../../components/SideDrawer';
+import TrialBanner from '../../components/TrialBanner';
 import { 
   ShieldCheck, 
   Bot, 
@@ -572,6 +573,7 @@ const Dashboard: React.FC = () => {
       </header>
 
       <main className="px-5 py-4 space-y-8 pb-32">
+        <TrialBanner />
         <div className="bg-surface-light dark:bg-surface-dark rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50">
             <div className="flex items-center justify-between mb-6">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
