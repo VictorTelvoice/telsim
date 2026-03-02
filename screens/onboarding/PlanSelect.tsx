@@ -32,8 +32,6 @@ const PlanSelect: React.FC = () => {
     navigate('/onboarding/region');
   };
 
-  const handleContinue = () => handleSelectAndContinue(selected);
-
   return (
     <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark font-display overflow-x-hidden">
 
@@ -45,14 +43,14 @@ const PlanSelect: React.FC = () => {
         >
           <span className="material-symbols-rounded text-slate-600 dark:text-slate-300 text-[22px]">arrow_back</span>
         </button>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Marketplace</h2>
+        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Planes</h2>
         <div className="w-10" />
       </header>
 
-      <main className="flex-1 flex flex-col pb-32">
+      <main className="flex-1 flex flex-col pb-10">
 
         {/* Título */}
-        <div className="text-center px-6 pt-8 pb-4">
+        <div className="text-center px-6 pt-3 pb-4">
           <span className="inline-block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Planes</span>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Elige tu plan</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
@@ -243,21 +241,6 @@ const PlanSelect: React.FC = () => {
         </div>
       </main>
 
-      {/* Botón sticky de continuar */}
-      <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 dark:via-background-dark/95 to-transparent z-40">
-        <button
-          onClick={handleContinue}
-          className="group w-full max-w-md mx-auto bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2"
-        >
-          <div className="w-12" />
-          <span className="text-[15px] tracking-wide uppercase">
-            Continuar con {selected.charAt(0).toUpperCase() + selected.slice(1)}
-          </span>
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
-            <span className="material-symbols-rounded text-white">arrow_forward</span>
-          </div>
-        </button>
-      </div>
     </div>
   );
 };

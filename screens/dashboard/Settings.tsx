@@ -26,8 +26,8 @@ const Settings: React.FC = () => {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userEmail = user?.email || '';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  const savedPlan = JSON.parse(localStorage.getItem('selected_plan') || '{}');
-  const planName = savedPlan?.planName || 'Starter';
+  const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
+  const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
