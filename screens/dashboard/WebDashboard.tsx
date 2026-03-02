@@ -15,16 +15,32 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const SERVICE_MAP: Record<string, { label: string; color: string; bg: string; darkBg: string }> = {
-  whatsapp:   { label: 'WhatsApp',  color: '#25D366', bg: '#dcfce7', darkBg: '#14532d' },
-  google:     { label: 'Google',    color: '#4285F4', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  facebook:   { label: 'Facebook',  color: '#1877F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  instagram:  { label: 'Instagram', color: '#E1306C', bg: '#fce7f3', darkBg: '#831843' },
-  telegram:   { label: 'Telegram',  color: '#229ED9', bg: '#e0f2fe', darkBg: '#0c4a6e' },
-  amazon:     { label: 'Amazon',    color: '#FF9900', bg: '#fef3c7', darkBg: '#78350f' },
-  microsoft:  { label: 'Microsoft', color: '#00A4EF', bg: '#e0f2fe', darkBg: '#0c4a6e' },
-  twitter:    { label: 'Twitter/X', color: '#1DA1F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  uber:       { label: 'Uber',      color: '#000000', bg: '#f1f5f9', darkBg: '#1e293b' },
-  tiktok:     { label: 'TikTok',    color: '#ff0050', bg: '#fce7f3', darkBg: '#831843' },
+  whatsapp:      { label: 'WhatsApp',       color: '#25D366', bg: '#dcfce7', darkBg: '#14532d' },
+  google:        { label: 'Google',         color: '#4285F4', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  facebook:      { label: 'Facebook',       color: '#1877F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  instagram:     { label: 'Instagram',      color: '#E1306C', bg: '#fce7f3', darkBg: '#831843' },
+  telegram:      { label: 'Telegram',       color: '#229ED9', bg: '#e0f2fe', darkBg: '#0c4a6e' },
+  amazon:        { label: 'Amazon',         color: '#FF9900', bg: '#fef3c7', darkBg: '#78350f' },
+  microsoft:     { label: 'Microsoft',      color: '#00A4EF', bg: '#e0f2fe', darkBg: '#0c4a6e' },
+  twitter:       { label: 'Twitter/X',      color: '#1DA1F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  uber:          { label: 'Uber',           color: '#06b6d4', bg: '#cffafe', darkBg: '#164e63' },
+  tiktok:        { label: 'TikTok',         color: '#ff0050', bg: '#fce7f3', darkBg: '#831843' },
+  ebay:          { label: 'eBay',           color: '#E53238', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  mercadolibre:  { label: 'Mercado Libre',  color: '#FFE600', bg: '#fefce8', darkBg: '#713f12' },
+  mercado:       { label: 'Mercado Libre',  color: '#FFE600', bg: '#fefce8', darkBg: '#713f12' },
+  netflix:       { label: 'Netflix',        color: '#E50914', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  spotify:       { label: 'Spotify',        color: '#1DB954', bg: '#dcfce7', darkBg: '#14532d' },
+  linkedin:      { label: 'LinkedIn',       color: '#0077B5', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  apple:         { label: 'Apple',          color: '#555555', bg: '#f1f5f9', darkBg: '#1e293b' },
+  paypal:        { label: 'PayPal',         color: '#003087', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  discord:       { label: 'Discord',        color: '#5865F2', bg: '#ede9fe', darkBg: '#3730a3' },
+  snapchat:      { label: 'Snapchat',       color: '#FFFC00', bg: '#fefce8', darkBg: '#713f12' },
+  twitter_x:     { label: 'X (Twitter)',    color: '#000000', bg: '#f1f5f9', darkBg: '#1e293b' },
+  twitch:        { label: 'Twitch',         color: '#9146FF', bg: '#ede9fe', darkBg: '#3730a3' },
+  binance:       { label: 'Binance',        color: '#F0B90B', bg: '#fefce8', darkBg: '#713f12' },
+  coinbase:      { label: 'Coinbase',       color: '#0052FF', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  airbnb:        { label: 'Airbnb',         color: '#FF5A5F', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  shopify:       { label: 'Shopify',        color: '#96BF48', bg: '#dcfce7', darkBg: '#14532d' },
 };
 
 function detectService(sender: string, content: string) {
@@ -177,7 +193,17 @@ const WebDashboard: React.FC = () => {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
+
+  // Plan parsing seguro — soporta tanto string plano ('pro') como JSON object
+  const savedPlanId: string = (() => {
+    const raw = localStorage.getItem('selected_plan') || 'starter';
+    try {
+      const parsed = JSON.parse(raw);
+      return (parsed.planId || parsed.id || parsed.plan || 'starter').toLowerCase();
+    } catch {
+      return raw.toLowerCase();
+    }
+  })();
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
 
   const PLAN_CREDITS: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
@@ -438,30 +464,63 @@ const WebDashboard: React.FC = () => {
                 />
               </div>
 
-              {/* Chart + Feed row */}
-              <div className="grid grid-cols-5 gap-4">
+              {/* Chart + Feed — grid 3+2 cols: izquierda = chart + estado SIMs, derecha = feed */}
+              <div className="grid grid-cols-5 gap-4 items-start">
 
-                {/* Activity chart */}
-                <div className={`col-span-3 rounded-2xl p-5 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-[14px] font-black">Actividad SMS</h3>
-                      <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Últimos 7 días</p>
+                {/* Columna izquierda: chart + estado de SIMs apilados */}
+                <div className="col-span-3 flex flex-col gap-4">
+
+                  {/* Activity chart */}
+                  <div className={`rounded-2xl p-5 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-[14px] font-black">Actividad SMS</h3>
+                        <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Últimos 7 días</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
+                        <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Mensajes recibidos</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
-                      <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Mensajes recibidos</span>
-                    </div>
+                    <BarChart data={activityData} labels={activityLabels} isDark={isDark} />
                   </div>
-                  <BarChart data={activityData} labels={activityLabels} isDark={isDark} />
+
+                  {/* Estado de SIMs — justo debajo del chart */}
+                  {slots.length > 0 && (
+                    <div className={`rounded-2xl p-5 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[14px] font-black">Estado de SIMs</h3>
+                        <button onClick={() => setActiveTab('numbers')} className="text-[11px] font-bold text-primary flex items-center gap-1 hover:underline">
+                          Ver todo <ChevronRight size={12} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {slots.map(slot => {
+                          const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
+                          const msgsCount = messages.filter(m => m.slot_id === slot.slot_id).length;
+                          const isActive = slot.status !== 'expired';
+                          return (
+                            <div key={slot.slot_id} className={`flex items-center gap-2.5 p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                              <div className="text-xl flex-shrink-0">{flag}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-bold truncate">{slot.label || slot.phone_number}</p>
+                                <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{msgsCount} msgs</p>
+                              </div>
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Live feed */}
+                {/* Columna derecha: Feed en vivo */}
                 <div className={`col-span-2 rounded-2xl p-5 shadow-sm border flex flex-col ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-[14px] font-black">Feed en vivo</h3>
-                      <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Últimos SMS</p>
+                      <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Últimos SMS recibidos</p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -470,38 +529,55 @@ const WebDashboard: React.FC = () => {
                   </div>
 
                   {loading ? (
-                    <div className="flex-1 flex items-center justify-center">
+                    <div className="flex-1 flex items-center justify-center py-8">
                       <RefreshCw size={20} className="text-slate-400 animate-spin" />
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className={`flex-1 flex flex-col items-center justify-center gap-2 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>
+                    <div className={`flex-1 flex flex-col items-center justify-center gap-2 py-8 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>
                       <MessageSquare size={28} />
                       <p className="text-[12px] font-semibold">Sin mensajes aún</p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2 overflow-y-auto">
-                      {messages.slice(0, 8).map(msg => {
+                    <div className="flex flex-col gap-3 overflow-y-auto">
+                      {messages.slice(0, 10).map(msg => {
                         const svc = detectService(msg.sender, msg.content);
                         const code = msg.verification_code || extractCode(msg.content);
+                        const slot = slots.find(s => s.slot_id === msg.slot_id);
+                        const flag = REGION_FLAGS[slot?.region?.toUpperCase() ?? ''] ?? '🌐';
+                        // Nombre limpio del servicio: si no se detectó, usar "SMS"
+                        const displayName = svc.key !== 'other' ? svc.label : 'SMS';
+                        const iconLetters = svc.key !== 'other'
+                          ? svc.label.slice(0, 2).toUpperCase()
+                          : 'SM';
+
                         return (
-                          <div key={msg.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0"
-                              style={{ background: isDark ? svc.darkBg : svc.bg, color: svc.color }}>
-                              {svc.label.slice(0, 2).toUpperCase()}
+                          <div key={msg.id} className={`flex flex-col gap-2 p-3 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                            {/* Fila superior: marca + SIM destino + tiempo */}
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                                style={{ background: isDark ? svc.darkBg : svc.bg, color: svc.color }}>
+                                {iconLetters}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-black" style={{ color: svc.color }}>{displayName}</p>
+                                <p className={`text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {flag} {slot?.phone_number ?? 'SIM'} · {timeAgo(msg.received_at)}
+                                </p>
+                              </div>
+                              {code && (
+                                <button
+                                  onClick={() => handleCopy(msg.id, code)}
+                                  className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-black hover:bg-primary/20 transition-colors"
+                                >
+                                  {copiedId === msg.id ? <Check size={11} /> : <Copy size={11} />}
+                                  {code}
+                                </button>
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-bold truncate">{svc.label}</p>
-                              <p className={`text-[10px] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgo(msg.received_at)}</p>
-                            </div>
-                            {code && (
-                              <button
-                                onClick={() => handleCopy(msg.id, code)}
-                                className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black hover:bg-primary/20 transition-colors"
-                              >
-                                {copiedId === msg.id ? <Check size={10} /> : <Copy size={10} />}
-                                {code}
-                              </button>
-                            )}
+                            {/* Fila inferior: texto completo del mensaje */}
+                            <p className={`text-[11px] leading-relaxed pl-10 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              {msg.content}
+                            </p>
                           </div>
                         );
                       })}
@@ -510,41 +586,12 @@ const WebDashboard: React.FC = () => {
 
                   <button
                     onClick={() => setActiveTab('messages')}
-                    className={`mt-3 flex items-center justify-center gap-1 text-[11px] font-bold text-primary hover:underline`}
+                    className="mt-4 flex items-center justify-center gap-1 text-[11px] font-bold text-primary hover:underline"
                   >
                     Ver todos <ChevronRight size={12} />
                   </button>
                 </div>
               </div>
-
-              {/* SIM quick status */}
-              {slots.length > 0 && (
-                <div className={`rounded-2xl p-5 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-black">Estado de SIMs</h3>
-                    <button onClick={() => setActiveTab('numbers')} className="text-[11px] font-bold text-primary flex items-center gap-1 hover:underline">
-                      Ver todo <ChevronRight size={12} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {slots.map(slot => {
-                      const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
-                      const msgsCount = messages.filter(m => m.slot_id === slot.slot_id).length;
-                      const isActive = slot.status !== 'expired';
-                      return (
-                        <div key={slot.slot_id} className={`flex items-center gap-3 p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                          <div className="text-2xl flex-shrink-0">{flag}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-bold truncate">{slot.label || slot.phone_number}</p>
-                            <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{msgsCount} msgs</p>
-                          </div>
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
