@@ -466,7 +466,7 @@ const Landing: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-blue-200">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
             </div>
             <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>

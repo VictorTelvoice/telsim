@@ -200,16 +200,13 @@ const App: React.FC = () => {
                   <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
                   <Route path="/onboarding/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
                   <Route path="/onboarding/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+                  <Route path="/onboarding/processing" element={<ProtectedRoute><Processing /></ProtectedRoute>} />
 
                   <Route path="*" element={
                     <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
                         <Route path="/legal" element={<LegalScreen />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
-                        <Route 
-                          path="/onboarding/processing" 
-                          element={<ProtectedRoute><Processing /></ProtectedRoute>} 
-                        />
                         <Route 
                           path="/onboarding/success" 
                           element={<ProtectedRoute><Success /></ProtectedRoute>} 

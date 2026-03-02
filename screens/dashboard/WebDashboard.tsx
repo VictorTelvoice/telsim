@@ -9,7 +9,8 @@ import {
   LogOut, Moon, Sun, Bell, Copy, Check, RefreshCw,
   Zap, Shield, ChevronRight, Search, Plus,
   ArrowUpRight, ArrowDownRight, Circle, Wifi, Clock,
-  CheckCircle2, Send, Link2, CreditCard, Pencil, X
+  CheckCircle2, Send, Link2, CreditCard, Pencil, X,
+  Bot, Key, User, Save, Loader2, Info
 } from 'lucide-react';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
@@ -270,6 +271,14 @@ const WebDashboard: React.FC = () => {
   const [labelDraft, setLabelDraft]         = useState('');
   const [savingLabel, setSavingLabel]       = useState(false);
 
+  // ─── Telegram Config state ────────────────────────────────────────────────
+  const [tgToken, setTgToken]   = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+  const [tgLoading, setTgLoading] = useState(false);
+  const [tgSaving, setTgSaving]   = useState(false);
+  const [tgTesting, setTgTesting] = useState(false);
+  const [tgSaved, setTgSaved]     = useState(false);
+
   const userName     = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
@@ -300,6 +309,44 @@ const WebDashboard: React.FC = () => {
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ─── Telegram: load config when section opens ─────────────────────────────
+  useEffect(() => {
+    if (settingsSection !== 'telegram' || !user) return;
+    setTgLoading(true);
+    supabase.from('users').select('telegram_token, telegram_chat_id').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data) { setTgToken(data.telegram_token || ''); setTgChatId(data.telegram_chat_id || ''); }
+      })
+      .finally(() => setTgLoading(false));
+  }, [settingsSection, user]);
+
+  const handleTgTest = async () => {
+    if (!tgToken || !tgChatId) { alert('Completa el token y el Chat ID primero'); return; }
+    setTgTesting(true);
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgChatId, text: '✅ Telsim: conexión exitosa con tu bot de Telegram.' }),
+      });
+      if (!res.ok) throw new Error();
+      alert('¡Mensaje de prueba enviado con éxito!');
+    } catch { alert('Error al conectar con Telegram. Revisa el token y el Chat ID.'); }
+    finally { setTgTesting(false); }
+  };
+
+  const handleTgSave = async () => {
+    if (!user) return;
+    setTgSaving(true);
+    try {
+      const { error } = await supabase.from('users').update({ telegram_token: tgToken, telegram_chat_id: tgChatId }).eq('id', user.id);
+      if (error) throw error;
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 3000);
+    } catch { alert('Error al guardar la configuración.'); }
+    finally { setTgSaving(false); }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -371,7 +418,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-blue-200">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
             <span className="material-symbols-rounded text-white text-[17px]">sim_card</span>
           </div>
           <span className="text-[17px] font-extrabold tracking-tight text-slate-900 dark:text-white">Telsim</span>
@@ -826,19 +873,79 @@ const WebDashboard: React.FC = () => {
                 {/* Telegram Bot */}
                 {settingsSection === 'telegram' && (
                   <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-[#229ED9]/10 flex items-center justify-center"><Send size={18} className="text-[#229ED9]" /></div>
-                      <div><h3 className="text-[15px] font-black">Telegram Bot</h3><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recibe SMS directamente en Telegram</p></div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-[#229ED9]/10 flex items-center justify-center">
+                        <Bot size={18} className="text-[#229ED9]" />
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-black">Telegram Bot</h3>
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recibe SMS directamente en Telegram</p>
+                      </div>
                     </div>
-                    <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                      <p className={`text-[12px] font-semibold leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                        Conecta tu cuenta de Telsim con nuestro bot de Telegram para recibir cada SMS en tiempo real, con extracción automática de códigos de verificación.
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => navigate('/dashboard/telegram-guide')} className="px-4 py-2.5 bg-[#229ED9] text-white text-[12px] font-bold rounded-xl hover:opacity-90 transition-opacity">Ver guía de configuración</button>
-                      <button onClick={() => navigate('/dashboard/telegram-config')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Configurar Bot</button>
-                    </div>
+
+                    {tgLoading ? (
+                      <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary" /></div>
+                    ) : (
+                      <div className="space-y-5">
+                        {/* Token input */}
+                        <div className="space-y-1.5">
+                          <label className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
+                            <Key size={11} /> Bot Token
+                          </label>
+                          <input
+                            type="password"
+                            value={tgToken}
+                            onChange={(e) => setTgToken(e.target.value)}
+                            placeholder="Ej: 582910..."
+                            className={`w-full h-11 rounded-xl px-4 text-[13px] font-mono outline-none focus:ring-2 focus:ring-primary/30 border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+                          />
+                          <p className={`text-[10px] ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Obténlo desde <span className="font-bold">@BotFather</span> en Telegram</p>
+                        </div>
+
+                        {/* Chat ID input */}
+                        <div className="space-y-1.5">
+                          <label className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
+                            <User size={11} /> Chat ID
+                          </label>
+                          <input
+                            type="text"
+                            value={tgChatId}
+                            onChange={(e) => setTgChatId(e.target.value)}
+                            placeholder="Ej: 91823..."
+                            className={`w-full h-11 rounded-xl px-4 text-[13px] font-mono outline-none focus:ring-2 focus:ring-primary/30 border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+                          />
+                          <p className={`text-[10px] ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Consúltalo con <span className="font-bold">@userinfobot</span></p>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            onClick={handleTgTest}
+                            disabled={tgTesting || tgSaving}
+                            className={`flex-1 h-10 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl border transition-all disabled:opacity-50 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+                          >
+                            {tgTesting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                            Probar conexión
+                          </button>
+                          <button
+                            onClick={handleTgSave}
+                            disabled={tgSaving || tgTesting}
+                            className="flex-1 h-10 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl bg-primary text-white hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-50"
+                          >
+                            {tgSaving ? <Loader2 size={13} className="animate-spin" /> : tgSaved ? <Check size={13} /> : <Save size={13} />}
+                            {tgSaved ? '¡Guardado!' : 'Guardar'}
+                          </button>
+                        </div>
+
+                        {/* Info hint */}
+                        <div className={`flex gap-3 p-4 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-blue-50'}`}>
+                          <Info size={14} className="text-primary shrink-0 mt-0.5" />
+                          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            ¿No sabes cómo configurarlo? Sigue la guía paso a paso para crear y vincular tu bot en minutos.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
