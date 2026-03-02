@@ -145,6 +145,18 @@ const BottomNav = () => {
 };
 
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
+
+  // Si estamos en desktop (≥1024px), redirigir siempre al web dashboard
+  React.useEffect(() => {
+    if (window.innerWidth >= 1024) {
+      navigate('/web', { replace: true });
+    }
+  }, [navigate]);
+
+  // En desktop no renderizar nada (se redirige de inmediato)
+  if (window.innerWidth >= 1024) return null;
+
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {children}
@@ -180,7 +192,7 @@ const App: React.FC = () => {
                   <Route path="/api-docs" element={<ApiDocs />} />
                   <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
                   <Route path="*" element={
-                    <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
+                    <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Navigate to="/login" replace />} />

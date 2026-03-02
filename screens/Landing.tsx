@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { getPostAuthRoute } from '../lib/routing';
 
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -154,7 +155,7 @@ const Landing: React.FC = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard');
+      navigate(getPostAuthRoute());
     }
   }, [user, loading, navigate]);
 

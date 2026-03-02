@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getPostAuthRoute } from '../../lib/routing';
 
 // Precios vinculados a Stripe — no modificar
 const OFFICIAL_PLANS = {
@@ -55,7 +56,7 @@ const PlanSelect: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md px-5 py-4 border-b border-slate-100 dark:border-slate-800">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate(getPostAuthRoute())}
           className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <span className="material-symbols-rounded text-slate-600 dark:text-slate-300 text-[22px]">arrow_back</span>
