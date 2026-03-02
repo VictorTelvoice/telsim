@@ -43,6 +43,7 @@ import BypassAntibots from './screens/use-cases/BypassAntibots';
 import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
+import WebDashboard from './screens/dashboard/WebDashboard';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -177,6 +178,7 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
+                  <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
                   <Route path="*" element={
                     <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>

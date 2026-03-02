@@ -53,8 +53,8 @@ const QuickCheckout: React.FC = () => {
   const prevUserRef = React.useRef(user);
   useEffect(() => {
     if (!prevUserRef.current && user) {
-      // Recién autenticado → navegar al summary
-      navigate('/onboarding/summary');
+      // Recién autenticado → navegar a elegir región (el plan ya está en localStorage)
+      navigate('/onboarding/region');
     }
     prevUserRef.current = user;
   }, [user, navigate]);
@@ -282,7 +282,7 @@ const QuickCheckout: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/onboarding/summary')}
+            onClick={() => navigate('/onboarding/region')}
             className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity">
             <span>Ir a pagar</span>
             <span className="material-symbols-rounded text-[18px]">arrow_forward</span>

@@ -97,7 +97,8 @@ const PlanSelect: React.FC = () => {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pt-4 pb-4 -mx-6 px-6 no-scrollbar md:grid md:grid-cols-3 md:overflow-x-visible md:mx-6 md:px-0"
+          style={{ scrollPaddingInline: 'calc(50% - 35vw)' }}
+          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pt-4 pb-4 px-[15vw] no-scrollbar md:grid md:grid-cols-3 md:overflow-x-visible md:px-6"
         >
 
           {/* ── STARTER ── */}
