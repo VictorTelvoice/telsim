@@ -61,7 +61,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-white font-sans">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-white font-sans">
       <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(-6px); }
@@ -69,7 +69,7 @@ const Login = () => {
         }
       `}</style>
       
-      <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-sm flex flex-col items-center">
+      <div className="bg-white p-8 w-full max-w-sm flex flex-col items-center">
         {/* Logo */}
         <div className="flex flex-col items-center mt-[-8px] mb-10">
           <div className="flex items-center gap-3 mb-3">
