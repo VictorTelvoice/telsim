@@ -127,9 +127,11 @@ const RegionSelect: React.FC = () => {
 
           <div className="relative z-10 flex flex-col h-full px-10 py-10">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Telsim" className="w-8 h-8" />
-              <span className="text-white text-xl font-black tracking-tight">telsim</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center backdrop-blur-sm">
+                <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
+              </div>
+              <span className="text-white text-xl font-black tracking-tight">Telsim</span>
             </div>
 
             {/* Plan badge */}

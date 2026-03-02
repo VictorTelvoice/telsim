@@ -369,10 +369,12 @@ const WebDashboard: React.FC = () => {
       {/* ──────────────────── SIDEBAR ──────────────────────────────────────── */}
       <aside className={`w-56 flex-shrink-0 flex flex-col border-r ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
 
-        {/* Logo — igual al landing, sin sombra */}
+        {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <img src="/logo.svg" alt="Telsim" className="w-8 h-8" />
-          <span className="text-[17px] font-black tracking-tight text-primary">telsim</span>
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-blue-200">
+            <span className="material-symbols-rounded text-white text-[17px]">sim_card</span>
+          </div>
+          <span className="text-[17px] font-extrabold tracking-tight text-slate-900 dark:text-white">Telsim</span>
         </div>
 
         {/* Plan badge */}
