@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -22,6 +22,23 @@ const PlanSelect: React.FC = () => {
     const el = scrollRef.current;
     setCurrentPage(Math.round(el.scrollLeft / (el.scrollWidth / 3)));
   };
+
+  // Animación Starter → PRO al abrir la pantalla (igual que en el landing)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (window.innerWidth >= 768) {
+      // Desktop: centrar en PRO sin animación
+      el.scrollTo({ left: el.scrollWidth / 3, behavior: 'auto' });
+    } else {
+      // Móvil: posicionar en Starter y deslizar suavemente al PRO
+      el.scrollTo({ left: 0, behavior: 'auto' });
+      const timer = setTimeout(() => {
+        el.scrollTo({ left: el.scrollWidth / 3, behavior: 'smooth' });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleSelectAndContinue = (planId: 'starter' | 'pro' | 'power') => {
     const planConfig = OFFICIAL_PLANS[planId];
@@ -51,7 +68,6 @@ const PlanSelect: React.FC = () => {
 
         {/* Título */}
         <div className="text-center px-6 pt-3 pb-4">
-          <span className="inline-block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Planes</span>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Elige tu plan</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
             {t('landing.pricing.subtitle')}
@@ -81,7 +97,7 @@ const PlanSelect: React.FC = () => {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-4 -mx-6 px-6 no-scrollbar md:grid md:grid-cols-3 md:overflow-x-visible md:mx-6 md:px-0"
+          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pt-4 pb-4 -mx-6 px-6 no-scrollbar md:grid md:grid-cols-3 md:overflow-x-visible md:mx-6 md:px-0"
         >
 
           {/* ── STARTER ── */}

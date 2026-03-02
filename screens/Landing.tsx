@@ -113,13 +113,12 @@ const Landing: React.FC = () => {
   const { user, loading } = useAuth();
 
   const handlePlanSelect = (planId: string) => {
-    const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; name: string; limit: number }> = {
+    const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; limit: number }> = {
       starter: {
         monthly: 'price_1SzJRLEADSrtMyiaQaDEp44E',
         annual:  'price_1T52jPEADSrtMyiayfSm4e8m',
         monthlyPrice: 19.90,
         annualPrice: 199.00,
-        name: 'Starter',
         limit: 150,
       },
       pro: {
@@ -127,7 +126,6 @@ const Landing: React.FC = () => {
         annual:  'price_1T52kUEADSrtMyiavL3rwWqH',
         monthlyPrice: 39.90,
         annualPrice: 399.00,
-        name: 'Pro',
         limit: 400,
       },
       power: {
@@ -135,20 +133,16 @@ const Landing: React.FC = () => {
         annual:  'price_1T52l1EADSrtMyiaGkuLXqy5',
         monthlyPrice: 99.00,
         annualPrice: 990.00,
-        name: 'Power',
         limit: 1400,
       },
     };
     const selected = plans[planId];
-    localStorage.setItem('selected_plan', JSON.stringify({
-      planId,
-      planName: selected.name,
-      stripePriceId: isAnnual ? selected.annual : selected.monthly,
-      price: isAnnual ? selected.annualPrice : selected.monthlyPrice,
-      monthlyLimit: selected.limit,
-      billing: isAnnual ? 'annual' : 'monthly',
-    }));
-    navigate('/onboarding/checkout');
+    // Guardar con el mismo formato que usa PlanSelect/RegionSelect
+    localStorage.setItem('selected_plan', planId);
+    localStorage.setItem('selected_plan_price', String(isAnnual ? selected.annualPrice : selected.monthlyPrice));
+    localStorage.setItem('selected_plan_annual', String(isAnnual));
+    localStorage.setItem('selected_plan_price_id', isAnnual ? selected.annual : selected.monthly);
+    navigate('/onboarding/region');
   };
 
   useEffect(() => {
@@ -625,7 +619,7 @@ const Landing: React.FC = () => {
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.benefits.title').replace('<br/>', '<br/>') }}></h2>
           </div>
-          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pt-2 pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
               { icon: 'sim_card', title: t('landing.benefits.item1.title'), desc: t('landing.benefits.item1.desc') },
               { icon: 'bolt', title: t('landing.benefits.item2.title'), desc: t('landing.benefits.item2.desc') },
@@ -748,7 +742,7 @@ const Landing: React.FC = () => {
           <div className="md:hidden relative">
             <div
               ref={casosUsoRef}
-              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 -mx-6 px-6"
+              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-2 pb-4 -mx-6 px-6"
               style={{ scrollbarWidth: 'none' }}
             >
               {casosUso.map((c, i) => (
@@ -880,7 +874,7 @@ const Landing: React.FC = () => {
           <div className="relative">
             <div
               ref={testimonialsRef}
-              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
               style={{ scrollbarWidth: 'none' }}
             >
               {testimonials.map((t, i) => (
@@ -976,7 +970,7 @@ const Landing: React.FC = () => {
             </span>
           </div>
 
-          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pt-4 pb-12 md:pb-4 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
             <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>

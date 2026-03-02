@@ -94,14 +94,51 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-white font-sans">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-white font-sans relative">
       <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(-6px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes orbitRing {
+          from { transform: rotateX(70deg) rotateZ(0deg); }
+          to   { transform: rotateX(70deg) rotateZ(360deg); }
+        }
       `}</style>
-      
+
+      {/* Botón ir al landing — planeta */}
+      <button
+        onClick={() => navigate('/')}
+        title="Ir al sitio web"
+        className="absolute top-5 left-5 flex items-center gap-2 group"
+      >
+        {/* Planeta SVG */}
+        <div className="relative w-9 h-9 flex items-center justify-center">
+          {/* Globo */}
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Sombra del planeta */}
+            <circle cx="18" cy="18" r="13" fill="url(#planetGrad)" />
+            {/* Continente decorativo */}
+            <path d="M10 14 Q13 11 16 13 Q19 15 17 18 Q15 21 12 20 Q9 19 10 14Z" fill="#4ade80" opacity="0.55" />
+            <path d="M20 12 Q23 10 25 14 Q26 17 23 18 Q21 16 20 12Z" fill="#4ade80" opacity="0.45" />
+            <path d="M14 20 Q16 22 18 21 Q20 20 19 23 Q17 25 14 23 Q12 21 14 20Z" fill="#4ade80" opacity="0.4" />
+            {/* Brillo */}
+            <ellipse cx="14" cy="13" rx="4" ry="2.5" fill="white" opacity="0.18" transform="rotate(-20 14 13)" />
+            {/* Anillo */}
+            <ellipse cx="18" cy="18" rx="16" ry="5" stroke="#818cf8" strokeWidth="2.2" fill="none" opacity="0.85" transform="rotate(-22 18 18)" />
+            <defs>
+              <radialGradient id="planetGrad" cx="38%" cy="35%" r="60%" gradientUnits="objectBoundingBox">
+                <stop offset="0%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#1d4ed8" />
+              </radialGradient>
+            </defs>
+          </svg>
+        </div>
+        <span className="text-[11px] font-black text-slate-400 group-hover:text-primary transition-colors uppercase tracking-widest hidden sm:block">
+          telsim.app
+        </span>
+      </button>
+
       <div className="bg-white p-8 w-full max-w-sm flex flex-col items-center">
         {/* Logo */}
         <div className="flex flex-col items-center mt-[-8px] mb-10">
