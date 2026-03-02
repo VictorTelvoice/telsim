@@ -191,21 +191,19 @@ const App: React.FC = () => {
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
                   <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
+
+                  {/* ── Rutas full-width (desktop responsivo, sin max-w-md) ── */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Navigate to="/login" replace />} />
+                  {/* Plan sin ProtectedRoute — usuario nuevo puede verlo */}
+                  <Route path="/onboarding/plan" element={<PlanSelect />} />
+                  <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
+
                   <Route path="*" element={
                     <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Navigate to="/login" replace />} />
                         <Route path="/legal" element={<LegalScreen />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
-                        <Route 
-                          path="/onboarding/region" 
-                          element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/plan" 
-                          element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} 
-                        />
                         <Route 
                           path="/onboarding/summary" 
                           element={<ProtectedRoute><Summary /></ProtectedRoute>} 

@@ -63,17 +63,24 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false);
   const prevUserRef = useRef(user);
 
+  // Destino post-auth: si hay plan guardado → ir a region, sino al dashboard
+  const getDestination = () => {
+    const hasPlan = !!localStorage.getItem('selected_plan');
+    if (hasPlan) return '/onboarding/region';
+    return getPostAuthRoute();
+  };
+
   // Cuando user pasa de null → autenticado, ir al destino correcto
   useEffect(() => {
     if (!prevUserRef.current && user) {
-      navigate(getPostAuthRoute());
+      navigate(getDestination());
     }
     prevUserRef.current = user;
   }, [user, navigate]);
 
   // Si ya tiene sesión activa al cargar, ir directo
   useEffect(() => {
-    if (user) navigate(getPostAuthRoute());
+    if (user) navigate(getDestination());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -175,10 +182,8 @@ const Login = () => {
 
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-blue-900/50">
-              <span className="material-symbols-rounded text-white text-[22px]">sim_card</span>
-            </div>
-            <span className="text-white text-xl font-black tracking-tight">Telsim</span>
+            <img src="/logo.svg" alt="Telsim" className="w-9 h-9" />
+            <span className="text-white text-xl font-black tracking-tight">telsim</span>
           </div>
 
           {/* Hero */}

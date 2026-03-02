@@ -144,10 +144,12 @@ const Landing: React.FC = () => {
     localStorage.setItem('selected_plan_price', String(isAnnual ? selected.annualPrice : selected.monthlyPrice));
     localStorage.setItem('selected_plan_annual', String(isAnnual));
     localStorage.setItem('selected_plan_price_id', isAnnual ? selected.annual : selected.monthly);
-    // Logueado → ir directo a elegir región y continuar compra
-    // No logueado → pasar por checkout para autenticarse primero
+    // Logueado → ir directo a elegir región
+    // No logueado → desktop va a /onboarding/plan (flujo completo), mobile a /onboarding/checkout
     if (user) {
       navigate('/onboarding/region');
+    } else if (window.innerWidth >= 1024) {
+      navigate('/onboarding/plan');
     } else {
       navigate('/onboarding/checkout');
     }
