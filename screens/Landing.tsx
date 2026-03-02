@@ -518,7 +518,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO */}
-      <section className="tech-bg pt-10 pb-12">
+      <section className="tech-bg pt-14 md:pt-28 pb-16 md:pb-28">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-center fade-in">
           {/* Columna Izquierda */}
           <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
@@ -619,7 +619,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* BENEFICIOS */}
-      <section id="beneficios" className="bg-white py-12">
+      <section id="beneficios" className="bg-white py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
@@ -648,7 +648,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TELEGRAM SECTION */}
-      <section className="py-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col gap-6 items-center md:items-start text-center md:text-left">
@@ -736,7 +736,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CASOS DE USO */}
-      <section className="bg-white py-12">
+      <section className="bg-white py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
@@ -790,7 +790,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg py-12 overflow-hidden">
+      <section id="como-funciona" className="tech-bg py-16 md:py-28 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -868,7 +868,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TESTIMONIOS */}
-      <section className="bg-white pt-8 pb-12">
+      <section className="bg-white pt-14 md:pt-28 pb-16 md:pb-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-6">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
@@ -931,7 +931,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* STATS */}
-      <section className="py-10" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-14 md:py-28" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
@@ -950,7 +950,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* PRECIOS */}
-      <section id="precios" ref={pricingSectionRef} className="tech-bg py-12">
+      <section id="precios" ref={pricingSectionRef} className="tech-bg py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Planes</span>
@@ -1115,7 +1115,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* COMPATIBILIDAD */}
-      <section className="py-6 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-14 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6 mb-8 text-center">
           <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-1">{t('landing.compatibility.tag')}</span>
           <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
@@ -1202,7 +1202,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CTA FINAL */}
-      <section className="bg-white py-12">
+      <section className="bg-white py-16 md:py-28">
         <div className="max-w-xl mx-auto px-6 text-center flex flex-col items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-button">
             <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
@@ -1230,7 +1230,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-100 bg-white py-8">
+      <footer className="border-t border-slate-100 bg-white py-14 md:py-28">
         <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">

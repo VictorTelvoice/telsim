@@ -17,7 +17,7 @@ const Register: React.FC = () => {
       const { error: authError } = await (supabase.auth as any).signInWithOAuth({
         provider,
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}/#/onboarding/checkout`,
         },
       });
       if (authError) throw authError;
@@ -67,7 +67,7 @@ const Register: React.FC = () => {
         if (savedPlan) {
           navigate('/onboarding/checkout');
         } else {
-          navigate('/dashboard');
+          navigate('/onboarding/plan');
         }
       }
     } catch (err: any) {

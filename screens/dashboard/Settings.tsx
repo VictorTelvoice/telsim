@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import SideDrawer from '../../components/SideDrawer';
 import NotificationsMenu from '../../components/NotificationsMenu';
@@ -15,7 +16,7 @@ const Settings: React.FC = () => {
   const { toggleTheme, theme } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(true);
-  const [lang, setLang] = useState<'es' | 'en'>('es');
+  const { language: lang, setLanguage: setLang } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,7 +197,7 @@ const Settings: React.FC = () => {
                 </div>
               }
             />
-            <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>} title="Modo Oscuro" sub="Tema de la aplicación" onClick={() => toggleTheme()} right={<Toggle enabled={isDark} onToggle={toggleTheme} />} />
+            <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>} title="Modo Oscuro" sub="Tema de la aplicación" right={<Toggle enabled={isDark} onToggle={toggleTheme} />} />
           </div>
         </div>
 

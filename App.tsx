@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -9,7 +9,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
-import Register from './screens/auth/Register';
 import RegionSelect from './screens/onboarding/RegionSelect';
 import PlanSelect from './screens/onboarding/PlanSelect';
 import Summary from './screens/onboarding/Summary';
@@ -181,7 +180,7 @@ const App: React.FC = () => {
                     <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
                         <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
+                        <Route path="/register" element={<Navigate to="/login" replace />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
                         <Route 
                           path="/onboarding/region" 

@@ -126,11 +126,24 @@ const Billing: React.FC = () => {
     }
   };
 
-  const getBrandLogo = (brand: string) => {
+  const getBrandLogo = (brand: string): React.ReactNode => {
     const b = brand.toLowerCase();
-    if (b.includes('visa')) return 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg';
-    if (b.includes('mastercard')) return 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg';
-    if (b.includes('amex') || b.includes('american')) return 'https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg';
+    if (b.includes('visa')) return (
+      <svg viewBox="0 0 48 16" className="w-full h-full" fill="none">
+        <text x="0" y="13" fontSize="14" fontWeight="900" fontFamily="Arial" fill="#1A1F71">VISA</text>
+      </svg>
+    );
+    if (b.includes('mastercard')) return (
+      <div className="flex">
+        <div className="w-5 h-5 rounded-full bg-red-500 opacity-90" />
+        <div className="w-5 h-5 rounded-full bg-yellow-400 opacity-90 -ml-2" />
+      </div>
+    );
+    if (b.includes('amex') || b.includes('american')) return (
+      <svg viewBox="0 0 48 16" className="w-full h-full" fill="none">
+        <text x="0" y="13" fontSize="11" fontWeight="900" fontFamily="Arial" fill="#007BC1">AMEX</text>
+      </svg>
+    );
     return null;
   };
 
@@ -199,7 +212,9 @@ const Billing: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="size-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm overflow-hidden p-2">
                   {getBrandLogo(paymentMethod.brand) ? (
-                    <img src={getBrandLogo(paymentMethod.brand)!} alt={paymentMethod.brand} className="w-full h-full object-contain" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      {getBrandLogo(paymentMethod.brand)}
+                    </div>
                   ) : (
                     <CreditCard className="size-6 text-slate-400" />
                   )}
@@ -208,7 +223,7 @@ const Billing: React.FC = () => {
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {paymentMethod.brand} •••• {paymentMethod.last4}
                   </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">{t('onboarding.expires')}: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">EXPIRES: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
                 </div>
               </div>
               <button 
@@ -364,9 +379,11 @@ const Billing: React.FC = () => {
                   <div className="flex items-center gap-3">
                      <div className="size-8 bg-white/5 rounded-lg flex items-center justify-center">
                         {paymentMethod && getBrandLogo(paymentMethod.brand) ? (
-                            <img src={getBrandLogo(paymentMethod.brand)!} alt={paymentMethod.brand} className="w-5 h-5 object-contain opacity-60" />
+                          <div className="w-full h-full flex items-center justify-center">
+                            {getBrandLogo(paymentMethod.brand)}
+                          </div>
                         ) : (
-                            <CreditCard className="size-4 text-white/40" />
+                          <CreditCard className="size-6 text-slate-400" />
                         )}
                      </div>
                      <div className="flex flex-col">
