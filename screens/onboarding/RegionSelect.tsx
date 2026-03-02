@@ -17,7 +17,7 @@ const RegionSelect: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 p-6 pt-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-12">
-        <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors text-slate-900 dark:text-white">
+        <button onClick={() => navigate('/onboarding/plan')} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors text-slate-900 dark:text-white">
           <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
         <div className="flex gap-2">
@@ -82,8 +82,25 @@ const RegionSelect: React.FC = () => {
       </div>
 
       <div className="mt-auto pt-8">
-        <button 
-          onClick={() => navigate('/onboarding/plan')}
+        <button
+          onClick={() => {
+            const planId = localStorage.getItem('selected_plan') || 'pro';
+            const price = parseFloat(localStorage.getItem('selected_plan_price') || '39.90');
+            const isAnnual = localStorage.getItem('selected_plan_annual') === 'true';
+            const stripePriceId = localStorage.getItem('selected_plan_price_id') || 'price_1SzJS9EADSrtMyiagxHUI2qM';
+            const planNames: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
+            const limits: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
+            navigate('/onboarding/summary', {
+              state: {
+                planName: planNames[planId] || 'Pro',
+                price,
+                isAnnual,
+                monthlyLimit: limits[planId] || 400,
+                stripePriceId,
+                region: selected,
+              }
+            });
+          }}
           className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden"
         >
           <div className="w-12"></div> 

@@ -104,7 +104,7 @@ const BottomNav = () => {
 
         <div className="relative -top-5 px-2">
           <button 
-            onClick={() => navigate('/onboarding/region')}
+            onClick={() => navigate('/onboarding/plan')}
             className="size-14 bg-primary rounded-full flex items-center justify-center text-white shadow-[0_4px_12px_rgba(17,82,212,0.4)] hover:scale-105 active:scale-95 transition-transform"
           >
             <Plus size={32} />
