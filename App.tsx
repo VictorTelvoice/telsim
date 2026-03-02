@@ -36,6 +36,7 @@ import TelegramConfig from './screens/dashboard/TelegramConfig';
 import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
 import ApiDocs from './screens/ApiDocs';
+import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
@@ -181,6 +182,7 @@ const App: React.FC = () => {
                       <Routes>
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Navigate to="/login" replace />} />
+                        <Route path="/legal" element={<LegalScreen />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
                         <Route 
                           path="/onboarding/region" 

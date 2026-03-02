@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
+
 const Login = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<'email' | 'login' | 'register'>('email');
@@ -199,7 +200,20 @@ const Login = () => {
         )}
 
         <p className="mt-8 text-[10px] text-slate-400 text-center leading-relaxed">
-          Al continuar, aceptas nuestros <span className="underline cursor-pointer">Términos de uso</span> y nuestra <span className="underline cursor-pointer">Política de privacidad</span>.
+          Al continuar, aceptas nuestros{' '}
+          <button
+            onClick={() => navigate('/legal?tab=terms')}
+            className="underline text-slate-500 font-semibold hover:text-blue-600 transition-colors"
+          >
+            Términos de uso
+          </button>
+          {' '}y nuestra{' '}
+          <button
+            onClick={() => navigate('/legal?tab=privacy')}
+            className="underline text-slate-500 font-semibold hover:text-blue-600 transition-colors"
+          >
+            Política de privacidad
+          </button>.
         </p>
       </div>
     </div>

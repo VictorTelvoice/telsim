@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
-type Step = 'email' | 'password' | 'register';
+type Step = 'email' | 'password' | 'register' | 'confirm';
 
 const planMap: Record<string, { planName: string; price: number; limit: number; stripePriceId: string; features: string[] }> = {
   starter: {
@@ -37,10 +37,16 @@ const QuickCheckout: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si ya está logueado, ir directo al summary
+  // Cuando AuthContext actualice el user (tras login/registro), navegar a summary
   useEffect(() => {
     if (user) navigate('/onboarding/summary');
   }, [user, navigate]);
+
+  // Iniciar con email pre-cargado si el usuario venía del landing
+  useEffect(() => {
+    const savedEmail = sessionStorage.getItem('checkout_email');
+    if (savedEmail) { setEmail(savedEmail); sessionStorage.removeItem('checkout_email'); }
+  }, []);
 
   const planId = localStorage.getItem('selected_plan') || 'pro';
   const plan = planMap[planId] || planMap.pro;
@@ -56,17 +62,20 @@ const QuickCheckout: React.FC = () => {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
-      // Intentar login con contraseña falsa solo para detectar si el usuario existe
       const { error: err } = await supabase.auth.signInWithPassword({
         email: email.trim(), password: '___check___'
       });
-      // "Invalid login credentials" = existe pero contraseña incorrecta
-      // "Email not confirmed" = existe
-      // Otros errores = no existe o error real
-      if (err?.message?.includes('Invalid login credentials') || err?.message?.includes('Email not confirmed')) {
-        setStep('password'); // Usuario existe → pedir contraseña
+      const msg = err?.message?.toLowerCase() ?? '';
+      // Mensajes que indican que el usuario YA existe
+      if (
+        msg.includes('invalid login credentials') ||
+        msg.includes('invalid credentials') ||
+        msg.includes('email not confirmed') ||
+        msg.includes('correo no confirmado')
+      ) {
+        setStep('password');
       } else {
-        setStep('register'); // No existe → crear cuenta
+        setStep('register');
       }
     } catch {
       setStep('register');
@@ -76,20 +85,27 @@ const QuickCheckout: React.FC = () => {
   };
 
   // STEP 2a: Login con contraseña
+  // NO navegar aquí: dejamos que el useEffect reaccione al cambio de user en AuthContext
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await supabase.auth.signInWithPassword({
+      const { error: err } = await supabase.auth.signInWithPassword({
         email: email.trim(), password
       });
-      if (err) { setError('Contraseña incorrecta. Inténtalo de nuevo.'); return; }
-      if (data.user) navigate('/onboarding/summary');
-    } catch { setError('Error de conexión.'); }
-    finally { setLoading(false); }
+      if (err) {
+        setError('Contraseña incorrecta. Inténtalo de nuevo.');
+        setLoading(false);
+      }
+      // Si no hay error, el onAuthStateChange actualizará el user y el useEffect navegará
+    } catch {
+      setError('Error de conexión.');
+      setLoading(false);
+    }
   };
 
   // STEP 2b: Registro
+  // NO navegar aquí: dejamos que el useEffect reaccione al cambio de user en AuthContext
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError(null);
@@ -98,13 +114,36 @@ const QuickCheckout: React.FC = () => {
         email: email.trim(), password,
         options: { data: { full_name: fullName } }
       });
-      if (err) { setError(err.message); return; }
-      if (data.user) {
-        await supabase.from('users').insert([{ id: data.user.id, email: email.trim(), nombre: fullName }]);
-        navigate('/onboarding/summary');
+      if (err) {
+        const msg = err.message.toLowerCase();
+        // Si el usuario ya existe, cambiar a paso de contraseña
+        if (msg.includes('already') || msg.includes('registered') || msg.includes('ya existe')) {
+          setStep('password');
+          setError('Ya tienes cuenta con este correo. Ingresa tu contraseña.');
+        } else {
+          setError(err.message);
+        }
+        setLoading(false);
+        return;
       }
-    } catch { setError('Error al crear la cuenta.'); }
-    finally { setLoading(false); }
+      if (data.user) {
+        // Insertar en tabla users (upsert para evitar duplicados)
+        await supabase.from('users').upsert([
+          { id: data.user.id, email: email.trim(), nombre: fullName }
+        ]);
+        if (data.session) {
+          // Sesión activa: el onAuthStateChange actualizará user y el useEffect navegará
+          // loading queda en true mientras el useEffect hace el navigate
+        } else {
+          // Supabase requiere confirmación de email
+          setStep('confirm');
+          setLoading(false);
+        }
+      }
+    } catch {
+      setError('Error al crear la cuenta.');
+      setLoading(false);
+    }
   };
 
   // Google OAuth
@@ -234,6 +273,24 @@ const QuickCheckout: React.FC = () => {
               </form>
             )}
 
+            {/* STEP: CONFIRM EMAIL */}
+            {step === 'confirm' && (
+              <div className="flex flex-col items-center gap-4 py-4 text-center">
+                <span className="material-symbols-rounded text-emerald-500 text-[48px]">mark_email_read</span>
+                <div>
+                  <p className="text-sm font-black text-slate-900 dark:text-white mb-1">¡Revisa tu correo!</p>
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Enviamos un enlace de confirmación a <strong className="text-slate-700 dark:text-slate-200">{email}</strong>.<br/>
+                    Una vez confirmes tu cuenta, podrás continuar.
+                  </p>
+                </div>
+                <button type="button" onClick={() => { setStep('email'); setError(null); }}
+                  className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary transition-colors mt-2">
+                  ← Usar otro correo
+                </button>
+              </div>
+            )}
+
             {/* STEP: REGISTER (usuario nuevo) */}
             {step === 'register' && (
               <form onSubmit={handleRegister} className="flex flex-col gap-4">
@@ -269,7 +326,11 @@ const QuickCheckout: React.FC = () => {
           </div>
 
           <p className="text-center text-[10px] text-slate-400 font-medium px-4">
-            Al continuar, aceptas los <span className="underline cursor-pointer">Términos</span> y la <span className="underline cursor-pointer">Política de Privacidad</span> de Telsim.
+            Al continuar, aceptas los{' '}
+            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-primary transition-colors">Términos</button>
+            {' '}y la{' '}
+            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-primary transition-colors">Política de Privacidad</button>
+            {' '}de Telsim.
           </p>
         </div>
       </div>
