@@ -548,7 +548,8 @@ const Landing: React.FC = () => {
               </a>
             </div>
 
-            <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
+            {/* Trust badges — solo desktop (en móvil se muestran debajo de la tarjeta GRATIS) */}
+            <div className="hidden md:flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
             </div>
@@ -589,6 +590,12 @@ const Landing: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Trust badges — solo móvil, debajo de la tarjeta GRATIS */}
+            <div className="flex md:hidden items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center mt-4">
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
             </div>
 
             {/* Botones Desktop */}
@@ -917,9 +924,6 @@ const Landing: React.FC = () => {
             <div className="md:hidden">
               <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
             </div>
-            <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-6">
-              Miles de bots activos confían en Telsim
-            </p>
           </div>
         </div>
       </section>
@@ -972,133 +976,105 @@ const Landing: React.FC = () => {
 
           <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pt-4 pb-12 md:pb-4 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
-            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
-              <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
-              <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('landing.pricing.starter.name')}</span>
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-slate-200 group-hover:scale-110 transition-all flex items-center justify-center">
-                    <span className="material-symbols-rounded text-slate-500 text-[18px]">sim_card</span>
-                  </div>
+            <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-2xl p-5 border border-slate-200 bg-white flex flex-col gap-3 cursor-pointer text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 min-w-[70vw] md:min-w-0 snap-center">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('landing.pricing.starter.name')}</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-slate-200 transition-colors flex items-center justify-center">
+                  <span className="material-symbols-rounded text-slate-500 text-[16px]">sim_card</span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 bg-slate-100 group-hover:bg-slate-200 transition-colors px-3 py-1.5 rounded-full mb-5">
-                  <span className="material-symbols-rounded text-slate-500 text-[13px]">sms</span>
-                  <span className="text-[11px] font-black text-slate-600">{t('landing.pricing.starter.credits')}</span>
-                </div>
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
-                    {isAnnual ? '$199' : '$19.90'}
-                  </span>
-                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
-                </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $39.80 vs plan mensual</p>
-                )}
               </div>
-              <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-              <div className="relative flex flex-col gap-2.5 flex-1">
+              <div className="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-full w-fit">
+                <span className="material-symbols-rounded text-slate-400 text-[12px]">sms</span>
+                <span className="text-[10px] font-black text-slate-500">{t('landing.pricing.starter.credits')}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
+                  {isAnnual ? '$199' : '$19.90'}
+                </span>
+                <span className="text-slate-400 text-sm font-medium">{isAnnual ? '/yr' : '/mo'}</span>
+              </div>
+              {isAnnual && <p className="text-[10px] font-bold text-emerald-500 -mt-1">Ahorras $39.80</p>}
+              <div className="h-px bg-slate-100"></div>
+              <div className="flex flex-col gap-2 flex-1">
                 {(t('landing.pricing.features.starter') as any).map((f: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
-                    <span className="text-xs font-semibold text-slate-700">{f}</span>
+                  <div key={i} className="flex items-start gap-1.5">
+                    <span className="material-symbols-rounded text-emerald-500 text-[13px] mt-0.5 flex-shrink-0">check_circle</span>
+                    <span className="text-[11px] font-semibold text-slate-600 leading-snug">{f}</span>
                   </div>
                 ))}
               </div>
-              <div className="relative bg-slate-50 group-hover:bg-slate-100 transition-colors rounded-2xl px-4 py-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">{t('common.learn_more')}</p>
-                <p className="text-xs font-bold text-slate-600">{t('landing.pricing.starter.desc')}</p>
-              </div>
-              <div className="relative flex items-center justify-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors pt-1">
-                <span className="text-sm font-black">{t('common.start_free')}</span>
-                <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              <div className="flex items-center justify-center gap-1 text-slate-400 group-hover:text-primary transition-colors">
+                <span className="text-xs font-bold">{t('common.start_free')}</span>
+                <span className="material-symbols-rounded text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
               </div>
             </button>
 
             {/* PRO */}
-            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-3xl p-6 border-2 border-primary bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.35)] min-w-[78vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}>
+            <button onClick={() => handlePlanSelect('pro')} className="group relative rounded-2xl p-5 border-2 border-primary flex flex-col gap-3 cursor-pointer text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_-8px_rgba(29,78,216,0.3)] min-w-[70vw] md:min-w-0 snap-center" style={{ background: 'linear-gradient(160deg,#f0f6ff 0%,#ffffff 60%)' }}>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
-                <div className="bg-primary text-white text-[10px] font-black px-5 py-1.5 rounded-b-2xl shadow-button tracking-widest whitespace-nowrap">{t('landing.pricing.pro.badge')}</div>
+                <div className="bg-primary text-white text-[9px] font-black px-4 py-1 rounded-b-xl tracking-widest whitespace-nowrap">{t('landing.pricing.pro.badge')}</div>
               </div>
-              <div className="relative pt-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black text-primary uppercase tracking-widest">{t('landing.pricing.pro.name')}</span>
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 group-hover:scale-110 transition-all flex items-center justify-center">
-                    <span className="material-symbols-rounded text-primary text-[18px]">rocket_launch</span>
-                  </div>
+              <div className="flex items-center justify-between pt-4">
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest">{t('landing.pricing.pro.name')}</span>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors flex items-center justify-center">
+                  <span className="material-symbols-rounded text-primary text-[16px]">rocket_launch</span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 bg-blue-100 group-hover:bg-blue-200 transition-colors px-3 py-1.5 rounded-full mb-5">
-                  <span className="material-symbols-rounded text-primary text-[13px]">sms</span>
-                  <span className="text-[11px] font-black text-primary">{t('landing.pricing.pro.credits')}</span>
-                </div>
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
-                    {isAnnual ? '$399' : '$39.90'}
-                  </span>
-                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
-                </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $79.80 vs plan mensual</p>
-                )}
               </div>
-              <div className="h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
-              <div className="relative flex flex-col gap-2.5 flex-1">
+              <div className="inline-flex items-center gap-1 bg-blue-100 px-2.5 py-1 rounded-full w-fit">
+                <span className="material-symbols-rounded text-primary text-[12px]">sms</span>
+                <span className="text-[10px] font-black text-primary">{t('landing.pricing.pro.credits')}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
+                  {isAnnual ? '$399' : '$39.90'}
+                </span>
+                <span className="text-slate-400 text-sm font-medium">{isAnnual ? '/yr' : '/mo'}</span>
+              </div>
+              {isAnnual && <p className="text-[10px] font-bold text-emerald-500 -mt-1">Ahorras $79.80</p>}
+              <div className="h-px bg-blue-100"></div>
+              <div className="flex flex-col gap-2 flex-1">
                 {(t('landing.pricing.features.pro') as any).map((f: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
-                    <span className="text-xs font-semibold text-slate-700">{f}</span>
+                  <div key={i} className="flex items-start gap-1.5">
+                    <span className="material-symbols-rounded text-emerald-500 text-[13px] mt-0.5 flex-shrink-0">check_circle</span>
+                    <span className="text-[11px] font-semibold text-slate-600 leading-snug">{f}</span>
                   </div>
                 ))}
               </div>
-              <div className="relative bg-blue-50 group-hover:bg-blue-100 transition-colors rounded-2xl px-4 py-3">
-                <p className="text-[9px] font-black text-primary/50 uppercase tracking-wider mb-0.5">{t('common.learn_more')}</p>
-                <p className="text-xs font-bold text-primary">{t('landing.pricing.pro.desc')}</p>
-              </div>
-              <div className="relative flex items-center justify-center gap-1.5 text-primary pt-1">
-                <span className="text-sm font-black">{t('common.start_free')}</span>
-                <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              <div className="flex items-center justify-center gap-1 text-primary">
+                <span className="text-xs font-bold">{t('common.start_free')}</span>
+                <span className="material-symbols-rounded text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
               </div>
             </button>
 
             {/* POWER */}
-            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.45)] min-w-[78vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', transition: 'all 0.3s' }}>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('landing.pricing.power.name')}</span>
-                  <div className="w-9 h-9 rounded-xl group-hover:scale-110 group-hover:shadow-[0_0_12px_rgba(245,166,35,0.5)] transition-all flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
-                    <span className="material-symbols-rounded text-[18px]" style={{ color: '#D97706' }}>workspace_premium</span>
-                  </div>
+            <button onClick={() => handlePlanSelect('power')} className="group relative rounded-2xl p-5 flex flex-col gap-3 cursor-pointer text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_-8px_rgba(245,166,35,0.35)] min-w-[70vw] md:min-w-0 snap-center" style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#D97706' }}>{t('landing.pricing.power.name')}</span>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#FEF3C7' }}>
+                  <span className="material-symbols-rounded text-[16px]" style={{ color: '#D97706' }}>workspace_premium</span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-5" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
-                  <span className="material-symbols-rounded text-[13px]" style={{ color: '#D97706' }}>sms</span>
-                  <span className="text-[11px] font-black" style={{ color: '#D97706' }}>{t('landing.pricing.power.credits')}</span>
-                </div>
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-5xl font-black text-slate-900 transition-colors duration-300">
-                    {isAnnual ? '$990' : '$99.00'}
-                  </span>
-                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
-                </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $198.00 vs plan mensual</p>
-                )}
               </div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full w-fit" style={{ background: '#FEF9C3' }}>
+                <span className="material-symbols-rounded text-[12px]" style={{ color: '#D97706' }}>sms</span>
+                <span className="text-[10px] font-black" style={{ color: '#D97706' }}>{t('landing.pricing.power.credits')}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-slate-900">{isAnnual ? '$990' : '$99.00'}</span>
+                <span className="text-slate-400 text-sm font-medium">{isAnnual ? '/yr' : '/mo'}</span>
+              </div>
+              {isAnnual && <p className="text-[10px] font-bold text-emerald-500 -mt-1">Ahorras $198.00</p>}
               <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' }}></div>
-              <div className="relative flex flex-col gap-2.5 flex-1">
+              <div className="flex flex-col gap-2 flex-1">
                 {(t('landing.pricing.features.power') as any).map((f: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
-                    <span className="text-xs font-semibold text-slate-700">{f}</span>
+                  <div key={i} className="flex items-start gap-1.5">
+                    <span className="material-symbols-rounded text-emerald-500 text-[13px] mt-0.5 flex-shrink-0">check_circle</span>
+                    <span className="text-[11px] font-semibold text-slate-600 leading-snug">{f}</span>
                   </div>
                 ))}
               </div>
-              <div className="relative rounded-2xl px-4 py-3" style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)' }}>
-                <p className="text-[9px] font-black uppercase tracking-wider mb-0.5" style={{ color: '#D97706', opacity: 0.7 }}>{t('common.learn_more')}</p>
-                <p className="text-xs font-bold" style={{ color: '#92400E' }}>{t('landing.pricing.power.desc')}</p>
-              </div>
-              <div className="relative flex items-center justify-center gap-1.5 pt-1">
-                <span className="text-sm font-black group-hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('common.start_free')}</span>
-                <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform" style={{ color: '#F5A623' }}>arrow_forward</span>
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-xs font-bold" style={{ color: '#D97706' }}>{t('common.start_free')}</span>
+                <span className="material-symbols-rounded text-[16px] group-hover:translate-x-0.5 transition-transform" style={{ color: '#D97706' }}>arrow_forward</span>
               </div>
             </button>
           </div>

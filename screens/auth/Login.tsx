@@ -106,35 +106,20 @@ const Login = () => {
         }
       `}</style>
 
-      {/* Botón ir al landing — planeta */}
+      {/* Botón ir al landing — globo sobrio */}
       <button
         onClick={() => navigate('/')}
         title="Ir al sitio web"
         className="absolute top-5 left-5 flex items-center gap-2 group"
       >
-        {/* Planeta SVG */}
-        <div className="relative w-9 h-9 flex items-center justify-center">
-          {/* Globo */}
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Sombra del planeta */}
-            <circle cx="18" cy="18" r="13" fill="url(#planetGrad)" />
-            {/* Continente decorativo */}
-            <path d="M10 14 Q13 11 16 13 Q19 15 17 18 Q15 21 12 20 Q9 19 10 14Z" fill="#4ade80" opacity="0.55" />
-            <path d="M20 12 Q23 10 25 14 Q26 17 23 18 Q21 16 20 12Z" fill="#4ade80" opacity="0.45" />
-            <path d="M14 20 Q16 22 18 21 Q20 20 19 23 Q17 25 14 23 Q12 21 14 20Z" fill="#4ade80" opacity="0.4" />
-            {/* Brillo */}
-            <ellipse cx="14" cy="13" rx="4" ry="2.5" fill="white" opacity="0.18" transform="rotate(-20 14 13)" />
-            {/* Anillo */}
-            <ellipse cx="18" cy="18" rx="16" ry="5" stroke="#818cf8" strokeWidth="2.2" fill="none" opacity="0.85" transform="rotate(-22 18 18)" />
-            <defs>
-              <radialGradient id="planetGrad" cx="38%" cy="35%" r="60%" gradientUnits="objectBoundingBox">
-                <stop offset="0%" stopColor="#60a5fa" />
-                <stop offset="100%" stopColor="#1d4ed8" />
-              </radialGradient>
-            </defs>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 group-hover:bg-blue-50 transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-primary transition-colors">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
           </svg>
         </div>
-        <span className="text-[11px] font-black text-slate-400 group-hover:text-primary transition-colors uppercase tracking-widest hidden sm:block">
+        <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary transition-colors hidden sm:block">
           telsim.app
         </span>
       </button>

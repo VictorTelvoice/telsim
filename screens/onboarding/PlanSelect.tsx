@@ -103,7 +103,7 @@ const PlanSelect: React.FC = () => {
           {/* ── STARTER ── */}
           <button
             onClick={() => { setSelected('starter'); handleSelectAndContinue('starter'); }}
-            className={`group relative rounded-3xl p-6 border flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[78vw] md:min-w-0 snap-center shrink-0 md:shrink
+            className={`group relative rounded-3xl p-6 border flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[70vw] md:min-w-0 snap-center shrink-0 md:shrink
               ${selected === 'starter'
                 ? 'border-2 border-slate-400 shadow-lg bg-white dark:bg-surface-dark'
                 : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-dark hover:border-slate-400'
@@ -152,7 +152,7 @@ const PlanSelect: React.FC = () => {
           {/* ── PRO ── */}
           <button
             onClick={() => { setSelected('pro'); handleSelectAndContinue('pro'); }}
-            className="group relative rounded-3xl p-6 border-2 border-primary flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.3)] min-w-[78vw] md:min-w-0 snap-center shrink-0 md:shrink"
+            className="group relative rounded-3xl p-6 border-2 border-primary flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.3)] min-w-[70vw] md:min-w-0 snap-center shrink-0 md:shrink"
             style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}
           >
             {/* Badge más popular */}
@@ -202,7 +202,7 @@ const PlanSelect: React.FC = () => {
           {/* ── POWER ── */}
           <button
             onClick={() => { setSelected('power'); handleSelectAndContinue('power'); }}
-            className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.4)] min-w-[78vw] md:min-w-0 snap-center shrink-0 md:shrink"
+            className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_60px_-10px_rgba(245,166,35,0.4)] min-w-[70vw] md:min-w-0 snap-center shrink-0 md:shrink"
             style={{ border: '2px solid transparent', background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}
           >
             <div className="relative">
