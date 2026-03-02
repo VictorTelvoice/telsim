@@ -1,63 +1,96 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-
+import { useAuth } from '../../contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState<'email' | 'login' | 'register'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevUserRef = useRef(user);
 
-  const handleContinueEmail = () => {
+  // Cuando el user pase de null → autenticado, ir al dashboard
+  // Esto resuelve el timing entre Supabase y AuthContext
+  useEffect(() => {
+    if (!prevUserRef.current && user) {
+      navigate('/dashboard');
+    }
+    prevUserRef.current = user;
+  }, [user, navigate]);
+
+  // Si ya tiene sesión activa al cargar la pantalla, ir directo al dashboard
+  useEffect(() => {
+    if (user) navigate('/dashboard');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // STEP 1: Detectar si el email existe o es nuevo
+  const handleContinueEmail = async () => {
     if (!email) return;
     setError(null);
-    // Por ahora simplemente pasamos a login como solicita el usuario
-    setStep('login');
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(), password: '___check___'
+      });
+      const msg = err?.message?.toLowerCase() ?? '';
+      if (
+        msg.includes('invalid login credentials') ||
+        msg.includes('invalid credentials') ||
+        msg.includes('email not confirmed')
+      ) {
+        setStep('login');   // Usuario existe → pedir contraseña
+      } else {
+        setStep('register'); // Usuario nuevo → crear cuenta
+      }
+    } catch {
+      setStep('login');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Google OAuth → siempre al dashboard desde esta pantalla
   const handleGoogleLogin = async () => {
-    const savedPlan = localStorage.getItem('selected_plan');
     await (supabase.auth as any).signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: savedPlan
-          ? `${window.location.origin}/#/onboarding/checkout`
-          : window.location.origin,
-      },
+      options: { redirectTo: window.location.origin },
     });
   };
 
+  // STEP 2a: Login — NO navegar aquí, el useEffect lo hace cuando user se actualiza
   const handleLogin = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await (supabase.auth as any).signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
-      setError(error.message);
+      setError('Contraseña incorrecta. Inténtalo de nuevo.');
       setLoading(false);
-      return;
     }
-    navigate('/dashboard');
+    // Si ok → onAuthStateChange actualiza user → useEffect navega a /dashboard
   };
 
+  // STEP 2b: Registro nuevo → al terminar va al onboarding si tiene plan, o plan selector
   const handleRegister = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await (supabase.auth as any).signUp({ 
-      email, 
-      password, 
-      options: { data: { full_name: nombre } } 
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { full_name: nombre } }
     });
     if (error) {
       setError(error.message);
       setLoading(false);
       return;
     }
-    const savedPlan = localStorage.getItem('selected_plan');
-    navigate(savedPlan ? '/onboarding/checkout' : '/onboarding/plan');
+    // Si ok → onAuthStateChange actualiza user → useEffect navega a /dashboard
+    // (desde dashboard el usuario podrá comprar un plan si lo desea)
   };
 
   return (
@@ -130,9 +163,10 @@ const Login = () => {
 
             <button
               onClick={handleContinueEmail}
-              className="w-full h-12 bg-[#1d4ed8] text-white rounded-full font-bold text-sm shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity"
+              disabled={loading || !email}
+              className="w-full h-12 bg-[#1d4ed8] text-white rounded-full font-bold text-sm shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Continuar
+              {loading ? 'Verificando...' : 'Continuar'}
             </button>
           </div>
         )}
@@ -176,7 +210,7 @@ const Login = () => {
               disabled={loading}
               className="w-full h-12 bg-[#1d4ed8] text-white rounded-full font-bold text-sm shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {loading ? 'Cargando...' : step === 'login' ? 'Continuar' : 'Crear cuenta'}
+              {loading ? 'Cargando...' : step === 'login' ? 'Ingresar al dashboard' : 'Crear cuenta'}
             </button>
 
             <div className="text-center">

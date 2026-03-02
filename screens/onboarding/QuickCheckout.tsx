@@ -48,9 +48,15 @@ const QuickCheckout: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si ya tiene sesión activa → ir directo al dashboard
+  // Si ya tiene sesión activa → mostrar botón "Ir a pagar" (no redirigir)
+  // El navigate lo hacemos solo cuando el user cambia de null → autenticado (tras login/registro)
+  const prevUserRef = React.useRef(user);
   useEffect(() => {
-    if (user) navigate('/dashboard');
+    if (!prevUserRef.current && user) {
+      // Recién autenticado → navegar al summary
+      navigate('/onboarding/summary');
+    }
+    prevUserRef.current = user;
   }, [user, navigate]);
 
   // Email pre-cargado desde sessionStorage
@@ -255,6 +261,42 @@ const QuickCheckout: React.FC = () => {
   const AuthForm = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex flex-col gap-5 ${mobile ? 'mx-4 mb-4 p-5 bg-white rounded-[24px] border border-slate-100' : 'p-10 justify-center'}`}>
 
+      {/* Usuario ya autenticado → botón directo a pagar */}
+      {user ? (
+        <div className="flex flex-col gap-4">
+          {!mobile && (
+            <div className="mb-2">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                ¡Listo para pagar!
+              </h2>
+              <p className="text-[12px] text-slate-400 font-medium mt-1.5">
+                Continúa para completar tu suscripción.
+              </p>
+            </div>
+          )}
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-100">
+            <span className="material-symbols-rounded text-blue-500 text-[18px]">account_circle</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Cuenta activa</p>
+              <p className="text-[11px] font-semibold text-slate-600 truncate">{user.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/onboarding/summary')}
+            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity">
+            <span>Ir a pagar</span>
+            <span className="material-symbols-rounded text-[18px]">arrow_forward</span>
+          </button>
+          <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+            Al continuar, aceptas los{' '}
+            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Términos</button>
+            {' '}y la{' '}
+            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
+            {' '}de Telsim.
+          </p>
+        </div>
+      ) : (
+      <>
       {!mobile && (
         <div className="mb-2">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
@@ -264,12 +306,6 @@ const QuickCheckout: React.FC = () => {
             Ingresa con tu correo o continúa con Google
           </p>
         </div>
-      )}
-
-      {mobile && (
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-          Ingresa con tu correo
-        </p>
       )}
 
       {error && (
@@ -421,6 +457,8 @@ const QuickCheckout: React.FC = () => {
         <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
         {' '}de Telsim.
       </p>
+      </>
+      )}
     </div>
   );
 
