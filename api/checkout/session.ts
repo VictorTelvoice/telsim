@@ -148,7 +148,7 @@ export default async function handler(req: any, res: any) {
     // Creación de sesión corrigiendo el error de modo suscripción y añadiendo persistencia
     const sessionConfig: any = {
       customer: customerId || undefined, // INYECCIÓN: Si existe, Stripe recupera tarjetas. Si no, crea cliente.
-      payment_method_collection: customerId ? 'if_required' : 'always',
+      payment_method_collection: 'always', // Siempre muestra el formulario para permitir cambiar tarjeta
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription', // MODO SUBSCRIPTION: Requiere no usar customer_creation

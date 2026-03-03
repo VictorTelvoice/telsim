@@ -108,10 +108,6 @@ const PlanSelect: React.FC = () => {
 
           {/* Title */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-full px-4 py-1.5 mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[11px] font-bold text-primary tracking-wider uppercase">7 días gratis en Plan Starter</span>
-            </div>
             <h1 className="text-[36px] font-black text-slate-900 tracking-tight">Elige tu plan</h1>
             <p className="text-slate-500 text-[15px] mt-2 font-medium">
               {t('landing.pricing.subtitle')}

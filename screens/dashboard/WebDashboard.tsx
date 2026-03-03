@@ -10,7 +10,7 @@ import {
   Zap, Shield, ChevronRight, Search, Plus,
   ArrowUpRight, ArrowDownRight, Circle, Wifi, Clock,
   CheckCircle2, Send, Link2, CreditCard, Pencil, X,
-  Bot, Key, User, Save, Loader2, Info
+  Bot, Key, User, Save, Loader2, Info, LayoutGrid, List
 } from 'lucide-react';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
@@ -270,6 +270,8 @@ const WebDashboard: React.FC = () => {
   const [editingSlotId, setEditingSlotId]   = useState<string | null>(null);
   const [labelDraft, setLabelDraft]         = useState('');
   const [savingLabel, setSavingLabel]       = useState(false);
+  const [simsView, setSimsView]             = useState<'card' | 'list'>('card');
+  const [togglingSlot, setTogglingSlot]     = useState<string | null>(null);
 
   // ─── Telegram Config state ────────────────────────────────────────────────
   const [tgToken, setTgToken]   = useState('');
@@ -376,6 +378,45 @@ const WebDashboard: React.FC = () => {
     setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: labelDraft.trim() || undefined } : s));
     setEditingSlotId(null);
     setSavingLabel(false);
+  };
+
+  // ─── Toggle Telegram forwarding per SIM ──────────────────────────────────────
+
+  const handleToggleForwarding = async (slotId: string, newVal: boolean) => {
+    setTogglingSlot(slotId);
+    try {
+      await supabase.from('slots').update({ forwarding_active: newVal }).eq('slot_id', slotId);
+      setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, forwarding_active: newVal } : s));
+    } catch (e) { console.error(e); }
+    finally { setTogglingSlot(null); }
+  };
+
+  // ─── Plan style helper (SIM card visuals) ────────────────────────────────────
+
+  const getWebPlanStyle = (plan: string) => {
+    switch (plan) {
+      case 'power': return {
+        cardBg:     'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C]',
+        chip:       'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
+        label:      'Power',
+        phoneColor: 'text-white',
+        labelColor: 'text-white/80',
+      };
+      case 'pro': return {
+        cardBg:     'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00C8FF]',
+        chip:       'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
+        label:      'Pro',
+        phoneColor: 'text-white',
+        labelColor: 'text-white/80',
+      };
+      default: return {
+        cardBg:     'bg-white border border-slate-200',
+        chip:       'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
+        label:      'Starter',
+        phoneColor: 'text-slate-900',
+        labelColor: 'text-slate-400',
+      };
+    }
   };
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
@@ -717,98 +758,290 @@ const WebDashboard: React.FC = () => {
 
           {/* ── NUMBERS TAB ──────────────────────────────────────────────── */}
           {activeTab === 'numbers' && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
+
+              {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-[16px] font-black">Mis SIMs</h2>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{activeSlots.length} activas · {slots.length} total</p>
+                  <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {activeSlots.length} activas · {slots.length} total
+                  </p>
                 </div>
-                <button onClick={() => navigate('/onboarding/plan')}
-                  className="flex items-center gap-2 bg-primary text-white text-[12px] font-bold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors">
-                  <Plus size={14} /> Nueva SIM
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* View toggle */}
+                  <div className={`flex items-center rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                    <button
+                      onClick={() => setSimsView('card')}
+                      title="Vista SIM card"
+                      className={`px-3 py-2 transition-all ${simsView === 'card'
+                        ? 'bg-primary text-white'
+                        : (isDark ? 'text-slate-400 hover:text-white bg-slate-800' : 'text-slate-400 hover:text-slate-700 bg-slate-50')}`}>
+                      <LayoutGrid size={15} />
+                    </button>
+                    <button
+                      onClick={() => setSimsView('list')}
+                      title="Vista lista"
+                      className={`px-3 py-2 transition-all ${simsView === 'list'
+                        ? 'bg-primary text-white'
+                        : (isDark ? 'text-slate-400 hover:text-white bg-slate-800' : 'text-slate-400 hover:text-slate-700 bg-slate-50')}`}>
+                      <List size={15} />
+                    </button>
+                  </div>
+                  <button onClick={() => navigate('/onboarding/plan')}
+                    className="flex items-center gap-2 bg-primary text-white text-[12px] font-bold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors">
+                    <Plus size={14} /> Nueva SIM
+                  </button>
+                </div>
               </div>
 
-              <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                <table className="w-full text-left text-[12px]">
-                  <thead>
-                    <tr className={`border-b text-[10px] font-black uppercase tracking-wider ${isDark ? 'border-slate-800 text-slate-500' : 'border-slate-100 text-slate-400'}`}>
-                      <th className="px-5 py-3">Número</th><th className="px-5 py-3">Etiqueta</th>
-                      <th className="px-5 py-3">Región</th><th className="px-5 py-3">Plan</th>
-                      <th className="px-5 py-3">Mensajes</th><th className="px-5 py-3">Reenvío</th>
-                      <th className="px-5 py-3">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan={7} className="text-center py-12"><RefreshCw size={20} className="text-slate-400 animate-spin mx-auto" /></td></tr>
-                    ) : slots.length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-2 text-slate-400">
-                          <Smartphone size={28} /><p className="text-[12px] font-semibold">Sin SIMs asignadas</p>
-                          <button onClick={() => navigate('/onboarding/plan')} className="mt-2 px-4 py-2 bg-primary text-white rounded-xl text-[11px] font-bold hover:bg-primary/90 transition-colors">Activar primera SIM</button>
-                        </div>
-                      </td></tr>
-                    ) : slots.map(slot => {
-                      const flag    = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
-                      const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
-                      const isActive = slot.status !== 'expired';
-                      const pc = PLAN_COLORS[slot.plan_type?.toLowerCase()] ?? PLAN_COLORS.starter;
-                      const isEditing = editingSlotId === slot.slot_id;
-                      return (
-                        <tr key={slot.slot_id}
-                          className={`border-b transition-colors border-l-[3px] ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-50 hover:bg-slate-50'}`}
-                          style={{ borderLeftColor: pc.border }}>
-                          <td className="px-5 py-3"><span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{slot.phone_number}</span></td>
-                          {/* Etiqueta editable */}
-                          <td className="px-5 py-3">
-                            {isEditing ? (
-                              <div className="flex items-center gap-1.5">
-                                <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }}
-                                  className={`text-[12px] px-2 py-1 rounded-lg border outline-none w-28 ${isDark ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
-                                  placeholder="Ej: Marketing" />
-                                <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
-                                  className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                  {savingLabel ? <RefreshCw size={11} className="animate-spin" /> : <Check size={11} />}
-                                </button>
-                                <button onClick={() => setEditingSlotId(null)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                  <X size={11} className="text-slate-400" />
-                                </button>
+              {/* Loading */}
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <RefreshCw size={24} className="text-slate-400 animate-spin" />
+                </div>
+
+              /* Empty state */
+              ) : slots.length === 0 ? (
+                <div className={`rounded-2xl p-14 flex flex-col items-center gap-3 text-center border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <Smartphone size={32} className="text-slate-300" />
+                  <p className={`text-[13px] font-semibold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Sin SIMs asignadas</p>
+                  <button onClick={() => navigate('/onboarding/plan')}
+                    className="mt-1 px-5 py-2.5 bg-primary text-white rounded-xl text-[12px] font-bold hover:bg-primary/90 transition-colors">
+                    Activar primera SIM
+                  </button>
+                </div>
+
+              /* ── CARD VIEW (SIM card grid) ── */
+              ) : simsView === 'card' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {slots.map(slot => {
+                    const plan   = (slot.plan_type || 'starter').toLowerCase();
+                    const ps     = getWebPlanStyle(plan);
+                    const pc     = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
+                    const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
+                    const isActive = slot.status !== 'expired';
+                    const isForwarding = !!slot.forwarding_active;
+                    const isTog  = togglingSlot === slot.slot_id;
+                    const isEditing = editingSlotId === slot.slot_id;
+                    const countryCode = (slot.region ?? 'cl').toUpperCase();
+                    const flagUrl = `https://flagcdn.com/32x24/${countryCode.toLowerCase()}.png`;
+
+                    return (
+                      <div key={slot.slot_id} className="flex flex-col gap-2.5">
+
+                        {/* ── SIM Card visual ── */}
+                        <div className={`relative w-full aspect-[1.58/1] rounded-[2rem] ${ps.cardBg} p-6 flex flex-col justify-between overflow-hidden select-none shadow-lg`}>
+                          {/* Decorative rings */}
+                          <div className="absolute top-[-25%] right-[-12%] w-[55%] h-[55%] rounded-full border-[20px] border-white/[0.06] pointer-events-none" />
+                          <div className="absolute top-[5%] right-[5%] w-[40%] h-[40%] rounded-full border-[12px] border-white/[0.05] pointer-events-none" />
+
+                          {/* Top row: chip + flag */}
+                          <div className="flex items-start justify-between relative z-10">
+                            {/* SIM chip */}
+                            <div className={`w-11 h-8 rounded-lg ${ps.chip} shadow-inner flex items-center justify-center`}>
+                              <div className="w-8 h-[22px] rounded-[4px] border border-black/10 grid grid-cols-3 gap-[2px] p-[3px]">
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                  <div key={i} className="bg-black/15 rounded-[1px]" />
+                                ))}
                               </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5 group">
-                                <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{slot.label || <span className="italic text-slate-300 dark:text-slate-600">Sin etiqueta</span>}</span>
-                                <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
-                                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
-                                  <Pencil size={11} className="text-slate-400" />
-                                </button>
-                              </div>
+                            </div>
+                            {/* Region flag + code */}
+                            <div className="flex items-center gap-1.5">
+                              <img
+                                src={flagUrl} alt={countryCode}
+                                className="w-7 h-5 rounded-[3px] object-cover shadow-sm"
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              <span className={`text-[10px] font-bold tracking-wider ${ps.labelColor}`}>{countryCode}</span>
+                            </div>
+                          </div>
+
+                          {/* Bottom row: label + number + plan */}
+                          <div className="relative z-10">
+                            {slot.label && (
+                              <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${ps.labelColor}`}>{slot.label}</p>
                             )}
-                          </td>
-                          <td className="px-5 py-3"><span className="flex items-center gap-1.5">{flag} <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{slot.region ?? '—'}</span></span></td>
-                          <td className="px-5 py-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase"
-                              style={{ background: pc.badge, color: pc.text }}>{pc.label}</span>
-                          </td>
-                          <td className="px-5 py-3"><span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{msgsCnt}</span></td>
-                          <td className="px-5 py-3">
-                            {slot.forwarding_active
-                              ? <span className="flex items-center gap-1 text-emerald-500 text-[11px] font-semibold"><Wifi size={11} /> Activo</span>
-                              : <span className={`text-[11px] ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>—</span>}
-                          </td>
-                          <td className="px-5 py-3">
-                            <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                              {isActive ? 'Activa' : 'Expirada'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <p className={`text-[22px] font-black font-mono tracking-tight leading-none ${ps.phoneColor}`}>
+                              {slot.phone_number ?? '—'}
+                            </p>
+                            <div className="flex items-center justify-between mt-2.5">
+                              <span className={`text-[9px] font-black uppercase tracking-widest ${ps.labelColor}`}>
+                                TELSIM · {ps.label}
+                              </span>
+                              <span className={`text-[9px] font-semibold ${ps.labelColor}`}>{msgsCnt} SMS</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── Actions bar ── */}
+                        <div className={`rounded-2xl px-4 py-3 flex items-center justify-between border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+
+                          {/* Status pill */}
+                          <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                            {isActive ? 'Activa' : 'Expirada'}
+                          </span>
+
+                          {/* Telegram toggle */}
+                          <div className="flex items-center gap-2.5">
+                            <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${isForwarding ? 'text-sky-500' : (isDark ? 'text-slate-600' : 'text-slate-400')}`}>
+                              <Bot size={13} />
+                              <span>{isForwarding ? 'Bot activo' : 'Bot inactivo'}</span>
+                            </div>
+                            {/* Toggle switch */}
+                            <button
+                              onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
+                              disabled={isTog}
+                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${
+                                isForwarding ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')
+                              } ${isTog ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 ${isForwarding ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* ── Editable label ── */}
+                        <div className={`rounded-xl px-3 py-2 flex items-center gap-2 border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                          {isEditing ? (
+                            <>
+                              <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }}
+                                className={`flex-1 text-[12px] px-2 py-1 rounded-lg border outline-none ${isDark ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
+                                placeholder="Ej: Marketing" />
+                              <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
+                                className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                {savingLabel ? <RefreshCw size={11} className="animate-spin" /> : <Check size={11} />}
+                              </button>
+                              <button onClick={() => setEditingSlotId(null)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                <X size={11} className="text-slate-400" />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between w-full group">
+                              <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                {slot.label || <span className="italic">Sin etiqueta</span>}
+                              </span>
+                              <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
+                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-slate-400 hover:text-primary transition-all">
+                                <Pencil size={10} /> Editar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              /* ── LIST VIEW ── */
+              ) : (
+                <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <table className="w-full text-left text-[12px]">
+                    <thead>
+                      <tr className={`border-b text-[10px] font-black uppercase tracking-wider ${isDark ? 'border-slate-800 text-slate-500' : 'border-slate-100 text-slate-400'}`}>
+                        <th className="px-5 py-3">Número</th>
+                        <th className="px-5 py-3">Etiqueta</th>
+                        <th className="px-5 py-3">Región</th>
+                        <th className="px-5 py-3">Plan</th>
+                        <th className="px-5 py-3">SMS</th>
+                        <th className="px-5 py-3">Telegram Bot</th>
+                        <th className="px-5 py-3">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {slots.map(slot => {
+                        const plan  = (slot.plan_type || 'starter').toLowerCase();
+                        const pc    = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
+                        const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
+                        const isActive = slot.status !== 'expired';
+                        const isForwarding = !!slot.forwarding_active;
+                        const isTog = togglingSlot === slot.slot_id;
+                        const flag  = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
+                        const isEditing = editingSlotId === slot.slot_id;
+                        return (
+                          <tr key={slot.slot_id}
+                            className={`border-b transition-colors border-l-[3px] ${isDark ? 'border-slate-800 hover:bg-slate-800/50' : 'border-slate-50 hover:bg-slate-50/80'}`}
+                            style={{ borderLeftColor: pc.border }}>
+
+                            <td className="px-5 py-3.5">
+                              <span className={`font-bold text-[13px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{slot.phone_number}</span>
+                            </td>
+
+                            {/* Editable label */}
+                            <td className="px-5 py-3.5">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1.5">
+                                  <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }}
+                                    className={`text-[12px] px-2 py-1 rounded-lg border outline-none w-28 ${isDark ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
+                                    placeholder="Ej: Marketing" />
+                                  <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
+                                    className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                    {savingLabel ? <RefreshCw size={11} className="animate-spin" /> : <Check size={11} />}
+                                  </button>
+                                  <button onClick={() => setEditingSlotId(null)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                    <X size={11} className="text-slate-400" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 group">
+                                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                                    {slot.label || <span className="italic text-slate-300 dark:text-slate-600">—</span>}
+                                  </span>
+                                  <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
+                                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                                    <Pencil size={11} className="text-slate-400" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="px-5 py-3.5">
+                              <span className="flex items-center gap-1.5">
+                                {flag} <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{slot.region ?? '—'}</span>
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-3.5">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase"
+                                style={{ background: pc.badge, color: pc.text }}>{pc.label}</span>
+                            </td>
+
+                            <td className="px-5 py-3.5">
+                              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{msgsCnt}</span>
+                            </td>
+
+                            {/* Telegram toggle */}
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
+                                  disabled={isTog}
+                                  className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${
+                                    isForwarding ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')
+                                  } ${isTog ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${isForwarding ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                                <span className={`text-[11px] font-medium ${isForwarding ? 'text-sky-500' : (isDark ? 'text-slate-600' : 'text-slate-300')}`}>
+                                  {isForwarding ? 'Activo' : 'Inactivo'}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-3.5">
+                              <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                                {isActive ? 'Activa' : 'Expirada'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -937,12 +1170,21 @@ const WebDashboard: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Info hint */}
+                        {/* Info hint + guide link */}
                         <div className={`flex gap-3 p-4 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-blue-50'}`}>
                           <Info size={14} className="text-primary shrink-0 mt-0.5" />
-                          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            ¿No sabes cómo configurarlo? Sigue la guía paso a paso para crear y vincular tu bot en minutos.
-                          </p>
+                          <div className="flex-1">
+                            <p className={`text-[11px] leading-relaxed mb-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              ¿No sabes cómo configurarlo? Sigue la guía paso a paso para crear y vincular tu bot en minutos.
+                            </p>
+                            <button
+                              onClick={() => navigate('/dashboard/telegram-guide')}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-black text-primary hover:underline uppercase tracking-wide"
+                            >
+                              <Bot size={12} />
+                              Ver guía de configuración →
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
