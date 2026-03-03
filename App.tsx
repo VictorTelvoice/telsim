@@ -32,6 +32,7 @@ import SettingsScreen from './screens/dashboard/Settings';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
+import ApiGuide from './screens/dashboard/ApiGuide';
 import TelegramConfig from './screens/dashboard/TelegramConfig';
 import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
@@ -203,6 +204,7 @@ const App: React.FC = () => {
                   <Route path="/onboarding/processing" element={<ProtectedRoute><Processing /></ProtectedRoute>} />
                   <Route path="/onboarding/activation-success" element={<ProtectedRoute><ActivationSuccess /></ProtectedRoute>} />
                   <Route path="/dashboard/telegram-guide" element={<ProtectedRoute><TelegramSetupGuide /></ProtectedRoute>} />
+                  <Route path="/dashboard/api-guide"      element={<ProtectedRoute><ApiGuide /></ProtectedRoute>} />
 
                   <Route path="*" element={
                     <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">

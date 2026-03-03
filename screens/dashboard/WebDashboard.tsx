@@ -10,7 +10,8 @@ import {
   Zap, Shield, ChevronRight, Search, Plus,
   ArrowUpRight, ArrowDownRight, Circle, Wifi, Clock,
   CheckCircle2, Send, Link2, CreditCard, Pencil, X,
-  Bot, Key, User, Save, Loader2, Info, LayoutGrid, List
+  Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
+  Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck
 } from 'lucide-react';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
@@ -251,7 +252,7 @@ const KpiCard: React.FC<{
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 type TabId = 'overview' | 'messages' | 'numbers' | 'settings';
-type SettingsSection = 'profile' | 'telegram' | 'api' | 'notifications' | 'billing';
+type SettingsSection = 'profile' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
 
 const WebDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -272,6 +273,31 @@ const WebDashboard: React.FC = () => {
   const [savingLabel, setSavingLabel]       = useState(false);
   const [simsView, setSimsView]             = useState<'card' | 'list'>('card');
   const [togglingSlot, setTogglingSlot]     = useState<string | null>(null);
+
+  // ─── Webhook config state ─────────────────────────────────────────────────
+  const [webhookUrl, setWebhookUrl]       = useState(() => localStorage.getItem('telsim_webhook_url') || '');
+  const [webhookSecret, setWebhookSecret] = useState(() => localStorage.getItem('telsim_webhook_secret') || '');
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('telsim_webhook_events') || '["sms_received"]'); } catch { return ['sms_received']; }
+  });
+  const [webhookSaving, setWebhookSaving] = useState(false);
+  const [webhookSaved, setWebhookSaved]   = useState(false);
+  const [webhookTesting, setWebhookTesting] = useState(false);
+
+  // ─── Language state ───────────────────────────────────────────────────────
+  const [appLanguage, setAppLanguage] = useState<'es' | 'en'>(() =>
+    (localStorage.getItem('telsim_language') as 'es' | 'en') || 'es'
+  );
+  const [langSaved, setLangSaved] = useState(false);
+
+  // ─── Security / Password state ────────────────────────────────────────────
+  const [secNewPw, setSecNewPw]           = useState('');
+  const [secConfirmPw, setSecConfirmPw]   = useState('');
+  const [secSaving, setSecSaving]         = useState(false);
+  const [secError, setSecError]           = useState('');
+  const [secSuccess, setSecSuccess]       = useState(false);
+  const [showNewPw, setShowNewPw]         = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   // ─── Telegram Config state ────────────────────────────────────────────────
   const [tgToken, setTgToken]   = useState('');
@@ -378,6 +404,76 @@ const WebDashboard: React.FC = () => {
     setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: labelDraft.trim() || undefined } : s));
     setEditingSlotId(null);
     setSavingLabel(false);
+  };
+
+  // ─── Webhook handlers ────────────────────────────────────────────────────────
+
+  const handleWebhookSave = () => {
+    setWebhookSaving(true);
+    localStorage.setItem('telsim_webhook_url',    webhookUrl);
+    localStorage.setItem('telsim_webhook_secret', webhookSecret);
+    localStorage.setItem('telsim_webhook_events', JSON.stringify(webhookEvents));
+    setTimeout(() => {
+      setWebhookSaving(false);
+      setWebhookSaved(true);
+      setTimeout(() => setWebhookSaved(false), 3000);
+    }, 600);
+  };
+
+  const handleWebhookTest = async () => {
+    if (!webhookUrl) { alert('Ingresa una URL de webhook primero.'); return; }
+    setWebhookTesting(true);
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Telsim-Test': '1' },
+        body: JSON.stringify({ event: 'test', message: 'Webhook de prueba desde Telsim', timestamp: new Date().toISOString() }),
+      });
+      alert('✅ Solicitud de prueba enviada. Verifica que tu servidor la recibió.');
+    } catch { alert('Error al conectar con la URL del webhook. Verifica que sea accesible desde internet.'); }
+    finally { setWebhookTesting(false); }
+  };
+
+  const toggleWebhookEvent = (ev: string) =>
+    setWebhookEvents(prev => prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]);
+
+  // ─── Language handler ─────────────────────────────────────────────────────────
+
+  const handleLanguageSave = (lang: 'es' | 'en') => {
+    setAppLanguage(lang);
+    localStorage.setItem('telsim_language', lang);
+    setLangSaved(true);
+    setTimeout(() => setLangSaved(false), 3000);
+  };
+
+  // ─── Password change handler ──────────────────────────────────────────────────
+
+  const handlePasswordChange = async () => {
+    setSecError('');
+    if (secNewPw.length < 6) { setSecError('La contraseña debe tener al menos 6 caracteres.'); return; }
+    if (secNewPw !== secConfirmPw) { setSecError('Las contraseñas no coinciden.'); return; }
+    setSecSaving(true);
+    try {
+      const { error } = await (supabase.auth as any).updateUser({ password: secNewPw });
+      if (error) throw error;
+      setSecSuccess(true);
+      setSecNewPw(''); setSecConfirmPw('');
+      setTimeout(() => setSecSuccess(false), 4000);
+    } catch (e: any) { setSecError(e.message || 'Error al actualizar la contraseña.'); }
+    finally { setSecSaving(false); }
+  };
+
+  // ─── Cancel subscription ─────────────────────────────────────────────────────
+
+  const handleCancelSubscription = (slotId: string) => {
+    const slot = slots.find(s => s.slot_id === slotId);
+    const confirmed = window.confirm(
+      `¿Cancelar la suscripción para ${slot?.phone_number ?? 'esta SIM'}?\n\nSerás redirigido a Facturación para gestionar la cancelación.`
+    );
+    if (confirmed) {
+      setActiveTab('settings');
+      setSettingsSection('billing');
+    }
   };
 
   // ─── Toggle Telegram forwarding per SIM ──────────────────────────────────────
@@ -814,120 +910,178 @@ const WebDashboard: React.FC = () => {
 
               /* ── CARD VIEW (SIM card grid) ── */
               ) : simsView === 'card' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {slots.map(slot => {
-                    const plan   = (slot.plan_type || 'starter').toLowerCase();
-                    const ps     = getWebPlanStyle(plan);
-                    const pc     = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
-                    const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
-                    const isActive = slot.status !== 'expired';
+                    const plan        = (slot.plan_type || 'starter').toLowerCase();
+                    const ps          = getWebPlanStyle(plan);
+                    const msgsCnt     = messages.filter(m => m.slot_id === slot.slot_id).length;
+                    const isActive    = slot.status !== 'expired';
                     const isForwarding = !!slot.forwarding_active;
-                    const isTog  = togglingSlot === slot.slot_id;
-                    const isEditing = editingSlotId === slot.slot_id;
+                    const isTog       = togglingSlot === slot.slot_id;
+                    const isEditing   = editingSlotId === slot.slot_id;
                     const countryCode = (slot.region ?? 'cl').toUpperCase();
-                    const flagUrl = `https://flagcdn.com/32x24/${countryCode.toLowerCase()}.png`;
 
                     return (
-                      <div key={slot.slot_id} className="flex flex-col gap-2.5">
+                      <div key={slot.slot_id} className="flex flex-col gap-2">
 
-                        {/* ── SIM Card visual ── */}
-                        <div className={`relative w-full aspect-[1.58/1] rounded-[2rem] ${ps.cardBg} p-6 flex flex-col justify-between overflow-hidden select-none shadow-lg`}>
+                        {/* ═══ SIM Card ═══
+                            Shape: chamfered top-right corner (36px) + left-side center notch (SIM tray notch)
+                            All other 3 corners: 8px chamfer for physical SIM aesthetic          */}
+                        <div
+                          className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden select-none shadow-xl`}
+                          style={{
+                            clipPath: [
+                              '8px 0',
+                              'calc(100% - 36px) 0',   /* top-right: start of corner cut */
+                              '100% 36px',              /* top-right: end of corner cut   */
+                              '100% calc(100% - 8px)',
+                              'calc(100% - 8px) 100%',
+                              '8px 100%',
+                              '0 calc(100% - 8px)',
+                              '0 calc(50% + 22px)',     /* left edge: below tray notch    */
+                              '7px calc(50% + 22px)',   /* tray notch inner bottom-right  */
+                              '7px calc(50% - 22px)',   /* tray notch inner top-right     */
+                              '0 calc(50% - 22px)',     /* left edge: above tray notch    */
+                              '0 8px',
+                            ].map(p => p).join(', ').replace(/^/, 'polygon(') + ')',
+                          }}>
+
                           {/* Decorative rings */}
-                          <div className="absolute top-[-25%] right-[-12%] w-[55%] h-[55%] rounded-full border-[20px] border-white/[0.06] pointer-events-none" />
-                          <div className="absolute top-[5%] right-[5%] w-[40%] h-[40%] rounded-full border-[12px] border-white/[0.05] pointer-events-none" />
+                          <div className="absolute top-[-20%] right-[-8%] w-[52%] h-[52%] rounded-full border-[22px] border-white/[0.07] pointer-events-none" />
+                          <div className="absolute bottom-[-12%] right-[8%]  w-[36%] h-[36%] rounded-full border-[12px] border-white/[0.05] pointer-events-none" />
 
-                          {/* Top row: chip + flag */}
+                          {/* ── Row 1: Brand name + Circular flag ── */}
                           <div className="flex items-start justify-between relative z-10">
-                            {/* SIM chip */}
-                            <div className={`w-11 h-8 rounded-lg ${ps.chip} shadow-inner flex items-center justify-center`}>
-                              <div className="w-8 h-[22px] rounded-[4px] border border-black/10 grid grid-cols-3 gap-[2px] p-[3px]">
-                                {Array.from({ length: 6 }).map((_, i) => (
-                                  <div key={i} className="bg-black/15 rounded-[1px]" />
-                                ))}
-                              </div>
+                            <div>
+                              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
+
+                              {/* Editable label inline on the card */}
+                              {isEditing ? (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <input
+                                    autoFocus value={labelDraft}
+                                    onChange={e => setLabelDraft(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter')  handleSaveLabel(slot.slot_id);
+                                      if (e.key === 'Escape') setEditingSlotId(null);
+                                    }}
+                                    className="text-[11px] px-2 py-0.5 rounded-md border outline-none w-28 bg-black/20 border-white/30 text-white placeholder-white/40 font-bold"
+                                    placeholder="Etiqueta..."
+                                  />
+                                  <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
+                                    className="p-0.5 rounded bg-white/20 hover:bg-white/30 transition-colors">
+                                    {savingLabel ? <RefreshCw size={9} className="animate-spin text-white" /> : <Check size={9} className="text-white" />}
+                                  </button>
+                                  <button onClick={() => setEditingSlotId(null)}
+                                    className="p-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors">
+                                    <X size={9} className="text-white/70" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
+                                  className="flex items-center gap-1 mt-0.5 group">
+                                  <span className={`text-[12px] font-bold italic uppercase tracking-widest ${ps.phoneColor}`}>
+                                    {slot.label
+                                      ? slot.label
+                                      : <span className={`not-italic normal-case tracking-normal font-normal opacity-50 ${ps.labelColor}`}>Sin etiqueta</span>
+                                    }
+                                  </span>
+                                  <Pencil size={8} className={`${ps.labelColor} opacity-40 group-hover:opacity-90 transition-opacity ml-0.5`} />
+                                </button>
+                              )}
                             </div>
-                            {/* Region flag + code */}
-                            <div className="flex items-center gap-1.5">
+
+                            {/* Circular flag */}
+                            <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg flex-shrink-0 bg-slate-300">
                               <img
-                                src={flagUrl} alt={countryCode}
-                                className="w-7 h-5 rounded-[3px] object-cover shadow-sm"
+                                src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`}
+                                alt={countryCode}
+                                className="w-full h-full object-cover"
                                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
-                              <span className={`text-[10px] font-bold tracking-wider ${ps.labelColor}`}>{countryCode}</span>
                             </div>
                           </div>
 
-                          {/* Bottom row: label + number + plan */}
-                          <div className="relative z-10">
-                            {slot.label && (
-                              <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${ps.labelColor}`}>{slot.label}</p>
+                          {/* ── Row 2: SIM chip (left) + Subscriber number (right) ── */}
+                          <div className="flex items-center gap-4 relative z-10">
+                            {/* SIM chip — solid rectangle, simulates the physical gold contact pad */}
+                            <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
+
+                            <div>
+                              <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>
+                                Subscriber Number
+                              </p>
+                              <p className={`text-[18px] font-black font-mono tracking-wider leading-none ${ps.phoneColor}`}>
+                                {slot.phone_number ?? '—'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* ── Row 3: Plan badge + active indicator ── */}
+                          <div className="flex items-end justify-between relative z-10">
+                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${
+                              plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
+                              plan === 'pro'   ? 'border-white/40   text-white/90    bg-black/20' :
+                                                 'border-slate-300/70 text-slate-600 bg-white/60'
+                            }`}>
+                              {plan === 'power' && <span className="text-[11px]">👑</span>}
+                              {ps.label}
+                            </span>
+                            <span className={`text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
+                              {isActive ? '● Activa' : '○ Expirada'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* ── Action buttons bar ── */}
+                        <div className={`flex items-center gap-1.5 p-1.5 rounded-2xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+
+                          {/* INBOX — wider, primary action */}
+                          <button
+                            onClick={() => { setSelectedSlot(slot.slot_id); setActiveTab('messages'); }}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
+                            <MessageSquare size={13} />
+                            <span>Inbox</span>
+                            {msgsCnt > 0 && (
+                              <span className="bg-primary text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                {msgsCnt > 99 ? '99+' : msgsCnt}
+                              </span>
                             )}
-                            <p className={`text-[22px] font-black font-mono tracking-tight leading-none ${ps.phoneColor}`}>
-                              {slot.phone_number ?? '—'}
-                            </p>
-                            <div className="flex items-center justify-between mt-2.5">
-                              <span className={`text-[9px] font-black uppercase tracking-widest ${ps.labelColor}`}>
-                                TELSIM · {ps.label}
-                              </span>
-                              <span className={`text-[9px] font-semibold ${ps.labelColor}`}>{msgsCnt} SMS</span>
-                            </div>
-                          </div>
-                        </div>
+                          </button>
 
-                        {/* ── Actions bar ── */}
-                        <div className={`rounded-2xl px-4 py-3 flex items-center justify-between border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                          {/* COPY number */}
+                          <button
+                            onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)}
+                            title="Copiar número"
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${
+                              copiedId === `${slot.slot_id}_num`
+                                ? 'bg-emerald-500 text-white'
+                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')
+                            }`}>
+                            {copiedId === `${slot.slot_id}_num` ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
 
-                          {/* Status pill */}
-                          <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                            {isActive ? 'Activa' : 'Expirada'}
-                          </span>
+                          {/* BOT toggle */}
+                          <button
+                            onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
+                            disabled={isTog}
+                            title={isForwarding ? 'Bot activo – clic para desactivar' : 'Bot inactivo – clic para activar'}
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${
+                              isForwarding
+                                ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
+                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
+                            } ${isTog ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {isTog ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                          </button>
 
-                          {/* Telegram toggle */}
-                          <div className="flex items-center gap-2.5">
-                            <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${isForwarding ? 'text-sky-500' : (isDark ? 'text-slate-600' : 'text-slate-400')}`}>
-                              <Bot size={13} />
-                              <span>{isForwarding ? 'Bot activo' : 'Bot inactivo'}</span>
-                            </div>
-                            {/* Toggle switch */}
-                            <button
-                              onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
-                              disabled={isTog}
-                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${
-                                isForwarding ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')
-                              } ${isTog ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 ${isForwarding ? 'translate-x-5' : 'translate-x-0'}`} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* ── Editable label ── */}
-                        <div className={`rounded-xl px-3 py-2 flex items-center gap-2 border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
-                          {isEditing ? (
-                            <>
-                              <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }}
-                                className={`flex-1 text-[12px] px-2 py-1 rounded-lg border outline-none ${isDark ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
-                                placeholder="Ej: Marketing" />
-                              <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
-                                className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                {savingLabel ? <RefreshCw size={11} className="animate-spin" /> : <Check size={11} />}
-                              </button>
-                              <button onClick={() => setEditingSlotId(null)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                <X size={11} className="text-slate-400" />
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-between w-full group">
-                              <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                                {slot.label || <span className="italic">Sin etiqueta</span>}
-                              </span>
-                              <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
-                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-slate-400 hover:text-primary transition-all">
-                                <Pencil size={10} /> Editar
-                              </button>
-                            </div>
-                          )}
+                          {/* CANCEL subscription */}
+                          <button
+                            onClick={() => handleCancelSubscription(slot.slot_id)}
+                            title="Cancelar suscripción"
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     );
@@ -944,9 +1098,9 @@ const WebDashboard: React.FC = () => {
                         <th className="px-5 py-3">Etiqueta</th>
                         <th className="px-5 py-3">Región</th>
                         <th className="px-5 py-3">Plan</th>
-                        <th className="px-5 py-3">SMS</th>
-                        <th className="px-5 py-3">Telegram Bot</th>
                         <th className="px-5 py-3">Estado</th>
+                        <th className="px-5 py-3">Telegram Bot</th>
+                        <th className="px-5 py-3">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -964,11 +1118,12 @@ const WebDashboard: React.FC = () => {
                             className={`border-b transition-colors border-l-[3px] ${isDark ? 'border-slate-800 hover:bg-slate-800/50' : 'border-slate-50 hover:bg-slate-50/80'}`}
                             style={{ borderLeftColor: pc.border }}>
 
+                            {/* Número */}
                             <td className="px-5 py-3.5">
-                              <span className={`font-bold text-[13px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{slot.phone_number}</span>
+                              <span className={`font-bold text-[13px] font-mono ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{slot.phone_number}</span>
                             </td>
 
-                            {/* Editable label */}
+                            {/* Etiqueta editable */}
                             <td className="px-5 py-3.5">
                               {isEditing ? (
                                 <div className="flex items-center gap-1.5">
@@ -997,22 +1152,28 @@ const WebDashboard: React.FC = () => {
                               )}
                             </td>
 
+                            {/* Región */}
                             <td className="px-5 py-3.5">
                               <span className="flex items-center gap-1.5">
                                 {flag} <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{slot.region ?? '—'}</span>
                               </span>
                             </td>
 
+                            {/* Plan badge */}
                             <td className="px-5 py-3.5">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase"
                                 style={{ background: pc.badge, color: pc.text }}>{pc.label}</span>
                             </td>
 
+                            {/* Estado */}
                             <td className="px-5 py-3.5">
-                              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{msgsCnt}</span>
+                              <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                                {isActive ? 'Activa' : 'Expirada'}
+                              </span>
                             </td>
 
-                            {/* Telegram toggle */}
+                            {/* Telegram Bot toggle */}
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2">
                                 <button
@@ -1029,11 +1190,44 @@ const WebDashboard: React.FC = () => {
                               </div>
                             </td>
 
+                            {/* Acciones: Inbox · Copy · Cancel */}
                             <td className="px-5 py-3.5">
-                              <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                                {isActive ? 'Activa' : 'Expirada'}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+
+                                {/* Inbox */}
+                                <button
+                                  onClick={() => { setSelectedSlot(slot.slot_id); setActiveTab('messages'); }}
+                                  title="Ver mensajes"
+                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
+                                  <MessageSquare size={12} />
+                                  <span>Inbox</span>
+                                  {msgsCnt > 0 && (
+                                    <span className="bg-primary text-white text-[9px] font-black rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
+                                      {msgsCnt > 99 ? '99+' : msgsCnt}
+                                    </span>
+                                  )}
+                                </button>
+
+                                {/* Copy */}
+                                <button
+                                  onClick={() => handleCopy(`${slot.slot_id}_lst`, slot.phone_number)}
+                                  title="Copiar número"
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+                                    copiedId === `${slot.slot_id}_lst`
+                                      ? 'bg-emerald-500 text-white'
+                                      : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
+                                  }`}>
+                                  {copiedId === `${slot.slot_id}_lst` ? <Check size={11} /> : <Copy size={11} />}
+                                </button>
+
+                                {/* Cancel subscription */}
+                                <button
+                                  onClick={() => handleCancelSubscription(slot.slot_id)}
+                                  title="Cancelar suscripción"
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1051,11 +1245,13 @@ const WebDashboard: React.FC = () => {
               {/* Sub-nav izquierda */}
               <div className={`w-52 flex-shrink-0 rounded-2xl p-3 shadow-sm border self-start ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                 {([
-                  { id: 'profile',       icon: <Settings size={15} />,    label: 'Mi Perfil' },
-                  { id: 'telegram',      icon: <Send size={15} />,        label: 'Telegram Bot' },
-                  { id: 'api',           icon: <Link2 size={15} />,       label: 'API & Webhooks' },
-                  { id: 'notifications', icon: <Bell size={15} />,        label: 'Notificaciones' },
-                  { id: 'billing',       icon: <CreditCard size={15} />,  label: 'Facturación' },
+                  { id: 'profile',       icon: <Settings size={15} />,     label: 'Mi Perfil' },
+                  { id: 'telegram',      icon: <Send size={15} />,         label: 'Telegram Bot' },
+                  { id: 'api',           icon: <Link2 size={15} />,        label: 'API & Webhooks' },
+                  { id: 'notifications', icon: <Bell size={15} />,         label: 'Notificaciones' },
+                  { id: 'billing',       icon: <CreditCard size={15} />,   label: 'Facturación' },
+                  { id: 'language',      icon: <Globe size={15} />,        label: 'Idioma' },
+                  { id: 'security',      icon: <ShieldCheck size={15} />,  label: 'Seguridad' },
                 ] as { id: SettingsSection; icon: React.ReactNode; label: string }[]).map(item => (
                   <button key={item.id} onClick={() => setSettingsSection(item.id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-all mb-0.5 ${
@@ -1193,28 +1389,143 @@ const WebDashboard: React.FC = () => {
 
                 {/* API & Webhooks */}
                 {settingsSection === 'api' && (
-                  <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Link2 size={18} className="text-primary" /></div>
-                      <div><h3 className="text-[15px] font-black">API & Webhooks</h3><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Integra Telsim en tu stack</p></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {[
-                        { label: 'REST API', desc: 'Consulta y gestiona SIMs', icon: '⚡' },
-                        { label: 'Webhooks', desc: 'Eventos en tiempo real', icon: '🔔' },
-                        { label: 'SDK Node.js', desc: 'Librería oficial', icon: '📦' },
-                        { label: 'Documentación', desc: 'Referencia completa', icon: '📖' },
-                      ].map(item => (
-                        <div key={item.label} className={`p-3 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                          <p className="text-lg mb-1">{item.icon}</p>
-                          <p className="text-[12px] font-bold">{item.label}</p>
-                          <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                  <div className="flex flex-col gap-4">
+
+                    {/* Header card */}
+                    <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Link2 size={18} className="text-primary" /></div>
+                          <div>
+                            <h3 className="text-[15px] font-black">API & Webhooks</h3>
+                            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Integra Telsim con tu stack</p>
+                          </div>
                         </div>
-                      ))}
+                        <button
+                          onClick={() => navigate('/dashboard/api-guide')}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
+                          <ExternalLink size={12} /> Ver documentación
+                        </button>
+                      </div>
+
+                      {/* API Key display */}
+                      <div className="mb-5">
+                        <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Tu API Key</p>
+                        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border font-mono text-[12px] ${isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                          <Key size={13} className="flex-shrink-0 text-primary" />
+                          <span className="flex-1 truncate">{user?.id ? `telsim_${user.id.slice(0, 8)}xxxxxxxxxxxx` : '—'}</span>
+                          <button onClick={() => handleCopy('apikey', user?.id || '')}
+                            className={`p-1 rounded-lg transition-colors flex-shrink-0 ${copiedId === 'apikey' ? 'text-emerald-500' : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')}`}>
+                            {copiedId === 'apikey' ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                        <p className={`text-[10px] mt-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                          Incluye este token en el header: <code className="font-mono">Authorization: Bearer &lt;API_KEY&gt;</code>
+                        </p>
+                      </div>
+
+                      {/* Quick links */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: 'REST API', desc: 'Consulta SIMs y mensajes', icon: '⚡' },
+                          { label: 'SDK Node.js', desc: 'Librería oficial npm', icon: '📦' },
+                          { label: 'Guía rápida', desc: 'Ejemplos de código', icon: '📖' },
+                        ].map(item => (
+                          <button key={item.label} onClick={() => navigate('/dashboard/api-guide')}
+                            className={`p-3 rounded-xl text-left transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-50 hover:bg-slate-100'}`}>
+                            <p className="text-[16px] mb-1">{item.icon}</p>
+                            <p className="text-[11px] font-bold">{item.label}</p>
+                            <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => navigate('/dashboard/webhooks')} className="px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">Gestionar Webhooks</button>
-                      <button onClick={() => window.open('https://docs.telsim.app', '_blank')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Ver documentación ↗</button>
+
+                    {/* Webhook configuration */}
+                    <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center"><Zap size={16} className="text-amber-500" /></div>
+                        <div>
+                          <h4 className="text-[13px] font-black">Configuración de Webhook</h4>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recibe eventos SMS en tu servidor en tiempo real</p>
+                        </div>
+                      </div>
+
+                      {/* Webhook URL */}
+                      <div className="mb-4">
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          URL del Endpoint
+                        </label>
+                        <input
+                          type="url"
+                          value={webhookUrl}
+                          onChange={e => setWebhookUrl(e.target.value)}
+                          placeholder="https://tuapp.com/webhooks/telsim"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary'}`}
+                        />
+                      </div>
+
+                      {/* Webhook Secret */}
+                      <div className="mb-4">
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Secreto (para verificar firma)
+                        </label>
+                        <input
+                          type="text"
+                          value={webhookSecret}
+                          onChange={e => setWebhookSecret(e.target.value)}
+                          placeholder="whsec_xxxxxxxxxxxxxxxx"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] font-mono outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary'}`}
+                        />
+                        <p className={`text-[10px] mt-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                          Enviado como header <code className="font-mono">X-Telsim-Signature</code> en cada request.
+                        </p>
+                      </div>
+
+                      {/* Events to subscribe */}
+                      <div className="mb-5">
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Eventos a recibir
+                        </label>
+                        <div className="flex flex-col gap-2">
+                          {[
+                            { id: 'sms_received',  label: 'SMS recibido',     desc: 'Cada mensaje entrante a cualquier SIM' },
+                            { id: 'code_detected', label: 'Código OTP detectado', desc: 'Cuando se extrae un código automáticamente' },
+                            { id: 'sim_activated', label: 'SIM activada',     desc: 'Activación de una nueva SIM' },
+                            { id: 'sim_expired',   label: 'SIM expirada',     desc: 'Cuando vence el período de una SIM' },
+                          ].map(ev => (
+                            <label key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                              webhookEvents.includes(ev.id)
+                                ? (isDark ? 'border-primary/40 bg-primary/10' : 'border-primary/30 bg-primary/5')
+                                : (isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-slate-50')
+                            }`}>
+                              <input type="checkbox" checked={webhookEvents.includes(ev.id)} onChange={() => toggleWebhookEvent(ev.id)} className="w-4 h-4 accent-primary" />
+                              <div>
+                                <p className="text-[12px] font-bold">{ev.label}</p>
+                                <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{ev.desc}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3">
+                        <button onClick={handleWebhookSave} disabled={webhookSaving}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60">
+                          {webhookSaving ? <Loader2 size={13} className="animate-spin" /> : webhookSaved ? <Check size={13} /> : <Save size={13} />}
+                          {webhookSaved ? '¡Guardado!' : 'Guardar webhook'}
+                        </button>
+                        <button onClick={handleWebhookTest} disabled={webhookTesting || !webhookUrl}
+                          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors disabled:opacity-40 ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                          {webhookTesting ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+                          Probar webhook
+                        </button>
+                        <button onClick={() => navigate('/dashboard/api-guide')}
+                          className={`flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                          <ExternalLink size={12} /> Ver documentación
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1275,6 +1586,195 @@ const WebDashboard: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* ── IDIOMA ── */}
+                {settingsSection === 'language' && (
+                  <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center"><Globe size={18} className="text-sky-500" /></div>
+                      <div>
+                        <h3 className="text-[15px] font-black">Idioma</h3>
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Selecciona el idioma de la interfaz</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      {([
+                        { code: 'es', label: 'Español', flag: '🇪🇸', desc: 'Interfaz en español latinoamericano' },
+                        { code: 'en', label: 'English', flag: '🇺🇸', desc: 'Interface in English' },
+                      ] as { code: 'es' | 'en'; label: string; flag: string; desc: string }[]).map(lang => (
+                        <button key={lang.code} onClick={() => setAppLanguage(lang.code)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            appLanguage === lang.code
+                              ? 'border-primary bg-primary/5'
+                              : (isDark ? 'border-slate-700 hover:border-slate-600' : 'border-slate-200 hover:border-slate-300')
+                          }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl">{lang.flag}</span>
+                            {appLanguage === lang.code && (
+                              <span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                <Check size={11} className="text-white" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[13px] font-black">{lang.label}</p>
+                          <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{lang.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    {langSaved && (
+                      <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                        <p className="text-[12px] font-semibold text-emerald-500">Idioma guardado correctamente.</p>
+                      </div>
+                    )}
+
+                    <button onClick={() => handleLanguageSave(appLanguage)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">
+                      <Save size={13} /> Guardar preferencia
+                    </button>
+                    <p className={`text-[10px] mt-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                      El cambio de idioma se aplicará al recargar la aplicación.
+                    </p>
+                  </div>
+                )}
+
+                {/* ── SEGURIDAD Y CONTRASEÑA ── */}
+                {settingsSection === 'security' && (
+                  <div className="flex flex-col gap-4">
+
+                    {/* Change password */}
+                    <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center"><Lock size={18} className="text-red-500" /></div>
+                        <div>
+                          <h3 className="text-[15px] font-black">Cambiar contraseña</h3>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Actualiza tu contraseña de acceso</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-4 max-w-md">
+                        {/* New password */}
+                        <div>
+                          <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                            Nueva contraseña
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showNewPw ? 'text' : 'password'}
+                              value={secNewPw}
+                              onChange={e => { setSecNewPw(e.target.value); setSecError(''); }}
+                              placeholder="Mínimo 6 caracteres"
+                              className={`w-full px-3 py-2.5 pr-10 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary'}`}
+                            />
+                            <button type="button" onClick={() => setShowNewPw(p => !p)}
+                              className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}>
+                              {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                          {/* Password strength indicator */}
+                          {secNewPw && (
+                            <div className="flex gap-1 mt-2">
+                              {[1,2,3,4].map(level => (
+                                <div key={level} className={`flex-1 h-1 rounded-full transition-colors ${
+                                  secNewPw.length >= level * 3
+                                    ? (secNewPw.length >= 12 ? 'bg-emerald-500' : secNewPw.length >= 8 ? 'bg-amber-400' : 'bg-red-400')
+                                    : (isDark ? 'bg-slate-700' : 'bg-slate-200')
+                                }`} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Confirm password */}
+                        <div>
+                          <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                            Confirmar contraseña
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showConfirmPw ? 'text' : 'password'}
+                              value={secConfirmPw}
+                              onChange={e => { setSecConfirmPw(e.target.value); setSecError(''); }}
+                              placeholder="Repite la nueva contraseña"
+                              className={`w-full px-3 py-2.5 pr-10 rounded-xl border text-[13px] outline-none transition-colors ${
+                                secConfirmPw && secConfirmPw !== secNewPw
+                                  ? 'border-red-400 focus:border-red-400'
+                                  : (isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary')
+                              } ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPw(p => !p)}
+                              className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}>
+                              {showConfirmPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Error */}
+                        {secError && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                            <Info size={13} className="text-red-500 flex-shrink-0" />
+                            <p className="text-[12px] text-red-500 font-semibold">{secError}</p>
+                          </div>
+                        )}
+
+                        {/* Success */}
+                        {secSuccess && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                            <p className="text-[12px] text-emerald-500 font-semibold">¡Contraseña actualizada correctamente!</p>
+                          </div>
+                        )}
+
+                        <button onClick={handlePasswordChange} disabled={secSaving || !secNewPw || !secConfirmPw}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 w-fit">
+                          {secSaving ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
+                          {secSaving ? 'Actualizando…' : 'Actualizar contraseña'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active sessions */}
+                    <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center"><ShieldCheck size={18} className="text-violet-500" /></div>
+                        <div>
+                          <h3 className="text-[15px] font-black">Seguridad de la cuenta</h3>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Sesiones activas y autenticación</p>
+                        </div>
+                      </div>
+
+                      <div className={`flex items-center justify-between py-3.5 px-4 rounded-xl border mb-3 ${isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                            <CheckCircle2 size={14} className="text-emerald-500" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-bold">Sesión actual</p>
+                            <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email} · Activa ahora</p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-black px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-500 uppercase tracking-wider">Activa</span>
+                      </div>
+
+                      <div className={`flex items-center justify-between py-3.5 px-4 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}>
+                        <div>
+                          <p className="text-[12px] font-bold">Proveedor de inicio de sesión</p>
+                          <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {user?.app_metadata?.provider === 'google' ? '🔵 Google OAuth' : '📧 Correo y contraseña'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button onClick={handleLogout}
+                        className={`mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500'}`}>
+                        <LogOut size={13} /> Cerrar sesión en todos los dispositivos
+                      </button>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           )}
