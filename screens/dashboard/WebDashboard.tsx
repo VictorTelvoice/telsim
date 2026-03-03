@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot, SMSLog } from '../../types';
 import {
   LayoutDashboard, MessageSquare, Smartphone, Settings,
@@ -12,7 +13,8 @@ import {
   CheckCircle2, Send, Link2, CreditCard, Pencil, X,
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
   Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
-  HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2
+  HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2,
+  AlertCircle, AlertTriangle
 } from 'lucide-react';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
@@ -252,7 +254,7 @@ const KpiCard: React.FC<{
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
-type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'help' | 'settings';
+type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'notifications' | 'help' | 'settings';
 type SettingsSection = 'profile' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
 
 const WebDashboard: React.FC = () => {
@@ -260,6 +262,7 @@ const WebDashboard: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
+  const { notifications, unreadCount: notifUnread, loading: notifLoading, markAsRead: markNotifRead, markAllAsRead: markAllNotifRead, clearAll: clearAllNotifs } = useNotifications();
 
   const [activeTab, setActiveTab]           = useState<TabId>('overview');
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('profile');
@@ -277,6 +280,7 @@ const WebDashboard: React.FC = () => {
   const [subscriptions, setSubscriptions]   = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [helpSearch, setHelpSearch]         = useState('');
+  const [notifFilter, setNotifFilter]       = useState<string>('all');
 
   // ─── Webhook config state ─────────────────────────────────────────────────
   const [webhookUrl, setWebhookUrl]       = useState(() => localStorage.getItem('telsim_webhook_url') || '');
@@ -474,6 +478,7 @@ const WebDashboard: React.FC = () => {
     setBillingLoading(true);
     supabase.from('subscriptions').select('*').eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(10)
       .then(({ data }) => { if (data) setSubscriptions(data); setBillingLoading(false); });
   }, [activeTab, user]);
 
@@ -645,7 +650,8 @@ const WebDashboard: React.FC = () => {
           <NavItem icon={<LayoutDashboard size={17} />} label="Overview"         active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
           <NavItem icon={<MessageSquare size={17} />}   label="Mensajes"         active={activeTab === 'messages'} badge={unreadCount} onClick={() => setActiveTab('messages')} />
           <NavItem icon={<Smartphone size={17} />}      label="Mis SIMs"         active={activeTab === 'numbers'}  badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
-          <NavItem icon={<CreditCard size={17} />}      label="Facturación"      active={activeTab === 'billing'}  onClick={() => setActiveTab('billing')} />
+          <NavItem icon={<CreditCard size={17} />}      label="Facturación"      active={activeTab === 'billing'}       onClick={() => setActiveTab('billing')} />
+          <NavItem icon={<Bell size={17} />}            label="Notificaciones"   active={activeTab === 'notifications'} badge={notifUnread} onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }} />
 
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
@@ -1884,7 +1890,7 @@ const WebDashboard: React.FC = () => {
                 {[
                   { icon: <Smartphone size={15} />, label: 'SIMs activas',    value: activeSlots.length.toString(),  color: 'text-sky-500',     bg: isDark ? 'bg-sky-500/10'     : 'bg-sky-50'     },
                   { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: messages.length.toString(),     color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'  },
-                  { icon: <Receipt size={15} />,    label: 'Próxima factura', value: billingLoading ? '...' : (subscriptions.filter(s => s.status === 'active').length > 0 ? `$${(subscriptions.filter(s => s.status === 'active').length * 9.99).toFixed(2)}` : '$0.00'), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
+                  { icon: <Receipt size={15} />,    label: 'Próxima factura', value: billingLoading ? '...' : (() => { const active = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing'); const total = active.reduce((acc, s) => acc + (Number(s.amount) || 0), 0); return total > 0 ? `$${total.toFixed(2)}` : '$0.00'; })(), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
                   { icon: <Calendar size={15} />,   label: 'Próximo cobro',   value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
                 ].map(stat => (
                   <div key={stat.label} className={`rounded-2xl p-4 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
@@ -1958,7 +1964,9 @@ const WebDashboard: React.FC = () => {
                         <thead>
                           <tr className={`text-[10px] font-black uppercase tracking-wider border-b ${isDark ? 'border-slate-800 text-slate-500 bg-slate-800/50' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>
                             <th className="px-4 py-2.5">Fecha</th>
+                            <th className="px-4 py-2.5">Número</th>
                             <th className="px-4 py-2.5">Plan</th>
+                            <th className="px-4 py-2.5">Créditos</th>
                             <th className="px-4 py-2.5">Importe</th>
                             <th className="px-4 py-2.5">Estado</th>
                           </tr>
@@ -1966,14 +1974,18 @@ const WebDashboard: React.FC = () => {
                         <tbody>
                           {subscriptions.map((sub, i) => (
                             <tr key={sub.id || i} className={`border-b transition-colors ${isDark ? 'border-slate-800 hover:bg-slate-800/40' : 'border-slate-50 hover:bg-slate-50'}`}>
-                              <td className="px-4 py-3 font-mono">{sub.created_at ? new Date(sub.created_at).toLocaleDateString('es-ES') : '—'}</td>
-                              <td className="px-4 py-3 capitalize">{sub.plan_type || 'Starter'}</td>
-                              <td className="px-4 py-3 font-bold">${sub.amount ? (sub.amount / 100).toFixed(2) : '9.99'}</td>
+                              <td className="px-4 py-3 font-mono text-[11px]">{sub.created_at ? new Date(sub.created_at).toLocaleDateString('es-ES') : '—'}</td>
+                              <td className="px-4 py-3 font-mono text-[11px]">{sub.phone_number || '—'}</td>
+                              <td className="px-4 py-3 font-semibold capitalize">{sub.plan_name || sub.plan_type || 'Starter'}</td>
+                              <td className="px-4 py-3">{sub.monthly_limit ? `${sub.monthly_limit} SMS` : '—'}</td>
+                              <td className="px-4 py-3 font-bold">{sub.amount ? `$${Number(sub.amount).toFixed(2)} ${(sub.currency || 'usd').toUpperCase()}` : '—'}</td>
                               <td className="px-4 py-3">
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                                  sub.status === 'active'  ? 'bg-emerald-500/10 text-emerald-500' :
-                                  sub.status === 'expired' ? 'bg-slate-500/10 text-slate-400'     :
-                                  'bg-amber-500/10 text-amber-500'
+                                  sub.status === 'active'   ? 'bg-emerald-500/10 text-emerald-500' :
+                                  sub.status === 'trialing' ? 'bg-sky-500/10 text-sky-500'         :
+                                  sub.status === 'past_due' ? 'bg-amber-500/10 text-amber-500'     :
+                                  sub.status === 'canceled' ? 'bg-slate-500/10 text-slate-400'     :
+                                  'bg-emerald-500/10 text-emerald-500'
                                 }`}>{sub.status || 'active'}</span>
                               </td>
                             </tr>
@@ -2004,6 +2016,163 @@ const WebDashboard: React.FC = () => {
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* ── NOTIFICATIONS TAB ───────────────────────────────────────── */}
+          {activeTab === 'notifications' && (
+            <div className="flex flex-col gap-5 max-w-3xl mx-auto w-full">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[20px] font-black">Notificaciones</h2>
+                  <p className={`text-[12px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Centro de control · Actualizaciones en tiempo real</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {notifUnread > 0 && (
+                    <button onClick={markAllNotifRead}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors border ${isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                      <Check size={12} /> Marcar todo leído
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button onClick={clearAllNotifs}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors border ${isDark ? 'border-slate-800 text-slate-500 hover:border-red-800 hover:text-red-400 hover:bg-red-900/10' : 'border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400 hover:bg-red-50'}`}>
+                      <Trash2 size={12} /> Limpiar todo
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {notifLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <RefreshCw size={20} className="text-slate-400 animate-spin" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className={`rounded-2xl p-16 flex flex-col items-center gap-4 text-center border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                    <Bell size={28} className="text-slate-300" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-black mb-1">Sin actividad reciente</p>
+                    <p className={`text-[12px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Aquí verás: activaciones de SIM, compras, alertas de pago, seguridad y más.</p>
+                  </div>
+                </div>
+              ) : (() => {
+                const getNotifIcon = (type: string, size = 18) => {
+                  switch (type) {
+                    case 'activation':   return <Smartphone size={size} />;
+                    case 'subscription': return <CreditCard size={size} />;
+                    case 'success':      return <CheckCircle2 size={size} />;
+                    case 'error':        return <AlertCircle size={size} />;
+                    case 'warning':      return <AlertTriangle size={size} />;
+                    case 'security':     return <ShieldCheck size={size} />;
+                    default:             return <Bell size={size} />;
+                  }
+                };
+                const getNotifStyle = (type: string) => {
+                  switch (type) {
+                    case 'activation':   return { icon: 'text-primary',     bg: isDark ? 'bg-primary/10'     : 'bg-blue-50',    ring: isDark ? 'ring-primary/20'     : 'ring-primary/30'  };
+                    case 'subscription': return { icon: 'text-violet-500',  bg: isDark ? 'bg-violet-500/10'  : 'bg-violet-50',  ring: isDark ? 'ring-violet-500/20'  : 'ring-violet-300'  };
+                    case 'success':      return { icon: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', ring: isDark ? 'ring-emerald-500/20' : 'ring-emerald-300' };
+                    case 'error':        return { icon: 'text-rose-500',    bg: isDark ? 'bg-rose-500/10'    : 'bg-rose-50',    ring: isDark ? 'ring-rose-500/20'    : 'ring-rose-300'    };
+                    case 'warning':      return { icon: 'text-amber-500',   bg: isDark ? 'bg-amber-500/10'   : 'bg-amber-50',   ring: isDark ? 'ring-amber-500/20'   : 'ring-amber-300'   };
+                    case 'security':     return { icon: 'text-rose-500',    bg: isDark ? 'bg-rose-500/10'    : 'bg-rose-50',    ring: isDark ? 'ring-rose-500/20'    : 'ring-rose-300'    };
+                    default:             return { icon: 'text-slate-500',   bg: isDark ? 'bg-slate-800'      : 'bg-slate-100',  ring: isDark ? 'ring-slate-700'      : 'ring-slate-200'   };
+                  }
+                };
+                const fmtTime = (ds: string) => {
+                  const d = new Date(ds), diff = Math.floor((Date.now() - d.getTime()) / 60000);
+                  if (diff < 1)    return 'ahora';
+                  if (diff < 60)   return `${diff}m`;
+                  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
+                  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+                };
+                const LABELS: Record<string, string> = {
+                  all: 'Todos', activation: 'Activaciones', subscription: 'Suscripciones',
+                  success: 'Éxito', error: 'Errores', warning: 'Alertas', security: 'Seguridad', system: 'Sistema', info: 'Info', message: 'Mensajes',
+                };
+                const counts: Record<string, number> = { all: notifications.length };
+                notifications.forEach(n => { counts[n.type] = (counts[n.type] || 0) + 1; });
+                const pills = ['all', ...Object.keys(counts).filter(k => k !== 'all')];
+                const filtered = notifFilter === 'all' ? notifications : notifications.filter(n => n.type === notifFilter);
+
+                return (
+                  <>
+                    {/* Filter pills */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pills.map(type => (
+                        <button key={type} onClick={() => setNotifFilter(type)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
+                            notifFilter === type
+                              ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                              : (isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
+                          }`}>
+                          {type !== 'all' && <span className={notifFilter === type ? 'text-white/80' : getNotifStyle(type).icon}>{getNotifIcon(type, 11)}</span>}
+                          {LABELS[type] || type}
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${notifFilter === type ? 'bg-white/20 text-white' : (isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500')}`}>{counts[type] || 0}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Notification cards */}
+                    <div className="flex flex-col gap-2.5">
+                      {filtered.length === 0 ? (
+                        <div className={`rounded-2xl p-8 flex flex-col items-center gap-2 text-center border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                          <p className={`text-[12px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Sin notificaciones en esta categoría</p>
+                        </div>
+                      ) : filtered.map(notif => {
+                        const s = getNotifStyle(notif.type);
+                        return (
+                          <div key={notif.id}
+                            onClick={() => markNotifRead(notif.id)}
+                            className={`relative flex gap-4 p-5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.005] ${
+                              notif.is_read
+                                ? (isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100')
+                                : (isDark
+                                    ? `bg-slate-900 border-slate-700 ring-1 ring-inset ${s.ring}`
+                                    : `bg-white border-slate-200 shadow-sm ring-1 ring-inset ${s.ring}`)
+                            }`}>
+                            {!notif.is_read && <div className="absolute left-0 top-4 bottom-4 w-[3px] bg-primary rounded-r-full" />}
+                            {/* Icon */}
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${s.bg}`}>
+                              <span className={s.icon}>{getNotifIcon(notif.type)}</span>
+                            </div>
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-3 mb-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {!notif.is_read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
+                                  <h4 className={`text-[13px] font-black leading-tight truncate ${notif.is_read ? (isDark ? 'text-slate-400' : 'text-slate-600') : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                    {notif.title}
+                                  </h4>
+                                </div>
+                                <span className={`text-[10px] font-semibold flex-shrink-0 tabular-nums ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>{fmtTime(notif.created_at)}</span>
+                              </div>
+                              <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>{notif.message}</p>
+                              {notif.link && (
+                                <button onClick={e => { e.stopPropagation(); navigate(notif.link!); }}
+                                  className="mt-2 flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-wider hover:underline">
+                                  Ver detalles <ExternalLink size={10} />
+                                </button>
+                              )}
+                              {notif.details && (
+                                <div className={`mt-3 grid grid-cols-2 gap-2 p-3 rounded-xl text-[10px] ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                                  {notif.details.number        && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Número</span><p className="font-mono font-black text-[12px]">{notif.details.number}</p></div>}
+                                  {notif.details.plan          && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Plan</span><p className="font-bold capitalize">{notif.details.plan}</p></div>}
+                                  {notif.details.activationDate && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Activación</span><p className="font-bold">{notif.details.activationDate}</p></div>}
+                                  {notif.details.price         && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Precio</span><p className="font-bold">{notif.details.price}</p></div>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
