@@ -147,8 +147,8 @@ const Billing: React.FC = () => {
     return null;
   };
 
-  const activeServices = subscriptions.filter(s => s.status === 'active');
-  const previousServices = subscriptions.filter(s => s.status !== 'active');
+  const activeServices = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing');
+  const previousServices = subscriptions.filter(s => s.status !== 'active' && s.status !== 'trialing');
   const totalMonthlySpend = activeServices.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
   const formatCurrency = (val: number) => {

@@ -121,7 +121,7 @@ const MyNumbers: React.FC = () => {
                 .from('subscriptions')
                 .select('phone_number, plan_name, monthly_limit, credits_used, slot_id')
                 .eq('user_id', user.id)
-                .eq('status', 'active');
+                .in('status', ['active', 'trialing']);
 
             const enrichedSlots = (slotsData || []).map(slot => {
                 const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);

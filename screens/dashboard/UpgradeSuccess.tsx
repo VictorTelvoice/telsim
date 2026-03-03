@@ -74,7 +74,7 @@ const UpgradeSuccess: React.FC = () => {
           .from('subscriptions')
           .select('phone_number, plan_name, amount, currency, monthly_limit')
           .eq('user_id', user.id)
-          .eq('status', 'active')
+          .in('status', ['active', 'trialing'])
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();

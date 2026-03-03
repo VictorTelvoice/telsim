@@ -61,8 +61,8 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').eq('status', 'active');
-      
+      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').in('status', ['active', 'trialing']);
+
       if (subId) {
         query = query.eq('id', subId);
       } else if (slotId) {
@@ -75,7 +75,7 @@ const Processing: React.FC = () => {
 
       const { data } = await query.maybeSingle();
 
-      if (data?.status === 'active') {
+      if (data?.status === 'active' || data?.status === 'trialing') {
         const phone = data.phone_number || '';
         if (isUpgrade) {
           const plan = searchParams.get('plan') || 'POWER';
