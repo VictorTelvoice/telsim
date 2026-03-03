@@ -11,7 +11,8 @@ import {
   ArrowUpRight, ArrowDownRight, Circle, Wifi, Clock,
   CheckCircle2, Send, Link2, CreditCard, Pencil, X,
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
-  Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck
+  Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
+  HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2
 } from 'lucide-react';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
@@ -251,7 +252,7 @@ const KpiCard: React.FC<{
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
-type TabId = 'overview' | 'messages' | 'numbers' | 'settings';
+type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'help' | 'settings';
 type SettingsSection = 'profile' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
 
 const WebDashboard: React.FC = () => {
@@ -273,6 +274,9 @@ const WebDashboard: React.FC = () => {
   const [savingLabel, setSavingLabel]       = useState(false);
   const [simsView, setSimsView]             = useState<'card' | 'list'>('card');
   const [togglingSlot, setTogglingSlot]     = useState<string | null>(null);
+  const [subscriptions, setSubscriptions]   = useState<any[]>([]);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [helpSearch, setHelpSearch]         = useState('');
 
   // ─── Webhook config state ─────────────────────────────────────────────────
   const [webhookUrl, setWebhookUrl]       = useState(() => localStorage.getItem('telsim_webhook_url') || '');
@@ -463,6 +467,70 @@ const WebDashboard: React.FC = () => {
     finally { setSecSaving(false); }
   };
 
+  // ─── Billing data ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (activeTab !== 'billing' || !user) return;
+    setBillingLoading(true);
+    supabase.from('subscriptions').select('*').eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setSubscriptions(data); setBillingLoading(false); });
+  }, [activeTab, user]);
+
+  // ─── Open inbox + mark as read ────────────────────────────────────────────────
+
+  const handleOpenInbox = async (slotId: string) => {
+    setSelectedSlot(slotId);
+    setActiveTab('messages');
+    const unread = messages.filter(m => m.slot_id === slotId && !m.is_read);
+    if (unread.length > 0) {
+      await supabase.from('sms_logs').update({ is_read: true })
+        .eq('slot_id', slotId).eq('is_read', false);
+      setMessages(prev => prev.map(m => m.slot_id === slotId ? { ...m, is_read: true } : m));
+    }
+  };
+
+  // ─── Download CSV usage report ────────────────────────────────────────────────
+
+  const handleDownloadReport = () => {
+    const rows = [
+      ['Fecha', 'Número', 'Region', 'Remitente', 'Contenido', 'Código Extraído'].join(','),
+      ...messages.map(m => {
+        const slot = slots.find(s => s.slot_id === m.slot_id);
+        return [
+          new Date(m.received_at).toLocaleDateString('es-CL'),
+          slot?.phone_number || m.slot_id,
+          slot?.region || '',
+          `"${(m.sender || '').replace(/"/g, '""')}"`,
+          `"${(m.content || '').replace(/"/g, '""')}"`,
+          m.extracted_code || '',
+        ].join(',');
+      }),
+    ].join('\n');
+    const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `telsim-reporte-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  // ─── Stripe Customer Portal ───────────────────────────────────────────────────
+
+  const handleStripePortal = async () => {
+    const sub = subscriptions.find(s => s.stripe_customer_id);
+    if (!sub?.stripe_customer_id) { alert('No se encontró información de tu suscripción en Stripe. Contacta soporte.'); return; }
+    try {
+      const res = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: sub.stripe_customer_id, returnUrl: window.location.href }),
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (e: any) { alert('Error al abrir el portal de Stripe: ' + e.message); }
+  };
+
   // ─── Cancel subscription ─────────────────────────────────────────────────────
 
   const handleCancelSubscription = (slotId: string) => {
@@ -574,17 +642,18 @@ const WebDashboard: React.FC = () => {
 
         {/* Nav */}
         <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
-          <NavItem icon={<LayoutDashboard size={17} />} label="Overview"    active={activeTab === 'overview'}  onClick={() => setActiveTab('overview')} />
-          <NavItem icon={<MessageSquare size={17} />}   label="Mensajes"    active={activeTab === 'messages'}  badge={unreadCount} onClick={() => setActiveTab('messages')} />
-          <NavItem icon={<Smartphone size={17} />}      label="Mis SIMs"    active={activeTab === 'numbers'}   badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
+          <NavItem icon={<LayoutDashboard size={17} />} label="Overview"         active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+          <NavItem icon={<MessageSquare size={17} />}   label="Mensajes"         active={activeTab === 'messages'} badge={unreadCount} onClick={() => setActiveTab('messages')} />
+          <NavItem icon={<Smartphone size={17} />}      label="Mis SIMs"         active={activeTab === 'numbers'}  badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
+          <NavItem icon={<CreditCard size={17} />}      label="Facturación"      active={activeTab === 'billing'}  onClick={() => setActiveTab('billing')} />
 
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
-          <NavItem icon={<Settings size={17} />} label="Ajustes"     active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
-          <NavItem icon={<Send size={17} />}     label="Telegram Bot" onClick={() => { setActiveTab('settings'); setSettingsSection('telegram'); }} />
-          <NavItem icon={<Link2 size={17} />}    label="API & Webhooks" onClick={() => { setActiveTab('settings'); setSettingsSection('api'); }} />
-          <NavItem icon={<Bell size={17} />}     label="Notificaciones" onClick={() => { setActiveTab('settings'); setSettingsSection('notifications'); }} />
-          <NavItem icon={<CreditCard size={17} />} label="Facturación"  onClick={() => { setActiveTab('settings'); setSettingsSection('billing'); }} />
+          <NavItem icon={<Settings size={17} />}    label="Ajustes"         active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
+
+          <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
+          <NavItem icon={<HelpCircle size={17} />}  label="Centro de Ayuda" active={activeTab === 'help'}     onClick={() => setActiveTab('help')} />
         </nav>
 
         {/* Bottom */}
@@ -914,7 +983,7 @@ const WebDashboard: React.FC = () => {
                   {slots.map(slot => {
                     const plan        = (slot.plan_type || 'starter').toLowerCase();
                     const ps          = getWebPlanStyle(plan);
-                    const msgsCnt     = messages.filter(m => m.slot_id === slot.slot_id).length;
+                    const msgsCnt     = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
                     const isActive    = slot.status !== 'expired';
                     const isForwarding = !!slot.forwarding_active;
                     const isTog       = togglingSlot === slot.slot_id;
@@ -1035,12 +1104,12 @@ const WebDashboard: React.FC = () => {
                         </div>
 
                         {/* ── Action buttons bar ── */}
-                        <div className={`flex items-center gap-1.5 p-1.5 rounded-2xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                        <div className={`flex items-center gap-1.5 p-1.5 rounded-3xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
 
                           {/* INBOX — wider, primary action */}
                           <button
-                            onClick={() => { setSelectedSlot(slot.slot_id); setActiveTab('messages'); }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
+                            onClick={() => handleOpenInbox(slot.slot_id)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
                             <MessageSquare size={13} />
                             <span>Inbox</span>
                             {msgsCnt > 0 && (
@@ -1050,11 +1119,19 @@ const WebDashboard: React.FC = () => {
                             )}
                           </button>
 
+                          {/* UPGRADE */}
+                          <button
+                            onClick={() => navigate('/onboarding/plan')}
+                            title="Renovar / cambiar plan"
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
+                            <Zap size={14} />
+                          </button>
+
                           {/* COPY number */}
                           <button
                             onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)}
                             title="Copiar número"
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${
                               copiedId === `${slot.slot_id}_num`
                                 ? 'bg-emerald-500 text-white'
                                 : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')
@@ -1067,7 +1144,7 @@ const WebDashboard: React.FC = () => {
                             onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
                             disabled={isTog}
                             title={isForwarding ? 'Bot activo – clic para desactivar' : 'Bot inactivo – clic para activar'}
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${
                               isForwarding
                                 ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
                                 : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
@@ -1079,7 +1156,7 @@ const WebDashboard: React.FC = () => {
                           <button
                             onClick={() => handleCancelSubscription(slot.slot_id)}
                             title="Cancelar suscripción"
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
+                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -1107,7 +1184,7 @@ const WebDashboard: React.FC = () => {
                       {slots.map(slot => {
                         const plan  = (slot.plan_type || 'starter').toLowerCase();
                         const pc    = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
-                        const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
+                        const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
                         const isActive = slot.status !== 'expired';
                         const isForwarding = !!slot.forwarding_active;
                         const isTog = togglingSlot === slot.slot_id;
@@ -1190,13 +1267,13 @@ const WebDashboard: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* Acciones: Inbox · Copy · Cancel */}
+                            {/* Acciones: Inbox · Upgrade · Copy · Cancel */}
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-1.5">
 
                                 {/* Inbox */}
                                 <button
-                                  onClick={() => { setSelectedSlot(slot.slot_id); setActiveTab('messages'); }}
+                                  onClick={() => handleOpenInbox(slot.slot_id)}
                                   title="Ver mensajes"
                                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
                                   <MessageSquare size={12} />
@@ -1206,6 +1283,14 @@ const WebDashboard: React.FC = () => {
                                       {msgsCnt > 99 ? '99+' : msgsCnt}
                                     </span>
                                   )}
+                                </button>
+
+                                {/* Upgrade */}
+                                <button
+                                  onClick={() => navigate('/onboarding/plan')}
+                                  title="Renovar / cambiar plan"
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
+                                  <Zap size={11} />
                                 </button>
 
                                 {/* Copy */}
@@ -1249,7 +1334,6 @@ const WebDashboard: React.FC = () => {
                   { id: 'telegram',      icon: <Send size={15} />,         label: 'Telegram Bot' },
                   { id: 'api',           icon: <Link2 size={15} />,        label: 'API & Webhooks' },
                   { id: 'notifications', icon: <Bell size={15} />,         label: 'Notificaciones' },
-                  { id: 'billing',       icon: <CreditCard size={15} />,   label: 'Facturación' },
                   { id: 'language',      icon: <Globe size={15} />,        label: 'Idioma' },
                   { id: 'security',      icon: <ShieldCheck size={15} />,  label: 'Seguridad' },
                 ] as { id: SettingsSection; icon: React.ReactNode; label: string }[]).map(item => (
@@ -1776,6 +1860,246 @@ const WebDashboard: React.FC = () => {
                 )}
 
               </div>
+            </div>
+          )}
+
+          {/* ── BILLING TAB ─────────────────────────────────────────────── */}
+          {activeTab === 'billing' && (
+            <div className="flex flex-col gap-6">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[20px] font-black">Facturación</h2>
+                  <p className={`text-[12px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Gestiona tu plan, facturas y métodos de pago</p>
+                </div>
+                <button onClick={handleDownloadReport}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-colors border ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                  <Download size={13} /> Descargar reporte CSV
+                </button>
+              </div>
+
+              {/* KPI cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { icon: <Smartphone size={15} />, label: 'SIMs activas',    value: activeSlots.length.toString(),  color: 'text-sky-500',     bg: isDark ? 'bg-sky-500/10'     : 'bg-sky-50'     },
+                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: messages.length.toString(),     color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'  },
+                  { icon: <Receipt size={15} />,    label: 'Próxima factura', value: billingLoading ? '...' : (subscriptions.filter(s => s.status === 'active').length > 0 ? `$${(subscriptions.filter(s => s.status === 'active').length * 9.99).toFixed(2)}` : '$0.00'), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
+                  { icon: <Calendar size={15} />,   label: 'Próximo cobro',   value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
+                ].map(stat => (
+                  <div key={stat.label} className={`rounded-2xl p-4 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${stat.bg}`}>
+                      <span className={stat.color}>{stat.icon}</span>
+                    </div>
+                    <p className="text-[20px] font-black">{stat.value}</p>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Current plan card */}
+                <div className={`lg:col-span-1 rounded-2xl p-5 border shadow-sm flex flex-col gap-4 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-primary/10' : 'bg-blue-50'}`}>
+                      <Star size={14} className="text-primary" />
+                    </div>
+                    <h3 className="text-[13px] font-black">Plan actual</h3>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[22px] font-black capitalize">{planName}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-500 uppercase">Activo</span>
+                    </div>
+                    <p className={`text-[11px] mb-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{planCredits} créditos SMS / mes · {activeSlots.length} SIM{activeSlots.length !== 1 ? 's' : ''}</p>
+                    <div className={`rounded-xl p-3 text-[11px] ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                      <div className="flex justify-between mb-1.5">
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>SMS usados</span>
+                        <span className="font-bold">{messages.length} / {planCredits}</span>
+                      </div>
+                      <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (messages.length / Math.max(planCredits, 1)) * 100)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 mt-auto">
+                    <button onClick={handleStripePortal}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold bg-primary text-white hover:bg-primary/90 transition-colors">
+                      <ExternalLink size={13} /> Gestionar en Stripe
+                    </button>
+                    <button onClick={() => navigate('/onboarding/plan')}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold transition-colors border ${isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                      <TrendingUp size={13} /> Cambiar plan
+                    </button>
+                  </div>
+                </div>
+
+                {/* Invoice history */}
+                <div className={`lg:col-span-2 rounded-2xl p-5 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                      <FileText size={14} className="text-emerald-500" />
+                    </div>
+                    <h3 className="text-[13px] font-black">Historial de facturas</h3>
+                  </div>
+                  {billingLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <RefreshCw size={18} className="text-slate-400 animate-spin" />
+                    </div>
+                  ) : subscriptions.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-10 text-center">
+                      <FileText size={28} className="text-slate-300" />
+                      <p className={`text-[12px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Sin facturas disponibles</p>
+                    </div>
+                  ) : (
+                    <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <table className="w-full text-left text-[12px]">
+                        <thead>
+                          <tr className={`text-[10px] font-black uppercase tracking-wider border-b ${isDark ? 'border-slate-800 text-slate-500 bg-slate-800/50' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>
+                            <th className="px-4 py-2.5">Fecha</th>
+                            <th className="px-4 py-2.5">Plan</th>
+                            <th className="px-4 py-2.5">Importe</th>
+                            <th className="px-4 py-2.5">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subscriptions.map((sub, i) => (
+                            <tr key={sub.id || i} className={`border-b transition-colors ${isDark ? 'border-slate-800 hover:bg-slate-800/40' : 'border-slate-50 hover:bg-slate-50'}`}>
+                              <td className="px-4 py-3 font-mono">{sub.created_at ? new Date(sub.created_at).toLocaleDateString('es-ES') : '—'}</td>
+                              <td className="px-4 py-3 capitalize">{sub.plan_type || 'Starter'}</td>
+                              <td className="px-4 py-3 font-bold">${sub.amount ? (sub.amount / 100).toFixed(2) : '9.99'}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                  sub.status === 'active'  ? 'bg-emerald-500/10 text-emerald-500' :
+                                  sub.status === 'expired' ? 'bg-slate-500/10 text-slate-400'     :
+                                  'bg-amber-500/10 text-amber-500'
+                                }`}>{sub.status || 'active'}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment method row */}
+              <div className={`rounded-2xl p-5 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                      <CreditCard size={14} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold">Método de pago</p>
+                      <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Gestiona tus tarjetas y métodos de pago en el portal de Stripe</p>
+                    </div>
+                  </div>
+                  <button onClick={handleStripePortal}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors border ${isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <ExternalLink size={12} /> Abrir portal
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ── HELP CENTER TAB ──────────────────────────────────────────── */}
+          {activeTab === 'help' && (
+            <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+
+              {/* Hero + search */}
+              <div className={`rounded-2xl p-8 text-center border ${isDark ? 'bg-gradient-to-br from-primary/20 to-sky-500/10 border-primary/20' : 'bg-gradient-to-br from-blue-50 to-sky-50 border-blue-100'}`}>
+                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
+                  <HelpCircle size={22} className="text-white" />
+                </div>
+                <h2 className="text-[22px] font-black mb-1">Centro de Ayuda</h2>
+                <p className={`text-[13px] mb-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>¿En qué podemos ayudarte hoy?</p>
+                <div className="relative max-w-md mx-auto">
+                  <input
+                    value={helpSearch}
+                    onChange={e => setHelpSearch(e.target.value)}
+                    placeholder="Buscar en la documentación..."
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl text-[13px] border outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-primary' : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-primary'}`}
+                  />
+                  <Search size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                </div>
+              </div>
+
+              {/* Quick guides */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {([
+                  { icon: <Key size={16} />,        color: 'text-primary',      bg: isDark ? 'bg-primary/10'      : 'bg-blue-50',    title: 'Primeros pasos',    desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: undefined },
+                  { icon: <Bot size={16} />,         color: 'text-sky-500',      bg: isDark ? 'bg-sky-500/10'      : 'bg-sky-50',     title: 'Telegram Bot',      desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
+                  { icon: <Link2 size={16} />,       color: 'text-violet-500',   bg: isDark ? 'bg-violet-500/10'   : 'bg-violet-50',  title: 'API & Webhooks',    desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <Zap size={16} />,         color: 'text-amber-500',    bg: isDark ? 'bg-amber-500/10'    : 'bg-amber-50',   title: 'Planes y créditos', desc: 'Entiende cómo funcionan los planes y los créditos SMS.', action: () => navigate('/onboarding/plan') },
+                  { icon: <Shield size={16} />,      color: 'text-emerald-500',  bg: isDark ? 'bg-emerald-500/10'  : 'bg-emerald-50', title: 'Seguridad',         desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <CreditCard size={16} />,  color: 'text-rose-500',     bg: isDark ? 'bg-rose-500/10'     : 'bg-rose-50',    title: 'Facturación',       desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
+                ] as { icon: React.ReactNode; color: string; bg: string; title: string; desc: string; action?: () => void }[])
+                  .filter(c => !helpSearch || c.title.toLowerCase().includes(helpSearch.toLowerCase()) || c.desc.toLowerCase().includes(helpSearch.toLowerCase()))
+                  .map(card => (
+                    <button key={card.title} onClick={card.action}
+                      className={`text-left p-4 rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${card.bg}`}>
+                        <span className={card.color}>{card.icon}</span>
+                      </div>
+                      <p className="text-[13px] font-bold mb-1">{card.title}</p>
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{card.desc}</p>
+                    </button>
+                  ))}
+              </div>
+
+              {/* FAQ */}
+              <div className={`rounded-2xl border overflow-hidden shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                <div className={`px-5 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                  <h3 className="text-[14px] font-black">Preguntas frecuentes</h3>
+                </div>
+                {([
+                  { q: '¿Cómo funciona Telsim?', a: 'Telsim te proporciona números de teléfono reales con SIM física. Puedes recibir SMS (códigos OTP, verificaciones) en cualquier lugar del mundo a través del dashboard, Telegram o API.' },
+                  { q: '¿Cuánto tarda en activarse una SIM?', a: 'La activación es inmediata una vez completado el pago. Recibirás el número asignado en tu dashboard en segundos.' },
+                  { q: '¿Puedo usar mi SIM para WhatsApp o Telegram?', a: 'Sí. Los números de Telsim sirven para verificar cuentas en cualquier plataforma que admita SMS: WhatsApp, Telegram, Google, Facebook, etc.' },
+                  { q: '¿Cómo configuro el webhook?', a: 'Ve a Ajustes → API & Webhooks, ingresa tu URL de endpoint y selecciona los eventos que deseas recibir. Cada SMS dispara un POST con el contenido y el código extraído.' },
+                  { q: '¿Qué pasa cuando expira mi SIM?', a: 'Al expirar, el número queda liberado. Puedes renovar antes del vencimiento desde el dashboard para mantener el mismo número si está disponible.' },
+                  { q: '¿Cómo cancelo mi suscripción?', a: 'Cancela desde la tarjeta de cada SIM (botón de papelera) o desde el portal de Stripe en Facturación. La SIM permanece activa hasta el final del período pagado.' },
+                ] as { q: string; a: string }[])
+                  .filter(f => !helpSearch || f.q.toLowerCase().includes(helpSearch.toLowerCase()) || f.a.toLowerCase().includes(helpSearch.toLowerCase()))
+                  .map((faq, i, arr) => (
+                    <div key={i} className={`px-5 py-4 ${i < arr.length - 1 ? (isDark ? 'border-b border-slate-800' : 'border-b border-slate-100') : ''}`}>
+                      <p className="text-[13px] font-bold mb-1">{faq.q}</p>
+                      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{faq.a}</p>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Contact + docs links */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <a href="mailto:soporte@telsim.app"
+                  className={`flex items-center gap-4 p-5 rounded-2xl border transition-all hover:scale-[1.01] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-100 hover:shadow-sm'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10' : 'bg-sky-50'}`}>
+                    <MessageSquare size={17} className="text-sky-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold">Contactar soporte</p>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>soporte@telsim.app · respuesta en &lt;24 h</p>
+                  </div>
+                  <ExternalLink size={13} className={isDark ? 'text-slate-600' : 'text-slate-300'} />
+                </a>
+                <button onClick={() => navigate('/dashboard/api-guide')}
+                  className={`flex items-center gap-4 p-5 rounded-2xl border transition-all hover:scale-[1.01] text-left ${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-100 hover:shadow-sm'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-violet-500/10' : 'bg-violet-50'}`}>
+                    <Code2 size={17} className="text-violet-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold">Documentación API</p>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>REST API · Webhooks · Ejemplos de código</p>
+                  </div>
+                  <ExternalLink size={13} className={isDark ? 'text-slate-600' : 'text-slate-300'} />
+                </button>
+              </div>
+
             </div>
           )}
 
