@@ -106,7 +106,7 @@ const Billing: React.FC = () => {
     setIsCreatingPortal(true);
     
     try {
-      const response = await fetch('/api/create-portal-session', {
+      const response = await fetch('/api/billing/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
