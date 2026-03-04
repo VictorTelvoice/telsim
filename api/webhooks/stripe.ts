@@ -69,7 +69,8 @@ export default async function handler(req: any, res: any) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const { userId, slot_id: slotId, planName, limit, transactionType } = session.metadata || {};
+    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = session.metadata || {};
+    const isAnnualBilling = isAnnual === 'true';
 
     if (!userId || !slotId) {
       return res.status(200).json({ received: true });
@@ -129,6 +130,17 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!exists) {
+        // Plan catalogue for correct annual pricing
+        const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+          'Starter': { monthly: 19.90, annual: 199 },
+          'Pro': { monthly: 39.90, annual: 399 },
+          'Power': { monthly: 99.00, annual: 990 }
+        };
+
+        // Use correct amount based on billing type
+        const planPrices = PLAN_PRICES[planName] || { monthly: amount, annual: amount };
+        const correctAmount = isAnnualBilling ? planPrices.annual : planPrices.monthly;
+
         await supabaseAdmin.from('subscriptions').insert({
           user_id: userId,
           slot_id: slotId,
@@ -139,7 +151,8 @@ export default async function handler(req: any, res: any) {
           stripe_session_id: session.id,
           stripe_subscription_id: stripeSubscriptionId,
           trial_end: trialEnd,
-          amount,
+          amount: correctAmount,
+          billing_type: isAnnualBilling ? 'annual' : 'monthly',
           currency: session.currency || 'usd',
           created_at: new Date().toISOString(),
         });

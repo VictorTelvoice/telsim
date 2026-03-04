@@ -57,7 +57,8 @@ const Payment: React.FC = () => {
           userId: user.id,
           planName: planName,
           monthlyLimit: monthlyLimit,
-          isUpgrade: false
+          isUpgrade: false,
+          isAnnual: isAnnual
         }),
       });
 

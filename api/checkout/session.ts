@@ -18,7 +18,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual } = req.body;
+    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
@@ -67,6 +67,15 @@ export default async function handler(req: any, res: any) {
               // Lógica de Auditoría: Cerramos la suscripción anterior
               await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', activeSub.id);
 
+              // Plan catalogue for correct annual pricing
+              const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+                'Starter': { monthly: 19.90, annual: 199 },
+                'Pro': { monthly: 39.90, annual: 399 },
+                'Power': { monthly: 99.00, annual: 990 }
+              };
+              const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
+              const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
+
               const { data: newSub } = await supabaseAdmin
                 .from('subscriptions')
                 .insert({
@@ -78,7 +87,8 @@ export default async function handler(req: any, res: any) {
                   credits_used: activeSub.credits_used || 0,
                   status: 'active',
                   stripe_session_id: activeSub.stripe_session_id,
-                  amount: (priceData.unit_amount || 0) / 100,
+                  amount: correctAmount,
+                  billing_type: isAnnual ? 'annual' : 'monthly',
                   currency: priceData.currency || 'usd',
                   created_at: new Date().toISOString()
                 })
@@ -105,12 +115,22 @@ export default async function handler(req: any, res: any) {
             await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
 
             const priceData = await stripe.prices.retrieve(priceId);
+
+            // Plan catalogue for correct annual pricing
+            const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+              'Starter': { monthly: 19.90, annual: 199 },
+              'Pro': { monthly: 39.90, annual: 399 },
+              'Power': { monthly: 99.00, annual: 990 }
+            };
+            const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
+            const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
+
             const stripeSub = await stripe.subscriptions.create({
               customer: customerId,
               items: [{ price: priceId }],
               default_payment_method: defaultPaymentMethod as string,
               trial_period_days: 7,
-              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB' }
+              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
             });
 
             const { data: newSub } = await supabaseAdmin
@@ -119,7 +139,7 @@ export default async function handler(req: any, res: any) {
                 user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
                 plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
                 status: 'active', stripe_session_id: stripeSub.id,
-                amount: (priceData.unit_amount || 0) / 100, currency: priceData.currency || 'usd',
+                amount: correctAmount, billing_type: isAnnual ? 'annual' : 'monthly', currency: priceData.currency || 'usd',
                 created_at: new Date().toISOString()
               })
               .select('id')
@@ -155,12 +175,13 @@ export default async function handler(req: any, res: any) {
       subscription_data: { trial_period_days: 7 },
       success_url: `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&slot_id=${targetSlotId}&isUpgrade=${isUpgrade}`,
       cancel_url: `${origin}/#/dashboard/numbers`,
-      metadata: { 
-        userId, 
-        slot_id: targetSlotId, 
-        planName, 
-        limit: monthlyLimit, 
-        transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUB' 
+      metadata: {
+        userId,
+        slot_id: targetSlotId,
+        planName,
+        limit: monthlyLimit,
+        transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUB',
+        isAnnual: isAnnual ? 'true' : 'false'
       }
     };
 
