@@ -858,7 +858,7 @@ const WebDashboard: React.FC = () => {
                       <MessageSquare size={28} /><p className="text-[12px] font-semibold">Sin mensajes aún</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[540px] pr-2">
+                    <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[540px] pr-2">
                       {messages.slice(0, 10).reverse().map((msg, idx) => {
                         const svc    = detectService(msg.sender, msg.content);
                         const code   = msg.verification_code || extractCode(msg.content);
@@ -871,19 +871,13 @@ const WebDashboard: React.FC = () => {
                         return (
                           <div
                             key={msg.id}
-                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border flex flex-col gap-3 relative transition-all ${
+                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border p-4 flex flex-col gap-3 relative transition-all ${
                               isLatest
-                                ? `${isDark ? 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/60 shadow-lg shadow-primary/20' : 'bg-gradient-to-br from-blue-50 to-blue-25 border-primary/40 shadow-lg shadow-primary/15'} pt-6 pb-4 px-4`
-                                : `${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'} p-4`
+                                ? isDark ? 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/60 shadow-lg shadow-primary/20' : 'bg-gradient-to-br from-blue-50 to-blue-25 border-primary/40 shadow-lg shadow-primary/15'
+                                : isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'
                             }`}
                             style={{ animationDelay: `${idx * 60}ms` }}
                           >
-                            {isLatest && (
-                              <div className="absolute -top-3 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-primary text-white shadow-md">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                Último
-                              </div>
-                            )}
 
                             {/* Header: Logo + Brand + Time */}
                             <div className="flex items-start justify-between">
