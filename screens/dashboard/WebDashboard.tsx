@@ -1426,7 +1426,7 @@ const WebDashboard: React.FC = () => {
                     </div>
                     <div className="flex gap-3 mt-6">
                       <button onClick={() => navigate('/dashboard/profile')} className="px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">Editar perfil</button>
-                      <button onClick={() => navigate('/dashboard/security')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Cambiar contraseña</button>
+                      <button onClick={() => setSettingsSection('security')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Cambiar contraseña</button>
                     </div>
                   </div>
                 )}
