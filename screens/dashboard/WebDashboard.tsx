@@ -340,6 +340,9 @@ const WebDashboard: React.FC = () => {
   const [editError, setEditError]       = useState('');
   const [editSuccess, setEditSuccess]   = useState(false);
 
+  // ─── Live Feed Auto-refresh state ──────────────────────────────────────────
+  const [feedRefreshing, setFeedRefreshing] = useState(false);
+
   const userName     = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
@@ -370,6 +373,31 @@ const WebDashboard: React.FC = () => {
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ─── Auto-refresh feed en vivo every 5 seconds ────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (activeTab === 'overview' && user) {
+        supabase.from('sms_logs').select('*').eq('user_id', user.id)
+          .order('received_at', { ascending: false }).limit(60)
+          .then(({ data }) => { if (data) setMessages(data); })
+          .catch(e => console.error('Error refreshing feed:', e));
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, activeTab]);
+
+  // ─── Manual feed refresh function ──────────────────────────────────────────────
+  const handleFeedRefresh = async () => {
+    if (!user) return;
+    setFeedRefreshing(true);
+    try {
+      const { data } = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
+        .order('received_at', { ascending: false }).limit(60);
+      if (data) setMessages(data);
+    } catch (e) { console.error('Error refreshing feed:', e); }
+    finally { setFeedRefreshing(false); }
+  };
 
   // ─── Profile Edit: load current data when section opens ───────────────────────
   useEffect(() => {
@@ -845,9 +873,21 @@ const WebDashboard: React.FC = () => {
                       <h3 className="text-[14px] font-black">Feed en vivo</h3>
                       <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Últimos SMS recibidos</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[10px] font-semibold text-emerald-500">En vivo</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleFeedRefresh}
+                        disabled={feedRefreshing}
+                        className={`p-2 rounded-lg transition-all flex items-center justify-center ${
+                          isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-700'
+                        } ${feedRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title="Actualizar feed"
+                      >
+                        <RefreshCw size={16} className={feedRefreshing ? 'animate-spin' : ''} />
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] font-semibold text-emerald-500">En vivo</span>
+                      </div>
                     </div>
                   </div>
 
