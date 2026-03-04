@@ -1,8 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { Loader2, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock } from 'lucide-react';
+
+const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+// ─── Logo ────────────────────────────────────────────────────────────────────
+const TelsimLogo = ({ small = false }: { small?: boolean }) => (
+  <div className="flex items-center gap-2.5">
+    <div className={`${small ? 'w-8 h-8' : 'w-9 h-9'} rounded-xl bg-primary flex items-center justify-center`}>
+      <span className={`material-symbols-rounded text-white ${small ? 'text-[17px]' : 'text-[20px]'}`}>sim_card</span>
+    </div>
+    <span className={`font-extrabold tracking-tight text-slate-900 ${small ? 'text-[16px]' : 'text-xl'}`}>Telsim</span>
+  </div>
+);
 
 const Payment: React.FC = () => {
   const navigate = useNavigate();
@@ -10,7 +22,14 @@ const Payment: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
-  
+  const [desktop, setDesktop] = useState(isDesktop());
+
+  useEffect(() => {
+    const handler = () => setDesktop(isDesktop());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   const planData = location.state || {};
   const planName = planData.planName || 'Pro';
   const price = planData.price || 39.90;
@@ -24,9 +43,7 @@ const Payment: React.FC = () => {
     try {
       const response = await fetch('/api/checkout/session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           priceId: stripePriceId,
           userId: user.id,
@@ -37,11 +54,7 @@ const Payment: React.FC = () => {
       });
 
       const data = await response.json();
-
-      if (!response.ok || !data.url) {
-        throw new Error(data.error || "No se pudo generar la sesión de pago.");
-      }
-
+      if (!response.ok || !data.url) throw new Error(data.error || "No se pudo generar la sesión de pago.");
       window.location.href = data.url;
 
     } catch (err: any) {
@@ -51,69 +64,223 @@ const Payment: React.FC = () => {
     }
   };
 
-  return (
-    <div className="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased min-h-screen flex flex-col items-center">
-        <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
-            <div className="sticky top-0 z-20 flex items-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 py-4 border-b border-gray-100 dark:border-gray-800">
-                <button 
-                    onClick={() => !isProcessing && navigate(-1)}
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors ${isProcessing ? 'opacity-30' : ''}`}
-                >
-                    <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
-                </button>
-                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10 uppercase tracking-tighter">{t('onboarding.secure_payment')}</h2>
+  // ──────────────────────────────────────────────────────────────────────────
+  // DESKTOP LAYOUT
+  // ──────────────────────────────────────────────────────────────────────────
+  if (desktop) {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
+        {/* Top nav */}
+        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+          <TelsimLogo />
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Plan seleccionado
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Región elegida
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Resumen
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+              <span className="text-white text-[10px] font-black">4</span>
+            </span>
+            <span className="text-slate-700 font-bold">Pago</span>
+          </div>
+          <button
+            onClick={() => !isProcessing && navigate(-1)}
+            className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver
+          </button>
+        </header>
+
+        {/* Body */}
+        <div className="flex-1 flex items-start justify-center px-8 py-12">
+          <div className="w-full max-w-3xl">
+            <div className="mb-8">
+              <h1 className="text-[30px] font-black text-slate-900 tracking-tight">{t('onboarding.secure_payment')}</h1>
+              <p className="text-slate-500 text-[14px] mt-1.5">Tu suscripción comienza con 7 días gratis. Sin cargos hasta entonces.</p>
             </div>
 
-            <div className="flex-1 flex flex-col px-6 pt-8 pb-40 overflow-y-auto no-scrollbar">
-                <div className="bg-white dark:bg-[#1A2230] rounded-3xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm mb-10 flex justify-between items-center">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">{t('onboarding.selected_subscription')}</span>
-                        <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+            <div className="grid grid-cols-5 gap-6">
+              {/* Left: plan summary + stripe */}
+              <div className="col-span-3 flex flex-col gap-5">
+                {/* Plan summary card */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Suscripción seleccionada</span>
+                  </div>
+                  <div className="px-6 py-5 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-900 font-black text-2xl uppercase tracking-tight">{planName}</span>
+                      <span className="block text-[12px] font-bold text-slate-400 mt-1">{monthlyLimit} OTPs / mes</span>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                        <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
-                        <span className="text-emerald-500 text-[9px] font-black bg-emerald-500/10 px-2 py-1 rounded-lg uppercase">{t('onboarding.trial_7_days')}</span>
+                    <div className="text-right">
+                      <span className="text-slate-900 font-black text-2xl">${Number(price).toFixed(2)}</span>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">por mes</span>
                     </div>
+                  </div>
                 </div>
 
-                <div className="mb-8">
-                  <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.1em] mb-4">{t('onboarding.payment_node')}</h3>
-                  <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-primary/20 flex flex-col items-center gap-6 text-center">
-                    <div className="size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-md">
-                       <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-7" alt="Stripe" />
+                {/* Stripe payment node */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400 mb-5">{t('onboarding.payment_node')}</h3>
+                  <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-5 text-center">
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100">
+                      <img
+                        src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg"
+                        className="h-7"
+                        alt="Stripe"
+                      />
                     </div>
-                    <p className="text-sm font-bold text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-xs">
                       {t('onboarding.stripe_desc')}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex gap-4">
-                    <ShieldCheck className="size-6 text-primary shrink-0" />
-                    <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                        {t('onboarding.confirmation_desc')}
-                    </p>
+                {/* Shield note */}
+                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex gap-4">
+                  <ShieldCheck className="size-5 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-bold text-slate-600 leading-relaxed italic">
+                    {t('onboarding.confirmation_desc')}
+                  </p>
                 </div>
-            </div>
+              </div>
 
-            <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10">
-                <button 
-                    onClick={handleCheckout}
-                    disabled={isProcessing}
-                    className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70"
+              {/* Right: total + CTA */}
+              <div className="col-span-2 flex flex-col gap-5">
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                  <h3 className="text-[13px] font-black uppercase tracking-wider text-slate-400 mb-5">Resumen de cobro</h3>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center text-slate-400 text-[11px] font-black uppercase tracking-widest">
+                      <span>Subtotal</span>
+                      <span>${Number(price).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-600 text-[11px] font-black uppercase tracking-widest">
+                      <span>Descuento prueba</span>
+                      <span>-${Number(price).toFixed(2)}</span>
+                    </div>
+                    <div className="my-1 h-px w-full bg-slate-100" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-900 text-lg font-black uppercase">Total hoy</span>
+                      <span className="text-slate-900 text-3xl font-black">$0.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleCheckout}
+                  disabled={isProcessing}
+                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5 disabled:opacity-70"
                 >
-                    <div className="w-12 flex items-center justify-center">
-                        {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}
-                    </div>
-                    <span className="text-[17px] tracking-wide uppercase">
-                        {isProcessing ? t('onboarding.connecting') : t('onboarding.pay_with_stripe')}
-                    </span>
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                        <Lock className="size-6 text-white" />
-                    </div>
+                  <span>
+                    {isProcessing ? (
+                      <Loader2 className="size-5 animate-spin text-white/80" />
+                    ) : (
+                      <span />
+                    )}
+                  </span>
+                  <span>{isProcessing ? t('onboarding.connecting') : t('onboarding.pay_with_stripe')}</span>
+                  <Lock className="size-5 text-white/70" />
                 </button>
+
+                <div className="flex flex-col gap-2 px-2">
+                  {[
+                    { icon: '🔒', text: 'Pago seguro con SSL 256-bit' },
+                    { icon: '↩️', text: 'Cancela cuando quieras' },
+                    { icon: '🛡️', text: 'Sin cargos durante la prueba' },
+                  ].map(item => (
+                    <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span>{item.icon}</span><span>{item.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MOBILE LAYOUT (original)
+  // ──────────────────────────────────────────────────────────────────────────
+  return (
+    <div className="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased min-h-screen flex flex-col items-center">
+      <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
+        <div className="sticky top-0 z-20 flex items-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 py-4 border-b border-gray-100 dark:border-gray-800">
+          <button
+            onClick={() => !isProcessing && navigate(-1)}
+            className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors ${isProcessing ? 'opacity-30' : ''}`}
+          >
+            <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
+          </button>
+          <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10 uppercase tracking-tighter">{t('onboarding.secure_payment')}</h2>
+        </div>
+
+        <div className="flex-1 flex flex-col px-6 pt-8 pb-40 overflow-y-auto no-scrollbar">
+          <div className="bg-white dark:bg-[#1A2230] rounded-3xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm mb-10 flex justify-between items-center">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">{t('onboarding.selected_subscription')}</span>
+              <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
+              <span className="text-emerald-500 text-[9px] font-black bg-emerald-500/10 px-2 py-1 rounded-lg uppercase">{t('onboarding.trial_7_days')}</span>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.1em] mb-4">{t('onboarding.payment_node')}</h3>
+            <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-primary/20 flex flex-col items-center gap-6 text-center">
+              <div className="size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-md">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-7" alt="Stripe" />
+              </div>
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t('onboarding.stripe_desc')}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex gap-4">
+            <ShieldCheck className="size-6 text-primary shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+              {t('onboarding.confirmation_desc')}
+            </p>
+          </div>
+        </div>
+
+        <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10">
+          <button
+            onClick={handleCheckout}
+            disabled={isProcessing}
+            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70"
+          >
+            <div className="w-12 flex items-center justify-center">
+              {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}
+            </div>
+            <span className="text-[17px] tracking-wide uppercase">
+              {isProcessing ? t('onboarding.connecting') : t('onboarding.pay_with_stripe')}
+            </span>
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <Lock className="size-6 text-white" />
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

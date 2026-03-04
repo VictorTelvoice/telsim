@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { getPostAuthRoute } from '../../lib/routing';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot, SMSLog } from '../../types';
@@ -229,7 +230,7 @@ const Messages: React.FC = () => {
       <header className="px-6 pt-12 pb-2 bg-[#F2F2F7]/80 dark:bg-background-dark/80 backdrop-blur-xl sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-black/5">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <button onClick={() => navigate('/dashboard')} className="mb-2 flex items-center gap-1 text-primary font-bold text-sm">
+            <button onClick={() => navigate(getPostAuthRoute())} className="mb-2 flex items-center gap-1 text-primary font-bold text-sm">
               <span className="material-icons-round text-lg">chevron_left</span>
               {t('messages.back')}
             </button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { getPostAuthRoute } from '../lib/routing';
 
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -12,20 +13,43 @@ const Landing: React.FC = () => {
   const casosUsoRef = useRef<HTMLDivElement>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
+  const pricingSectionRef = useRef<HTMLDivElement>(null);
+  const pricingAnimatedRef = useRef(false);
   const [isAnnual, setIsAnnual] = useState(false);
   const [beneficiosPage, setBeneficiosPage] = useState(0);
   const [casosPage, setCasosPage] = useState(0);
   const [planesPage, setPlanesPage] = useState(0);
   const [testimoniosPage, setTestimoniosPage] = useState(0);
+  const [videoOpen, setVideoOpen] = useState(false);
 
   useEffect(() => {
-    // Inicialmente centrar en PRO (segunda tarjeta)
-    setTimeout(() => {
-      if (preciosRef.current) {
-        const cardWidth = preciosRef.current.scrollWidth / 3;
-        preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
-      }
-    }, 100);
+    // En desktop, centrar en PRO inmediatamente sin animación
+    if (window.innerWidth >= 768 && preciosRef.current) {
+      const cardWidth = preciosRef.current.scrollWidth / 3;
+      preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
+    }
+
+    // En móvil: IntersectionObserver — anima de Starter → PRO al entrar en viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !pricingAnimatedRef.current && window.innerWidth < 768) {
+            pricingAnimatedRef.current = true;
+            const el = preciosRef.current;
+            if (!el) return;
+            // Paso 1: posicionar en Starter (sin animación)
+            el.scrollTo({ left: 0, behavior: 'auto' });
+            // Paso 2: después de 500ms deslizar al PRO suavemente
+            setTimeout(() => {
+              const cardWidth = el.scrollWidth / 3;
+              el.scrollTo({ left: cardWidth, behavior: 'smooth' });
+            }, 500);
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+    if (pricingSectionRef.current) observer.observe(pricingSectionRef.current);
 
     const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
       const el = ref.current;
@@ -77,10 +101,10 @@ const Landing: React.FC = () => {
     };
     hintScroll(benefEl, 900);
     hintScroll(casosEl, 1100);
-    hintScroll(planesEl, 1300);
     hintScroll(testimEl, 1500);
 
     return () => {
+      observer.disconnect();
       cleanupTestimonials?.();
       benefEl?.removeEventListener('scroll', handleBeneficios);
       casosEl?.removeEventListener('scroll', handleCasos);
@@ -91,13 +115,12 @@ const Landing: React.FC = () => {
   const { user, loading } = useAuth();
 
   const handlePlanSelect = (planId: string) => {
-    const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; name: string; limit: number }> = {
+    const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; limit: number }> = {
       starter: {
         monthly: 'price_1SzJRLEADSrtMyiaQaDEp44E',
         annual:  'price_1T52jPEADSrtMyiayfSm4e8m',
         monthlyPrice: 19.90,
         annualPrice: 199.00,
-        name: 'Starter',
         limit: 150,
       },
       pro: {
@@ -105,7 +128,6 @@ const Landing: React.FC = () => {
         annual:  'price_1T52kUEADSrtMyiavL3rwWqH',
         monthlyPrice: 39.90,
         annualPrice: 399.00,
-        name: 'Pro',
         limit: 400,
       },
       power: {
@@ -113,25 +135,29 @@ const Landing: React.FC = () => {
         annual:  'price_1T52l1EADSrtMyiaGkuLXqy5',
         monthlyPrice: 99.00,
         annualPrice: 990.00,
-        name: 'Power',
         limit: 1400,
       },
     };
     const selected = plans[planId];
-    localStorage.setItem('selected_plan', JSON.stringify({
-      planId,
-      planName: selected.name,
-      stripePriceId: isAnnual ? selected.annual : selected.monthly,
-      price: isAnnual ? selected.annualPrice : selected.monthlyPrice,
-      monthlyLimit: selected.limit,
-      billing: isAnnual ? 'annual' : 'monthly',
-    }));
-    navigate('/onboarding/checkout');
+    // Guardar con el mismo formato que usa PlanSelect/RegionSelect
+    localStorage.setItem('selected_plan', planId);
+    localStorage.setItem('selected_plan_price', String(isAnnual ? selected.annualPrice : selected.monthlyPrice));
+    localStorage.setItem('selected_plan_annual', String(isAnnual));
+    localStorage.setItem('selected_plan_price_id', isAnnual ? selected.annual : selected.monthly);
+    // Logueado → ir directo a elegir región
+    // No logueado → desktop va a /onboarding/plan (flujo completo), mobile a /onboarding/checkout
+    if (user) {
+      navigate('/onboarding/region');
+    } else if (window.innerWidth >= 1024) {
+      navigate('/onboarding/plan');
+    } else {
+      navigate('/onboarding/checkout');
+    }
   };
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard');
+      navigate(getPostAuthRoute());
     }
   }, [user, loading, navigate]);
 
@@ -440,7 +466,7 @@ const Landing: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-blue-200">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
             </div>
             <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
@@ -496,7 +522,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO */}
-      <section className="tech-bg pt-10 pb-12">
+      <section className="tech-bg pt-14 md:pt-28 pb-16 md:pb-28">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-center fade-in">
           {/* Columna Izquierda */}
           <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
@@ -526,13 +552,14 @@ const Landing: React.FC = () => {
                 {t('common.try_free')}
                 <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
               </button>
-              <a href="#como-funciona" className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-7 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all">
+              <button onClick={() => setVideoOpen(true)} className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-7 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all">
                 <span className="material-symbols-rounded text-[20px]">play_circle</span>
                 {t('common.see_how')}
-              </a>
+              </button>
             </div>
 
-            <div className="flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
+            {/* Trust badges — solo desktop (en móvil se muestran debajo de la tarjeta GRATIS) */}
+            <div className="hidden md:flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
               <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
             </div>
@@ -575,6 +602,12 @@ const Landing: React.FC = () => {
               </div>
             </div>
 
+            {/* Trust badges — solo móvil, debajo de la tarjeta GRATIS */}
+            <div className="flex md:hidden items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center mt-4">
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
+              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
+            </div>
+
             {/* Botones Desktop */}
             <div className="hidden md:flex gap-2.5 mt-5">
               <button 
@@ -587,23 +620,23 @@ const Landing: React.FC = () => {
                 {t('common.try_free')}
                 <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
               </button>
-              <a href="#como-funciona" className="bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all whitespace-nowrap">
+              <button onClick={() => setVideoOpen(true)} className="bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all whitespace-nowrap">
                 <span className="material-symbols-rounded text-[20px]">play_circle</span>
                 {t('common.see_how')}
-              </a>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* BENEFICIOS */}
-      <section id="beneficios" className="bg-white py-12">
+      <section id="beneficios" className="bg-white py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.benefits.title').replace('<br/>', '<br/>') }}></h2>
           </div>
-          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pt-2 pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {[
               { icon: 'sim_card', title: t('landing.benefits.item1.title'), desc: t('landing.benefits.item1.desc') },
               { icon: 'bolt', title: t('landing.benefits.item2.title'), desc: t('landing.benefits.item2.desc') },
@@ -626,7 +659,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TELEGRAM SECTION */}
-      <section className="py-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col gap-6 items-center md:items-start text-center md:text-left">
@@ -714,7 +747,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CASOS DE USO */}
-      <section className="bg-white py-12">
+      <section className="bg-white py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
@@ -726,7 +759,7 @@ const Landing: React.FC = () => {
           <div className="md:hidden relative">
             <div
               ref={casosUsoRef}
-              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 -mx-6 px-6"
+              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-2 pb-4 -mx-6 px-6"
               style={{ scrollbarWidth: 'none' }}
             >
               {casosUso.map((c, i) => (
@@ -768,7 +801,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="tech-bg py-12 overflow-hidden">
+      <section id="como-funciona" className="tech-bg py-16 md:py-28 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -846,7 +879,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* TESTIMONIOS */}
-      <section className="bg-white pt-8 pb-12">
+      <section className="bg-white pt-14 md:pt-28 pb-16 md:pb-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-6">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
@@ -858,7 +891,7 @@ const Landing: React.FC = () => {
           <div className="relative">
             <div
               ref={testimonialsRef}
-              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
               style={{ scrollbarWidth: 'none' }}
             >
               {testimonials.map((t, i) => (
@@ -901,15 +934,12 @@ const Landing: React.FC = () => {
             <div className="md:hidden">
               <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
             </div>
-            <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-6">
-              Miles de bots activos confían en Telsim
-            </p>
           </div>
         </div>
       </section>
 
       {/* STATS */}
-      <section className="py-10" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-14 md:py-28" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
@@ -928,7 +958,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* PRECIOS */}
-      <section id="precios" className="tech-bg py-12">
+      <section id="precios" ref={pricingSectionRef} className="tech-bg py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Planes</span>
@@ -954,7 +984,7 @@ const Landing: React.FC = () => {
             </span>
           </div>
 
-          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pb-12 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+          <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pt-4 pb-12 md:pb-4 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {/* STARTER */}
             <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
@@ -976,9 +1006,7 @@ const Landing: React.FC = () => {
                   </span>
                   <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $39.80 vs plan mensual</p>
-                )}
+                {isAnnual && <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $39.80 vs plan mensual</p>}
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -1021,9 +1049,7 @@ const Landing: React.FC = () => {
                   </span>
                   <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $79.80 vs plan mensual</p>
-                )}
+                {isAnnual && <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $79.80 vs plan mensual</p>}
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -1063,9 +1089,7 @@ const Landing: React.FC = () => {
                   </span>
                   <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
-                {isAnnual && (
-                  <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $198.00 vs plan mensual</p>
-                )}
+                {isAnnual && <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $198.00 vs plan mensual</p>}
               </div>
               <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' }}></div>
               <div className="relative flex flex-col gap-2.5 flex-1">
@@ -1093,7 +1117,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* COMPATIBILIDAD */}
-      <section className="py-6 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section className="py-14 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6 mb-8 text-center">
           <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-1">{t('landing.compatibility.tag')}</span>
           <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
@@ -1180,7 +1204,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CTA FINAL */}
-      <section className="bg-white py-12">
+      <section className="bg-white py-16 md:py-28">
         <div className="max-w-xl mx-auto px-6 text-center flex flex-col items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-button">
             <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
@@ -1208,7 +1232,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-100 bg-white py-8">
+      <footer className="border-t border-slate-100 bg-white py-14 md:py-28">
         <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
@@ -1235,6 +1259,37 @@ const Landing: React.FC = () => {
           <p className="text-xs text-slate-400 font-medium">© 2026 Telsim by Telvoice</p>
         </div>
       </footer>
+
+      {/* ── MODAL DE VIDEO ── */}
+      {videoOpen && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 md:p-8"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setVideoOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setVideoOpen(false)}
+              className="absolute top-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+            >
+              <span className="material-symbols-rounded text-white text-[20px]">close</span>
+            </button>
+
+            <video
+              src="/explainer.mp4"
+              autoPlay
+              controls
+              playsInline
+              className="w-full aspect-video bg-black"
+              onEnded={() => setVideoOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

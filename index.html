@@ -97,7 +97,7 @@
         font-family: 'Manrope', sans-serif;
         -webkit-font-smoothing: antialiased;
         min-height: 100dvh;
-        overflow-x: hidden;
+        overflow-x: clip; /* clip evita crear un scroll-container (fix iOS Safari) */
         background-color: #F1F5F9;
       }
       .no-scrollbar::-webkit-scrollbar {

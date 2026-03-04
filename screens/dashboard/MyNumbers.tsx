@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getPostAuthRoute } from '../../lib/routing';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
 import { 
@@ -120,7 +121,7 @@ const MyNumbers: React.FC = () => {
                 .from('subscriptions')
                 .select('phone_number, plan_name, monthly_limit, credits_used, slot_id')
                 .eq('user_id', user.id)
-                .eq('status', 'active');
+                .in('status', ['active', 'trialing']);
 
             const enrichedSlots = (slotsData || []).map(slot => {
                 const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);
@@ -470,7 +471,7 @@ const MyNumbers: React.FC = () => {
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
             <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
-                <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
+                <button onClick={() => navigate(getPostAuthRoute())} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
                     <ArrowLeft className="size-5" />
                 </button>
                 <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.title')}</h1>

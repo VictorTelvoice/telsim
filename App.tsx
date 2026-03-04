@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -9,7 +9,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
-import Register from './screens/auth/Register';
 import RegionSelect from './screens/onboarding/RegionSelect';
 import PlanSelect from './screens/onboarding/PlanSelect';
 import Summary from './screens/onboarding/Summary';
@@ -33,16 +32,19 @@ import SettingsScreen from './screens/dashboard/Settings';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
+import ApiGuide from './screens/dashboard/ApiGuide';
 import TelegramConfig from './screens/dashboard/TelegramConfig';
 import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
 import ApiDocs from './screens/ApiDocs';
+import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
 import Vault2FA from './screens/use-cases/Vault2FA';
 import BypassAntibots from './screens/use-cases/BypassAntibots';
 import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
+import WebDashboard from './screens/dashboard/WebDashboard';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -104,7 +106,7 @@ const BottomNav = () => {
 
         <div className="relative -top-5 px-2">
           <button 
-            onClick={() => navigate('/onboarding/region')}
+            onClick={() => navigate('/onboarding/plan')}
             className="size-14 bg-primary rounded-full flex items-center justify-center text-white shadow-[0_4px_12px_rgba(17,82,212,0.4)] hover:scale-105 active:scale-95 transition-transform"
           >
             <Plus size={32} />
@@ -144,6 +146,18 @@ const BottomNav = () => {
 };
 
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
+
+  // Si estamos en desktop (≥1024px), redirigir siempre al web dashboard
+  React.useEffect(() => {
+    if (window.innerWidth >= 1024) {
+      navigate('/web', { replace: true });
+    }
+  }, [navigate]);
+
+  // En desktop no renderizar nada (se redirige de inmediato)
+  if (window.innerWidth >= 1024) return null;
+
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {children}
@@ -177,39 +191,29 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
+                  <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
+
+                  {/* ── Rutas full-width (desktop responsivo, sin max-w-md) ── */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Navigate to="/login" replace />} />
+                  {/* Plan sin ProtectedRoute — usuario nuevo puede verlo */}
+                  <Route path="/onboarding/plan" element={<PlanSelect />} />
+                  <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
+                  <Route path="/onboarding/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
+                  <Route path="/onboarding/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+                  <Route path="/onboarding/processing" element={<ProtectedRoute><Processing /></ProtectedRoute>} />
+                  <Route path="/onboarding/activation-success" element={<ProtectedRoute><ActivationSuccess /></ProtectedRoute>} />
+                  <Route path="/dashboard/telegram-guide" element={<ProtectedRoute><TelegramSetupGuide /></ProtectedRoute>} />
+                  <Route path="/dashboard/api-guide"      element={<ProtectedRoute><ApiGuide /></ProtectedRoute>} />
+
                   <Route path="*" element={
-                    <div className="mx-auto max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
+                    <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
+                        <Route path="/legal" element={<LegalScreen />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
-                        <Route 
-                          path="/onboarding/region" 
-                          element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/plan" 
-                          element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/summary" 
-                          element={<ProtectedRoute><Summary /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/payment" 
-                          element={<ProtectedRoute><Payment /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/processing" 
-                          element={<ProtectedRoute><Processing /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/success" 
-                          element={<ProtectedRoute><Success /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/onboarding/activation-success" 
-                          element={<ProtectedRoute><ActivationSuccess /></ProtectedRoute>} 
+                        <Route
+                          path="/onboarding/success"
+                          element={<ProtectedRoute><Success /></ProtectedRoute>}
                         />
                         <Route 
                           path="/dashboard" 
@@ -267,13 +271,9 @@ const App: React.FC = () => {
                           path="/dashboard/upgrade-success" 
                           element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} 
                         />
-                        <Route 
-                          path="/dashboard/telegram-guide" 
-                          element={<ProtectedRoute><DashboardLayout><TelegramSetupGuide /></DashboardLayout></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/dashboard/telegram-config" 
-                          element={<ProtectedRoute><DashboardLayout><TelegramConfig /></DashboardLayout></ProtectedRoute>} 
+                        <Route
+                          path="/dashboard/telegram-config"
+                          element={<ProtectedRoute><DashboardLayout><TelegramConfig /></DashboardLayout></ProtectedRoute>}
                         />
                         <Route 
                           path="/dashboard/webhooks" 

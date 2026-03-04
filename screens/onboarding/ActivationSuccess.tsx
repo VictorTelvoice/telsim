@@ -13,6 +13,18 @@ interface ActivationData {
   monthlyLimit: number;
 }
 
+const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+// ─── Logo ────────────────────────────────────────────────────────────────────
+const TelsimLogo = () => (
+  <div className="flex items-center gap-2.5">
+    <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+      <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
+    </div>
+    <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
+  </div>
+);
+
 const ActivationSuccess: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,7 +33,14 @@ const ActivationSuccess: React.FC = () => {
   const { addNotification } = useNotifications();
   const [data, setData] = useState<ActivationData | null>(null);
   const [copied, setCopied] = useState(false);
+  const [desktop, setDesktop] = useState(isDesktop());
   const notifSent = useRef(false);
+
+  useEffect(() => {
+    const handler = () => setDesktop(isDesktop());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const sessionId = new URLSearchParams(location.search).get('session_id');
 
@@ -47,12 +66,10 @@ const ActivationSuccess: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      // Datos desde location.state (viene de Processing.tsx)
       if (location.state?.phoneNumber) {
         setData(location.state as ActivationData);
         return;
       }
-      // Fallback: consultar Supabase
       if (user) {
         const { data: sub } = await supabase
           .from('subscriptions')
@@ -65,7 +82,6 @@ const ActivationSuccess: React.FC = () => {
     load();
   }, [user, sessionId]);
 
-  // Enviar notificación una sola vez
   useEffect(() => {
     if (!data || notifSent.current) return;
     notifSent.current = true;
@@ -77,13 +93,196 @@ const ActivationSuccess: React.FC = () => {
   }, [data]);
 
   if (!data) return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
+    <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">
       <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   const colors = getPlanColors(data.planName);
 
+  const handleCopyPhone = () => {
+    navigator.clipboard.writeText(formatPhone(data.phoneNumber));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // DESKTOP LAYOUT
+  // ──────────────────────────────────────────────────────────────────────────
+  if (desktop) {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
+        {/* Glow */}
+        <div style={{ position:'fixed', top:'-100px', left:'50%', transform:'translateX(-50%)', width:'700px', height:'500px', borderRadius:'50%', background:`radial-gradient(circle, ${colors.accent}, transparent)`, filter:'blur(100px)', opacity:0.1, pointerEvents:'none', zIndex:0 }} />
+
+        {/* Top nav */}
+        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between relative z-10">
+          <TelsimLogo />
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Plan seleccionado
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Región elegida
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            Resumen
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+              <span className="text-white text-[10px]">✓</span>
+            </span>
+            <span className="text-emerald-600 font-bold">¡Activado!</span>
+          </div>
+          <div className="w-20" />
+        </header>
+
+        {/* Body */}
+        <div className="flex-1 flex items-start justify-center px-8 py-12 relative z-10">
+          <div className="w-full max-w-3xl">
+
+            {/* Hero success */}
+            <div className="text-center mb-8">
+              <div className="relative inline-block mb-5">
+                <div style={{ position:'absolute', inset:0, borderRadius:'22px', border:`2px solid ${colors.accentBorder}`, animation:'ping 2s ease-out infinite', pointerEvents:'none' }} />
+                <div className="bg-white relative z-10" style={{ width:'76px', height:'76px', borderRadius:'22px', border:`1.5px solid ${colors.accentBorder}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto' }}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4" style={{ background: colors.accentBg, border: `1px solid ${colors.accentBorder}` }}>
+                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: colors.accent, animation:'pulse 1.8s ease-in-out infinite' }} />
+                <span style={{ fontSize:'10px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em', color: colors.accent }}>Línea Activada</span>
+              </div>
+
+              <h1 className="text-[38px] font-black text-slate-900 tracking-tight mb-2">¡Activación Completa!</h1>
+              <p className="text-slate-500 text-[15px] font-medium">Tu SIM física está operativa y lista para su uso.</p>
+            </div>
+
+            {/* 2-col grid */}
+            <div className="grid grid-cols-5 gap-6">
+
+              {/* Left: número + detalles */}
+              <div className="col-span-3 flex flex-col gap-4">
+
+                {/* Número SIM */}
+                <button
+                  onClick={handleCopyPhone}
+                  className="bg-white rounded-3xl border-2 p-6 flex flex-col items-center cursor-pointer hover:shadow-md transition-all w-full"
+                  style={{ borderColor: colors.accentBorder }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tu Número SIM</span>
+                  </div>
+                  <span className="text-[32px] font-black text-slate-900 tracking-wider font-mono mb-2">{formatPhone(data.phoneNumber)}</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: copied ? colors.accent : '#94a3b8' }}>
+                    {copied ? '✓ Copiado al portapapeles' : 'Click para copiar'}
+                  </span>
+                </button>
+
+                {/* Plan + Precio grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
+                    </div>
+                    <p className="text-[20px] font-black uppercase tracking-tight mb-1" style={{ color: colors.accent }}>{data.planName}</p>
+                    <p className="text-[11px] font-medium text-slate-400">{data.monthlyLimit} Créditos SMS / mes</p>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Precio</span>
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-[20px] font-black text-slate-900">${data.amount > 0 ? data.amount.toFixed(2) : '—'}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">/mes</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-400">Servicio prepago</p>
+                  </div>
+                </div>
+
+                {/* Shield note */}
+                <div className="rounded-2xl p-4 flex gap-3" style={{ background: colors.accentBg, border: `1px solid ${colors.accentBorder}` }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:'2px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <p className="text-[12px] font-medium text-slate-600 leading-relaxed">
+                    Servicio prepago. Cancela antes del <strong className="text-slate-900 font-bold">{fmt(trialEnd)}</strong> y no se realiza ningún cobro. Sin permanencia mínima.
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: billing timeline + CTA */}
+              <div className="col-span-2 flex flex-col gap-4">
+
+                {/* Timeline */}
+                <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Ciclo de Facturación</span>
+                  </div>
+                  {[
+                    { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
+                    { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
+                    { dot:'rgba(148,163,184,0.4)', label:fmt(renewal).toUpperCase(), desc:'Segunda renovación · y así cada 30 días', color:'#94a3b8', line:false },
+                  ].map((row, i) => (
+                    <div key={i} className="flex gap-3">
+                      <div className="flex flex-col items-center w-3 shrink-0 pt-1">
+                        <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:row.dot, flexShrink:0 }} />
+                        {row.line && <div className="w-px flex-1 bg-slate-200 my-1.5 min-h-[20px]" />}
+                      </div>
+                      <div className={row.line ? 'pb-4' : ''}>
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color:row.color }}>{row.label}</p>
+                        <p className="text-[11px] text-slate-500 leading-snug">{row.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTAs */}
+                <button
+                  onClick={() => navigate('/web')}
+                  className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+                >
+                  <span />
+                  <span>Ir al Dashboard</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => navigate('/web')}
+                  className="w-full h-11 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 font-bold text-[12px] uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  Ver Facturación
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes ping { 0%{transform:scale(1);opacity:0.5;} 80%,100%{transform:scale(1.9);opacity:0;} }
+          @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MOBILE LAYOUT (original)
+  // ──────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display antialiased flex flex-col items-center" style={{ padding: '52px 20px 40px' }}>
       <div className="w-full max-w-sm flex flex-col" style={{ minHeight: '100vh' }}>
@@ -116,7 +315,7 @@ const ActivationSuccess: React.FC = () => {
         </div>
 
         {/* Número SIM */}
-        <button onClick={() => { navigator.clipboard.writeText(formatPhone(data.phoneNumber)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        <button onClick={handleCopyPhone}
           className="dark:bg-[#1A2230] bg-white relative z-10"
           style={{ borderRadius:'20px', border:`2px solid ${colors.accentBorder}`, padding:'20px 16px', display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', marginBottom:'10px', width:'100%', transition:'transform 0.12s' }}
         >

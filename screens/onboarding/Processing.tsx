@@ -33,17 +33,17 @@ const Processing: React.FC = () => {
   const isUpgrade = searchParams.get('isUpgrade') === 'true';
 
   const statusMessages = isUpgrade ? [
-    "Validando nueva potencia de red...",
-    "Reconfigurando nodo físico...",
-    "Sincronizando créditos SMS...",
-    "Actualizando historial financiero...",
+    "Validando tu nuevo plan...",
+    "Actualizando créditos SMS...",
+    "Sincronizando infraestructura...",
+    "Aplicando mejoras de red...",
     "Finalizando actualización..."
   ] : [
-    "Recibiendo confirmación segura...",
-    "Validando puerto en el Ledger...",
-    "Asignando infraestructura física...",
-    "Triggering sim-card activation...",
-    "Sincronizando número de SIM..."
+    "Verificando tu pago...",
+    "Asignando tu línea SIM...",
+    "Configurando tu número...",
+    "Activando servicios OTP...",
+    "Sincronizando tu cuenta..."
   ];
 
   const formatPhoneNumber = (num: string) => {
@@ -61,8 +61,8 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').eq('status', 'active');
-      
+      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').in('status', ['active', 'trialing']);
+
       if (subId) {
         query = query.eq('id', subId);
       } else if (slotId) {
@@ -75,7 +75,7 @@ const Processing: React.FC = () => {
 
       const { data } = await query.maybeSingle();
 
-      if (data?.status === 'active') {
+      if (data?.status === 'active' || data?.status === 'trialing') {
         const phone = data.phone_number || '';
         if (isUpgrade) {
           const plan = searchParams.get('plan') || 'POWER';
@@ -150,9 +150,9 @@ const Processing: React.FC = () => {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in">
         <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8"><AlertCircle className="size-10 text-amber-500" /></div>
-        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Enlace Retrasado</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago es válido, pero el historial financiero está tardando en sincronizarse. El nodo se actualizará automáticamente.</p></div>
+        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Activación Demorada</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago fue recibido, pero la activación de tu SIM está tardando más de lo habitual. Se completará automáticamente.</p></div>
         <div className="w-full max-w-sm space-y-3">
-          <button onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"><RefreshCw className="size-4" /> Reintentar Sincronización</button>
+          <button onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"><RefreshCw className="size-4" /> Verificar nuevamente</button>
           <button onClick={() => navigate('/dashboard/numbers')} className="w-full h-14 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Ir a mis números de todas formas</button>
         </div>
       </div>
@@ -170,7 +170,7 @@ const Processing: React.FC = () => {
             <div className="absolute inset-0 z-20 overflow-hidden rounded-[2.5rem] pointer-events-none"><div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(29,78,216,0.8)] animate-scanner absolute top-0"></div></div>
           </div>
         </div>
-        <div className="space-y-4"><h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">{isUpgrade ? 'Potenciando Línea' : 'Sincronizando Nodo'}</h1><div className="animate-in slide-in-from-bottom-2 duration-500 h-4"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{statusMessages[statusIndex]}</span></div></div>
+        <div className="space-y-4"><h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight animate-pulse">{isUpgrade ? 'Actualizando tu SIM' : 'Activando tu SIM'}</h1><div className="animate-in slide-in-from-bottom-2 duration-500 h-4"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{statusMessages[statusIndex]}</span></div></div>
       </div>
       <div className="absolute bottom-12 flex items-center gap-4 opacity-20"><Cpu className="size-4" /><span className="text-[8px] font-black uppercase tracking-[0.5em]">TELSIM CORE RT-v6.0</span></div>
     </div>
