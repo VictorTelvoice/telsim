@@ -293,64 +293,59 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
             <p className="text-[11px] font-bold text-slate-400 italic">{t('dashboard.traffic.waiting')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
           {messages.map((msg, idx) => {
             const style = getServiceStyle(msg.service_name, msg.sender);
             return (
-              <div 
-                  key={msg.id} 
-                  className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
-                  style={{ animationDelay: `${idx * 100}ms` }}
+              <div
+                key={msg.id}
+                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+                style={{ animationDelay: `${idx * 80}ms` }}
               >
-                  {idx === 0 && (
-                     <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
-                  )}
-
-                  <div className="flex items-center gap-4 mb-3">
-                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 transition-all group-hover:scale-105 ${style.bg} ${style.text}`}>
-                          {style.icon}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate pr-2">
-                                  {style.label}
-                              </span>
-                              <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
-                                  <Clock className="size-2.5" />
-                                  {formatTime(msg.received_at)}
-                              </span>
-                          </div>
-                          <p className="text-[9px] font-medium text-slate-400 truncate uppercase tracking-widest">{t('dashboard.traffic.from')}: {formatSenderNumber(msg.sender)}</p>
-                      </div>
-                  </div>
-                  
-                  <div className="px-1 mb-4">
-                    <p className="text-[12px] leading-relaxed text-slate-500 dark:text-slate-400 italic font-medium">
-                      {msg.content}
-                    </p>
+                <div className="flex items-end gap-3">
+                  {/* Avatar */}
+                  <div className={`size-11 rounded-[1.2rem] flex items-center justify-center shadow-lg flex-shrink-0 ${style.bg} ${style.text}`}>
+                    {style.icon}
                   </div>
 
-                  {msg.verification_code && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('dashboard.traffic.code_detected')}</span>
-                          <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
-                              {msg.verification_code}
-                          </span>
-                        </div>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
-                            className={`size-10 rounded-lg flex items-center justify-center transition-all ${
-                                copyingId === msg.id 
-                                ? 'bg-emerald-500 text-white shadow-lg' 
-                                : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700 shadow-sm'
-                            }`}
-                        >
-                            {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                        </button>
+                  <div className="flex-1 min-w-0">
+                    {/* Meta row */}
+                    <div className="flex items-center justify-between mb-1.5 px-1">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate pr-2">{style.label}</span>
+                      <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
+                        <Clock className="size-2.5" />
+                        {formatTime(msg.received_at)}
+                      </span>
                     </div>
-                  )}
+                    {/* Sender number */}
+                    <div className="flex items-center gap-1.5 mb-2 px-1">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('dashboard.traffic.from')}: {formatSenderNumber(msg.sender)}</span>
+                    </div>
+                    {/* SMS bubble */}
+                    <div className="bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+                      <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
+                    </div>
+                    {/* Code block */}
+                    {msg.verification_code && (
+                      <div className="mt-1.5 bg-slate-900 rounded-[1.4rem] rounded-tl-[0.35rem] border border-slate-800 p-4 flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{t('dashboard.traffic.code_detected')}</span>
+                          <span className="text-3xl font-black font-mono tracking-[0.2em] text-white tabular-nums leading-none">{msg.verification_code}</span>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
+                          className={`size-12 rounded-xl flex items-center justify-center transition-all ${
+                            copyingId === msg.id
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-white/10 text-white/70 hover:bg-white/20 active:scale-90'
+                          }`}
+                        >
+                          {copyingId === msg.id ? <CheckCircle2 className="size-5" /> : <Copy className="size-5" />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -571,7 +566,7 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      <main className="px-5 py-4 space-y-8 pb-32">
+      <main className="px-5 py-4 space-y-8 pb-32 max-w-lg mx-auto lg:max-w-5xl lg:px-10">
         <div className="bg-surface-light dark:bg-surface-dark rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50">
             <div className="flex items-center justify-between mb-6">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
