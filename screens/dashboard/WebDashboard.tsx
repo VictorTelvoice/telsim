@@ -165,6 +165,22 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
+function formatPhone(raw: string | undefined | null): string {
+  if (!raw) return '—';
+  const digits = raw.replace(/\D/g, '');
+  // Chile mobile: 569XXXXXXXX (11 digits)
+  if (digits.startsWith('569') && digits.length === 11)
+    return `+56 9 ${digits.slice(3, 7)} ${digits.slice(7)}`;
+  // Chile landline: 562XXXXXXXX (11 digits)
+  if (digits.startsWith('56') && digits.length === 11)
+    return `+56 ${digits.slice(2, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
+  // Argentina: 549XXXXXXXXXX
+  if (digits.startsWith('549') && digits.length >= 12)
+    return `+54 9 ${digits.slice(3, 5)} ${digits.slice(5, 9)}-${digits.slice(9)}`;
+  // Generic: just prepend + if needed
+  return raw.startsWith('+') ? raw : `+${raw}`;
+}
+
 const REGION_FLAGS: Record<string, string> = {
   CL: '🇨🇱', AR: '🇦🇷', MX: '🇲🇽', US: '🇺🇸', BR: '🇧🇷',
   CO: '🇨🇴', PE: '🇵🇪', ES: '🇪🇸', DE: '🇩🇪', GB: '🇬🇧',
@@ -768,7 +784,7 @@ const WebDashboard: React.FC = () => {
                               style={{ borderLeftColor: pc.border, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent' }}>
                               <div className="text-xl flex-shrink-0">{flag}</div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-bold truncate">{slot.label || slot.phone_number}</p>
+                                <p className="text-[11px] font-bold truncate">{slot.label || formatPhone(slot.phone_number)}</p>
                                 <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{msgsCnt} msgs</p>
                               </div>
                               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`} />
@@ -1110,8 +1126,8 @@ const WebDashboard: React.FC = () => {
                               <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>
                                 Subscriber Number
                               </p>
-                              <p className={`text-[18px] font-black font-mono tracking-wider leading-none ${ps.phoneColor}`}>
-                                {slot.phone_number ?? '—'}
+                              <p className={`text-[17px] font-black font-mono tracking-wide leading-none ${ps.phoneColor}`}>
+                                {formatPhone(slot.phone_number)}
                               </p>
                             </div>
                           </div>
@@ -1133,16 +1149,16 @@ const WebDashboard: React.FC = () => {
                         </div>
 
                         {/* ── Action buttons bar ── */}
-                        <div className={`flex items-center gap-1.5 p-1.5 rounded-3xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                        <div className={`flex items-center gap-1 p-1 rounded-[1.1rem] border ${isDark ? 'bg-slate-900 border-slate-800/70' : 'bg-white border-slate-100'}`}>
 
                           {/* INBOX — wider, primary action */}
                           <button
                             onClick={() => handleOpenInbox(slot.slot_id)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
-                            <MessageSquare size={13} />
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[0.8rem] text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 text-slate-700'}`}>
+                            <MessageSquare size={12} />
                             <span>Inbox</span>
                             {msgsCnt > 0 && (
-                              <span className="bg-primary text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                              <span className="bg-primary text-white text-[8px] font-black rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
                                 {msgsCnt > 99 ? '99+' : msgsCnt}
                               </span>
                             )}
@@ -1152,20 +1168,20 @@ const WebDashboard: React.FC = () => {
                           <button
                             onClick={() => navigate('/onboarding/plan')}
                             title="Renovar / cambiar plan"
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
-                            <Zap size={14} />
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
+                            <Zap size={13} />
                           </button>
 
                           {/* COPY number */}
                           <button
                             onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)}
                             title="Copiar número"
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${
                               copiedId === `${slot.slot_id}_num`
                                 ? 'bg-emerald-500 text-white'
-                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')
+                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
                             }`}>
-                            {copiedId === `${slot.slot_id}_num` ? <Check size={14} /> : <Copy size={14} />}
+                            {copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}
                           </button>
 
                           {/* BOT toggle */}
@@ -1173,20 +1189,20 @@ const WebDashboard: React.FC = () => {
                             onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
                             disabled={isTog}
                             title={isForwarding ? 'Bot activo – clic para desactivar' : 'Bot inactivo – clic para activar'}
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${
                               isForwarding
                                 ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
-                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
+                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
                             } ${isTog ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                            {isTog ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                            {isTog ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
                           </button>
 
                           {/* CANCEL subscription */}
                           <button
                             onClick={() => handleCancelSubscription(slot.slot_id)}
                             title="Cancelar suscripción"
-                            className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
-                            <Trash2 size={14} />
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-400'}`}>
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
@@ -1226,7 +1242,7 @@ const WebDashboard: React.FC = () => {
 
                             {/* Número */}
                             <td className="px-5 py-3.5">
-                              <span className={`font-bold text-[13px] font-mono ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{slot.phone_number}</span>
+                              <span className={`font-bold text-[13px] font-mono tabular-nums ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{formatPhone(slot.phone_number)}</span>
                             </td>
 
                             {/* Etiqueta editable */}
