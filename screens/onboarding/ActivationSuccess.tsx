@@ -11,6 +11,7 @@ interface ActivationData {
   amount: number;
   currency: string;
   monthlyLimit: number;
+  isAnnual?: boolean;
 }
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -44,10 +45,15 @@ const ActivationSuccess: React.FC = () => {
 
   const sessionId = new URLSearchParams(location.search).get('session_id');
 
+  // Ciclo de facturación: 7 días de prueba, luego el ciclo se repite (mensual o anual)
   const trialEnd = new Date();
   trialEnd.setDate(trialEnd.getDate() + 7);
+
+  // Próximo cobro: después de trial, se renueva en el ciclo (30 días para mensual, 365 para anual)
   const renewal = new Date();
-  renewal.setDate(renewal.getDate() + 37);
+  const isAnnualCycle = data?.isAnnual === true;
+  renewal.setDate(renewal.getDate() + (isAnnualCycle ? 372 : 37)); // 7 días prueba + 365 anual O 7 + 30 mensual
+
   const fmt = (d: Date) => d.toLocaleDateString(language === 'es' ? 'es-CL' : 'en-US', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const formatPhone = (num: string) => {
@@ -205,7 +211,7 @@ const ActivationSuccess: React.FC = () => {
                     </div>
                     <div className="flex items-baseline gap-1 mb-1">
                       <span className="text-[20px] font-black text-slate-900">${data.amount > 0 ? data.amount.toFixed(2) : '—'}</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">/mes</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isAnnualCycle ? '/año' : '/mes'}</span>
                     </div>
                     <p className="text-[11px] font-medium text-slate-400">Servicio prepago</p>
                   </div>
@@ -232,7 +238,7 @@ const ActivationSuccess: React.FC = () => {
                   {[
                     { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
                     { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
-                    { dot:'rgba(148,163,184,0.4)', label:fmt(renewal).toUpperCase(), desc:'Segunda renovación · y así cada 30 días', color:'#94a3b8', line:false },
+                    { dot:'rgba(148,163,184,0.4)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
                   ].map((row, i) => (
                     <div key={i} className="flex gap-3">
                       <div className="flex flex-col items-center w-3 shrink-0 pt-1">
@@ -348,7 +354,7 @@ const ActivationSuccess: React.FC = () => {
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:'3px', marginBottom:'2px' }}>
               <span className="text-slate-900 dark:text-white" style={{ fontSize:'15px', fontWeight:500, letterSpacing:'-0.01em' }}>${data.amount > 0 ? data.amount.toFixed(2) : '—'}</span>
-              <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>/MES</span>
+              <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>{isAnnualCycle ? '/AÑO' : '/MES'}</span>
             </div>
             <p className="text-slate-400 dark:text-slate-500" style={{ fontSize:'10px', fontWeight:500 }}>Servicio prepago</p>
           </div>
@@ -363,7 +369,7 @@ const ActivationSuccess: React.FC = () => {
           {[
             { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
             { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
-            { dot:'rgba(148,163,184,0.3)', label:fmt(renewal).toUpperCase(), desc:'Segunda renovación · y así cada 30 días', color:'#94a3b8', line:false },
+            { dot:'rgba(148,163,184,0.3)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
           ].map((row, i) => (
             <div key={i} style={{ display:'flex', gap:'10px' }}>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'10px', flexShrink:0, paddingTop:'2px' }}>

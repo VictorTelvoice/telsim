@@ -77,6 +77,7 @@ const Processing: React.FC = () => {
 
       if (data?.status === 'active' || data?.status === 'trialing') {
         // ✅ Payment confirmed — safe to clean up onboarding localStorage
+        const wasAnnual = localStorage.getItem('selected_plan_annual') === 'true';
         ['selected_plan', 'selected_plan_price', 'selected_plan_annual', 'selected_plan_price_id'].forEach(k => localStorage.removeItem(k));
 
         const phone = data.phone_number || '';
@@ -89,7 +90,8 @@ const Processing: React.FC = () => {
               planName: data.plan_name,
               amount: data.amount,
               currency: data.currency,
-              monthlyLimit: data.monthly_limit
+              monthlyLimit: data.monthly_limit,
+              isAnnual: wasAnnual
             }
           });
           return;
@@ -102,7 +104,8 @@ const Processing: React.FC = () => {
             planName: data.plan_name,
             amount: data.amount,
             currency: data.currency,
-            monthlyLimit: data.monthly_limit
+            monthlyLimit: data.monthly_limit,
+            isAnnual: wasAnnual
           }
         });
       }
