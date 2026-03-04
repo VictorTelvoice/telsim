@@ -141,6 +141,8 @@ export default async function handler(req: any, res: any) {
         const planPrices = PLAN_PRICES[planName] || { monthly: amount, annual: amount };
         const correctAmount = isAnnualBilling ? planPrices.annual : planPrices.monthly;
 
+        console.log(`[WEBHOOK DEBUG] planName: ${planName}, isAnnual: ${isAnnual}, isAnnualBilling: ${isAnnualBilling}, amount: ${amount}, correctAmount: ${correctAmount}`);
+
         await supabaseAdmin.from('subscriptions').insert({
           user_id: userId,
           slot_id: slotId,
