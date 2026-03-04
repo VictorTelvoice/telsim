@@ -16,6 +16,13 @@ interface ActivationData {
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
+// ─── Plan pricing catalogue ───────────────────────────────────────────────────
+const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number }> = {
+  Starter: { monthly: 19.90, annual: 199, limit: 150 },
+  Pro:     { monthly: 39.90, annual: 399, limit: 400 },
+  Power:   { monthly: 99.00, annual: 990, limit: 1400 }
+};
+
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = () => (
   <div className="flex items-center gap-2.5">
@@ -105,6 +112,10 @@ const ActivationSuccess: React.FC = () => {
   );
 
   const colors = getPlanColors(data.planName);
+
+  // Get correct price based on isAnnual
+  const planCfg = PLAN_CATALOGUE[data.planName] || PLAN_CATALOGUE.Pro;
+  const displayPrice = data.isAnnual ? planCfg.annual : (data.amount || planCfg.monthly);
 
   const handleCopyPhone = () => {
     navigator.clipboard.writeText(formatPhone(data.phoneNumber));
@@ -210,7 +221,7 @@ const ActivationSuccess: React.FC = () => {
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Precio</span>
                     </div>
                     <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-[20px] font-black text-slate-900">${data.amount > 0 ? data.amount.toFixed(2) : '—'}</span>
+                      <span className="text-[20px] font-black text-slate-900">${displayPrice > 0 ? displayPrice.toFixed(2) : '—'}</span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isAnnualCycle ? '/año' : '/mes'}</span>
                     </div>
                     <p className="text-[11px] font-medium text-slate-400">Servicio prepago</p>
@@ -237,7 +248,7 @@ const ActivationSuccess: React.FC = () => {
                   </div>
                   {[
                     { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
-                    { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
+                    { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
                     { dot:'rgba(148,163,184,0.4)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
                   ].map((row, i) => (
                     <div key={i} className="flex gap-3">
@@ -353,7 +364,7 @@ const ActivationSuccess: React.FC = () => {
               <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em' }}>Precio</span>
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:'3px', marginBottom:'2px' }}>
-              <span className="text-slate-900 dark:text-white" style={{ fontSize:'15px', fontWeight:500, letterSpacing:'-0.01em' }}>${data.amount > 0 ? data.amount.toFixed(2) : '—'}</span>
+              <span className="text-slate-900 dark:text-white" style={{ fontSize:'15px', fontWeight:500, letterSpacing:'-0.01em' }}>${displayPrice > 0 ? displayPrice.toFixed(2) : '—'}</span>
               <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>{isAnnualCycle ? '/AÑO' : '/MES'}</span>
             </div>
             <p className="text-slate-400 dark:text-slate-500" style={{ fontSize:'10px', fontWeight:500 }}>Servicio prepago</p>
@@ -368,7 +379,7 @@ const ActivationSuccess: React.FC = () => {
           </div>
           {[
             { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
-            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${data.amount > 0 ? data.amount.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
+            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
             { dot:'rgba(148,163,184,0.3)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
           ].map((row, i) => (
             <div key={i} style={{ display:'flex', gap:'10px' }}>

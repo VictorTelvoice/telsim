@@ -271,7 +271,7 @@ const KpiCard: React.FC<{
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'notifications' | 'help' | 'settings';
-type SettingsSection = 'profile' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
+type SettingsSection = 'profile' | 'profile-edit' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
 
 const WebDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -331,6 +331,15 @@ const WebDashboard: React.FC = () => {
   const [tgTesting, setTgTesting] = useState(false);
   const [tgSaved, setTgSaved]     = useState(false);
 
+  // ─── Profile Edit state ───────────────────────────────────────────────────
+  const [editFullName, setEditFullName] = useState(user?.user_metadata?.full_name || '');
+  const [editPhone, setEditPhone]       = useState(user?.user_metadata?.phone || '');
+  const [editCountry, setEditCountry]   = useState(user?.user_metadata?.country || 'Chile');
+  const [editCurrency, setEditCurrency] = useState(user?.user_metadata?.moneda || 'CLP');
+  const [editSaving, setEditSaving]     = useState(false);
+  const [editError, setEditError]       = useState('');
+  const [editSuccess, setEditSuccess]   = useState(false);
+
   const userName     = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
@@ -361,6 +370,17 @@ const WebDashboard: React.FC = () => {
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ─── Profile Edit: load current data when section opens ───────────────────────
+  useEffect(() => {
+    if (settingsSection !== 'profile-edit' || !user) return;
+    setEditFullName(user?.user_metadata?.full_name || '');
+    setEditPhone(user?.user_metadata?.phone || '');
+    setEditCountry(user?.user_metadata?.country || 'Chile');
+    setEditCurrency(user?.user_metadata?.moneda || 'CLP');
+    setEditError('');
+    setEditSuccess(false);
+  }, [settingsSection, user]);
 
   // ─── Telegram: load config when section opens ─────────────────────────────
   useEffect(() => {
@@ -485,6 +505,28 @@ const WebDashboard: React.FC = () => {
       setTimeout(() => setSecSuccess(false), 4000);
     } catch (e: any) { setSecError(e.message || 'Error al actualizar la contraseña.'); }
     finally { setSecSaving(false); }
+  };
+
+  // ─── Profile edit handler ──────────────────────────────────────────────────────
+
+  const handleProfileSave = async () => {
+    setEditError('');
+    if (!editFullName.trim()) { setEditError('El nombre completo es obligatorio.'); return; }
+    setEditSaving(true);
+    try {
+      await (supabase.auth as any).updateUser({
+        data: { full_name: editFullName.trim(), phone: editPhone.trim(), country: editCountry, moneda: editCurrency }
+      });
+      await supabase.from('users').update({
+        nombre: editFullName.trim(),
+        phone: editPhone.trim(),
+        pais: editCountry,
+        moneda: editCurrency,
+      }).eq('id', user?.id);
+      setEditSuccess(true);
+      setTimeout(() => setEditSuccess(false), 3000);
+    } catch (e: any) { setEditError(e.message || 'Error al guardar el perfil.'); }
+    finally { setEditSaving(false); }
   };
 
   // ─── Billing data ────────────────────────────────────────────────────────────
@@ -817,22 +859,32 @@ const WebDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[540px] pr-2">
-                      {messages.slice(0, 10).map((msg, idx) => {
+                      {messages.slice(0, 10).reverse().map((msg, idx) => {
                         const svc    = detectService(msg.sender, msg.content);
                         const code   = msg.verification_code || extractCode(msg.content);
                         const slot   = slots.find(s => s.slot_id === msg.slot_id);
                         const flag   = REGION_FLAGS[slot?.region?.toUpperCase() ?? ''] ?? '🌐';
                         const simNum = slot?.phone_number ?? slot?.label ?? 'SIM';
                         const hasLogo = BrandLogo({ brand: svc.key }) !== null;
+                        const isLatest = idx === 0;
 
                         return (
                           <div
                             key={msg.id}
-                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border p-4 flex flex-col gap-3 ${
-                              isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'
+                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border flex flex-col gap-3 relative transition-all ${
+                              isLatest
+                                ? `${isDark ? 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/60 shadow-lg shadow-primary/20' : 'bg-gradient-to-br from-blue-50 to-blue-25 border-primary/40 shadow-lg shadow-primary/15'} pt-6 pb-4 px-4`
+                                : `${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'} p-4`
                             }`}
                             style={{ animationDelay: `${idx * 60}ms` }}
                           >
+                            {isLatest && (
+                              <div className="absolute -top-3 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-primary text-white shadow-md">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                Último
+                              </div>
+                            )}
+
                             {/* Header: Logo + Brand + Time */}
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-2.5">
@@ -1425,7 +1477,7 @@ const WebDashboard: React.FC = () => {
                       ))}
                     </div>
                     <div className="flex gap-3 mt-6">
-                      <button onClick={() => navigate('/dashboard/profile')} className="px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">Editar perfil</button>
+                      <button onClick={() => setSettingsSection('profile-edit')} className="px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">Editar perfil</button>
                       <button onClick={() => setSettingsSection('security')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Cambiar contraseña</button>
                     </div>
                   </div>
@@ -1769,6 +1821,118 @@ const WebDashboard: React.FC = () => {
                     <p className={`text-[10px] mt-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
                       El cambio de idioma se aplicará al recargar la aplicación.
                     </p>
+                  </div>
+                )}
+
+                {/* ── EDITAR PERFIL ── */}
+                {settingsSection === 'profile-edit' && (
+                  <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><User size={18} className="text-primary" /></div>
+                      <div>
+                        <h3 className="text-[15px] font-black">Editar Perfil</h3>
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Actualiza tu información personal</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-5 max-w-2xl">
+                      {/* Full Name */}
+                      <div>
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Nombre Completo
+                        </label>
+                        <input
+                          type="text"
+                          value={editFullName}
+                          onChange={e => { setEditFullName(e.target.value); setEditError(''); }}
+                          placeholder="Tu nombre completo"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary'}`}
+                        />
+                      </div>
+
+                      {/* Phone */}
+                      <div>
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Teléfono
+                        </label>
+                        <input
+                          type="tel"
+                          value={editPhone}
+                          onChange={e => setEditPhone(e.target.value)}
+                          placeholder="+56 9 XXXX XXXX"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary'}`}
+                        />
+                      </div>
+
+                      {/* Country */}
+                      <div>
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          País
+                        </label>
+                        <select
+                          value={editCountry}
+                          onChange={e => setEditCountry(e.target.value)}
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-primary'}`}
+                        >
+                          <option value="Chile">Chile</option>
+                          <option value="Argentina">Argentina</option>
+                          <option value="Colombia">Colombia</option>
+                          <option value="Mexico">México</option>
+                          <option value="Perú">Perú</option>
+                          <option value="Venezuela">Venezuela</option>
+                          <option value="Bolivia">Bolivia</option>
+                          <option value="Ecuador">Ecuador</option>
+                          <option value="Paraguay">Paraguay</option>
+                          <option value="Uruguay">Uruguay</option>
+                          <option value="España">España</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                      </div>
+
+                      {/* Currency */}
+                      <div>
+                        <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Moneda
+                        </label>
+                        <select
+                          value={editCurrency}
+                          onChange={e => setEditCurrency(e.target.value)}
+                          className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-primary'}`}
+                        >
+                          <option value="CLP">CLP - Peso Chileno</option>
+                          <option value="ARS">ARS - Peso Argentino</option>
+                          <option value="COP">COP - Peso Colombiano</option>
+                          <option value="MXN">MXN - Peso Mexicano</option>
+                          <option value="PEN">PEN - Sol Peruano</option>
+                          <option value="VES">VES - Bolívar Venezolano</option>
+                          <option value="BOB">BOB - Boliviano</option>
+                          <option value="USD">USD - Dólar Estadounidense</option>
+                          <option value="EUR">EUR - Euro</option>
+                        </select>
+                      </div>
+
+                      {/* Error */}
+                      {editError && (
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                          <Info size={13} className="text-red-500 flex-shrink-0" />
+                          <p className="text-[12px] text-red-500 font-semibold">{editError}</p>
+                        </div>
+                      )}
+
+                      {/* Success */}
+                      {editSuccess && (
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                          <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                          <p className="text-[12px] text-emerald-500 font-semibold">¡Perfil actualizado correctamente!</p>
+                        </div>
+                      )}
+
+                      <button onClick={handleProfileSave} disabled={editSaving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 w-fit">
+                        {editSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                        {editSaving ? 'Guardando…' : 'Guardar cambios'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
