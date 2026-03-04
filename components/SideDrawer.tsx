@@ -79,7 +79,6 @@ export default function SideDrawer({
 
         {/* Header */}
         <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb] px-5 pt-12 pb-[18px] relative overflow-hidden flex-shrink-0">
-          <div className="absolute -top-11 -right-9 w-[120px] h-[120px] rounded-full bg-white/[0.07]" />
           <div className="flex items-center gap-3 relative z-10">
             <div className="w-11 h-11 rounded-[14px] bg-white/20 border border-white/30 flex items-center justify-center text-white font-black text-base flex-shrink-0">
               {user.name.slice(0,2).toUpperCase()}
@@ -144,7 +143,7 @@ export default function SideDrawer({
 
         {/* Footer */}
         <div className="px-3.5 pt-2.5 pb-8 border-t border-slate-50 dark:border-slate-800 flex-shrink-0">
-          <div onClick={() => window.open('https://telsim.app', '_blank')} className="flex items-center justify-center gap-2 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-950 text-white px-4 py-3 rounded-[13px] text-[12.5px] font-black cursor-pointer mb-1.5 active:opacity-85">
+          <div onClick={() => window.open('https://telsim.app', '_blank')} className="flex items-center justify-center gap-2 bg-gradient-to-br from-[#1d4ed8] to-[#2563eb] text-white px-4 py-3 rounded-[13px] text-[12.5px] font-black cursor-pointer mb-1.5 active:opacity-85 shadow-md shadow-blue-500/20">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             Ir al sitio web
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>

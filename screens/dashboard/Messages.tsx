@@ -228,6 +228,7 @@ const Messages: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-background-dark font-display pb-32">
       <header className="px-6 pt-12 pb-2 bg-[#F2F2F7]/80 dark:bg-background-dark/80 backdrop-blur-xl sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-black/5">
+        <div className="max-w-lg mx-auto lg:max-w-5xl lg:px-4">
         <div className="flex justify-between items-end mb-4">
           <div>
             <button onClick={() => navigate(getPostAuthRoute())} className="mb-2 flex items-center gap-1 text-primary font-bold text-sm">
@@ -268,9 +269,10 @@ const Messages: React.FC = () => {
             <button onClick={() => setActiveTab('verifications')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>{t('messages.verifications')}</button>
             <button onClick={() => setActiveTab('others')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'others' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>{t('messages.others')}</button>
         </div>
+        </div>{/* end desktop centering wrapper */}
       </header>
       
-      <main className="px-5 max-w-lg mx-auto py-6">
+      <main className="px-5 max-w-lg mx-auto lg:max-w-5xl lg:px-10 py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
@@ -285,7 +287,7 @@ const Messages: React.FC = () => {
             <p className="text-sm text-slate-400 font-medium leading-relaxed italic">{filterNum ? t('messages.no_records_for').replace('{num}', formatPhoneNumber(filterNum)) : t('messages.codes_appear_here')}</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
             {filteredMessages.map((msg, idx) => {
               const style = getServiceStyle(msg.service_name, msg.sender);
               const realNumber = slotMap[msg.slot_id] || msg.slot_id;

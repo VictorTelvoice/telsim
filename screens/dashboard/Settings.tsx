@@ -71,7 +71,7 @@ const Settings: React.FC = () => {
   }) => (
     <div
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-[13px] cursor-pointer active:bg-slate-50 dark:active:bg-slate-700 relative [&:not(:last-child)]:after:absolute [&:not(:last-child)]:after:bottom-0 [&:not(:last-child)]:after:left-[60px] [&:not(:last-child)]:after:right-4 [&:not(:last-child)]:after:h-px [&:not(:last-child)]:after:bg-slate-50 dark:[&:not(:last-child)]:after:bg-slate-700"
+      className="flex items-center gap-3 px-4 py-[13px] cursor-pointer active:bg-slate-50 dark:active:bg-slate-700"
     >
       <div className="w-9 h-9 rounded-[10px] bg-[#eef2f7] dark:bg-slate-700 flex items-center justify-center flex-shrink-0 [&_svg]:stroke-[#1e3a8a] dark:[&_svg]:stroke-blue-400">
         {icon}

@@ -49,8 +49,6 @@ const Summary: React.FC = () => {
   const planName      = planData.planName || 'Pro';
   const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
 
-  React.useEffect(() => { localStorage.removeItem('selected_plan'); }, []);
-
   const planDetails = useMemo(() => {
     const plans: Record<string, { price: number; limit: number; features: string[] }> = {
       Starter: { price: 19.90,  limit: 150,  features: [t('sniper.feature_real_sim'), t('sniper.feature_real_time'), t('sniper.feature_ticket_support')] },
@@ -69,6 +67,11 @@ const Summary: React.FC = () => {
   const handleNext = () => {
     if (isNavigating) return;
     setIsNavigating(true);
+    // Clean up localStorage only once the user actively proceeds to payment
+    localStorage.removeItem('selected_plan');
+    localStorage.removeItem('selected_plan_price');
+    localStorage.removeItem('selected_plan_annual');
+    localStorage.removeItem('selected_plan_price_id');
     navigate('/onboarding/payment', {
       state: { planName, price: planDetails.price, monthlyLimit: planDetails.limit, stripePriceId }
     });

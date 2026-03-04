@@ -470,7 +470,7 @@ const MyNumbers: React.FC = () => {
 
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
-            <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
+            <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
                 <button onClick={() => navigate(getPostAuthRoute())} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
                     <ArrowLeft className="size-5" />
                 </button>
@@ -480,14 +480,14 @@ const MyNumbers: React.FC = () => {
                 </button>
             </header>
 
-            <main className="px-5 py-8 space-y-12 max-w-lg mx-auto">
+            <main className="px-5 py-8 space-y-12 max-w-lg mx-auto lg:max-w-4xl lg:px-10">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <Loader2 className="size-10 text-primary animate-spin" />
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('mynumbers.syncing')}</p>
                     </div>
                 ) : (
-                    <div className="space-y-14">
+                    <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
                         {slots.map((slot) => {
                             const style = getPlanStyle(slot.actual_plan_name);
                             const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);

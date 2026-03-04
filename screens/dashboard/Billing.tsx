@@ -221,10 +221,11 @@ const Billing: React.FC = () => {
         </div>
       </header>
 
-      <main className="px-6 space-y-12 max-w-lg mx-auto">
-        
+      <main className="px-6 max-w-lg mx-auto lg:max-w-5xl lg:px-12">
+        <div className="space-y-10">
+
         {/* TÍTULO PRINCIPAL */}
-        <div>
+        <div className="pt-2">
            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">{t('billing.title')}</h1>
            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('billing.subtitle')}</p>
         </div>
@@ -278,84 +279,100 @@ const Billing: React.FC = () => {
           )}
         </section>
 
-        {/* SECCIÓN B: SERVICIOS ACTIVOS */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">{t('billing.active_services')}</h3>
-            <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} {t('billing.plans')}</span>
-          </div>
+        {/* DESKTOP: B + C LADO A LADO / MOBILE: APILADOS */}
+        <div className="space-y-10 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0 lg:items-start">
 
-          {activeServices.length === 0 ? (
-            <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-              <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
+          {/* SECCIÓN B: PLANES ACTIVOS */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">{t('billing.active_services')}</h3>
+              <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} {t('billing.plans')}</span>
             </div>
-          ) : (
-            <div className={`grid gap-3 ${activeServices.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {activeServices.map((sub) => {
-                const visual = getPlanVisual(sub.plan_name);
-                return (
-                  <div
-                    key={sub.id}
-                    onClick={() => setSelectedSub(sub)}
-                    className={`${visual.gradient} border ${visual.border} rounded-[1.75rem] p-5 shadow-lg ${visual.shadow} cursor-pointer active:scale-[0.96] transition-all duration-200 flex flex-col justify-between min-h-[160px]`}
-                  >
-                    {/* Top: icon + status dot */}
-                    <div className="flex items-start justify-between mb-3">
-                      <span className="text-2xl leading-none">{visual.icon}</span>
-                      <div className="flex items-center gap-1">
-                        <div className="size-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>
-                        <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>{t('billing.active')}</span>
+
+            {activeServices.length === 0 ? (
+              <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
+              </div>
+            ) : (
+              <div className={`grid gap-3 ${activeServices.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {activeServices.map((sub) => {
+                  const visual = getPlanVisual(sub.plan_name);
+                  return (
+                    <div
+                      key={sub.id}
+                      onClick={() => setSelectedSub(sub)}
+                      className={`${visual.gradient} border ${visual.border} rounded-[1.75rem] p-5 shadow-lg ${visual.shadow} cursor-pointer active:scale-[0.96] transition-all duration-200 flex flex-col justify-between min-h-[180px] lg:min-h-[220px]`}
+                    >
+                      {/* Top: icon + status */}
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-2xl lg:text-3xl leading-none">{visual.icon}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="size-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>
+                          <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>{t('billing.active')}</span>
+                        </div>
+                      </div>
+
+                      {/* Middle: plan name + phone */}
+                      <div className="flex-1">
+                        <h4 className={`text-[13px] lg:text-[15px] font-black uppercase tracking-tight leading-tight mb-1 ${visual.text}`}>{sub.plan_name}</h4>
+                        <p className={`text-[10px] font-bold font-mono truncate ${visual.subText}`}>{sub.phone_number}</p>
+                      </div>
+
+                      {/* Bottom: price */}
+                      <div className="mt-4 pt-3 border-t border-white/10">
+                        <p className={`text-xl lg:text-2xl font-black tabular-nums leading-none ${visual.priceText}`}>{formatCurrency(sub.amount)}</p>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>/mes</span>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-                    {/* Middle: plan name + phone */}
-                    <div className="flex-1">
-                      <h4 className={`text-[12px] font-black uppercase tracking-tight leading-tight mb-1 ${visual.text}`}>{sub.plan_name}</h4>
-                      <p className={`text-[10px] font-bold font-mono truncate ${visual.subText}`}>{sub.phone_number}</p>
-                    </div>
-
-                    {/* Bottom: price */}
-                    <div className="mt-4 pt-3 border-t border-white/10">
-                      <p className={`text-xl font-black tabular-nums leading-none ${visual.priceText}`}>{formatCurrency(sub.amount)}</p>
-                      <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>/mes</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* SECCIÓN C: HISTORIAL (COLAPSABLE) */}
-        {previousServices.length > 0 && (
-          <details className="group border-t border-slate-100 dark:border-slate-800 pt-6">
-            <summary className="list-none cursor-pointer flex items-center justify-between px-1">
+          {/* SECCIÓN C: HISTORIAL */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2 text-slate-400">
                 <History className="size-4" />
                 <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">{t('billing.view_canceled')}</h3>
               </div>
-              <ChevronRight className="size-4 text-slate-300 transition-transform group-open:rotate-90" />
-            </summary>
-            
-            <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-2">
-              {previousServices.map((sub) => (
-                <div key={sub.id} className="px-6 py-5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl flex items-center justify-between opacity-60">
-                   <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase mb-0.5">{sub.plan_name}</span>
-                      <span className="text-xs font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</span>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-xs font-bold text-slate-400 line-through">{formatCurrency(sub.amount)}</p>
-                      <span className="text-[8px] font-black text-slate-300 uppercase">{t('billing.canceled')}</span>
-                   </div>
-                </div>
-              ))}
+              {previousServices.length > 0 && (
+                <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full uppercase">{previousServices.length}</span>
+              )}
             </div>
-          </details>
-        )}
+
+            {previousServices.length === 0 ? (
+              <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-400 italic">Sin historial de cancelaciones</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {previousServices.map((sub) => (
+                  <div key={sub.id} className="px-5 py-4 bg-slate-50/70 dark:bg-slate-900/40 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 bg-slate-200/60 dark:bg-slate-800 rounded-xl flex items-center justify-center">
+                        <Smartphone className="size-4 text-slate-400" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">{sub.plan_name}</span>
+                        <span className="text-[10px] font-bold text-slate-400 font-mono tracking-tighter">{sub.phone_number}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] font-bold text-slate-400 line-through">{formatCurrency(sub.amount)}</p>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t('billing.canceled')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+        </div>{/* end desktop grid */}
 
         {/* BANNER DE SEGURIDAD */}
-        <div className="flex flex-col items-center gap-6 pt-8">
+        <div className="flex flex-col items-center gap-6 pt-8 pb-4">
            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full">
               <ShieldCheck className="size-4 text-slate-400" />
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('billing.secure_payment')}</span>
@@ -363,6 +380,7 @@ const Billing: React.FC = () => {
            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] text-center">Telsim Financial Infra v2.8</p>
         </div>
 
+        </div>{/* end space-y-10 wrapper */}
       </main>
 
       {/* MODAL DE DETALLES DE SUSCRIPCIÓN */}
