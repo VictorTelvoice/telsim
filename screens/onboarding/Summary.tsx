@@ -4,6 +4,13 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
+// ─── Plan pricing catalogue (single source of truth across onboarding) ────────
+const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number; monthlyId: string; annualId: string }> = {
+  Starter: { monthly: 19.90, annual: 199, limit: 150,  monthlyId: 'price_1SzJRLEADSrtMyiaQaDEp44E', annualId: 'price_1T52jPEADSrtMyiayfSm4e8m' },
+  Pro:     { monthly: 39.90, annual: 399, limit: 400,  monthlyId: 'price_1SzJS9EADSrtMyiagxHUI2qM', annualId: 'price_1T52kUEADSrtMyiavL3rwWqH' },
+  Power:   { monthly: 99.00, annual: 990, limit: 1400, monthlyId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', annualId: 'price_1T52l1EADSrtMyiaGkuLXqy5' },
+};
+
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = ({ small = false }: { small?: boolean }) => (
   <div className="flex items-center gap-2.5">
@@ -33,30 +40,48 @@ const Summary: React.FC = () => {
   }, []);
 
   const planData = useMemo(() => {
-    if (location.state && location.state.planName) return location.state;
-    const savedPlanId = localStorage.getItem('selected_plan');
-    if (savedPlanId) {
-      const mapping: Record<string, any> = {
-        starter: { planName: 'Starter', stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' },
-        pro:     { planName: 'Pro',     stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM' },
-        power:   { planName: 'Power',   stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe' }
+    // Priority 1: navigation state (from RegionSelect.handleContinue)
+    if (location.state?.planName) return location.state;
+
+    // Priority 2: reconstruct from localStorage so back-navigation still works
+    const savedId    = localStorage.getItem('selected_plan');
+    const savedAnnual = localStorage.getItem('selected_plan_annual') === 'true';
+    const savedPrice  = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
+    const savedPriceId = localStorage.getItem('selected_plan_price_id') || '';
+
+    const nameMap: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
+    const pName = savedId ? nameMap[savedId] : null;
+    if (pName && PLAN_CATALOGUE[pName]) {
+      const cfg = PLAN_CATALOGUE[pName];
+      return {
+        planName:     pName,
+        isAnnual:     savedAnnual,
+        price:        savedPrice || (savedAnnual ? cfg.annual : cfg.monthly),
+        monthlyLimit: cfg.limit,
+        stripePriceId: savedPriceId || (savedAnnual ? cfg.annualId : cfg.monthlyId),
       };
-      return mapping[savedPlanId] || {};
     }
     return {};
   }, [location.state]);
 
-  const planName      = planData.planName || 'Pro';
-  const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
+  const planName    = planData.planName    || 'Pro';
+  const isAnnual    = planData.isAnnual    || false;
+  const stripePriceId = planData.stripePriceId || PLAN_CATALOGUE[planName]?.monthlyId || '';
+
+  const planCfg = useMemo(() => PLAN_CATALOGUE[planName] || PLAN_CATALOGUE.Pro, [planName]);
 
   const planDetails = useMemo(() => {
-    const plans: Record<string, { price: number; limit: number; features: string[] }> = {
-      Starter: { price: 19.90,  limit: 150,  features: [t('sniper.feature_real_sim'), t('sniper.feature_real_time'), t('sniper.feature_ticket_support')] },
-      Pro:     { price: 39.90,  limit: 400,  features: [t('sniper.feature_api_webhooks'), t('sniper.feature_automated'), t('sniper.feature_chat_support')] },
-      Power:   { price: 99.00,  limit: 1400, features: [t('sniper.feature_enterprise_security'), t('sniper.feature_scalability'), t('sniper.feature_priority_support')] }
+    const featuresMap: Record<string, string[]> = {
+      Starter: [t('sniper.feature_real_sim'), t('sniper.feature_real_time'), t('sniper.feature_ticket_support')],
+      Pro:     [t('sniper.feature_api_webhooks'), t('sniper.feature_automated'), t('sniper.feature_chat_support')],
+      Power:   [t('sniper.feature_enterprise_security'), t('sniper.feature_scalability'), t('sniper.feature_priority_support')],
     };
-    return plans[planName] || plans.Pro;
-  }, [planName, t]);
+    return {
+      price:    isAnnual ? planCfg.annual  : planCfg.monthly,
+      limit:    planCfg.limit,
+      features: featuresMap[planName] || featuresMap.Pro,
+    };
+  }, [planName, isAnnual, planCfg, t]);
 
   const billingDate = useMemo(() => {
     const date = new Date();
@@ -67,13 +92,10 @@ const Summary: React.FC = () => {
   const handleNext = () => {
     if (isNavigating) return;
     setIsNavigating(true);
-    // Clean up localStorage only once the user actively proceeds to payment
-    localStorage.removeItem('selected_plan');
-    localStorage.removeItem('selected_plan_price');
-    localStorage.removeItem('selected_plan_annual');
-    localStorage.removeItem('selected_plan_price_id');
+    // ⚠️  Do NOT clear localStorage here — if user returns from Stripe (browser back)
+    //     the state needs to survive. Cleanup happens in Processing.tsx on success.
     navigate('/onboarding/payment', {
-      state: { planName, price: planDetails.price, monthlyLimit: planDetails.limit, stripePriceId }
+      state: { planName, price: planDetails.price, monthlyLimit: planDetails.limit, stripePriceId, isAnnual }
     });
   };
 
@@ -97,11 +119,25 @@ const Summary: React.FC = () => {
           <div>
             <span className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-1 block">{t('onboarding.selected_plan')}</span>
             <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">{planName}</span>
-            <span className="text-[11px] font-bold text-slate-500 mt-1 block">{t('onboarding.monthly_credits', { limit: planDetails.limit })}</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[11px] font-bold text-slate-500">{t('onboarding.monthly_credits', { limit: planDetails.limit })}</span>
+              {isAnnual && (
+                <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 px-2 py-0.5 rounded-full">
+                  Anual • Ahorras 17%
+                </span>
+              )}
+            </div>
           </div>
           <div className="text-right">
             <span className="text-slate-900 dark:text-white font-black text-2xl">${planDetails.price.toFixed(2)}</span>
-            <span className="text-[10px] font-black text-slate-400 block uppercase tracking-widest">{t('onboarding.per_month')}</span>
+            <span className="text-[10px] font-black text-slate-400 block uppercase tracking-widest">
+              {isAnnual ? '/año' : t('onboarding.per_month')}
+            </span>
+            {isAnnual && (
+              <span className="text-[9px] font-medium text-slate-400 block">
+                (~${(planDetails.price / 12).toFixed(2)}/mes)
+              </span>
+            )}
           </div>
         </div>
 
@@ -135,7 +171,7 @@ const Summary: React.FC = () => {
   const Totals = () => (
     <div className="flex flex-col gap-3">
       <div className="flex justify-between items-center text-slate-400 text-[11px] font-black uppercase tracking-widest">
-        <span>{t('onboarding.subtotal')}</span>
+        <span>{t('onboarding.subtotal')} {isAnnual ? '(Anual)' : '(Mensual)'}</span>
         <span>${planDetails.price.toFixed(2)}</span>
       </div>
       <div className="flex justify-between items-center text-emerald-600 text-[11px] font-black uppercase tracking-widest">

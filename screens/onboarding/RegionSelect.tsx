@@ -62,18 +62,38 @@ const RegionSelect: React.FC = () => {
   const planLabel = planId.charAt(0).toUpperCase() + planId.slice(1);
 
   const handleContinue = () => {
-    const price        = parseFloat(localStorage.getItem('selected_plan_price') || '39.90');
     const isAnnual     = localStorage.getItem('selected_plan_annual') === 'true';
-    const stripePriceId = localStorage.getItem('selected_plan_price_id') || 'price_1SzJS9EADSrtMyiagxHUI2qM';
     const planNames: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
-    const limits: Record<string, number>    = { starter: 150, pro: 400, power: 1400 };
+    const limits:     Record<string, number> = { starter: 150, pro: 400, power: 1400 };
+    const monthlyPrices: Record<string, number> = { starter: 19.90, pro: 39.90, power: 99.00 };
+    const annualPrices:  Record<string, number> = { starter: 199,   pro: 399,   power: 990 };
+    const monthlyIds: Record<string, string> = {
+      starter: 'price_1SzJRLEADSrtMyiaQaDEp44E',
+      pro:     'price_1SzJS9EADSrtMyiagxHUI2qM',
+      power:   'price_1SzJSbEADSrtMyiaPEMzNKUe',
+    };
+    const annualIds: Record<string, string> = {
+      starter: 'price_1T52jPEADSrtMyiayfSm4e8m',
+      pro:     'price_1T52kUEADSrtMyiavL3rwWqH',
+      power:   'price_1T52l1EADSrtMyiaGkuLXqy5',
+    };
+
+    // Prefer saved price (may have been set correctly by PlanSelect or Landing)
+    const savedPrice = parseFloat(localStorage.getItem('selected_plan_price') || '0');
+    const savedPriceId = localStorage.getItem('selected_plan_price_id') || '';
+
+    const resolvedPlanName  = planNames[planId]  || 'Starter';
+    const resolvedPrice     = savedPrice || (isAnnual ? (annualPrices[planId]  || 19.90) : (monthlyPrices[planId]  || 19.90));
+    const resolvedPriceId   = savedPriceId || (isAnnual ? (annualIds[planId] || annualIds.starter) : (monthlyIds[planId] || monthlyIds.starter));
+    const resolvedLimit     = limits[planId] || 150;
+
     navigate('/onboarding/summary', {
       state: {
-        planName:     planNames[planId] || 'Pro',
-        price,
+        planName:     resolvedPlanName,
+        price:        resolvedPrice,
         isAnnual,
-        monthlyLimit: limits[planId] || 400,
-        stripePriceId,
+        monthlyLimit: resolvedLimit,
+        stripePriceId: resolvedPriceId,
         region:       selected,
       }
     });

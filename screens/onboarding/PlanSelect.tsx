@@ -4,9 +4,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 // Precios vinculados a Stripe — no modificar
 const OFFICIAL_PLANS = {
-  starter: { amount: 19.90, amountAnnual: 199,  limit: 150,  stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' },
-  pro:     { amount: 39.90, amountAnnual: 399,  limit: 400,  stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM' },
-  power:   { amount: 99.00, amountAnnual: 990,  limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe' },
+  starter: { amount: 19.90, amountAnnual: 199,  limit: 150,  stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', stripePriceIdAnnual: 'price_1T52jPEADSrtMyiayfSm4e8m' },
+  pro:     { amount: 39.90, amountAnnual: 399,  limit: 400,  stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', stripePriceIdAnnual: 'price_1T52kUEADSrtMyiavL3rwWqH' },
+  power:   { amount: 99.00, amountAnnual: 990,  limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', stripePriceIdAnnual: 'price_1T52l1EADSrtMyiaGkuLXqy5' },
 };
 
 // ─── Icono de check SVG inline (sin dependencias externas) ──────────────────
@@ -58,7 +58,7 @@ const PlanSelect: React.FC = () => {
     localStorage.setItem('selected_plan',          planId);
     localStorage.setItem('selected_plan_price',    String(isAnnual ? cfg.amountAnnual : cfg.amount));
     localStorage.setItem('selected_plan_annual',   String(isAnnual));
-    localStorage.setItem('selected_plan_price_id', cfg.stripePriceId);
+    localStorage.setItem('selected_plan_price_id', isAnnual ? cfg.stripePriceIdAnnual : cfg.stripePriceId);
     navigate('/login');
   };
 

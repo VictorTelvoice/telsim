@@ -76,10 +76,13 @@ const Processing: React.FC = () => {
       const { data } = await query.maybeSingle();
 
       if (data?.status === 'active' || data?.status === 'trialing') {
+        // ✅ Payment confirmed — safe to clean up onboarding localStorage
+        ['selected_plan', 'selected_plan_price', 'selected_plan_annual', 'selected_plan_price_id'].forEach(k => localStorage.removeItem(k));
+
         const phone = data.phone_number || '';
         if (isUpgrade) {
           const plan = searchParams.get('plan') || 'POWER';
-          navigate(`/dashboard/upgrade-success?num=${encodeURIComponent(phone)}&plan=${plan}`, { 
+          navigate(`/dashboard/upgrade-success?num=${encodeURIComponent(phone)}&plan=${plan}`, {
             replace: true,
             state: {
               phoneNumber: data.phone_number,

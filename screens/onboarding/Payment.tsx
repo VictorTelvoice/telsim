@@ -30,11 +30,19 @@ const Payment: React.FC = () => {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  const planData = location.state || {};
-  const planName = planData.planName || 'Pro';
-  const price = planData.price || 39.90;
-  const monthlyLimit = planData.monthlyLimit || 400;
-  const stripePriceId = planData.stripePriceId || 'price_1SzJS9EADSrtMyiagxHUI2qM';
+  // ─── Fallback: read from localStorage if location.state is lost (e.g. after Stripe back nav)
+  const _state = location.state || {};
+  const _lsId      = localStorage.getItem('selected_plan');
+  const _lsAnnual  = localStorage.getItem('selected_plan_annual') === 'true';
+  const _lsPrice   = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
+  const _lsPriceId = localStorage.getItem('selected_plan_price_id') || '';
+  const _nameMap: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
+
+  const planName     = _state.planName     || (_lsId ? _nameMap[_lsId] : null) || 'Starter';
+  const isAnnual     = _state.isAnnual     ?? _lsAnnual;
+  const price        = _state.price        || _lsPrice  || 19.90;
+  const monthlyLimit = _state.monthlyLimit || ({ Starter: 150, Pro: 400, Power: 1400 }[planName] ?? 150);
+  const stripePriceId = _state.stripePriceId || _lsPriceId || '';
 
   const handleCheckout = async () => {
     if (!user) return;
@@ -123,12 +131,17 @@ const Payment: React.FC = () => {
                   </div>
                   <div className="px-6 py-5 flex items-center justify-between">
                     <div>
-                      <span className="text-slate-900 font-black text-2xl uppercase tracking-tight">{planName}</span>
-                      <span className="block text-[12px] font-bold text-slate-400 mt-1">{monthlyLimit} OTPs / mes</span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-slate-900 font-black text-2xl uppercase tracking-tight">{planName}</span>
+                        {isAnnual && (
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full">Anual</span>
+                        )}
+                      </div>
+                      <span className="block text-[12px] font-bold text-slate-400">{monthlyLimit} OTPs / mes</span>
                     </div>
                     <div className="text-right">
                       <span className="text-slate-900 font-black text-2xl">${Number(price).toFixed(2)}</span>
-                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">por mes</span>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{isAnnual ? '/año' : '/mes'}</span>
                     </div>
                   </div>
                 </div>
@@ -235,10 +248,18 @@ const Payment: React.FC = () => {
           <div className="bg-white dark:bg-[#1A2230] rounded-3xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm mb-10 flex justify-between items-center">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">{t('onboarding.selected_subscription')}</span>
-              <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[#111318] dark:text-white font-black text-xl uppercase tracking-tight">{planName}</span>
+                {isAnnual && (
+                  <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-1.5 py-0.5 rounded-full">Anual</span>
+                )}
+              </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[#111318] dark:text-white font-black text-xl">${Number(price).toFixed(2)}</span>
+                <span className="text-[10px] font-bold text-slate-400">{isAnnual ? '/yr' : '/mo'}</span>
+              </div>
               <span className="text-emerald-500 text-[9px] font-black bg-emerald-500/10 px-2 py-1 rounded-lg uppercase">{t('onboarding.trial_7_days')}</span>
             </div>
           </div>
