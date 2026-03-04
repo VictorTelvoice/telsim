@@ -942,9 +942,14 @@ const WebDashboard: React.FC = () => {
                                   </p>
                                 </div>
                               </div>
-                              <span className={`text-[9px] font-bold flex-shrink-0 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                                {timeAgo(msg.received_at)}
-                              </span>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className={`text-[9px] font-black flex-shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {new Date(msg.received_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </span>
+                                <span className={`text-[8px] font-bold flex-shrink-0 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                                  {timeAgo(msg.received_at)}
+                                </span>
+                              </div>
                             </div>
 
                             {/* SMS Message Bubble */}
