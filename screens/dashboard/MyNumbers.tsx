@@ -541,18 +541,18 @@ const MyNumbers: React.FC = () => {
                                     </div>
 
                                     <div className="mt-5 flex items-center justify-center gap-3">
-                                        <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}</button>
-                                        <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
-                                        
-                                        <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm hover:text-primary transition-colors">
+                                        <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}</button>
+                                        <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
+
+                                        <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center shadow-sm hover:text-primary transition-colors">
                                             <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
                                         </button>
 
-                                        <button onClick={() => handleUpgradeSelect(slot)} className="size-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm">
+                                        <button onClick={() => handleUpgradeSelect(slot)} className="size-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm">
                                             <TrendingUp className="size-4" />
                                         </button>
-                                        
-                                        <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center transition-transform active:scale-90"><Trash2 className="size-4" /></button>
+
+                                        <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-full flex items-center justify-center transition-transform active:scale-90"><Trash2 className="size-4" /></button>
                                     </div>
                                 </div>
                             );

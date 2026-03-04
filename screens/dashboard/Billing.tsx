@@ -138,6 +138,37 @@ const Billing: React.FC = () => {
   const previousServices = subscriptions.filter(s => s.status !== 'active');
   const totalMonthlySpend = activeServices.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
+  const getPlanVisual = (planName: string) => {
+    const name = (planName || '').toLowerCase();
+    if (name.includes('power')) return {
+      gradient: 'bg-gradient-to-br from-amber-400 via-orange-400 to-yellow-500',
+      text: 'text-white',
+      subText: 'text-white/70',
+      priceText: 'text-white',
+      border: 'border-amber-300/30',
+      icon: '⚡',
+      shadow: 'shadow-amber-400/30',
+    };
+    if (name.includes('pro')) return {
+      gradient: 'bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600',
+      text: 'text-white',
+      subText: 'text-white/70',
+      priceText: 'text-white',
+      border: 'border-blue-300/30',
+      icon: '🚀',
+      shadow: 'shadow-blue-500/30',
+    };
+    return {
+      gradient: 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700',
+      text: 'text-slate-900 dark:text-white',
+      subText: 'text-slate-500 dark:text-slate-400',
+      priceText: 'text-slate-900 dark:text-white',
+      border: 'border-slate-200 dark:border-slate-600',
+      icon: '✦',
+      shadow: 'shadow-slate-200/50',
+    };
+  };
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -239,38 +270,45 @@ const Billing: React.FC = () => {
             <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} {t('billing.plans')}</span>
           </div>
 
-          <div className="space-y-3">
-            {activeServices.length === 0 ? (
-              <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
-              </div>
-            ) : (
-              activeServices.map((sub) => (
-                <div 
-                  key={sub.id} 
-                  onClick={() => setSelectedSub(sub)}
-                  className="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm cursor-pointer hover:scale-[1.01] hover:border-primary/20 transition-all active:scale-[0.98] group"
-                >
-                   <div className="flex items-center gap-4">
-                      <div className="size-11 bg-primary/5 dark:bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                         <Smartphone className="size-5" />
+          {activeServices.length === 0 ? (
+            <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
+            </div>
+          ) : (
+            <div className={`grid gap-3 ${activeServices.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {activeServices.map((sub) => {
+                const visual = getPlanVisual(sub.plan_name);
+                return (
+                  <div
+                    key={sub.id}
+                    onClick={() => setSelectedSub(sub)}
+                    className={`${visual.gradient} border ${visual.border} rounded-[1.75rem] p-5 shadow-lg ${visual.shadow} cursor-pointer active:scale-[0.96] transition-all duration-200 flex flex-col justify-between min-h-[160px]`}
+                  >
+                    {/* Top: icon + status dot */}
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-2xl leading-none">{visual.icon}</span>
+                      <div className="flex items-center gap-1">
+                        <div className="size-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>{t('billing.active')}</span>
                       </div>
-                      <div>
-                         <h4 className="text-[13px] font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{sub.plan_name}</h4>
-                         <p className="text-[12px] font-bold text-slate-500 font-mono tracking-tighter">{sub.phone_number}</p>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-sm font-black text-slate-900 dark:text-white mb-1">{formatCurrency(sub.amount)}</p>
-                      <div className="flex items-center gap-1.5 justify-end">
-                         <div className="size-1.5 rounded-full bg-emerald-500"></div>
-                         <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{t('billing.active')}</span>
-                      </div>
-                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                    </div>
+
+                    {/* Middle: plan name + phone */}
+                    <div className="flex-1">
+                      <h4 className={`text-[12px] font-black uppercase tracking-tight leading-tight mb-1 ${visual.text}`}>{sub.plan_name}</h4>
+                      <p className={`text-[10px] font-bold font-mono truncate ${visual.subText}`}>{sub.phone_number}</p>
+                    </div>
+
+                    {/* Bottom: price */}
+                    <div className="mt-4 pt-3 border-t border-white/10">
+                      <p className={`text-xl font-black tabular-nums leading-none ${visual.priceText}`}>{formatCurrency(sub.amount)}</p>
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>/mes</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* SECCIÓN C: HISTORIAL (COLAPSABLE) */}
