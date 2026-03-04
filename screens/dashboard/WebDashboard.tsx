@@ -899,7 +899,7 @@ const WebDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[540px] pr-2">
-                      {messages.slice(0, 10).reverse().map((msg, idx) => {
+                      {messages.slice(0, 10).map((msg, idx) => {
                         const svc    = detectService(msg.sender, msg.content);
                         const code   = msg.verification_code || extractCode(msg.content);
                         const slot   = slots.find(s => s.slot_id === msg.slot_id);
