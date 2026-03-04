@@ -816,7 +816,7 @@ const WebDashboard: React.FC = () => {
                       <MessageSquare size={28} /><p className="text-[12px] font-semibold">Sin mensajes aún</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[520px] pr-1">
+                    <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[540px] pr-2">
                       {messages.slice(0, 10).map((msg, idx) => {
                         const svc    = detectService(msg.sender, msg.content);
                         const code   = msg.verification_code || extractCode(msg.content);
@@ -828,63 +828,66 @@ const WebDashboard: React.FC = () => {
                         return (
                           <div
                             key={msg.id}
-                            className="animate-in fade-in slide-in-from-bottom-3 duration-400"
+                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border p-4 flex flex-col gap-3 ${
+                              isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'
+                            }`}
                             style={{ animationDelay: `${idx * 60}ms` }}
                           >
-                            {/* Avatar + bubble layout */}
-                            <div className="flex items-end gap-2.5">
-                              {/* Service avatar */}
-                              <div
-                                className="w-9 h-9 rounded-[0.85rem] flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md"
-                                style={{ background: isDark ? svc.darkBg : svc.bg }}
-                              >
-                                {hasLogo
-                                  ? <BrandLogo brand={svc.key} size={18} />
-                                  : <span className="text-[9px] font-black" style={{ color: svc.color }}>{svc.label.slice(0,2).toUpperCase()}</span>
-                                }
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                {/* Meta row */}
-                                <div className="flex items-center justify-between mb-1 px-0.5">
-                                  <span className="text-[10px] font-black uppercase tracking-widest truncate pr-2" style={{ color: svc.color }}>{svc.label}</span>
-                                  <span className={`text-[9px] font-bold flex-shrink-0 flex items-center gap-0.5 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>
-                                    <Clock size={9} />{timeAgo(msg.received_at)}
-                                  </span>
+                            {/* Header: Logo + Brand + Time */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2.5">
+                                {/* Service avatar/logo */}
+                                <div
+                                  className="w-10 h-10 rounded-[0.9rem] flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm border"
+                                  style={{
+                                    background: isDark ? svc.darkBg : svc.bg,
+                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+                                  }}
+                                >
+                                  {hasLogo
+                                    ? <BrandLogo brand={svc.key} size={20} />
+                                    : <span className="text-[10px] font-black" style={{ color: svc.color }}>{svc.label.slice(0,2).toUpperCase()}</span>
+                                  }
                                 </div>
-                                {/* SIM number */}
-                                <div className="flex items-center gap-1 mb-1.5 px-0.5">
-                                  <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-black uppercase tracking-widest truncate" style={{ color: svc.color }}>{svc.label}</p>
+                                  <p className={`text-[9px] font-bold ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
                                     {flag} {simNum}
-                                  </span>
+                                  </p>
                                 </div>
-                                {/* SMS bubble */}
-                                <div className={`rounded-[1.1rem] rounded-tl-[0.2rem] px-3.5 py-2.5 shadow-sm border ${
-                                  isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'
-                                }`}>
-                                  <p className="text-[12px] leading-relaxed font-medium">{msg.content}</p>
-                                </div>
-                                {/* Code block */}
-                                {code && (
-                                  <div className={`mt-1 rounded-[1.1rem] rounded-tl-[0.2rem] border px-3.5 py-2.5 flex items-center justify-between ${
-                                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-900 border-slate-800'
-                                  }`}>
-                                    <div>
-                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Código detectado</p>
-                                      <p className="text-[22px] font-black font-mono tracking-[0.18em] text-white tabular-nums leading-none">{code}</p>
-                                    </div>
-                                    <button
-                                      onClick={() => handleCopy(msg.id, code)}
-                                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
-                                        copiedId === msg.id ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                      }`}
-                                    >
-                                      {copiedId === msg.id ? <Check size={14} /> : <Copy size={14} />}
-                                    </button>
-                                  </div>
-                                )}
                               </div>
+                              <span className={`text-[9px] font-bold flex-shrink-0 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                                {timeAgo(msg.received_at)}
+                              </span>
                             </div>
+
+                            {/* SMS Message Bubble */}
+                            <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] px-4 py-3 border ${
+                              isDark ? 'bg-slate-700/80 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
+                            }`}>
+                              <p className="text-[12px] leading-[1.5] font-medium break-words">{msg.content}</p>
+                            </div>
+
+                            {/* Code Block */}
+                            {code && (
+                              <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] border px-3.5 py-3 flex items-center justify-between ${
+                                isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-900 border-slate-800 text-white'
+                              }`}>
+                                <div>
+                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Código</p>
+                                  <p className="text-[20px] font-black font-mono tracking-[0.2em] tabular-nums leading-none">{code}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleCopy(msg.id, code)}
+                                  title="Copiar código"
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
+                                    copiedId === msg.id ? 'bg-emerald-500 text-white' : 'bg-white/15 text-white/70 hover:bg-white/25'
+                                  }`}
+                                >
+                                  {copiedId === msg.id ? <Check size={13} /> : <Copy size={13} />}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
