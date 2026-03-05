@@ -72,7 +72,10 @@ export default async function handler(req: any, res: any) {
     const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = session.metadata || {};
     const isAnnualBilling = isAnnual === 'true';
 
+    console.log(`[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual: ${isAnnual}, isAnnualBilling: ${isAnnualBilling}`);
+
     if (!userId || !slotId) {
+      console.log(`[WEBHOOK SKIP] Metadata incomplete - userId: ${userId}, slotId: ${slotId}`);
       return res.status(200).json({ received: true });
     }
 
@@ -143,7 +146,7 @@ export default async function handler(req: any, res: any) {
 
         console.log(`[WEBHOOK DEBUG] planName: ${planName}, isAnnual: ${isAnnual}, isAnnualBilling: ${isAnnualBilling}, amount: ${amount}, correctAmount: ${correctAmount}`);
 
-        await supabaseAdmin.from('subscriptions').insert({
+        const insertData = {
           user_id: userId,
           slot_id: slotId,
           phone_number: slot?.phone_number,
@@ -157,7 +160,18 @@ export default async function handler(req: any, res: any) {
           billing_type: isAnnualBilling ? 'annual' : 'monthly',
           currency: session.currency || 'usd',
           created_at: new Date().toISOString(),
-        });
+        };
+
+        console.log(`[WEBHOOK INSERT] Attempting to insert subscription:`, JSON.stringify(insertData, null, 2));
+
+        const { data: insertedData, error: insertError } = await supabaseAdmin.from('subscriptions').insert(insertData);
+
+        if (insertError) {
+          console.error(`[WEBHOOK INSERT ERROR] Failed to insert subscription:`, insertError);
+          throw new Error(`Supabase insert error: ${insertError.message}`);
+        }
+
+        console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
       }
 
       await supabaseAdmin.from('slots').update({
@@ -174,6 +188,8 @@ export default async function handler(req: any, res: any) {
 
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] checkout.session.completed:', err.message);
+      console.error('[WEBHOOK ERROR STACK]:', err.stack);
+      console.error('[WEBHOOK ERROR FULL]:', JSON.stringify(err, null, 2));
     }
   }
 
