@@ -23,40 +23,40 @@ const BrandLogo: React.FC<{ brand: string; size?: number }> = ({ brand, size = 1
   const b = brand.toLowerCase();
   if (b === 'whatsapp') return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none">
-      <path fill="#25D366" d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.978-1.393A9.953 9.953 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
-      <path fill="white" d="M16.75 14.45c-.25-.12-1.47-.72-1.7-.8-.23-.08-.4-.12-.57.12-.17.24-.65.8-.8.97-.15.17-.3.19-.55.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.14-.25-.02-.38.1-.5.12-.12.25-.31.38-.46.12-.16.16-.27.25-.45.08-.17.04-.33-.02-.46-.06-.12-.57-1.37-.78-1.87-.2-.49-.41-.42-.57-.43h-.49c-.17 0-.44.06-.67.31-.23.24-.87.85-.87 2.07 0 1.22.9 2.4 1.02 2.57.13.17 1.76 2.69 4.26 3.77.6.26 1.06.41 1.42.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.1-.23-.16-.48-.28z"/>
+      <path fill="#25D366" d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.978-1.393A9.953 9.953 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
+      <path fill="white" d="M16.75 14.45c-.25-.12-1.47-.72-1.7-.8-.23-.08-.4-.12-.57.12-.17.24-.65.8-.8.97-.15.17-.3.19-.55.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.14-.25-.02-.38.1-.5.12-.12.25-.31.38-.46.12-.16.16-.27.25-.45.08-.17.04-.33-.02-.46-.06-.12-.57-1.37-.78-1.87-.2-.49-.41-.42-.57-.43h-.49c-.17 0-.44.06-.67.31-.23.24-.87.85-.87 2.07 0 1.22.9 2.4 1.02 2.57.13.17 1.76 2.69 4.26 3.77.6.26 1.06.41 1.42.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.1-.23-.16-.48-.28z" />
     </svg>
   );
   if (b === 'google') return (
     <svg viewBox="0 0 24 24" width={size} height={size}>
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
   );
   if (b === 'facebook') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#1877F2"/>
-      <path fill="white" d="M16.5 7.5h-2c-.55 0-1 .45-1 1v1.5h3l-.5 3h-2.5V21h-3v-8H9v-3h1.5V8.5C10.5 6.57 12.07 5 14 5h2.5v2.5z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#1877F2" />
+      <path fill="white" d="M16.5 7.5h-2c-.55 0-1 .45-1 1v1.5h3l-.5 3h-2.5V21h-3v-8H9v-3h1.5V8.5C10.5 6.57 12.07 5 14 5h2.5v2.5z" />
     </svg>
   );
   if (b === 'instagram') return (
     <svg viewBox="0 0 24 24" width={size} height={size}>
-      <defs><linearGradient id="igGrad" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#f09433"/><stop offset="25%" stopColor="#e6683c"/><stop offset="50%" stopColor="#dc2743"/><stop offset="75%" stopColor="#cc2366"/><stop offset="100%" stopColor="#bc1888"/></linearGradient></defs>
-      <rect width="24" height="24" rx="5" fill="url(#igGrad)"/>
-      <circle cx="12" cy="12" r="4.5" fill="none" stroke="white" strokeWidth="1.8"/>
-      <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+      <defs><linearGradient id="igGrad" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#f09433" /><stop offset="25%" stopColor="#e6683c" /><stop offset="50%" stopColor="#dc2743" /><stop offset="75%" stopColor="#cc2366" /><stop offset="100%" stopColor="#bc1888" /></linearGradient></defs>
+      <rect width="24" height="24" rx="5" fill="url(#igGrad)" />
+      <circle cx="12" cy="12" r="4.5" fill="none" stroke="white" strokeWidth="1.8" />
+      <circle cx="17.5" cy="6.5" r="1.2" fill="white" />
     </svg>
   );
   if (b === 'telegram') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><circle cx="12" cy="12" r="12" fill="#229ED9"/>
-      <path fill="white" d="M5.5 11.5l12-5-4 13-3-4-5 3 1.5-7zM9.5 13l.8 3 1.2-2.8L9.5 13z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><circle cx="12" cy="12" r="12" fill="#229ED9" />
+      <path fill="white" d="M5.5 11.5l12-5-4 13-3-4-5 3 1.5-7zM9.5 13l.8 3 1.2-2.8L9.5 13z" />
     </svg>
   );
   if (b === 'amazon') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#FF9900"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#FF9900" />
       <text x="5" y="16" fontSize="12" fontWeight="bold" fill="white" fontFamily="Arial">a</text>
-      <path fill="white" d="M4 17c3 2 11 2 16-1" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path fill="white" d="M4 17c3 2 11 2 16-1" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
   if (b === 'ebay') return (
@@ -67,48 +67,48 @@ const BrandLogo: React.FC<{ brand: string; size?: number }> = ({ brand, size = 1
     </svg>
   );
   if (b === 'netflix') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" fill="#141414"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" fill="#141414" />
       <text x="4" y="19" fontSize="18" fontWeight="900" fill="#E50914" fontFamily="Arial">N</text>
     </svg>
   );
   if (b === 'spotify') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><circle cx="12" cy="12" r="12" fill="#1DB954"/>
-      <path fill="white" d="M16.7 10.7c-2.6-1.5-6.8-1.7-9.3-.9-.4.1-.8-.1-.9-.5-.1-.4.1-.8.5-.9 2.8-.9 7.5-.7 10.5 1.1.4.2.5.7.3 1.1-.2.3-.7.4-1.1.1zM16.4 13c-.2.3-.6.4-1 .2-2.2-1.3-5.5-1.7-8.1-.9-.3.1-.7-.1-.8-.4-.1-.3.1-.7.4-.8 2.9-.9 6.6-.5 9.1 1 .4.2.5.7.4 1.1v-.2zm-1.1 2.2c-.2.3-.5.3-.8.2-1.9-1.1-4.3-1.4-7.1-.8-.3.1-.6-.1-.7-.4-.1-.3.1-.6.4-.7 3-.7 5.7-.4 7.8.9.3.2.4.5.4.8z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><circle cx="12" cy="12" r="12" fill="#1DB954" />
+      <path fill="white" d="M16.7 10.7c-2.6-1.5-6.8-1.7-9.3-.9-.4.1-.8-.1-.9-.5-.1-.4.1-.8.5-.9 2.8-.9 7.5-.7 10.5 1.1.4.2.5.7.3 1.1-.2.3-.7.4-1.1.1zM16.4 13c-.2.3-.6.4-1 .2-2.2-1.3-5.5-1.7-8.1-.9-.3.1-.7-.1-.8-.4-.1-.3.1-.7.4-.8 2.9-.9 6.6-.5 9.1 1 .4.2.5.7.4 1.1v-.2zm-1.1 2.2c-.2.3-.5.3-.8.2-1.9-1.1-4.3-1.4-7.1-.8-.3.1-.6-.1-.7-.4-.1-.3.1-.6.4-.7 3-.7 5.7-.4 7.8.9.3.2.4.5.4.8z" />
     </svg>
   );
   if (b === 'discord') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#5865F2"/>
-      <path fill="white" d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09-.01-.02-.04-.03-.07-.03-1.5.26-2.93.71-4.27 1.33-.01 0-.02.01-.03.02-2.72 4.07-3.47 8.03-3.1 11.95 0 .02.01.04.03.05 1.8 1.32 3.53 2.12 5.24 2.65.03.01.06 0 .07-.02.4-.55.76-1.13 1.07-1.74.02-.04 0-.08-.04-.09-.57-.22-1.11-.48-1.64-.78-.04-.02-.04-.08-.01-.11.11-.08.22-.17.33-.25.02-.02.05-.02.07-.01 3.44 1.57 7.15 1.57 10.55 0 .02-.01.05-.01.07.01.11.09.22.17.33.26.04.03.04.09-.01.11-.52.31-1.07.56-1.64.78-.04.01-.05.06-.04.09.32.61.68 1.19 1.07 1.74.03.01.06.02.09.01 1.72-.53 3.45-1.33 5.25-2.65.02-.01.03-.03.03-.05.44-4.53-.73-8.46-3.1-11.95-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.83 2.12-1.89 2.12z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#5865F2" />
+      <path fill="white" d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09-.01-.02-.04-.03-.07-.03-1.5.26-2.93.71-4.27 1.33-.01 0-.02.01-.03.02-2.72 4.07-3.47 8.03-3.1 11.95 0 .02.01.04.03.05 1.8 1.32 3.53 2.12 5.24 2.65.03.01.06 0 .07-.02.4-.55.76-1.13 1.07-1.74.02-.04 0-.08-.04-.09-.57-.22-1.11-.48-1.64-.78-.04-.02-.04-.08-.01-.11.11-.08.22-.17.33-.25.02-.02.05-.02.07-.01 3.44 1.57 7.15 1.57 10.55 0 .02-.01.05-.01.07.01.11.09.22.17.33.26.04.03.04.09-.01.11-.52.31-1.07.56-1.64.78-.04.01-.05.06-.04.09.32.61.68 1.19 1.07 1.74.03.01.06.02.09.01 1.72-.53 3.45-1.33 5.25-2.65.02-.01.03-.03.03-.05.44-4.53-.73-8.46-3.1-11.95-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.83 2.12-1.89 2.12z" />
     </svg>
   );
   if (b === 'twitter' || b === 'twitter/x' || b === 'x (twitter)') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#000"/>
-      <path fill="white" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.127 2.25H8.28l4.259 5.631 5.705-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#000" />
+      <path fill="white" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.127 2.25H8.28l4.259 5.631 5.705-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
     </svg>
   );
   if (b === 'microsoft') return (
     <svg viewBox="0 0 24 24" width={size} height={size}>
-      <rect x="2" y="2" width="9.5" height="9.5" fill="#F25022"/>
-      <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7FBA00"/>
-      <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00A4EF"/>
-      <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#FFB900"/>
+      <rect x="2" y="2" width="9.5" height="9.5" fill="#F25022" />
+      <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7FBA00" />
+      <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00A4EF" />
+      <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#FFB900" />
     </svg>
   );
   if (b === 'linkedin') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#0077B5"/>
-      <path fill="white" d="M6.94 5a2 2 0 1 1-4-.002 2 2 0 0 1 4 .002zM7 8.48H3V21h4V8.48zm6.32 0H9.34V21h3.94v-6.57c0-3.66 4.77-4 4.77 0V21H22v-7.93c0-6.17-7.06-5.94-8.72-2.91l.04-1.68z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#0077B5" />
+      <path fill="white" d="M6.94 5a2 2 0 1 1-4-.002 2 2 0 0 1 4 .002zM7 8.48H3V21h4V8.48zm6.32 0H9.34V21h3.94v-6.57c0-3.66 4.77-4 4.77 0V21H22v-7.93c0-6.17-7.06-5.94-8.72-2.91l.04-1.68z" />
     </svg>
   );
   if (b === 'paypal') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#003087"/>
-      <path fill="#009CDE" d="M19.15 8.46A4.72 4.72 0 0 0 14.93 6H9.05L7 18h3.77l.57-3.49a3.45 3.45 0 0 1 3.41-2.92 2.35 2.35 0 0 0 2.4-2.71 3.7 3.7 0 0 0 2 -.42z"/>
-      <path fill="white" d="M9.82 10H14c1.5 0 2.5.75 2.5 2.17 0 2.1-1.5 3.33-3.5 3.33H11.5L11 18H8l1.82-8z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="4" fill="#003087" />
+      <path fill="#009CDE" d="M19.15 8.46A4.72 4.72 0 0 0 14.93 6H9.05L7 18h3.77l.57-3.49a3.45 3.45 0 0 1 3.41-2.92 2.35 2.35 0 0 0 2.4-2.71 3.7 3.7 0 0 0 2 -.42z" />
+      <path fill="white" d="M9.82 10H14c1.5 0 2.5.75 2.5 2.17 0 2.1-1.5 3.33-3.5 3.33H11.5L11 18H8l1.82-8z" />
     </svg>
   );
   if (b === 'tiktok') return (
-    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#010101"/>
-      <path fill="#FE2C55" d="M19 7.65A5.17 5.17 0 0 1 14.83 3v.05h-2.98v12.74a2.36 2.36 0 1 1-1.6-2.23v-3.1a5.34 5.34 0 1 0 4.58 5.27V9.97a8.2 8.2 0 0 0 4.17 1.1V8.1A5.17 5.17 0 0 1 19 7.65z"/>
-      <path fill="#25F4EE" d="M18 6.65A5.17 5.17 0 0 1 13.83 2h-2.98v12.74a2.36 2.36 0 1 1-1.6-2.23v-3.1A5.34 5.34 0 1 0 13.83 14.7V8.97a8.2 8.2 0 0 0 4.17 1.1V7.1A5.17 5.17 0 0 1 18 6.65z"/>
+    <svg viewBox="0 0 24 24" width={size} height={size}><rect width="24" height="24" rx="5" fill="#010101" />
+      <path fill="#FE2C55" d="M19 7.65A5.17 5.17 0 0 1 14.83 3v.05h-2.98v12.74a2.36 2.36 0 1 1-1.6-2.23v-3.1a5.34 5.34 0 1 0 4.58 5.27V9.97a8.2 8.2 0 0 0 4.17 1.1V8.1A5.17 5.17 0 0 1 19 7.65z" />
+      <path fill="#25F4EE" d="M18 6.65A5.17 5.17 0 0 1 13.83 2h-2.98v12.74a2.36 2.36 0 1 1-1.6-2.23v-3.1A5.34 5.34 0 1 0 13.83 14.7V8.97a8.2 8.2 0 0 0 4.17 1.1V7.1A5.17 5.17 0 0 1 18 6.65z" />
     </svg>
   );
   return null;
@@ -117,31 +117,31 @@ const BrandLogo: React.FC<{ brand: string; size?: number }> = ({ brand, size = 1
 // ─── Service Map ───────────────────────────────────────────────────────────────
 
 const SERVICE_MAP: Record<string, { label: string; color: string; bg: string; darkBg: string }> = {
-  whatsapp:     { label: 'WhatsApp',      color: '#25D366', bg: '#dcfce7', darkBg: '#14532d' },
-  google:       { label: 'Google',        color: '#4285F4', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  facebook:     { label: 'Facebook',      color: '#1877F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  instagram:    { label: 'Instagram',     color: '#E1306C', bg: '#fce7f3', darkBg: '#831843' },
-  telegram:     { label: 'Telegram',      color: '#229ED9', bg: '#e0f2fe', darkBg: '#0c4a6e' },
-  amazon:       { label: 'Amazon',        color: '#FF9900', bg: '#fef3c7', darkBg: '#78350f' },
-  microsoft:    { label: 'Microsoft',     color: '#00A4EF', bg: '#e0f2fe', darkBg: '#0c4a6e' },
-  twitter:      { label: 'Twitter/X',     color: '#1DA1F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  uber:         { label: 'Uber',          color: '#06b6d4', bg: '#cffafe', darkBg: '#164e63' },
-  tiktok:       { label: 'TikTok',        color: '#ff0050', bg: '#fce7f3', darkBg: '#831843' },
-  ebay:         { label: 'eBay',          color: '#E53238', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  whatsapp: { label: 'WhatsApp', color: '#25D366', bg: '#dcfce7', darkBg: '#14532d' },
+  google: { label: 'Google', color: '#4285F4', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  facebook: { label: 'Facebook', color: '#1877F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  instagram: { label: 'Instagram', color: '#E1306C', bg: '#fce7f3', darkBg: '#831843' },
+  telegram: { label: 'Telegram', color: '#229ED9', bg: '#e0f2fe', darkBg: '#0c4a6e' },
+  amazon: { label: 'Amazon', color: '#FF9900', bg: '#fef3c7', darkBg: '#78350f' },
+  microsoft: { label: 'Microsoft', color: '#00A4EF', bg: '#e0f2fe', darkBg: '#0c4a6e' },
+  twitter: { label: 'Twitter/X', color: '#1DA1F2', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  uber: { label: 'Uber', color: '#06b6d4', bg: '#cffafe', darkBg: '#164e63' },
+  tiktok: { label: 'TikTok', color: '#ff0050', bg: '#fce7f3', darkBg: '#831843' },
+  ebay: { label: 'eBay', color: '#E53238', bg: '#fee2e2', darkBg: '#7f1d1d' },
   mercadolibre: { label: 'Mercado Libre', color: '#FFE600', bg: '#fefce8', darkBg: '#713f12' },
-  mercado:      { label: 'Mercado Libre', color: '#FFE600', bg: '#fefce8', darkBg: '#713f12' },
-  netflix:      { label: 'Netflix',       color: '#E50914', bg: '#fee2e2', darkBg: '#7f1d1d' },
-  spotify:      { label: 'Spotify',       color: '#1DB954', bg: '#dcfce7', darkBg: '#14532d' },
-  linkedin:     { label: 'LinkedIn',      color: '#0077B5', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  apple:        { label: 'Apple',         color: '#555555', bg: '#f1f5f9', darkBg: '#1e293b' },
-  paypal:       { label: 'PayPal',        color: '#003087', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  discord:      { label: 'Discord',       color: '#5865F2', bg: '#ede9fe', darkBg: '#3730a3' },
-  snapchat:     { label: 'Snapchat',      color: '#FFFC00', bg: '#fefce8', darkBg: '#713f12' },
-  twitch:       { label: 'Twitch',        color: '#9146FF', bg: '#ede9fe', darkBg: '#3730a3' },
-  binance:      { label: 'Binance',       color: '#F0B90B', bg: '#fefce8', darkBg: '#713f12' },
-  coinbase:     { label: 'Coinbase',      color: '#0052FF', bg: '#dbeafe', darkBg: '#1e3a8a' },
-  airbnb:       { label: 'Airbnb',        color: '#FF5A5F', bg: '#fee2e2', darkBg: '#7f1d1d' },
-  shopify:      { label: 'Shopify',       color: '#96BF48', bg: '#dcfce7', darkBg: '#14532d' },
+  mercado: { label: 'Mercado Libre', color: '#FFE600', bg: '#fefce8', darkBg: '#713f12' },
+  netflix: { label: 'Netflix', color: '#E50914', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  spotify: { label: 'Spotify', color: '#1DB954', bg: '#dcfce7', darkBg: '#14532d' },
+  linkedin: { label: 'LinkedIn', color: '#0077B5', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  apple: { label: 'Apple', color: '#555555', bg: '#f1f5f9', darkBg: '#1e293b' },
+  paypal: { label: 'PayPal', color: '#003087', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  discord: { label: 'Discord', color: '#5865F2', bg: '#ede9fe', darkBg: '#3730a3' },
+  snapchat: { label: 'Snapchat', color: '#FFFC00', bg: '#fefce8', darkBg: '#713f12' },
+  twitch: { label: 'Twitch', color: '#9146FF', bg: '#ede9fe', darkBg: '#3730a3' },
+  binance: { label: 'Binance', color: '#F0B90B', bg: '#fefce8', darkBg: '#713f12' },
+  coinbase: { label: 'Coinbase', color: '#0052FF', bg: '#dbeafe', darkBg: '#1e3a8a' },
+  airbnb: { label: 'Airbnb', color: '#FF5A5F', bg: '#fee2e2', darkBg: '#7f1d1d' },
+  shopify: { label: 'Shopify', color: '#96BF48', bg: '#dcfce7', darkBg: '#14532d' },
 };
 
 function detectService(sender: string, content: string) {
@@ -159,8 +159,8 @@ function extractCode(content: string): string | null {
 
 function timeAgo(dateStr: string): string {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60)    return `${Math.floor(diff)}s`;
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m`;
+  if (diff < 60) return `${Math.floor(diff)}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86400)}d`;
 }
@@ -188,8 +188,8 @@ const REGION_FLAGS: Record<string, string> = {
 
 const PLAN_COLORS: Record<string, { border: string; badge: string; text: string; label: string }> = {
   starter: { border: '#3b82f6', badge: '#dbeafe', text: '#1d4ed8', label: 'Starter' },
-  pro:     { border: '#8b5cf6', badge: '#ede9fe', text: '#6d28d9', label: 'Pro' },
-  power:   { border: '#f59e0b', badge: '#fef3c7', text: '#b45309', label: 'Power' },
+  pro: { border: '#8b5cf6', badge: '#ede9fe', text: '#6d28d9', label: 'Pro' },
+  power: { border: '#f59e0b', badge: '#fef3c7', text: '#b45309', label: 'Power' },
 };
 
 // ─── Bar Chart ─────────────────────────────────────────────────────────────────
@@ -228,16 +228,14 @@ const NavItem: React.FC<{
   badge?: number; onClick: () => void;
 }> = ({ icon, label, active, badge, onClick }) => (
   <button onClick={onClick}
-    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-      active ? 'bg-primary text-white shadow-sm'
-             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'
-    }`}>
+    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${active ? 'bg-primary text-white shadow-sm'
+      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'
+      }`}>
     <span className={`flex-shrink-0 ${active ? 'text-white' : ''}`}>{icon}</span>
     <span className="flex-1 text-left">{label}</span>
     {badge != null && badge > 0 && (
-      <span className={`min-w-[18px] h-[18px] rounded-full text-[9px] font-black flex items-center justify-center px-1 ${
-        active ? 'bg-white/25 text-white' : 'bg-red-500 text-white'
-      }`}>{badge > 99 ? '99+' : badge}</span>
+      <span className={`min-w-[18px] h-[18px] rounded-full text-[9px] font-black flex items-center justify-center px-1 ${active ? 'bg-white/25 text-white' : 'bg-red-500 text-white'
+        }`}>{badge > 99 ? '99+' : badge}</span>
     )}
   </button>
 );
@@ -280,32 +278,32 @@ const WebDashboard: React.FC = () => {
   const isDark = theme === 'dark';
   const { notifications, unreadCount: notifUnread, loading: notifLoading, markAsRead: markNotifRead, markAllAsRead: markAllNotifRead, clearAll: clearAllNotifs } = useNotifications();
 
-  const [activeTab, setActiveTab]           = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('profile');
-  const [slots, setSlots]                   = useState<Slot[]>([]);
-  const [messages, setMessages]             = useState<SMSLog[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [copiedId, setCopiedId]             = useState<string | null>(null);
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [selectedSlot, setSelectedSlot]     = useState<string | null>(null);
-  const [editingSlotId, setEditingSlotId]   = useState<string | null>(null);
-  const [labelDraft, setLabelDraft]         = useState('');
-  const [savingLabel, setSavingLabel]       = useState(false);
-  const [simsView, setSimsView]             = useState<'card' | 'list'>('card');
-  const [togglingSlot, setTogglingSlot]     = useState<string | null>(null);
-  const [subscriptions, setSubscriptions]   = useState<any[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [messages, setMessages] = useState<SMSLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState('');
+  const [savingLabel, setSavingLabel] = useState(false);
+  const [simsView, setSimsView] = useState<'card' | 'list'>('card');
+  const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
-  const [helpSearch, setHelpSearch]         = useState('');
-  const [notifFilter, setNotifFilter]       = useState<string>('all');
+  const [helpSearch, setHelpSearch] = useState('');
+  const [notifFilter, setNotifFilter] = useState<string>('all');
 
   // ─── Webhook config state ─────────────────────────────────────────────────
-  const [webhookUrl, setWebhookUrl]       = useState(() => localStorage.getItem('telsim_webhook_url') || '');
+  const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem('telsim_webhook_url') || '');
   const [webhookSecret, setWebhookSecret] = useState(() => localStorage.getItem('telsim_webhook_secret') || '');
   const [webhookEvents, setWebhookEvents] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('telsim_webhook_events') || '["sms_received"]'); } catch { return ['sms_received']; }
   });
   const [webhookSaving, setWebhookSaving] = useState(false);
-  const [webhookSaved, setWebhookSaved]   = useState(false);
+  const [webhookSaved, setWebhookSaved] = useState(false);
   const [webhookTesting, setWebhookTesting] = useState(false);
 
   // ─── Language state ───────────────────────────────────────────────────────
@@ -315,35 +313,35 @@ const WebDashboard: React.FC = () => {
   const [langSaved, setLangSaved] = useState(false);
 
   // ─── Security / Password state ────────────────────────────────────────────
-  const [secNewPw, setSecNewPw]           = useState('');
-  const [secConfirmPw, setSecConfirmPw]   = useState('');
-  const [secSaving, setSecSaving]         = useState(false);
-  const [secError, setSecError]           = useState('');
-  const [secSuccess, setSecSuccess]       = useState(false);
-  const [showNewPw, setShowNewPw]         = useState(false);
+  const [secNewPw, setSecNewPw] = useState('');
+  const [secConfirmPw, setSecConfirmPw] = useState('');
+  const [secSaving, setSecSaving] = useState(false);
+  const [secError, setSecError] = useState('');
+  const [secSuccess, setSecSuccess] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   // ─── Telegram Config state ────────────────────────────────────────────────
-  const [tgToken, setTgToken]   = useState('');
+  const [tgToken, setTgToken] = useState('');
   const [tgChatId, setTgChatId] = useState('');
   const [tgLoading, setTgLoading] = useState(false);
-  const [tgSaving, setTgSaving]   = useState(false);
+  const [tgSaving, setTgSaving] = useState(false);
   const [tgTesting, setTgTesting] = useState(false);
-  const [tgSaved, setTgSaved]     = useState(false);
+  const [tgSaved, setTgSaved] = useState(false);
 
   // ─── Profile Edit state ───────────────────────────────────────────────────
   const [editFullName, setEditFullName] = useState(user?.user_metadata?.full_name || '');
-  const [editPhone, setEditPhone]       = useState(user?.user_metadata?.phone || '');
-  const [editCountry, setEditCountry]   = useState(user?.user_metadata?.country || 'Chile');
+  const [editPhone, setEditPhone] = useState(user?.user_metadata?.phone || '');
+  const [editCountry, setEditCountry] = useState(user?.user_metadata?.country || 'Chile');
   const [editCurrency, setEditCurrency] = useState(user?.user_metadata?.moneda || 'CLP');
-  const [editSaving, setEditSaving]     = useState(false);
-  const [editError, setEditError]       = useState('');
-  const [editSuccess, setEditSuccess]   = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState(false);
 
   // ─── Live Feed Auto-refresh state ──────────────────────────────────────────
   const [feedRefreshing, setFeedRefreshing] = useState(false);
 
-  const userName     = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
   const savedPlanId: string = (() => {
@@ -351,7 +349,7 @@ const WebDashboard: React.FC = () => {
     try { const p = JSON.parse(raw); return (p.planId || p.id || p.plan || 'starter').toLowerCase(); }
     catch { return raw.toLowerCase(); }
   })();
-  const planName    = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
+  const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
   const PLAN_CREDITS: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
   const planCredits = PLAN_CREDITS[savedPlanId] ?? 150;
 
@@ -366,8 +364,8 @@ const WebDashboard: React.FC = () => {
         supabase.from('sms_logs').select('*').eq('user_id', user.id)
           .order('received_at', { ascending: false }).limit(60),
       ]);
-      if (slotsRes.data)  setSlots(slotsRes.data);
-      if (msgsRes.data)   setMessages(msgsRes.data);
+      if (slotsRes.data) setSlots(slotsRes.data);
+      if (msgsRes.data) setMessages(msgsRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [user]);
@@ -378,10 +376,16 @@ const WebDashboard: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeTab === 'overview' && user) {
-        supabase.from('sms_logs').select('*').eq('user_id', user.id)
-          .order('received_at', { ascending: false }).limit(60)
-          .then(({ data }) => { if (data) setMessages(data); })
-          .catch(e => console.error('Error refreshing feed:', e));
+        const fetchFeed = async () => {
+          try {
+            const { data } = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
+              .order('received_at', { ascending: false }).limit(60);
+            if (data) setMessages(data as SMSLog[]);
+          } catch (e: any) {
+            console.error('Error refreshing feed:', e);
+          }
+        };
+        fetchFeed();
       }
     }, 5000);
     return () => clearInterval(interval);
@@ -414,11 +418,21 @@ const WebDashboard: React.FC = () => {
   useEffect(() => {
     if (settingsSection !== 'telegram' || !user) return;
     setTgLoading(true);
-    supabase.from('users').select('telegram_token, telegram_chat_id').eq('id', user.id).single()
-      .then(({ data }) => {
-        if (data) { setTgToken(data.telegram_token || ''); setTgChatId(data.telegram_chat_id || ''); }
-      })
-      .finally(() => setTgLoading(false));
+
+    const loadTg = async () => {
+      try {
+        const { data } = await supabase.from('users').select('telegram_token, telegram_chat_id').eq('id', user.id).single();
+        if (data) {
+          setTgToken(data.telegram_token || '');
+          setTgChatId(data.telegram_chat_id || '');
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setTgLoading(false);
+      }
+    };
+    loadTg();
   }, [settingsSection, user]);
 
   const handleTgTest = async () => {
@@ -482,7 +496,7 @@ const WebDashboard: React.FC = () => {
 
   const handleWebhookSave = () => {
     setWebhookSaving(true);
-    localStorage.setItem('telsim_webhook_url',    webhookUrl);
+    localStorage.setItem('telsim_webhook_url', webhookUrl);
     localStorage.setItem('telsim_webhook_secret', webhookSecret);
     localStorage.setItem('telsim_webhook_events', JSON.stringify(webhookEvents));
     setTimeout(() => {
@@ -599,8 +613,8 @@ const WebDashboard: React.FC = () => {
       }),
     ].join('\n');
     const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url; a.download = `telsim-reporte-${new Date().toISOString().split('T')[0]}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
@@ -651,23 +665,23 @@ const WebDashboard: React.FC = () => {
   const getWebPlanStyle = (plan: string) => {
     switch (plan) {
       case 'power': return {
-        cardBg:     'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C]',
-        chip:       'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
-        label:      'Power',
+        cardBg: 'bg-gradient-to-br from-[#B49248] via-[#D4AF37] to-[#8C6B1C]',
+        chip: 'bg-gradient-to-br from-amber-200 via-amber-300 to-amber-100',
+        label: 'Power',
         phoneColor: 'text-white',
         labelColor: 'text-white/80',
       };
       case 'pro': return {
-        cardBg:     'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00C8FF]',
-        chip:       'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
-        label:      'Pro',
+        cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00C8FF]',
+        chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
+        label: 'Pro',
         phoneColor: 'text-white',
         labelColor: 'text-white/80',
       };
       default: return {
-        cardBg:     'bg-white border border-slate-200',
-        chip:       'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
-        label:      'Starter',
+        cardBg: 'bg-white border border-slate-200',
+        chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
+        label: 'Starter',
         phoneColor: 'text-slate-900',
         labelColor: 'text-slate-400',
       };
@@ -676,22 +690,22 @@ const WebDashboard: React.FC = () => {
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
 
-  const today         = new Date().toDateString();
+  const today = new Date().toDateString();
   const todayMessages = messages.filter(m => new Date(m.received_at).toDateString() === today);
-  const activeSlots   = slots.filter(s => s.status !== 'expired');
+  const activeSlots = slots.filter(s => s.status !== 'expired');
 
-  const activityData   = Array.from({ length: 7 }, (_, i) => {
+  const activityData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
     return messages.filter(m => new Date(m.received_at).toDateString() === d.toDateString()).length;
   });
   const activityLabels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    return ['Do','Lu','Ma','Mi','Ju','Vi','Sá'][d.getDay()];
+    return ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'][d.getDay()];
   });
 
   const filteredMessages = messages.filter(m => {
-    const matchSlot   = !selectedSlot || m.slot_id === selectedSlot;
-    const q           = searchQuery.toLowerCase();
+    const matchSlot = !selectedSlot || m.slot_id === selectedSlot;
+    const q = searchQuery.toLowerCase();
     const matchSearch = !q || m.content.toLowerCase().includes(q) || m.sender.toLowerCase().includes(q);
     return matchSlot && matchSearch;
   });
@@ -699,7 +713,7 @@ const WebDashboard: React.FC = () => {
   const unreadCount = messages.filter(m => !m.is_read).length;
 
   // Header title map
-  const TAB_TITLES: Record<TabId, string> = {
+  const TAB_TITLES: Partial<Record<TabId, string>> = {
     overview: 'Dashboard', messages: 'Mensajes SMS',
     numbers: 'Mis SIMs', settings: 'Ajustes'
   };
@@ -733,19 +747,19 @@ const WebDashboard: React.FC = () => {
 
         {/* Nav */}
         <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
-          <NavItem icon={<LayoutDashboard size={17} />} label="Overview"         active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-          <NavItem icon={<MessageSquare size={17} />}   label="Mensajes"         active={activeTab === 'messages'} badge={unreadCount} onClick={() => setActiveTab('messages')} />
-          <NavItem icon={<Smartphone size={17} />}      label="Mis SIMs"         active={activeTab === 'numbers'}  badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
-          <NavItem icon={<CreditCard size={17} />}      label="Facturación"      active={activeTab === 'billing'}       onClick={() => setActiveTab('billing')} />
-          <NavItem icon={<Bell size={17} />}            label="Notificaciones"   active={activeTab === 'notifications'} badge={notifUnread} onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }} />
+          <NavItem icon={<LayoutDashboard size={17} />} label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+          <NavItem icon={<MessageSquare size={17} />} label="Mensajes" active={activeTab === 'messages'} badge={unreadCount} onClick={() => setActiveTab('messages')} />
+          <NavItem icon={<Smartphone size={17} />} label="Mis SIMs" active={activeTab === 'numbers'} badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
+          <NavItem icon={<CreditCard size={17} />} label="Facturación" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
+          <NavItem icon={<Bell size={17} />} label="Notificaciones" active={activeTab === 'notifications'} badge={notifUnread} onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }} />
 
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
-          <NavItem icon={<Settings size={17} />}    label="Ajustes"         active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
+          <NavItem icon={<Settings size={17} />} label="Ajustes" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
 
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
-          <NavItem icon={<HelpCircle size={17} />}  label="Centro de Ayuda" active={activeTab === 'help'}     onClick={() => setActiveTab('help')} />
+          <NavItem icon={<HelpCircle size={17} />} label="Centro de Ayuda" active={activeTab === 'help'} onClick={() => setActiveTab('help')} />
         </nav>
 
         {/* Bottom */}
@@ -788,7 +802,7 @@ const WebDashboard: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               className={`bg-transparent text-[12px] outline-none flex-1 ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`} />
           </div>
-          <button onClick={fetchData}   className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
+          <button onClick={fetchData} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
           <button onClick={toggleTheme} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>{isDark ? <Sun size={15} className="text-slate-400" /> : <Moon size={15} className="text-slate-400" />}</button>
           <button onClick={() => navigate('/dashboard/notifications')} className={`relative p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>
             <Bell size={15} className="text-slate-400" />
@@ -811,10 +825,10 @@ const WebDashboard: React.FC = () => {
 
               {/* KPIs */}
               <div className="grid grid-cols-4 gap-4">
-                <KpiCard icon={<Zap size={18} />}        label="Créditos disponibles" value={planCredits} sub={`Plan ${planName}`} color="#1152d4" />
-                <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy"       value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
-                <KpiCard icon={<Smartphone size={18} />} label="SIMs activas"          value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
-                <KpiCard icon={<Shield size={18} />}     label="Tasa de éxito"         value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}%` : '—'} sub="Verificaciones OK" trend={3} color="#8b5cf6" />
+                <KpiCard icon={<Zap size={18} />} label="Créditos disponibles" value={planCredits} sub={`Plan ${planName}`} color="#1152d4" />
+                <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
+                <KpiCard icon={<Smartphone size={18} />} label="SIMs activas" value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
+                <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}%` : '—'} sub="Verificaciones OK" trend={3} color="#8b5cf6" />
               </div>
 
               {/* Chart left + Feed right */}
@@ -844,7 +858,7 @@ const WebDashboard: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-3 gap-2.5">
                         {slots.map(slot => {
-                          const flag    = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
+                          const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
                           const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
                           const isActive = slot.status !== 'expired';
                           const pc = PLAN_COLORS[slot.plan_type?.toLowerCase()] ?? PLAN_COLORS.starter;
@@ -877,9 +891,8 @@ const WebDashboard: React.FC = () => {
                       <button
                         onClick={handleFeedRefresh}
                         disabled={feedRefreshing}
-                        className={`p-2 rounded-lg transition-all flex items-center justify-center ${
-                          isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-700'
-                        } ${feedRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`p-2 rounded-lg transition-all flex items-center justify-center ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-700'
+                          } ${feedRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Actualizar feed"
                       >
                         <RefreshCw size={16} className={feedRefreshing ? 'animate-spin' : ''} />
@@ -900,10 +913,10 @@ const WebDashboard: React.FC = () => {
                   ) : (
                     <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[540px] pr-2">
                       {messages.slice(0, 10).map((msg, idx) => {
-                        const svc    = detectService(msg.sender, msg.content);
-                        const code   = msg.verification_code || extractCode(msg.content);
-                        const slot   = slots.find(s => s.slot_id === msg.slot_id);
-                        const flag   = REGION_FLAGS[slot?.region?.toUpperCase() ?? ''] ?? '🌐';
+                        const svc = detectService(msg.sender, msg.content);
+                        const code = msg.verification_code || extractCode(msg.content);
+                        const slot = slots.find(s => s.slot_id === msg.slot_id);
+                        const flag = REGION_FLAGS[slot?.region?.toUpperCase() ?? ''] ?? '🌐';
                         const simNum = slot?.phone_number ?? slot?.label ?? 'SIM';
                         const hasLogo = BrandLogo({ brand: svc.key }) !== null;
                         const isLatest = idx === 0;
@@ -911,11 +924,10 @@ const WebDashboard: React.FC = () => {
                         return (
                           <div
                             key={msg.id}
-                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border p-4 flex flex-col gap-3 relative transition-all ${
-                              isLatest
-                                ? isDark ? 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/60 shadow-lg shadow-primary/20' : 'bg-gradient-to-br from-blue-50 to-blue-25 border-primary/40 shadow-lg shadow-primary/15'
-                                : isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'
-                            }`}
+                            className={`animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border p-4 flex flex-col gap-3 relative transition-all ${isLatest
+                              ? isDark ? 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/60 shadow-lg shadow-primary/20' : 'bg-gradient-to-br from-blue-50 to-blue-25 border-primary/40 shadow-lg shadow-primary/15'
+                              : isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50/80 border-slate-200'
+                              }`}
                             style={{ animationDelay: `${idx * 60}ms` }}
                           >
 
@@ -932,7 +944,7 @@ const WebDashboard: React.FC = () => {
                                 >
                                   {hasLogo
                                     ? <BrandLogo brand={svc.key} size={20} />
-                                    : <span className="text-[10px] font-black" style={{ color: svc.color }}>{svc.label.slice(0,2).toUpperCase()}</span>
+                                    : <span className="text-[10px] font-black" style={{ color: svc.color }}>{svc.label.slice(0, 2).toUpperCase()}</span>
                                   }
                                 </div>
                                 <div className="min-w-0">
@@ -953,17 +965,15 @@ const WebDashboard: React.FC = () => {
                             </div>
 
                             {/* SMS Message Bubble */}
-                            <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] px-4 py-3 border ${
-                              isDark ? 'bg-slate-700/80 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
-                            }`}>
+                            <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] px-4 py-3 border ${isDark ? 'bg-slate-700/80 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
+                              }`}>
                               <p className="text-[12px] leading-[1.5] font-medium break-words">{msg.content}</p>
                             </div>
 
                             {/* Code Block */}
                             {code && (
-                              <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] border px-3.5 py-3 flex items-center justify-between ${
-                                isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-900 border-slate-800 text-white'
-                              }`}>
+                              <div className={`rounded-[1.2rem] rounded-tl-[0.3rem] border px-3.5 py-3 flex items-center justify-between ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-900 border-slate-800 text-white'
+                                }`}>
                                 <div>
                                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Código</p>
                                   <p className="text-[20px] font-black font-mono tracking-[0.2em] tabular-nums leading-none">{code}</p>
@@ -971,9 +981,8 @@ const WebDashboard: React.FC = () => {
                                 <button
                                   onClick={() => handleCopy(msg.id, code)}
                                   title="Copiar código"
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
-                                    copiedId === msg.id ? 'bg-emerald-500 text-white' : 'bg-white/15 text-white/70 hover:bg-white/25'
-                                  }`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${copiedId === msg.id ? 'bg-emerald-500 text-white' : 'bg-white/15 text-white/70 hover:bg-white/25'
+                                    }`}
                                 >
                                   {copiedId === msg.id ? <Check size={13} /> : <Copy size={13} />}
                                 </button>
@@ -1025,7 +1034,7 @@ const WebDashboard: React.FC = () => {
                     ) : filteredMessages.length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-12"><div className="flex flex-col items-center gap-2 text-slate-400"><MessageSquare size={28} /><p className="text-[12px] font-semibold">Sin mensajes</p></div></td></tr>
                     ) : filteredMessages.map(msg => {
-                      const svc  = detectService(msg.sender, msg.content);
+                      const svc = detectService(msg.sender, msg.content);
                       const code = msg.verification_code || extractCode(msg.content);
                       const slot = slots.find(s => s.slot_id === msg.slot_id);
                       const flag = REGION_FLAGS[slot?.region?.toUpperCase() ?? ''] ?? '🌐';
@@ -1035,7 +1044,7 @@ const WebDashboard: React.FC = () => {
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: isDark ? svc.darkBg : svc.bg }}>
-                                {hasLogo ? <BrandLogo brand={svc.key} size={17} /> : <span className="text-[9px] font-black" style={{ color: svc.color }}>{svc.label.slice(0,2).toUpperCase()}</span>}
+                                {hasLogo ? <BrandLogo brand={svc.key} size={17} /> : <span className="text-[9px] font-black" style={{ color: svc.color }}>{svc.label.slice(0, 2).toUpperCase()}</span>}
                               </div>
                               <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{svc.label}</span>
                             </div>
@@ -1105,7 +1114,7 @@ const WebDashboard: React.FC = () => {
                   <RefreshCw size={24} className="text-slate-400 animate-spin" />
                 </div>
 
-              /* Empty state */
+                /* Empty state */
               ) : slots.length === 0 ? (
                 <div className={`rounded-2xl p-14 flex flex-col items-center gap-3 text-center border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                   <Smartphone size={32} className="text-slate-300" />
@@ -1116,17 +1125,17 @@ const WebDashboard: React.FC = () => {
                   </button>
                 </div>
 
-              /* ── CARD VIEW (SIM card grid) ── */
+                /* ── CARD VIEW (SIM card grid) ── */
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {slots.map(slot => {
-                    const plan        = (slot.plan_type || 'starter').toLowerCase();
-                    const ps          = getWebPlanStyle(plan);
-                    const msgsCnt     = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
-                    const isActive    = slot.status !== 'expired';
+                    const plan = (slot.plan_type || 'starter').toLowerCase();
+                    const ps = getWebPlanStyle(plan);
+                    const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
+                    const isActive = slot.status !== 'expired';
                     const isForwarding = !!slot.forwarding_active;
-                    const isTog       = togglingSlot === slot.slot_id;
-                    const isEditing   = editingSlotId === slot.slot_id;
+                    const isTog = togglingSlot === slot.slot_id;
+                    const isEditing = editingSlotId === slot.slot_id;
                     const countryCode = (slot.region ?? 'cl').toUpperCase();
 
                     return (
@@ -1170,7 +1179,7 @@ const WebDashboard: React.FC = () => {
                                     autoFocus value={labelDraft}
                                     onChange={e => setLabelDraft(e.target.value)}
                                     onKeyDown={e => {
-                                      if (e.key === 'Enter')  handleSaveLabel(slot.slot_id);
+                                      if (e.key === 'Enter') handleSaveLabel(slot.slot_id);
                                       if (e.key === 'Escape') setEditingSlotId(null);
                                     }}
                                     className="text-[11px] px-2 py-0.5 rounded-md border outline-none w-28 bg-black/20 border-white/30 text-white placeholder-white/40 font-bold"
@@ -1228,11 +1237,10 @@ const WebDashboard: React.FC = () => {
 
                           {/* ── Row 3: Plan badge + active indicator ── */}
                           <div className="flex items-end justify-between relative z-10">
-                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${
-                              plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
-                              plan === 'pro'   ? 'border-white/40   text-white/90    bg-black/20' :
-                                                 'border-slate-300/70 text-slate-600 bg-white/60'
-                            }`}>
+                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
+                              plan === 'pro' ? 'border-white/40   text-white/90    bg-black/20' :
+                                'border-slate-300/70 text-slate-600 bg-white/60'
+                              }`}>
                               {plan === 'power' && <span className="text-[11px]">👑</span>}
                               {ps.label}
                             </span>
@@ -1270,11 +1278,10 @@ const WebDashboard: React.FC = () => {
                           <button
                             onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)}
                             title="Copiar número"
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${
-                              copiedId === `${slot.slot_id}_num`
-                                ? 'bg-emerald-500 text-white'
-                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
-                            }`}>
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${copiedId === `${slot.slot_id}_num`
+                              ? 'bg-emerald-500 text-white'
+                              : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
+                              }`}>
                             {copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}
                           </button>
 
@@ -1283,11 +1290,10 @@ const WebDashboard: React.FC = () => {
                             onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
                             disabled={isTog}
                             title={isForwarding ? 'Bot activo – clic para desactivar' : 'Bot inactivo – clic para activar'}
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${
-                              isForwarding
-                                ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
-                                : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
-                            } ${isTog ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isForwarding
+                              ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
+                              : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
+                              } ${isTog ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             {isTog ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
                           </button>
 
@@ -1304,7 +1310,7 @@ const WebDashboard: React.FC = () => {
                   })}
                 </div>
 
-              /* ── LIST VIEW ── */
+                /* ── LIST VIEW ── */
               ) : (
                 <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                   <table className="w-full text-left text-[12px]">
@@ -1321,13 +1327,13 @@ const WebDashboard: React.FC = () => {
                     </thead>
                     <tbody>
                       {slots.map(slot => {
-                        const plan  = (slot.plan_type || 'starter').toLowerCase();
-                        const pc    = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
+                        const plan = (slot.plan_type || 'starter').toLowerCase();
+                        const pc = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
                         const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
                         const isActive = slot.status !== 'expired';
                         const isForwarding = !!slot.forwarding_active;
                         const isTog = togglingSlot === slot.slot_id;
-                        const flag  = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
+                        const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
                         const isEditing = editingSlotId === slot.slot_id;
                         return (
                           <tr key={slot.slot_id}
@@ -1395,9 +1401,8 @@ const WebDashboard: React.FC = () => {
                                 <button
                                   onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
                                   disabled={isTog}
-                                  className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${
-                                    isForwarding ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')
-                                  } ${isTog ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                  className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${isForwarding ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')
+                                    } ${isTog ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                                   <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${isForwarding ? 'translate-x-5' : 'translate-x-0'}`} />
                                 </button>
                                 <span className={`text-[11px] font-medium ${isForwarding ? 'text-sky-500' : (isDark ? 'text-slate-600' : 'text-slate-300')}`}>
@@ -1436,11 +1441,10 @@ const WebDashboard: React.FC = () => {
                                 <button
                                   onClick={() => handleCopy(`${slot.slot_id}_lst`, slot.phone_number)}
                                   title="Copiar número"
-                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
-                                    copiedId === `${slot.slot_id}_lst`
-                                      ? 'bg-emerald-500 text-white'
-                                      : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
-                                  }`}>
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${copiedId === `${slot.slot_id}_lst`
+                                    ? 'bg-emerald-500 text-white'
+                                    : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500')
+                                    }`}>
                                   {copiedId === `${slot.slot_id}_lst` ? <Check size={11} /> : <Copy size={11} />}
                                 </button>
 
@@ -1469,17 +1473,16 @@ const WebDashboard: React.FC = () => {
               {/* Sub-nav izquierda */}
               <div className={`w-52 flex-shrink-0 rounded-2xl p-3 shadow-sm border self-start ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                 {([
-                  { id: 'profile',       icon: <Settings size={15} />,     label: 'Mi Perfil' },
-                  { id: 'telegram',      icon: <Send size={15} />,         label: 'Telegram Bot' },
-                  { id: 'api',           icon: <Link2 size={15} />,        label: 'API & Webhooks' },
-                  { id: 'notifications', icon: <Bell size={15} />,         label: 'Notificaciones' },
-                  { id: 'language',      icon: <Globe size={15} />,        label: 'Idioma' },
-                  { id: 'security',      icon: <ShieldCheck size={15} />,  label: 'Seguridad' },
+                  { id: 'profile', icon: <Settings size={15} />, label: 'Mi Perfil' },
+                  { id: 'telegram', icon: <Send size={15} />, label: 'Telegram Bot' },
+                  { id: 'api', icon: <Link2 size={15} />, label: 'API & Webhooks' },
+                  { id: 'notifications', icon: <Bell size={15} />, label: 'Notificaciones' },
+                  { id: 'language', icon: <Globe size={15} />, label: 'Idioma' },
+                  { id: 'security', icon: <ShieldCheck size={15} />, label: 'Seguridad' },
                 ] as { id: SettingsSection; icon: React.ReactNode; label: string }[]).map(item => (
                   <button key={item.id} onClick={() => setSettingsSection(item.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-all mb-0.5 ${
-                      settingsSection === item.id ? 'bg-primary text-white' : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800')
-                    }`}>
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-all mb-0.5 ${settingsSection === item.id ? 'bg-primary text-white' : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800')
+                      }`}>
                     {item.icon}{item.label}
                   </button>
                 ))}
@@ -1712,16 +1715,15 @@ const WebDashboard: React.FC = () => {
                         </label>
                         <div className="flex flex-col gap-2">
                           {[
-                            { id: 'sms_received',  label: 'SMS recibido',     desc: 'Cada mensaje entrante a cualquier SIM' },
+                            { id: 'sms_received', label: 'SMS recibido', desc: 'Cada mensaje entrante a cualquier SIM' },
                             { id: 'code_detected', label: 'Código OTP detectado', desc: 'Cuando se extrae un código automáticamente' },
-                            { id: 'sim_activated', label: 'SIM activada',     desc: 'Activación de una nueva SIM' },
-                            { id: 'sim_expired',   label: 'SIM expirada',     desc: 'Cuando vence el período de una SIM' },
+                            { id: 'sim_activated', label: 'SIM activada', desc: 'Activación de una nueva SIM' },
+                            { id: 'sim_expired', label: 'SIM expirada', desc: 'Cuando vence el período de una SIM' },
                           ].map(ev => (
-                            <label key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                              webhookEvents.includes(ev.id)
-                                ? (isDark ? 'border-primary/40 bg-primary/10' : 'border-primary/30 bg-primary/5')
-                                : (isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-slate-50')
-                            }`}>
+                            <label key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${webhookEvents.includes(ev.id)
+                              ? (isDark ? 'border-primary/40 bg-primary/10' : 'border-primary/30 bg-primary/5')
+                              : (isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-slate-50')
+                              }`}>
                               <input type="checkbox" checked={webhookEvents.includes(ev.id)} onChange={() => toggleWebhookEvent(ev.id)} className="w-4 h-4 accent-primary" />
                               <div>
                                 <p className="text-[12px] font-bold">{ev.label}</p>
@@ -1827,11 +1829,10 @@ const WebDashboard: React.FC = () => {
                         { code: 'en', label: 'English', flag: '🇺🇸', desc: 'Interface in English' },
                       ] as { code: 'es' | 'en'; label: string; flag: string; desc: string }[]).map(lang => (
                         <button key={lang.code} onClick={() => setAppLanguage(lang.code)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all ${
-                            appLanguage === lang.code
-                              ? 'border-primary bg-primary/5'
-                              : (isDark ? 'border-slate-700 hover:border-slate-600' : 'border-slate-200 hover:border-slate-300')
-                          }`}>
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${appLanguage === lang.code
+                            ? 'border-primary bg-primary/5'
+                            : (isDark ? 'border-slate-700 hover:border-slate-600' : 'border-slate-200 hover:border-slate-300')
+                            }`}>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-2xl">{lang.flag}</span>
                             {appLanguage === lang.code && (
@@ -2011,12 +2012,11 @@ const WebDashboard: React.FC = () => {
                           {/* Password strength indicator */}
                           {secNewPw && (
                             <div className="flex gap-1 mt-2">
-                              {[1,2,3,4].map(level => (
-                                <div key={level} className={`flex-1 h-1 rounded-full transition-colors ${
-                                  secNewPw.length >= level * 3
-                                    ? (secNewPw.length >= 12 ? 'bg-emerald-500' : secNewPw.length >= 8 ? 'bg-amber-400' : 'bg-red-400')
-                                    : (isDark ? 'bg-slate-700' : 'bg-slate-200')
-                                }`} />
+                              {[1, 2, 3, 4].map(level => (
+                                <div key={level} className={`flex-1 h-1 rounded-full transition-colors ${secNewPw.length >= level * 3
+                                  ? (secNewPw.length >= 12 ? 'bg-emerald-500' : secNewPw.length >= 8 ? 'bg-amber-400' : 'bg-red-400')
+                                  : (isDark ? 'bg-slate-700' : 'bg-slate-200')
+                                  }`} />
                               ))}
                             </div>
                           )}
@@ -2033,11 +2033,10 @@ const WebDashboard: React.FC = () => {
                               value={secConfirmPw}
                               onChange={e => { setSecConfirmPw(e.target.value); setSecError(''); }}
                               placeholder="Repite la nueva contraseña"
-                              className={`w-full px-3 py-2.5 pr-10 rounded-xl border text-[13px] outline-none transition-colors ${
-                                secConfirmPw && secConfirmPw !== secNewPw
-                                  ? 'border-red-400 focus:border-red-400'
-                                  : (isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary')
-                              } ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
+                              className={`w-full px-3 py-2.5 pr-10 rounded-xl border text-[13px] outline-none transition-colors ${secConfirmPw && secConfirmPw !== secNewPw
+                                ? 'border-red-400 focus:border-red-400'
+                                : (isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600 focus:border-primary' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-primary')
+                                } ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-900'}`}
                             />
                             <button type="button" onClick={() => setShowConfirmPw(p => !p)}
                               className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -2133,10 +2132,10 @@ const WebDashboard: React.FC = () => {
               {/* KPI cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { icon: <Smartphone size={15} />, label: 'SIMs activas',    value: activeSlots.length.toString(),  color: 'text-sky-500',     bg: isDark ? 'bg-sky-500/10'     : 'bg-sky-50'     },
-                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: messages.length.toString(),     color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'  },
-                  { icon: <Receipt size={15} />,    label: 'Próxima factura', value: billingLoading ? '...' : (() => { const active = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing'); const total = active.reduce((acc, s) => acc + (Number(s.amount) || 0), 0); return total > 0 ? `$${total.toFixed(2)}` : '$0.00'; })(), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
-                  { icon: <Calendar size={15} />,   label: 'Próximo cobro',   value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
+                  { icon: <Smartphone size={15} />, label: 'SIMs activas', value: activeSlots.length.toString(), color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50' },
+                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: messages.length.toString(), color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50' },
+                  { icon: <Receipt size={15} />, label: 'Próxima factura', value: billingLoading ? '...' : (() => { const active = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing'); const total = active.reduce((acc, s) => acc + (Number(s.amount) || 0), 0); return total > 0 ? `$${total.toFixed(2)}` : '$0.00'; })(), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
+                  { icon: <Calendar size={15} />, label: 'Próximo cobro', value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
                 ].map(stat => (
                   <div key={stat.label} className={`rounded-2xl p-4 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${stat.bg}`}>
@@ -2225,13 +2224,12 @@ const WebDashboard: React.FC = () => {
                               <td className="px-4 py-3">{sub.monthly_limit ? `${sub.monthly_limit} SMS` : '—'}</td>
                               <td className="px-4 py-3 font-bold">{sub.amount ? `$${Number(sub.amount).toFixed(2)} ${(sub.currency || 'usd').toUpperCase()}` : '—'}</td>
                               <td className="px-4 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                                  sub.status === 'active'   ? 'bg-emerald-500/10 text-emerald-500' :
-                                  sub.status === 'trialing' ? 'bg-sky-500/10 text-sky-500'         :
-                                  sub.status === 'past_due' ? 'bg-amber-500/10 text-amber-500'     :
-                                  sub.status === 'canceled' ? 'bg-slate-500/10 text-slate-400'     :
-                                  'bg-emerald-500/10 text-emerald-500'
-                                }`}>{sub.status || 'active'}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' :
+                                  sub.status === 'trialing' ? 'bg-sky-500/10 text-sky-500' :
+                                    sub.status === 'past_due' ? 'bg-amber-500/10 text-amber-500' :
+                                      sub.status === 'canceled' ? 'bg-slate-500/10 text-slate-400' :
+                                        'bg-emerald-500/10 text-emerald-500'
+                                  }`}>{sub.status || 'active'}</span>
                               </td>
                             </tr>
                           ))}
@@ -2307,30 +2305,30 @@ const WebDashboard: React.FC = () => {
               ) : (() => {
                 const getNotifIcon = (type: string, size = 18) => {
                   switch (type) {
-                    case 'activation':   return <Smartphone size={size} />;
+                    case 'activation': return <Smartphone size={size} />;
                     case 'subscription': return <CreditCard size={size} />;
-                    case 'success':      return <CheckCircle2 size={size} />;
-                    case 'error':        return <AlertCircle size={size} />;
-                    case 'warning':      return <AlertTriangle size={size} />;
-                    case 'security':     return <ShieldCheck size={size} />;
-                    default:             return <Bell size={size} />;
+                    case 'success': return <CheckCircle2 size={size} />;
+                    case 'error': return <AlertCircle size={size} />;
+                    case 'warning': return <AlertTriangle size={size} />;
+                    case 'security': return <ShieldCheck size={size} />;
+                    default: return <Bell size={size} />;
                   }
                 };
                 const getNotifStyle = (type: string) => {
                   switch (type) {
-                    case 'activation':   return { icon: 'text-primary',     bg: isDark ? 'bg-primary/10'     : 'bg-blue-50',    ring: isDark ? 'ring-primary/20'     : 'ring-primary/30'  };
-                    case 'subscription': return { icon: 'text-violet-500',  bg: isDark ? 'bg-violet-500/10'  : 'bg-violet-50',  ring: isDark ? 'ring-violet-500/20'  : 'ring-violet-300'  };
-                    case 'success':      return { icon: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', ring: isDark ? 'ring-emerald-500/20' : 'ring-emerald-300' };
-                    case 'error':        return { icon: 'text-rose-500',    bg: isDark ? 'bg-rose-500/10'    : 'bg-rose-50',    ring: isDark ? 'ring-rose-500/20'    : 'ring-rose-300'    };
-                    case 'warning':      return { icon: 'text-amber-500',   bg: isDark ? 'bg-amber-500/10'   : 'bg-amber-50',   ring: isDark ? 'ring-amber-500/20'   : 'ring-amber-300'   };
-                    case 'security':     return { icon: 'text-rose-500',    bg: isDark ? 'bg-rose-500/10'    : 'bg-rose-50',    ring: isDark ? 'ring-rose-500/20'    : 'ring-rose-300'    };
-                    default:             return { icon: 'text-slate-500',   bg: isDark ? 'bg-slate-800'      : 'bg-slate-100',  ring: isDark ? 'ring-slate-700'      : 'ring-slate-200'   };
+                    case 'activation': return { icon: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', ring: isDark ? 'ring-primary/20' : 'ring-primary/30' };
+                    case 'subscription': return { icon: 'text-violet-500', bg: isDark ? 'bg-violet-500/10' : 'bg-violet-50', ring: isDark ? 'ring-violet-500/20' : 'ring-violet-300' };
+                    case 'success': return { icon: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', ring: isDark ? 'ring-emerald-500/20' : 'ring-emerald-300' };
+                    case 'error': return { icon: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', ring: isDark ? 'ring-rose-500/20' : 'ring-rose-300' };
+                    case 'warning': return { icon: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', ring: isDark ? 'ring-amber-500/20' : 'ring-amber-300' };
+                    case 'security': return { icon: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', ring: isDark ? 'ring-rose-500/20' : 'ring-rose-300' };
+                    default: return { icon: 'text-slate-500', bg: isDark ? 'bg-slate-800' : 'bg-slate-100', ring: isDark ? 'ring-slate-700' : 'ring-slate-200' };
                   }
                 };
                 const fmtTime = (ds: string) => {
                   const d = new Date(ds), diff = Math.floor((Date.now() - d.getTime()) / 60000);
-                  if (diff < 1)    return 'ahora';
-                  if (diff < 60)   return `${diff}m`;
+                  if (diff < 1) return 'ahora';
+                  if (diff < 60) return `${diff}m`;
                   if (diff < 1440) return `${Math.floor(diff / 60)}h`;
                   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
                 };
@@ -2349,11 +2347,10 @@ const WebDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       {pills.map(type => (
                         <button key={type} onClick={() => setNotifFilter(type)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
-                            notifFilter === type
-                              ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                              : (isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
-                          }`}>
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${notifFilter === type
+                            ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                            : (isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
+                            }`}>
                           {type !== 'all' && <span className={notifFilter === type ? 'text-white/80' : getNotifStyle(type).icon}>{getNotifIcon(type, 11)}</span>}
                           {LABELS[type] || type}
                           <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${notifFilter === type ? 'bg-white/20 text-white' : (isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500')}`}>{counts[type] || 0}</span>
@@ -2372,13 +2369,12 @@ const WebDashboard: React.FC = () => {
                         return (
                           <div key={notif.id}
                             onClick={() => markNotifRead(notif.id)}
-                            className={`relative flex gap-4 p-5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.005] ${
-                              notif.is_read
-                                ? (isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100')
-                                : (isDark
-                                    ? `bg-slate-900 border-slate-700 ring-1 ring-inset ${s.ring}`
-                                    : `bg-white border-slate-200 shadow-sm ring-1 ring-inset ${s.ring}`)
-                            }`}>
+                            className={`relative flex gap-4 p-5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.005] ${notif.is_read
+                              ? (isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100')
+                              : (isDark
+                                ? `bg-slate-900 border-slate-700 ring-1 ring-inset ${s.ring}`
+                                : `bg-white border-slate-200 shadow-sm ring-1 ring-inset ${s.ring}`)
+                              }`}>
                             {!notif.is_read && <div className="absolute left-0 top-4 bottom-4 w-[3px] bg-primary rounded-r-full" />}
                             {/* Icon */}
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${s.bg}`}>
@@ -2404,10 +2400,10 @@ const WebDashboard: React.FC = () => {
                               )}
                               {notif.details && (
                                 <div className={`mt-3 grid grid-cols-2 gap-2 p-3 rounded-xl text-[10px] ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                                  {notif.details.number        && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Número</span><p className="font-mono font-black text-[12px]">{notif.details.number}</p></div>}
-                                  {notif.details.plan          && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Plan</span><p className="font-bold capitalize">{notif.details.plan}</p></div>}
+                                  {notif.details.number && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Número</span><p className="font-mono font-black text-[12px]">{notif.details.number}</p></div>}
+                                  {notif.details.plan && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Plan</span><p className="font-bold capitalize">{notif.details.plan}</p></div>}
                                   {notif.details.activationDate && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Activación</span><p className="font-bold">{notif.details.activationDate}</p></div>}
-                                  {notif.details.price         && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Precio</span><p className="font-bold">{notif.details.price}</p></div>}
+                                  {notif.details.price && <div><span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Precio</span><p className="font-bold">{notif.details.price}</p></div>}
                                 </div>
                               )}
                             </div>
@@ -2446,12 +2442,12 @@ const WebDashboard: React.FC = () => {
               {/* Quick guides */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([
-                  { icon: <Key size={16} />,        color: 'text-primary',      bg: isDark ? 'bg-primary/10'      : 'bg-blue-50',    title: 'Primeros pasos',    desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: undefined },
-                  { icon: <Bot size={16} />,         color: 'text-sky-500',      bg: isDark ? 'bg-sky-500/10'      : 'bg-sky-50',     title: 'Telegram Bot',      desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
-                  { icon: <Link2 size={16} />,       color: 'text-violet-500',   bg: isDark ? 'bg-violet-500/10'   : 'bg-violet-50',  title: 'API & Webhooks',    desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
-                  { icon: <Zap size={16} />,         color: 'text-amber-500',    bg: isDark ? 'bg-amber-500/10'    : 'bg-amber-50',   title: 'Planes y créditos', desc: 'Entiende cómo funcionan los planes y los créditos SMS.', action: () => navigate('/onboarding/plan') },
-                  { icon: <Shield size={16} />,      color: 'text-emerald-500',  bg: isDark ? 'bg-emerald-500/10'  : 'bg-emerald-50', title: 'Seguridad',         desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
-                  { icon: <CreditCard size={16} />,  color: 'text-rose-500',     bg: isDark ? 'bg-rose-500/10'     : 'bg-rose-50',    title: 'Facturación',       desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
+                  { icon: <Key size={16} />, color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', title: 'Primeros pasos', desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: undefined },
+                  { icon: <Bot size={16} />, color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50', title: 'Telegram Bot', desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
+                  { icon: <Link2 size={16} />, color: 'text-violet-500', bg: isDark ? 'bg-violet-500/10' : 'bg-violet-50', title: 'API & Webhooks', desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <Zap size={16} />, color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', title: 'Planes y créditos', desc: 'Entiende cómo funcionan los planes y los créditos SMS.', action: () => navigate('/onboarding/plan') },
+                  { icon: <Shield size={16} />, color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', title: 'Seguridad', desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <CreditCard size={16} />, color: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', title: 'Facturación', desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
                 ] as { icon: React.ReactNode; color: string; bg: string; title: string; desc: string; action?: () => void }[])
                   .filter(c => !helpSearch || c.title.toLowerCase().includes(helpSearch.toLowerCase()) || c.desc.toLowerCase().includes(helpSearch.toLowerCase()))
                   .map(card => (

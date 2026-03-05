@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { getPostAuthRoute } from '../lib/routing';
+import { STRIPE_PRICES } from '../constants/stripePrices';
 
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -117,22 +118,22 @@ const Landing: React.FC = () => {
   const handlePlanSelect = (planId: string) => {
     const plans: Record<string, { monthly: string; annual: string; monthlyPrice: number; annualPrice: number; limit: number }> = {
       starter: {
-        monthly: 'price_1SzJRLEADSrtMyiaQaDEp44E',
-        annual:  'price_1T52jPEADSrtMyiayfSm4e8m',
+        monthly: STRIPE_PRICES.STARTER.MONTHLY,
+        annual: STRIPE_PRICES.STARTER.ANNUAL,
         monthlyPrice: 19.90,
         annualPrice: 199.00,
         limit: 150,
       },
       pro: {
-        monthly: 'price_1SzJS9EADSrtMyiagxHUI2qM',
-        annual:  'price_1T52kUEADSrtMyiavL3rwWqH',
+        monthly: STRIPE_PRICES.PRO.MONTHLY,
+        annual: STRIPE_PRICES.PRO.ANNUAL,
         monthlyPrice: 39.90,
         annualPrice: 399.00,
         limit: 400,
       },
       power: {
-        monthly: 'price_1SzJSbEADSrtMyiaPEMzNKUe',
-        annual:  'price_1T52l1EADSrtMyiaGkuLXqy5',
+        monthly: STRIPE_PRICES.POWER.MONTHLY,
+        annual: STRIPE_PRICES.POWER.ANNUAL,
         monthlyPrice: 99.00,
         annualPrice: 990.00,
         limit: 1400,
@@ -208,49 +209,49 @@ const Landing: React.FC = () => {
   const casosUso = [
     {
       iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="4" y="12" width="10" height="8" rx="2" fill="#1d4ed8" opacity="0.85"/><path d="M14 13L24 8V24L14 19V13Z" fill="#3b82f6"/><path d="M8 20L10 27" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"/><path d="M26 12C27.8 13.8 27.8 18.2 26 20" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" fill="none"/><path d="M29 10C31.5 12.5 31.5 19.5 29 22" stroke="#bfdbfe" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="4" y="12" width="10" height="8" rx="2" fill="#1d4ed8" opacity="0.85" /><path d="M14 13L24 8V24L14 19V13Z" fill="#3b82f6" /><path d="M8 20L10 27" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" /><path d="M26 12C27.8 13.8 27.8 18.2 26 20" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" fill="none" /><path d="M29 10C31.5 12.5 31.5 19.5 29 22" stroke="#bfdbfe" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6" /></svg>,
       title: t('landing.use_cases.item1.title'),
       desc: 'Gestiona y verifica decenas de cuentas publicitarias en Google Ads y Meta con números independientes. Cada cuenta opera con su propia identidad SIM, sin riesgo de bloqueo en medio de una campaña activa.',
     },
     {
       iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" fill="#10b981" opacity="0.15"/><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" stroke="#10b981" strokeWidth="1.8" fill="none"/><path d="M11 16L14.5 19.5L21 13" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" fill="#10b981" opacity="0.15" /><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" stroke="#10b981" strokeWidth="1.8" fill="none" /><path d="M11 16L14.5 19.5L21 13" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
       title: t('landing.use_cases.item2.title'),
       desc: 'Valida el acceso de nuevos usuarios en tu plataforma usando un número real sin exponer datos personales. Ofrece verificación SMS limpia, segura y completamente escalable desde el primer acceso.',
     },
     {
       iconBg: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="6" y="15" width="4" height="9" rx="1" fill="#f59e0b"/><line x1="8" y1="11" x2="8" y2="15" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><line x1="8" y1="24" x2="8" y2="27" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><rect x="14" y="9" width="4" height="11" rx="1" fill="#10b981"/><line x1="16" y1="5" x2="16" y2="9" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="20" x2="16" y2="23" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/><rect x="22" y="12" width="4" height="8" rx="1" fill="#f59e0b"/><line x1="24" y1="9" x2="24" y2="12" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><line x1="24" y1="20" x2="24" y2="24" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/><path d="M5 25L12 19L18 22L27 13" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 1.5" opacity="0.6"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="6" y="15" width="4" height="9" rx="1" fill="#f59e0b" /><line x1="8" y1="11" x2="8" y2="15" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="24" x2="8" y2="27" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><rect x="14" y="9" width="4" height="11" rx="1" fill="#10b981" /><line x1="16" y1="5" x2="16" y2="9" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" /><line x1="16" y1="20" x2="16" y2="23" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" /><rect x="22" y="12" width="4" height="8" rx="1" fill="#f59e0b" /><line x1="24" y1="9" x2="24" y2="12" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><line x1="24" y1="20" x2="24" y2="24" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><path d="M5 25L12 19L18 22L27 13" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 1.5" opacity="0.6" /></svg>,
       title: t('landing.use_cases.item3.title'),
       desc: 'Autentica operaciones, retiros y transferencias con 2FA de forma completamente autónoma en exchanges como Binance o Coinbase. Tu bot actúa sin depender de intervención humana en ningún paso del flujo.',
     },
     {
       iconBg: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="10" y="5" width="12" height="10" rx="3" fill="#0ea5e9" opacity="0.18"/><rect x="10" y="5" width="12" height="10" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none"/><circle cx="13.5" cy="10" r="1.5" fill="#0ea5e9"/><circle cx="18.5" cy="10" r="1.5" fill="#0ea5e9"/><line x1="16" y1="5" x2="16" y2="3" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><circle cx="16" cy="2" r="1.2" fill="#0ea5e9"/><rect x="8" y="16" width="16" height="11" rx="3" fill="#0ea5e9" opacity="0.1"/><rect x="8" y="16" width="16" height="11" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none"/><path d="M8 19H4C3 19 3 22 4 22H8" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><path d="M24 19H28C29 19 29 22 28 22H24" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"/><line x1="16" y1="15" x2="16" y2="16" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="10" y="5" width="12" height="10" rx="3" fill="#0ea5e9" opacity="0.18" /><rect x="10" y="5" width="12" height="10" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none" /><circle cx="13.5" cy="10" r="1.5" fill="#0ea5e9" /><circle cx="18.5" cy="10" r="1.5" fill="#0ea5e9" /><line x1="16" y1="5" x2="16" y2="3" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><circle cx="16" cy="2" r="1.2" fill="#0ea5e9" /><rect x="8" y="16" width="16" height="11" rx="3" fill="#0ea5e9" opacity="0.1" /><rect x="8" y="16" width="16" height="11" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none" /><path d="M8 19H4C3 19 3 22 4 22H8" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><path d="M24 19H28C29 19 29 22 28 22H24" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><line x1="16" y1="15" x2="16" y2="16" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" /></svg>,
       title: t('landing.use_cases.item4.title'),
       desc: 'Integra Telsim en tus flujos de Make, n8n, UiPath o Power Automate y resuelve el bloqueo por SMS en ERP, nóminas y portales corporativos. La autenticación deja de ser el cuello de botella de tu automatización.',
     },
     {
       iconBg: 'linear-gradient(135deg,#fdf4ff,#fae8ff)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M3 11L7 5H25L29 11H3Z" fill="#a855f7" opacity="0.15"/><path d="M3 11L7 5H25L29 11" stroke="#a855f7" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 11V26C3 27.1 3.9 28 5 28H27C28.1 28 29 27.1 29 26V11" stroke="#a855f7" strokeWidth="1.7" fill="none"/><rect x="12" y="18" width="8" height="10" rx="1.5" fill="#a855f7" opacity="0.18"/><rect x="12" y="18" width="8" height="10" rx="1.5" stroke="#a855f7" strokeWidth="1.4" fill="none"/><rect x="6" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3"/><rect x="22" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3"/><circle cx="25" cy="8" r="4" fill="#a855f7"/><path d="M23 8L24.5 9.5L27 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M3 11L7 5H25L29 11H3Z" fill="#a855f7" opacity="0.15" /><path d="M3 11L7 5H25L29 11" stroke="#a855f7" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" /><path d="M3 11V26C3 27.1 3.9 28 5 28H27C28.1 28 29 27.1 29 26V11" stroke="#a855f7" strokeWidth="1.7" fill="none" /><rect x="12" y="18" width="8" height="10" rx="1.5" fill="#a855f7" opacity="0.18" /><rect x="12" y="18" width="8" height="10" rx="1.5" stroke="#a855f7" strokeWidth="1.4" fill="none" /><rect x="6" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3" /><rect x="22" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3" /><circle cx="25" cy="8" r="4" fill="#a855f7" /><path d="M23 8L24.5 9.5L27 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>,
       title: t('landing.use_cases.item5.title'),
       desc: 'Opera decenas de cuentas de vendedor en Mercado Libre, Amazon o Shopify sin vincularlas entre sí. Cada cuenta cuenta con su número independiente y verificado, minimizando el riesgo de suspensiones masivas.',
     },
     {
       iconBg: 'linear-gradient(135deg,#fff1f2,#ffe4e6)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="9" y="4" width="14" height="22" rx="3" fill="#f43f5e" opacity="0.1"/><rect x="9" y="4" width="14" height="22" rx="3" stroke="#f43f5e" strokeWidth="1.8" fill="none"/><path d="M16 18C16 18 12 15.5 12 13C12 11.3 13.3 10 15 10C15.7 10 16.3 10.3 16.7 10.8C17.1 10.3 17.7 10 18.5 10C20.2 10 21.5 11.3 21.5 13C21.5 15.5 16 18 16 18Z" fill="#f43f5e" opacity="0.7"/><circle cx="16" cy="23" r="1.2" fill="#f43f5e"/><path d="M25 11C26.5 12.5 26.5 15.5 25 17" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" fill="none"/><path d="M27.5 9C30 11.5 30 18.5 27.5 21" stroke="#fda4af" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity="0.5"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="9" y="4" width="14" height="22" rx="3" fill="#f43f5e" opacity="0.1" /><rect x="9" y="4" width="14" height="22" rx="3" stroke="#f43f5e" strokeWidth="1.8" fill="none" /><path d="M16 18C16 18 12 15.5 12 13C12 11.3 13.3 10 15 10C15.7 10 16.3 10.3 16.7 10.8C17.1 10.3 17.7 10 18.5 10C20.2 10 21.5 11.3 21.5 13C21.5 15.5 16 18 16 18Z" fill="#f43f5e" opacity="0.7" /><circle cx="16" cy="23" r="1.2" fill="#f43f5e" /><path d="M25 11C26.5 12.5 26.5 15.5 25 17" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" fill="none" /><path d="M27.5 9C30 11.5 30 18.5 27.5 21" stroke="#fda4af" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity="0.5" /></svg>,
       title: t('landing.use_cases.item6.title'),
       desc: 'Crea y opera cuentas en Instagram, TikTok, X o Facebook de forma completamente autónoma. Tu bot publica, interactúa y crece verificado con un número SIM real desde el primer día de operación.',
     },
     {
       iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="24" rx="3" fill="#059669" opacity="0.07"/><rect x="5" y="5" width="22" height="24" rx="3" stroke="#059669" strokeWidth="1.7" fill="none"/><circle cx="10" cy="12" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="12" x2="23" y2="12" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="10" cy="17" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="17" x2="23" y2="17" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="10" cy="22" r="1.5" fill="#059669" opacity="0.5"/><line x1="13.5" y1="22" x2="23" y2="22" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/><circle cx="24" cy="7" r="5" fill="#059669"/><path d="M21.5 7L23.2 8.8L26.5 5.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="24" rx="3" fill="#059669" opacity="0.07" /><rect x="5" y="5" width="22" height="24" rx="3" stroke="#059669" strokeWidth="1.7" fill="none" /><circle cx="10" cy="12" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="12" x2="23" y2="12" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="10" cy="17" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="17" x2="23" y2="17" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="10" cy="22" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="22" x2="23" y2="22" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="24" cy="7" r="5" fill="#059669" /><path d="M21.5 7L23.2 8.8L26.5 5.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>,
       title: t('landing.use_cases.item7.title'),
       desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales sin intervención manual. Ideal para agencias que necesitan escalar cuentas verificadas de forma rápida y eficiente.',
     },
     {
       iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="3" y="6" width="26" height="20" rx="3" fill="#1d4ed8" opacity="0.07"/><rect x="3" y="6" width="26" height="20" rx="3" stroke="#1d4ed8" strokeWidth="1.7" fill="none"/><rect x="3" y="6" width="26" height="5.5" rx="3" fill="#1d4ed8" opacity="0.1"/><circle cx="7.5" cy="8.8" r="1.2" fill="#f43f5e" opacity="0.8"/><circle cx="11.5" cy="8.8" r="1.2" fill="#f59e0b" opacity="0.8"/><circle cx="15.5" cy="8.8" r="1.2" fill="#10b981" opacity="0.8"/><path d="M9 17L7 19L9 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M23 17L25 19L23 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/><line x1="18" y1="15" x2="14" y2="23" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/></svg>,
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="3" y="6" width="26" height="20" rx="3" fill="#1d4ed8" opacity="0.07" /><rect x="3" y="6" width="26" height="20" rx="3" stroke="#1d4ed8" strokeWidth="1.7" fill="none" /><rect x="3" y="6" width="26" height="5.5" rx="3" fill="#1d4ed8" opacity="0.1" /><circle cx="7.5" cy="8.8" r="1.2" fill="#f43f5e" opacity="0.8" /><circle cx="11.5" cy="8.8" r="1.2" fill="#f59e0b" opacity="0.8" /><circle cx="15.5" cy="8.8" r="1.2" fill="#10b981" opacity="0.8" /><path d="M9 17L7 19L9 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" /><path d="M23 17L25 19L23 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" /><line x1="18" y1="15" x2="14" y2="23" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" /></svg>,
       title: t('landing.use_cases.item8.title'),
       desc: 'Prueba y valida flujos de autenticación SMS en entornos de desarrollo, staging y producción sin usar números personales ni pagar por servicios de testing caros. Números reales para cada entorno de prueba.',
     },
@@ -472,29 +473,29 @@ const Landing: React.FC = () => {
             <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
-            <button 
+            <button
               onClick={() => {
                 const el = document.getElementById('beneficios');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }} 
+              }}
               className="hover:text-primary transition-colors"
             >
               {t('landing.nav.benefits')}
             </button>
-            <button 
+            <button
               onClick={() => {
                 const el = document.getElementById('como-funciona');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }} 
+              }}
               className="hover:text-primary transition-colors"
             >
               {t('landing.nav.how_it_works')}
             </button>
-            <button 
+            <button
               onClick={() => {
                 const el = document.getElementById('precios');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }} 
+              }}
               className="hover:text-primary transition-colors"
             >
               Planes
@@ -503,7 +504,7 @@ const Landing: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Language Switcher */}
-            <button 
+            <button
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
               className="flex items-center gap-1 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors text-[11px] font-black text-slate-500 border border-slate-100"
               title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
@@ -533,7 +534,7 @@ const Landing: React.FC = () => {
             </div>
 
             <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-              {t('landing.hero.title')}<br/><span className="text-primary">{t('landing.hero.subtitle')}</span>
+              {t('landing.hero.title')}<br /><span className="text-primary">{t('landing.hero.subtitle')}</span>
             </h1>
 
             <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch]">
@@ -542,11 +543,11 @@ const Landing: React.FC = () => {
 
             {/* Botones Mobile */}
             <div className="flex flex-col sm:flex-row gap-3 md:hidden w-full">
-              <button 
+              <button
                 onClick={() => {
                   const el = document.getElementById('precios');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }} 
+                }}
                 className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
               >
                 {t('common.try_free')}
@@ -610,11 +611,11 @@ const Landing: React.FC = () => {
 
             {/* Botones Desktop */}
             <div className="hidden md:flex gap-2.5 mt-5">
-              <button 
+              <button
                 onClick={() => {
                   const el = document.getElementById('precios');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }} 
+                }}
                 className="bg-primary hover:bg-primary-dark text-white font-bold py-3.5 px-5 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98] whitespace-nowrap"
               >
                 {t('common.try_free')}
@@ -666,7 +667,7 @@ const Landing: React.FC = () => {
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 w-fit pulse-glow">
                 <span className="text-[11px] font-black tracking-widest flex items-center gap-1.5">
                   <svg className="w-3 h-3 fill-[#54a3f5]" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.499 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.798-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.481-.428-.008-1.252-.241-1.865-.44-.751-.244-1.348-.372-1.296-.785.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386.402-1.627.674-1.627.06 0 .195.012.284.048.074.03.175.087.218.158.046.076.076.171.089.273z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.499 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.798-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.481-.428-.008-1.252-.241-1.865-.44-.751-.244-1.348-.372-1.296-.785.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386.402-1.627.674-1.627.06 0 .195.012.284.048.074.03.175.087.218.158.046.076.076.171.089.273z" />
                   </svg>
                   <span className="text-[#54a3f5]">Telegram</span>
                   <span className="text-white">Bot</span>
@@ -803,7 +804,7 @@ const Landing: React.FC = () => {
       {/* CÓMO FUNCIONA */}
       <section id="como-funciona" className="tech-bg py-16 md:py-28 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -812,11 +813,11 @@ const Landing: React.FC = () => {
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.process.tag')}</span>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.process.title')}</h2>
           </motion.div>
-          
+
           <div className="relative">
             {/* Desktop Connector Line */}
             <div className="hidden md:block absolute top-[28px] left-[15%] right-[15%] h-0.5 bg-slate-100 z-0">
-              <motion.div 
+              <motion.div
                 className="h-full bg-primary origin-left"
                 initial={{ scaleX: 0 }}
                 whileInView={{ scaleX: 1 }}
@@ -831,7 +832,7 @@ const Landing: React.FC = () => {
                 { icon: 'settings_suggest', step: '2', title: t('landing.process.step2.title'), desc: t('landing.process.step2.desc') },
                 { icon: 'smart_toy', step: '3', title: t('landing.process.step3.title'), desc: t('landing.process.step3.desc') }
               ].map((item, i) => (
-                <motion.div 
+                <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -842,7 +843,7 @@ const Landing: React.FC = () => {
                   {/* Mobile Connector Line */}
                   {i < 2 && (
                     <div className="md:hidden absolute top-[60px] bottom-[-48px] left-1/2 w-0.5 bg-slate-100 -translate-x-1/2 z-0">
-                      <motion.div 
+                      <motion.div
                         className="w-full bg-primary origin-top"
                         initial={{ scaleY: 0 }}
                         whileInView={{ scaleY: 1 }}
@@ -852,14 +853,14 @@ const Landing: React.FC = () => {
                     </div>
                   )}
 
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-button mb-4 relative z-10"
                   >
                     <span className="material-symbols-rounded text-white text-[26px]">{item.icon}</span>
                   </motion.div>
-                  
-                  <motion.div 
+
+                  <motion.div
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
                     viewport={{ once: true }}
@@ -868,7 +869,7 @@ const Landing: React.FC = () => {
                   >
                     {item.step}
                   </motion.div>
-                  
+
                   <h3 className="font-bold text-slate-900 text-base mb-2">{item.title}</h3>
                   <p className="text-xs text-slate-500 leading-relaxed font-medium">{item.desc}</p>
                 </motion.div>
@@ -1122,11 +1123,11 @@ const Landing: React.FC = () => {
           <span className="inline-block text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-1">{t('landing.compatibility.tag')}</span>
           <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('landing.compatibility.title')}</h3>
         </div>
-        
+
         <div className="flex flex-col gap-8">
           {/* Single Row Carousel */}
           <div className="flex overflow-hidden relative">
-            <motion.div 
+            <motion.div
               className="flex gap-20 items-center whitespace-nowrap"
               animate={{ x: [0, -2500] }}
               transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
@@ -1153,8 +1154,8 @@ const Landing: React.FC = () => {
                 { name: 'Netflix', slug: 'netflix' }
               ].map((brand, i) => (
                 <div key={i} className="flex flex-col items-center gap-3 group">
-                  <img 
-                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                  <img
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"
@@ -1187,8 +1188,8 @@ const Landing: React.FC = () => {
                 { name: 'Netflix', slug: 'netflix' }
               ].map((brand, i) => (
                 <div key={`dup-${i}`} className="flex flex-col items-center gap-3 group">
-                  <img 
-                    src={`https://cdn.simpleicons.org/${brand.slug}/white`} 
+                  <img
+                    src={`https://cdn.simpleicons.org/${brand.slug}/white`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"
@@ -1213,15 +1214,15 @@ const Landing: React.FC = () => {
             {t('landing.cta.title')}
           </h2>
           <p className="text-slate-500 text-base font-medium">{t('landing.hero.trial_footer')}</p>
-          <button 
-            onClick={() => navigate('/onboarding/summary', { 
-              state: { 
-                planName: 'Starter', 
-                price: 19.90, 
-                monthlyLimit: 150, 
-                stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E' 
-              } 
-            })} 
+          <button
+            onClick={() => navigate('/onboarding/summary', {
+              state: {
+                planName: 'Starter',
+                price: 19.90,
+                monthlyLimit: 150,
+                stripePriceId: STRIPE_PRICES.STARTER.MONTHLY
+              }
+            })}
             className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]"
           >
             {t('common.try_free')}
@@ -1244,11 +1245,11 @@ const Landing: React.FC = () => {
           </div>
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-400">
             <a href="#" className="hover:text-primary transition-colors">{t('landing.nav.benefits')}</a>
-            <button 
+            <button
               onClick={() => {
                 const el = document.getElementById('precios');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }} 
+              }}
               className="hover:text-primary transition-colors"
             >
               Planes

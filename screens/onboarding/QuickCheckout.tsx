@@ -2,40 +2,63 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { STRIPE_PRICES } from '../../constants/stripePrices';
 
 type Step = 'email' | 'password' | 'register' | 'confirm';
 
-const planMap: Record<string, { planName: string; price: number; limit: number; stripePriceId: string; features: string[] }> = {
+type PlanConfig = {
+  planName: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  limit: number;
+  stripePriceIdMonthly: string;
+  stripePriceIdAnnual: string;
+  features: string[];
+};
+
+const planMap: Record<string, PlanConfig> = {
   starter: {
-    planName: 'Starter', price: 19.90, limit: 150,
-    stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E',
+    planName: 'Starter',
+    priceMonthly: 19.90,
+    priceAnnual: 199,
+    limit: 150,
+    stripePriceIdMonthly: STRIPE_PRICES.STARTER.MONTHLY,
+    stripePriceIdAnnual: STRIPE_PRICES.STARTER.ANNUAL,
     features: [
       'Número SIM Real (no VoIP baratos)',
       'Notificaciones en tiempo real',
       'Soporte técnico vía Ticket',
       '150 créditos SMS / mes',
-    ]
+    ],
   },
   pro: {
-    planName: 'Pro', price: 39.90, limit: 400,
-    stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM',
+    planName: 'Pro',
+    priceMonthly: 39.90,
+    priceAnnual: 399,
+    limit: 400,
+    stripePriceIdMonthly: STRIPE_PRICES.PRO.MONTHLY,
+    stripePriceIdAnnual: STRIPE_PRICES.PRO.ANNUAL,
     features: [
       'Acceso a API, Webhooks y TelegramBot',
       'SMS 100% automatizados',
       'Soporte vía Ticket y Chat en vivo',
       '400 créditos SMS / mes',
-    ]
+    ],
   },
   power: {
-    planName: 'Power', price: 99.00, limit: 1400,
-    stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe',
+    planName: 'Power',
+    priceMonthly: 99.00,
+    priceAnnual: 990,
+    limit: 1400,
+    stripePriceIdMonthly: STRIPE_PRICES.POWER.MONTHLY,
+    stripePriceIdAnnual: STRIPE_PRICES.POWER.ANNUAL,
     features: [
       'Seguridad y Control Empresarial',
       'Integraciones Personalizadas',
       'Soporte Prioritario 24/7',
       '1400 créditos SMS / mes',
-    ]
-  }
+    ],
+  },
 };
 
 const QuickCheckout: React.FC = () => {
@@ -65,13 +88,23 @@ const QuickCheckout: React.FC = () => {
     if (savedEmail) { setEmail(savedEmail); sessionStorage.removeItem('checkout_email'); }
   }, []);
 
-  const savedPlan = JSON.parse(localStorage.getItem('selected_plan') || '{}');
-  const planId = savedPlan?.planId || 'pro';
-  const isAnnual = savedPlan?.billing === 'annual';
+  const storedPlanId = localStorage.getItem('selected_plan') || 'pro';
+  const isAnnual = localStorage.getItem('selected_plan_annual') === 'true';
+  const baseConfig = planMap[storedPlanId] || planMap.pro;
+
+  const storedPrice = parseFloat(localStorage.getItem('selected_plan_price') || '0');
+  const storedStripePriceId = localStorage.getItem('selected_plan_price_id') || '';
+
+  const resolvedPrice = storedPrice || (isAnnual ? baseConfig.priceAnnual : baseConfig.priceMonthly);
+  const resolvedStripePriceId =
+    storedStripePriceId || (isAnnual ? baseConfig.stripePriceIdAnnual : baseConfig.stripePriceIdMonthly);
+
   const plan = {
-    ...(planMap[planId] || planMap.pro),
-    price: savedPlan?.price ?? planMap[planId]?.price ?? planMap.pro.price,
-    stripePriceId: savedPlan?.stripePriceId ?? planMap[planId]?.stripePriceId,
+    planName: baseConfig.planName,
+    price: resolvedPrice,
+    limit: baseConfig.limit,
+    stripePriceId: resolvedStripePriceId,
+    features: baseConfig.features,
   };
 
   const billingDate = useMemo(() => {
@@ -156,10 +189,10 @@ const QuickCheckout: React.FC = () => {
   // ─── Google Icon SVG ───
   const GoogleIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
   );
 
@@ -306,168 +339,168 @@ const QuickCheckout: React.FC = () => {
           </p>
         </div>
       ) : (
-      <>
-      {!mobile && (
-        <div className="mb-2">
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
-            Crea tu cuenta<br />y empieza ahora
-          </h2>
-          <p className="text-[12px] text-slate-400 font-medium mt-1.5">
-            Ingresa con tu correo o continúa con Google
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold flex items-center gap-2">
-          <span className="material-symbols-rounded text-[16px]">error</span>
-          {error}
-        </div>
-      )}
-
-      {/* STEP: EMAIL */}
-      {step === 'email' && (
-        <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
-          <div className="relative">
-            <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">mail</span>
-            <input
-              type="email" required value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-              className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans"
-            />
-          </div>
-          <button type="submit" disabled={loading}
-            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
-            {loading
-              ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <><span>Continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
-            }
-          </button>
-          <div className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-slate-100" />
-            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">o</span>
-            <div className="flex-1 h-px bg-slate-100" />
-          </div>
-          <button type="button" onClick={handleGoogle} disabled={loading}
-            className="w-full h-12 rounded-[14px] border-[1.5px] border-slate-200 bg-white flex items-center justify-center gap-2.5 hover:border-blue-400 transition-colors disabled:opacity-50">
-            <GoogleIcon />
-            <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Continuar con Google</span>
-          </button>
-        </form>
-      )}
-
-      {/* STEP: PASSWORD */}
-      {step === 'password' && (
-        <form onSubmit={handleLogin} className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-            <span className="material-symbols-rounded text-blue-500 text-[16px]">person</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Cuenta encontrada</p>
-              <p className="text-[11px] font-semibold text-slate-600 truncate">{email}</p>
-            </div>
-            <button type="button" onClick={() => { setStep('email'); setError(null); }}
-              className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 shrink-0">
-              Cambiar
-            </button>
-          </div>
-          <div className="relative">
-            <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
-            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoFocus
-              placeholder="Tu contraseña"
-              className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
-          </div>
-          <button type="submit" disabled={loading}
-            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
-            {loading
-              ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <><span>Ingresar y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
-            }
-          </button>
-        </form>
-      )}
-
-      {/* STEP: CONFIRM EMAIL */}
-      {step === 'confirm' && (
-        <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <span className="material-symbols-rounded text-emerald-500 text-[48px]">mark_email_read</span>
-          <div>
-            <p className="text-sm font-black text-slate-900 mb-1">¡Revisa tu correo!</p>
-            <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
-              Enviamos un enlace a <strong className="text-slate-700">{email}</strong>.<br/>
-              Confírmalo para continuar con tu compra.
-            </p>
-          </div>
-          <button type="button" onClick={() => { setStep('email'); setError(null); }}
-            className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors">
-            ← Usar otro correo
-          </button>
-        </div>
-      )}
-
-      {/* STEP: REGISTER */}
-      {step === 'register' && (
-        <form onSubmit={handleRegister} className="flex flex-col gap-3">
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-            <span className="material-symbols-rounded text-emerald-500 text-[16px] mt-0.5">info</span>
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Cuenta nueva</p>
-              <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
-                Crearemos tu cuenta con <strong className="text-slate-700">{email}</strong> para continuar.
+        <>
+          {!mobile && (
+            <div className="mb-2">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                Crea tu cuenta<br />y empieza ahora
+              </h2>
+              <p className="text-[12px] text-slate-400 font-medium mt-1.5">
+                Ingresa con tu correo o continúa con Google
               </p>
             </div>
-          </div>
-          <div className="relative">
-            <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">person</span>
-            <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
-              placeholder="Tu nombre completo"
-              className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
-          </div>
-          <div className="relative">
-            <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
-            <input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Elige una contraseña (mín. 6 caracteres)"
-              className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
-          </div>
-          <button type="submit" disabled={loading}
-            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
-            {loading
-              ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <><span>Crear cuenta y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
-            }
-          </button>
-          <button type="button" onClick={() => { setStep('email'); setError(null); }}
-            className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors text-center">
-            ← Usar otro correo
-          </button>
-        </form>
-      )}
+          )}
 
-      {/* Trust badges (solo desktop) */}
-      {!mobile && (
-        <div className="flex items-center gap-4 flex-wrap pt-1">
-          {[
-            { icon: 'lock', label: 'Pago seguro Stripe' },
-            { icon: 'cancel', label: 'Cancela cuando quieras' },
-            { icon: 'shield', label: 'SSL 256-bit' },
-          ].map(b => (
-            <div key={b.label} className="flex items-center gap-1.5">
-              <span className="material-symbols-rounded text-slate-300 text-[13px]">{b.icon}</span>
-              <span className="text-[10px] font-semibold text-slate-400">{b.label}</span>
+          {error && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold flex items-center gap-2">
+              <span className="material-symbols-rounded text-[16px]">error</span>
+              {error}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Legal */}
-      <p className="text-center text-[10px] text-slate-400 leading-relaxed">
-        Al continuar, aceptas los{' '}
-        <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Términos</button>
-        {' '}y la{' '}
-        <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
-        {' '}de Telsim.
-      </p>
-      </>
+          {/* STEP: EMAIL */}
+          {step === 'email' && (
+            <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
+              <div className="relative">
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">mail</span>
+                <input
+                  type="email" required value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans"
+                />
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                {loading
+                  ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><span>Continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
+                }
+              </button>
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex-1 h-px bg-slate-100" />
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">o</span>
+                <div className="flex-1 h-px bg-slate-100" />
+              </div>
+              <button type="button" onClick={handleGoogle} disabled={loading}
+                className="w-full h-12 rounded-[14px] border-[1.5px] border-slate-200 bg-white flex items-center justify-center gap-2.5 hover:border-blue-400 transition-colors disabled:opacity-50">
+                <GoogleIcon />
+                <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Continuar con Google</span>
+              </button>
+            </form>
+          )}
+
+          {/* STEP: PASSWORD */}
+          {step === 'password' && (
+            <form onSubmit={handleLogin} className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                <span className="material-symbols-rounded text-blue-500 text-[16px]">person</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Cuenta encontrada</p>
+                  <p className="text-[11px] font-semibold text-slate-600 truncate">{email}</p>
+                </div>
+                <button type="button" onClick={() => { setStep('email'); setError(null); }}
+                  className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 shrink-0">
+                  Cambiar
+                </button>
+              </div>
+              <div className="relative">
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoFocus
+                  placeholder="Tu contraseña"
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                {loading
+                  ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><span>Ingresar y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
+                }
+              </button>
+            </form>
+          )}
+
+          {/* STEP: CONFIRM EMAIL */}
+          {step === 'confirm' && (
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <span className="material-symbols-rounded text-emerald-500 text-[48px]">mark_email_read</span>
+              <div>
+                <p className="text-sm font-black text-slate-900 mb-1">¡Revisa tu correo!</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                  Enviamos un enlace a <strong className="text-slate-700">{email}</strong>.<br />
+                  Confírmalo para continuar con tu compra.
+                </p>
+              </div>
+              <button type="button" onClick={() => { setStep('email'); setError(null); }}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors">
+                ← Usar otro correo
+              </button>
+            </div>
+          )}
+
+          {/* STEP: REGISTER */}
+          {step === 'register' && (
+            <form onSubmit={handleRegister} className="flex flex-col gap-3">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <span className="material-symbols-rounded text-emerald-500 text-[16px] mt-0.5">info</span>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Cuenta nueva</p>
+                  <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                    Crearemos tu cuenta con <strong className="text-slate-700">{email}</strong> para continuar.
+                  </p>
+                </div>
+              </div>
+              <div className="relative">
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">person</span>
+                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
+                  placeholder="Tu nombre completo"
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+              </div>
+              <div className="relative">
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
+                <input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="Elige una contraseña (mín. 6 caracteres)"
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                {loading
+                  ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><span>Crear cuenta y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
+                }
+              </button>
+              <button type="button" onClick={() => { setStep('email'); setError(null); }}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors text-center">
+                ← Usar otro correo
+              </button>
+            </form>
+          )}
+
+          {/* Trust badges (solo desktop) */}
+          {!mobile && (
+            <div className="flex items-center gap-4 flex-wrap pt-1">
+              {[
+                { icon: 'lock', label: 'Pago seguro Stripe' },
+                { icon: 'cancel', label: 'Cancela cuando quieras' },
+                { icon: 'shield', label: 'SSL 256-bit' },
+              ].map(b => (
+                <div key={b.label} className="flex items-center gap-1.5">
+                  <span className="material-symbols-rounded text-slate-300 text-[13px]">{b.icon}</span>
+                  <span className="text-[10px] font-semibold text-slate-400">{b.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Legal */}
+          <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+            Al continuar, aceptas los{' '}
+            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Términos</button>
+            {' '}y la{' '}
+            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
+            {' '}de Telsim.
+          </p>
+        </>
       )}
     </div>
   );

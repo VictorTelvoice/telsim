@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { STRIPE_PRICES } from '../../constants/stripePrices';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
 const REGIONS = [
-  { id: 'CL', name: 'Chile',   flag: '🇨🇱', available: true },
+  { id: 'CL', name: 'Chile', flag: '🇨🇱', available: true },
   { id: 'AR', name: 'Argentina', flag: '🇦🇷', available: false },
-  { id: 'PE', name: 'Perú',    flag: '🇵🇪', available: false },
-  { id: 'MX', name: 'México',  flag: '🇲🇽', available: false },
-  { id: 'CO', name: 'Colombia',flag: '🇨🇴', available: false },
-  { id: 'BR', name: 'Brasil',  flag: '🇧🇷', available: false },
+  { id: 'PE', name: 'Perú', flag: '🇵🇪', available: false },
+  { id: 'MX', name: 'México', flag: '🇲🇽', available: false },
+  { id: 'CO', name: 'Colombia', flag: '🇨🇴', available: false },
+  { id: 'BR', name: 'Brasil', flag: '🇧🇷', available: false },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -23,20 +24,19 @@ function getPlanName(): string {
 
 const PLAN_COLORS: Record<string, { border: string; badge: string; text: string }> = {
   starter: { border: '#3b82f6', badge: '#dbeafe', text: '#1d4ed8' },
-  pro:     { border: '#8b5cf6', badge: '#ede9fe', text: '#6d28d9' },
-  power:   { border: '#f59e0b', badge: '#fef3c7', text: '#b45309' },
+  pro: { border: '#8b5cf6', badge: '#ede9fe', text: '#6d28d9' },
+  power: { border: '#f59e0b', badge: '#fef3c7', text: '#b45309' },
 };
 
 // ─── Step Indicator ──────────────────────────────────────────────────────────
 const Step = ({ num, label, active, done }: { num: number; label: string; active?: boolean; done?: boolean }) => (
   <div className="flex items-center gap-2.5">
-    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 transition-all ${
-      done  ? 'bg-emerald-400 text-white' :
-      active? 'bg-white text-primary' :
-              'bg-white/10 text-white/40'
-    }`}>
+    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 transition-all ${done ? 'bg-emerald-400 text-white' :
+      active ? 'bg-white text-primary' :
+        'bg-white/10 text-white/40'
+      }`}>
       {done ? (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5 9-10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5 9-10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
       ) : num}
     </div>
     <span className={`text-[12px] font-semibold ${active ? 'text-white' : done ? 'text-white/70' : 'text-white/30'}`}>{label}</span>
@@ -62,39 +62,39 @@ const RegionSelect: React.FC = () => {
   const planLabel = planId.charAt(0).toUpperCase() + planId.slice(1);
 
   const handleContinue = () => {
-    const isAnnual     = localStorage.getItem('selected_plan_annual') === 'true';
+    const isAnnual = localStorage.getItem('selected_plan_annual') === 'true';
     const planNames: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
-    const limits:     Record<string, number> = { starter: 150, pro: 400, power: 1400 };
+    const limits: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
     const monthlyPrices: Record<string, number> = { starter: 19.90, pro: 39.90, power: 99.00 };
-    const annualPrices:  Record<string, number> = { starter: 199,   pro: 399,   power: 990 };
+    const annualPrices: Record<string, number> = { starter: 199, pro: 399, power: 990 };
     const monthlyIds: Record<string, string> = {
-      starter: 'price_1SzJRLEADSrtMyiaQaDEp44E',
-      pro:     'price_1SzJS9EADSrtMyiagxHUI2qM',
-      power:   'price_1SzJSbEADSrtMyiaPEMzNKUe',
+      starter: STRIPE_PRICES.STARTER.MONTHLY,
+      pro: STRIPE_PRICES.PRO.MONTHLY,
+      power: STRIPE_PRICES.POWER.MONTHLY,
     };
     const annualIds: Record<string, string> = {
-      starter: 'price_1T52jPEADSrtMyiayfSm4e8m',
-      pro:     'price_1T52kUEADSrtMyiavL3rwWqH',
-      power:   'price_1T52l1EADSrtMyiaGkuLXqy5',
+      starter: STRIPE_PRICES.STARTER.ANNUAL,
+      pro: STRIPE_PRICES.PRO.ANNUAL,
+      power: STRIPE_PRICES.POWER.ANNUAL,
     };
 
     // Prefer saved price (may have been set correctly by PlanSelect or Landing)
     const savedPrice = parseFloat(localStorage.getItem('selected_plan_price') || '0');
     const savedPriceId = localStorage.getItem('selected_plan_price_id') || '';
 
-    const resolvedPlanName  = planNames[planId]  || 'Starter';
-    const resolvedPrice     = savedPrice || (isAnnual ? (annualPrices[planId]  || 19.90) : (monthlyPrices[planId]  || 19.90));
-    const resolvedPriceId   = savedPriceId || (isAnnual ? (annualIds[planId] || annualIds.starter) : (monthlyIds[planId] || monthlyIds.starter));
-    const resolvedLimit     = limits[planId] || 150;
+    const resolvedPlanName = planNames[planId] || 'Starter';
+    const resolvedPrice = savedPrice || (isAnnual ? (annualPrices[planId] || 19.90) : (monthlyPrices[planId] || 19.90));
+    const resolvedPriceId = savedPriceId || (isAnnual ? (annualIds[planId] || annualIds.starter) : (monthlyIds[planId] || monthlyIds.starter));
+    const resolvedLimit = limits[planId] || 150;
 
     navigate('/onboarding/summary', {
       state: {
-        planName:     resolvedPlanName,
-        price:        resolvedPrice,
+        planName: resolvedPlanName,
+        price: resolvedPrice,
         isAnnual,
         monthlyLimit: resolvedLimit,
         stripePriceId: resolvedPriceId,
-        region:       selected,
+        region: selected,
       }
     });
   };
@@ -105,22 +105,20 @@ const RegionSelect: React.FC = () => {
       key={reg.id}
       disabled={!reg.available}
       onClick={() => reg.available && setSelected(reg.id)}
-      className={`flex flex-col items-center justify-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all relative overflow-hidden ${
-        !reg.available
-          ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 opacity-40 cursor-not-allowed'
-          : selected === reg.id
-            ? 'border-primary bg-blue-50 dark:bg-blue-900/20 shadow-lg shadow-blue-500/10'
-            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-200'
-      }`}
+      className={`flex flex-col items-center justify-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all relative overflow-hidden ${!reg.available
+        ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 opacity-40 cursor-not-allowed'
+        : selected === reg.id
+          ? 'border-primary bg-blue-50 dark:bg-blue-900/20 shadow-lg shadow-blue-500/10'
+          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-200'
+        }`}
     >
       {!reg.available && (
         <span className="absolute top-0 right-0 bg-slate-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg uppercase tracking-tighter">Pronto</span>
       )}
       <span className={`${compact ? 'text-2xl' : 'text-3xl'} ${!reg.available ? 'grayscale' : ''}`}>{reg.flag}</span>
-      <span className={`${compact ? 'text-[11px]' : 'text-[13px]'} font-bold ${
-        !reg.available ? 'text-slate-400' :
+      <span className={`${compact ? 'text-[11px]' : 'text-[13px]'} font-bold ${!reg.available ? 'text-slate-400' :
         selected === reg.id ? 'text-primary' : 'text-slate-800 dark:text-white'
-      }`}>{reg.name}</span>
+        }`}>{reg.name}</span>
     </button>
   );
 
@@ -165,11 +163,11 @@ const RegionSelect: React.FC = () => {
 
             {/* Step indicators */}
             <div className="mt-10 flex flex-col gap-4">
-              <Step num={1} label="Selecciona tu plan"  done />
+              <Step num={1} label="Selecciona tu plan" done />
               <div className="ml-3.5 w-px h-5 bg-white/10" />
-              <Step num={2} label="Elige tu región"     active />
+              <Step num={2} label="Elige tu región" active />
               <div className="ml-3.5 w-px h-5 bg-white/10" />
-              <Step num={3} label="Activa tu SIM"       />
+              <Step num={3} label="Activa tu SIM" />
             </div>
 
             {/* Globe illustration */}
@@ -181,10 +179,10 @@ const RegionSelect: React.FC = () => {
                 <div className="w-44 h-44 rounded-full flex items-center justify-center"
                   style={{ background: 'rgba(17,82,212,0.12)', border: '1px solid rgba(17,82,212,0.2)' }}>
                   <svg width="96" height="96" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
-                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
-                    <circle cx="12" cy="12" r="3" fill="#1152d4"/>
-                    <circle cx="12" cy="12" r="5" fill="none" stroke="#1152d4" strokeWidth="1" opacity="0.4"/>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+                    <circle cx="12" cy="12" r="3" fill="#1152d4" />
+                    <circle cx="12" cy="12" r="5" fill="none" stroke="#1152d4" strokeWidth="1" opacity="0.4" />
                   </svg>
                 </div>
                 {/* Floating flags */}
@@ -204,7 +202,7 @@ const RegionSelect: React.FC = () => {
                 "Nuestras SIMs físicas en Chile están en el mismo rack que los servidores de los operadores."
               </p>
               <div className="flex items-center gap-6 mt-5 pt-5 border-t border-white/10">
-                {[['99.9%','Uptime'], ['<2s','Latencia'], ['30+','Países']].map(([v, l]) => (
+                {[['99.9%', 'Uptime'], ['<2s', 'Latencia'], ['30+', 'Países']].map(([v, l]) => (
                   <div key={l} className="text-center">
                     <p className="text-white text-[16px] font-black">{v}</p>
                     <p className="text-white/40 text-[10px]">{l}</p>
@@ -225,7 +223,7 @@ const RegionSelect: React.FC = () => {
               className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
               </svg>
               Cambiar plan
             </button>
@@ -275,8 +273,8 @@ const RegionSelect: React.FC = () => {
                 <span />
                 <span>Continuar</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                  <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
 
@@ -299,7 +297,7 @@ const RegionSelect: React.FC = () => {
       <div className="flex justify-between items-center mb-12">
         <button onClick={() => navigate('/onboarding/plan')} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
         <div className="flex gap-2">
@@ -320,9 +318,9 @@ const RegionSelect: React.FC = () => {
             <span className="text-xl">🇦🇷</span>
           </div>
           <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#1152d4" strokeWidth="1.5" opacity="0.3"/>
-            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#1152d4" strokeWidth="1.5" opacity="0.3"/>
-            <circle cx="12" cy="12" r="3" fill="#1152d4"/>
+            <circle cx="12" cy="12" r="10" stroke="#1152d4" strokeWidth="1.5" opacity="0.3" />
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#1152d4" strokeWidth="1.5" opacity="0.3" />
+            <circle cx="12" cy="12" r="3" fill="#1152d4" />
           </svg>
           <div className="absolute top-1/3 left-1/3 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
         </div>
@@ -350,8 +348,8 @@ const RegionSelect: React.FC = () => {
           <span className="text-[17px] tracking-wide uppercase font-bold">{t('onboarding.next')}</span>
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
         </button>

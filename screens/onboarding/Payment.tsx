@@ -32,16 +32,16 @@ const Payment: React.FC = () => {
 
   // ─── Fallback: read from localStorage if location.state is lost (e.g. after Stripe back nav)
   const _state = location.state || {};
-  const _lsId      = localStorage.getItem('selected_plan');
-  const _lsAnnual  = localStorage.getItem('selected_plan_annual') === 'true';
-  const _lsPrice   = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
+  const _lsId = localStorage.getItem('selected_plan');
+  const _lsAnnual = localStorage.getItem('selected_plan_annual') === 'true';
+  const _lsPrice = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
   const _lsPriceId = localStorage.getItem('selected_plan_price_id') || '';
   const _nameMap: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
 
-  const planName     = _state.planName     || (_lsId ? _nameMap[_lsId] : null) || 'Starter';
-  const isAnnual     = _state.isAnnual     ?? _lsAnnual;
-  const price        = _state.price        || _lsPrice  || 19.90;
-  const monthlyLimit = _state.monthlyLimit || ({ Starter: 150, Pro: 400, Power: 1400 }[planName] ?? 150);
+  const planName = _state.planName || (_lsId ? _nameMap[_lsId] : null) || 'Starter';
+  const isAnnual = _state.isAnnual ?? _lsAnnual;
+  const price = _state.price || _lsPrice || 19.90;
+  const monthlyLimit = _state.monthlyLimit || (({ Starter: 150, Pro: 400, Power: 1400 } as Record<string, number>)[planName] ?? 150);
   const stripePriceId = _state.stripePriceId || _lsPriceId || '';
 
   const handleCheckout = async () => {
@@ -108,7 +108,7 @@ const Payment: React.FC = () => {
             className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
             </svg>
             Volver
           </button>
@@ -240,7 +240,7 @@ const Payment: React.FC = () => {
             onClick={() => !isProcessing && navigate(-1)}
             className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors ${isProcessing ? 'opacity-30' : ''}`}
           >
-            <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
+            <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{ fontSize: '24px' }}>arrow_back</span>
           </button>
           <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10 uppercase tracking-tighter">{t('onboarding.secure_payment')}</h2>
         </div>

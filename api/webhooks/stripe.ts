@@ -70,9 +70,10 @@ export default async function handler(req: any, res: any) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = session.metadata || {};
-    const isAnnualBilling = isAnnual === 'true';
 
-    console.log(`[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual: ${isAnnual}, isAnnualBilling: ${isAnnualBilling}`);
+    console.log(
+      `[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual(meta): ${isAnnual}`
+    );
 
     if (!userId || !slotId) {
       console.log(`[WEBHOOK SKIP] Metadata incomplete - userId: ${userId}, slotId: ${slotId}`);
@@ -80,10 +81,32 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
-      let amount = (session.amount_total || 0) / 100;
-      if (amount === 0) {
-        const lines = await stripe.checkout.sessions.listLineItems(session.id);
-        amount = (lines.data[0]?.price?.unit_amount || 0) / 100;
+      // Siempre tomamos el precio contratado desde Stripe (unit_amount del Price),
+      // no el monto cobrado hoy. Esto asegura que `amount` refleje el valor total
+      // del plan (p.ej. $199, $399, $990) incluso en trials con cobro inicial $0.
+      const lines = await stripe.checkout.sessions.listLineItems(session.id);
+      const firstLine = lines.data[0];
+      const price = firstLine?.price as Stripe.Price | undefined;
+
+      let amount = 0;
+      if (price?.unit_amount) {
+        amount = price.unit_amount / 100;
+      } else {
+        // Fallback defensivo si no se puede leer unit_amount
+        amount = (session.amount_total || 0) / 100;
+      }
+
+      // Determinar billing_type en base al intervalo real del precio en Stripe.
+      // Si el intervalo del Price es "year" → 'annual', si es "month" → 'monthly'.
+      // Como respaldo, usamos metadata.isAnnual si existe.
+      let billingType: 'annual' | 'monthly' = 'monthly';
+      const interval = price?.recurring?.interval;
+      if (interval === 'year') {
+        billingType = 'annual';
+      } else if (interval === 'month') {
+        billingType = 'monthly';
+      } else if (isAnnual === 'true') {
+        billingType = 'annual';
       }
 
       let trialEnd: string | null = null;
@@ -142,18 +165,11 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!exists) {
-        // Plan catalogue for correct annual pricing
-        const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-          'Starter': { monthly: 19.90, annual: 199 },
-          'Pro': { monthly: 39.90, annual: 399 },
-          'Power': { monthly: 99.00, annual: 990 }
-        };
+        const correctAmount = amount;
 
-        // Use correct amount based on billing type
-        const planPrices = PLAN_PRICES[planName] || { monthly: amount, annual: amount };
-        const correctAmount = isAnnualBilling ? planPrices.annual : planPrices.monthly;
-
-        console.log(`[WEBHOOK DEBUG] planName: ${planName}, isAnnual: ${isAnnual}, isAnnualBilling: ${isAnnualBilling}, amount: ${amount}, correctAmount: ${correctAmount}`);
+        console.log(
+          `[WEBHOOK DEBUG] planName: ${planName}, isAnnual(meta): ${isAnnual}, billingType: ${billingType}, amount(unit_amount): ${amount}, correctAmount: ${correctAmount}`
+        );
 
         const insertData = {
           user_id: userId,
@@ -166,7 +182,7 @@ export default async function handler(req: any, res: any) {
           stripe_subscription_id: stripeSubscriptionId,
           trial_end: trialEnd,
           amount: correctAmount,
-          billing_type: isAnnualBilling ? 'annual' : 'monthly',
+          billing_type: billingType,
           currency: session.currency || 'usd',
           created_at: new Date().toISOString(),
         };
@@ -300,7 +316,7 @@ export default async function handler(req: any, res: any) {
     const invoice = event.data.object as Stripe.Invoice;
 
     if (invoice.billing_reason !== 'subscription_cycle' &&
-        invoice.billing_reason !== 'subscription_update') {
+      invoice.billing_reason !== 'subscription_update') {
       return res.status(200).json({ received: true });
     }
 

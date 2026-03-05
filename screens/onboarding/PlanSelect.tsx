@@ -2,18 +2,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
+import { STRIPE_PRICES } from '../../constants/stripePrices';
+
 // Precios vinculados a Stripe — no modificar
 const OFFICIAL_PLANS = {
-  starter: { amount: 19.90, amountAnnual: 199,  limit: 150,  stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', stripePriceIdAnnual: 'price_1T52jPEADSrtMyiayfSm4e8m' },
-  pro:     { amount: 39.90, amountAnnual: 399,  limit: 400,  stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', stripePriceIdAnnual: 'price_1T52kUEADSrtMyiavL3rwWqH' },
-  power:   { amount: 99.00, amountAnnual: 990,  limit: 1400, stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', stripePriceIdAnnual: 'price_1T52l1EADSrtMyiaGkuLXqy5' },
+  starter: { amount: 19.90, amountAnnual: 199, limit: 150, stripePriceId: STRIPE_PRICES.STARTER.MONTHLY, stripePriceIdAnnual: STRIPE_PRICES.STARTER.ANNUAL },
+  pro: { amount: 39.90, amountAnnual: 399, limit: 400, stripePriceId: STRIPE_PRICES.PRO.MONTHLY, stripePriceIdAnnual: STRIPE_PRICES.PRO.ANNUAL },
+  power: { amount: 99.00, amountAnnual: 990, limit: 1400, stripePriceId: STRIPE_PRICES.POWER.MONTHLY, stripePriceIdAnnual: STRIPE_PRICES.POWER.ANNUAL },
 };
 
 // ─── Icono de check SVG inline (sin dependencias externas) ──────────────────
 const CheckIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5">
-    <circle cx="12" cy="12" r="12" fill="#10b981" opacity="0.15"/>
-    <path d="M7 12.5l3.5 3.5 6.5-7" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="12" cy="12" r="12" fill="#10b981" opacity="0.15" />
+    <path d="M7 12.5l3.5 3.5 6.5-7" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -55,9 +57,9 @@ const PlanSelect: React.FC = () => {
   // ─── Handler de selección ──────────────────────────────────────────────────
   const handleSelect = (planId: 'starter' | 'pro' | 'power') => {
     const cfg = OFFICIAL_PLANS[planId];
-    localStorage.setItem('selected_plan',          planId);
-    localStorage.setItem('selected_plan_price',    String(isAnnual ? cfg.amountAnnual : cfg.amount));
-    localStorage.setItem('selected_plan_annual',   String(isAnnual));
+    localStorage.setItem('selected_plan', planId);
+    localStorage.setItem('selected_plan_price', String(isAnnual ? cfg.amountAnnual : cfg.amount));
+    localStorage.setItem('selected_plan_annual', String(isAnnual));
     localStorage.setItem('selected_plan_price_id', isAnnual ? cfg.stripePriceIdAnnual : cfg.stripePriceId);
     navigate('/login');
   };
@@ -133,11 +135,11 @@ const PlanSelect: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Starter</span>
                   <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-slate-200 group-hover:scale-110 transition-all flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="20" rx="2" stroke="#64748b" strokeWidth="2"/><rect x="7" y="4" width="10" height="4" rx="1" fill="#64748b"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="20" rx="2" stroke="#64748b" strokeWidth="2" /><rect x="7" y="4" width="10" height="4" rx="1" fill="#64748b" /></svg>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-slate-100 group-hover:bg-slate-200 transition-colors px-3 py-1.5 rounded-full mb-5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#64748b" strokeWidth="2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#64748b" strokeWidth="2" /></svg>
                   <span className="text-[11px] font-black text-slate-600">150 Créditos SMS</span>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -163,7 +165,7 @@ const PlanSelect: React.FC = () => {
               </div>
               <div className="flex items-center justify-center gap-2 text-slate-400 group-hover:text-primary transition-colors pt-1">
                 <span className="text-[14px] font-black">Seleccionar plan</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
               </div>
             </button>
 
@@ -183,11 +185,11 @@ const PlanSelect: React.FC = () => {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] font-black text-primary uppercase tracking-widest">Pro</span>
                     <div className="w-10 h-10 rounded-xl bg-blue-100 group-hover:bg-blue-200 group-hover:scale-110 transition-all flex items-center justify-center">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="#1152d4" strokeWidth="2" strokeLinejoin="round"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="#1152d4" strokeWidth="2" strokeLinejoin="round" /></svg>
                     </div>
                   </div>
                   <div className="inline-flex items-center gap-1.5 bg-blue-100 group-hover:bg-blue-200 transition-colors px-3 py-1.5 rounded-full mb-5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#1152d4" strokeWidth="2"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#1152d4" strokeWidth="2" /></svg>
                     <span className="text-[11px] font-black text-primary">400 Créditos SMS</span>
                   </div>
                   <div className="flex items-baseline gap-1">
@@ -213,7 +215,7 @@ const PlanSelect: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-center gap-2 text-primary transition-colors pt-1">
                   <span className="text-[14px] font-black">Seleccionar plan</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="#1152d4" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="#1152d4" strokeWidth="2" strokeLinecap="round"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /></svg>
                 </div>
               </button>
             </div>
@@ -230,11 +232,11 @@ const PlanSelect: React.FC = () => {
                     Power
                   </span>
                   <div className="w-10 h-10 rounded-xl group-hover:scale-110 transition-all flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="#D97706" strokeWidth="2" strokeLinejoin="round"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="#D97706" strokeWidth="2" strokeLinejoin="round" /></svg>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-5" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#D97706" strokeWidth="2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#D97706" strokeWidth="2" /></svg>
                   <span className="text-[11px] font-black" style={{ color: '#D97706' }}>1,400 Créditos SMS</span>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -262,7 +264,7 @@ const PlanSelect: React.FC = () => {
                 <span className="text-[14px] font-black group-hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   Seleccionar plan
                 </span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="#F5A623" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="#F5A623" strokeWidth="2" strokeLinecap="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" /></svg>
               </div>
             </button>
 
@@ -299,7 +301,7 @@ const PlanSelect: React.FC = () => {
           className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-slate-600 dark:text-slate-300">
-            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
         <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Planes</h2>
@@ -358,7 +360,7 @@ const PlanSelect: React.FC = () => {
             </div>
             <div className="relative flex items-center justify-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors pt-1">
               <span className="text-sm font-black">Empezar gratis</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
             </div>
           </button>
 
@@ -399,7 +401,7 @@ const PlanSelect: React.FC = () => {
             </div>
             <div className="relative flex items-center justify-center gap-1.5 text-primary pt-1">
               <span className="text-sm font-black">Empezar gratis</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="#1152d4" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="#1152d4" strokeWidth="2" strokeLinecap="round"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /></svg>
             </div>
           </button>
 
@@ -437,7 +439,7 @@ const PlanSelect: React.FC = () => {
             </div>
             <div className="relative flex items-center justify-center gap-1.5 pt-1">
               <span className="text-sm font-black group-hover:opacity-80" style={{ background: 'linear-gradient(90deg,#F5A623,#D4A017)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Empezar gratis</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="#F5A623" strokeWidth="2" strokeLinecap="round"/><polyline points="12 5 19 12 12 19" stroke="#F5A623" strokeWidth="2" strokeLinecap="round"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" /></svg>
             </div>
           </button>
         </div>

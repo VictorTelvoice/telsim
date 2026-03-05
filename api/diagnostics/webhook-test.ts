@@ -104,7 +104,7 @@ export default async function handler(req: any, res: any) {
         slot_id: slotId,
         phone_number: slot.phone_number,
         plan_name: planName,
-        monthly_limit: { 'Starter': 150, 'Pro': 400, 'Power': 1400 }[planName] || 150,
+        monthly_limit: ({ 'Starter': 150, 'Pro': 400, 'Power': 1400 } as Record<string, number>)[planName] || 150,
         status: 'active',
         stripe_session_id: sessionId,
         amount: correctAmount,

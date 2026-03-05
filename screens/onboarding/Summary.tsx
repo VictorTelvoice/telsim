@@ -4,11 +4,13 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
+import { STRIPE_PRICES } from '../../constants/stripePrices';
+
 // ─── Plan pricing catalogue (single source of truth across onboarding) ────────
 const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number; monthlyId: string; annualId: string }> = {
-  Starter: { monthly: 19.90, annual: 199, limit: 150,  monthlyId: 'price_1SzJRLEADSrtMyiaQaDEp44E', annualId: 'price_1T52jPEADSrtMyiayfSm4e8m' },
-  Pro:     { monthly: 39.90, annual: 399, limit: 400,  monthlyId: 'price_1SzJS9EADSrtMyiagxHUI2qM', annualId: 'price_1T52kUEADSrtMyiavL3rwWqH' },
-  Power:   { monthly: 99.00, annual: 990, limit: 1400, monthlyId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', annualId: 'price_1T52l1EADSrtMyiaGkuLXqy5' },
+  Starter: { monthly: 19.90, annual: 199, limit: 150, monthlyId: STRIPE_PRICES.STARTER.MONTHLY, annualId: STRIPE_PRICES.STARTER.ANNUAL },
+  Pro: { monthly: 39.90, annual: 399, limit: 400, monthlyId: STRIPE_PRICES.PRO.MONTHLY, annualId: STRIPE_PRICES.PRO.ANNUAL },
+  Power: { monthly: 99.00, annual: 990, limit: 1400, monthlyId: STRIPE_PRICES.POWER.MONTHLY, annualId: STRIPE_PRICES.POWER.ANNUAL },
 };
 
 // ─── Logo ────────────────────────────────────────────────────────────────────
@@ -44,9 +46,9 @@ const Summary: React.FC = () => {
     if (location.state?.planName) return location.state;
 
     // Priority 2: reconstruct from localStorage so back-navigation still works
-    const savedId    = localStorage.getItem('selected_plan');
+    const savedId = localStorage.getItem('selected_plan');
     const savedAnnual = localStorage.getItem('selected_plan_annual') === 'true';
-    const savedPrice  = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
+    const savedPrice = parseFloat(localStorage.getItem('selected_plan_price') || '0') || 0;
     const savedPriceId = localStorage.getItem('selected_plan_price_id') || '';
 
     const nameMap: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
@@ -54,9 +56,9 @@ const Summary: React.FC = () => {
     if (pName && PLAN_CATALOGUE[pName]) {
       const cfg = PLAN_CATALOGUE[pName];
       return {
-        planName:     pName,
-        isAnnual:     savedAnnual,
-        price:        savedPrice || (savedAnnual ? cfg.annual : cfg.monthly),
+        planName: pName,
+        isAnnual: savedAnnual,
+        price: savedPrice || (savedAnnual ? cfg.annual : cfg.monthly),
         monthlyLimit: cfg.limit,
         stripePriceId: savedPriceId || (savedAnnual ? cfg.annualId : cfg.monthlyId),
       };
@@ -64,8 +66,8 @@ const Summary: React.FC = () => {
     return {};
   }, [location.state]);
 
-  const planName    = planData.planName    || 'Pro';
-  const isAnnual    = planData.isAnnual    || false;
+  const planName = planData.planName || 'Pro';
+  const isAnnual = planData.isAnnual || false;
   const stripePriceId = planData.stripePriceId || PLAN_CATALOGUE[planName]?.monthlyId || '';
 
   const planCfg = useMemo(() => PLAN_CATALOGUE[planName] || PLAN_CATALOGUE.Pro, [planName]);
@@ -73,12 +75,12 @@ const Summary: React.FC = () => {
   const planDetails = useMemo(() => {
     const featuresMap: Record<string, string[]> = {
       Starter: [t('sniper.feature_real_sim'), t('sniper.feature_real_time'), t('sniper.feature_ticket_support')],
-      Pro:     [t('sniper.feature_api_webhooks'), t('sniper.feature_automated'), t('sniper.feature_chat_support')],
-      Power:   [t('sniper.feature_enterprise_security'), t('sniper.feature_scalability'), t('sniper.feature_priority_support')],
+      Pro: [t('sniper.feature_api_webhooks'), t('sniper.feature_automated'), t('sniper.feature_chat_support')],
+      Power: [t('sniper.feature_enterprise_security'), t('sniper.feature_scalability'), t('sniper.feature_priority_support')],
     };
     return {
-      price:    isAnnual ? planCfg.annual  : planCfg.monthly,
-      limit:    planCfg.limit,
+      price: isAnnual ? planCfg.annual : planCfg.monthly,
+      limit: planCfg.limit,
       features: featuresMap[planName] || featuresMap.Pro,
     };
   }, [planName, isAnnual, planCfg, t]);
@@ -216,7 +218,7 @@ const Summary: React.FC = () => {
             className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
             </svg>
             Volver
           </button>
@@ -251,8 +253,8 @@ const Summary: React.FC = () => {
                   <span />
                   <span>{t('onboarding.start_free_trial')}</span>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                    <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="5" y1="12" x2="19" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    <polyline points="12 5 19 12 12 19" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
 

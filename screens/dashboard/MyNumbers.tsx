@@ -4,80 +4,87 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getPostAuthRoute } from '../../lib/routing';
+import { STRIPE_PRICES } from '../../constants/stripePrices';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
-import { 
-  Copy, 
-  Trash2, 
-  Settings, 
-  Mail, 
-  PlusCircle, 
-  ArrowLeft, 
-  AlertTriangle,
-  Pencil, 
-  Check, 
-  X, 
-  Crown,
-  Zap,
-  Leaf,
-  ChevronRight,
-  Loader2,
-  Bot,
-  TrendingUp,
-  ToggleLeft,
-  ToggleRight,
-  ShieldCheck,
-  Send
+import {
+    Copy,
+    Trash2,
+    Settings,
+    Mail,
+    PlusCircle,
+    ArrowLeft,
+    AlertTriangle,
+    Pencil,
+    Check,
+    X,
+    Crown,
+    Zap,
+    Leaf,
+    ChevronRight,
+    Loader2,
+    Bot,
+    TrendingUp,
+    ToggleLeft,
+    ToggleRight,
+    ShieldCheck,
+    Send
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
-  actual_plan_name?: string;
-  monthly_limit?: number;
-  credits_used?: number;
+    actual_plan_name?: string;
+    monthly_limit?: number;
+    credits_used?: number;
 }
 
 const OFFICIAL_PLANS_DATA = [
-  { 
-    id: 'Starter', 
-    name: 'Starter', 
-    subtitleKey: 'landing.pricing.starter.credits',
-    price: 19.90, 
-    limit: 150, 
-    stripePriceId: 'price_1SzJRLEADSrtMyiaQaDEp44E', 
-    icon: 'shield',
-    featuresKey: 'landing.pricing.features.starter',
-    accent: 'text-slate-400',
-    iconBg: 'bg-slate-100',
-    border: 'border-slate-100 dark:border-slate-800'
-  },
-  { 
-    id: 'Pro', 
-    name: 'Pro', 
-    subtitleKey: 'landing.pricing.pro.credits',
-    price: 39.90, 
-    limit: 400, 
-    stripePriceId: 'price_1SzJS9EADSrtMyiagxHUI2qM', 
-    icon: 'bolt',
-    featuresKey: 'landing.pricing.features.pro',
-    popularBadgeKey: 'landing.pricing.pro.popular',
-    accent: 'text-[#0047FF]',
-    iconBg: 'bg-blue-50 dark:bg-blue-900/20',
-    border: 'border-blue-500/40'
-  },
-  { 
-    id: 'Power', 
-    name: 'Power', 
-    subtitleKey: 'landing.pricing.power.credits',
-    price: 99.00, 
-    limit: 1400, 
-    stripePriceId: 'price_1SzJSbEADSrtMyiaPEMzNKUe', 
-    icon: 'electric_bolt',
-    featuresKey: 'landing.pricing.features.power',
-    premiumBadgeKey: 'landing.pricing.power.premium',
-    accent: 'text-[#B49248]',
-    iconBg: 'bg-amber-50 dark:bg-amber-900/20',
-    border: 'border-amber-400/50'
-  }
+    {
+        id: 'Starter',
+        name: 'Starter',
+        subtitleKey: 'landing.pricing.starter.credits',
+        price: 19.90,
+        limit: 150,
+        stripePriceId: STRIPE_PRICES.STARTER.MONTHLY,
+        annualPrice: 199,
+        annualStripePriceId: STRIPE_PRICES.STARTER.ANNUAL,
+        icon: 'shield',
+        featuresKey: 'landing.pricing.features.starter',
+        accent: 'text-slate-400',
+        iconBg: 'bg-slate-100',
+        border: 'border-slate-100 dark:border-slate-800'
+    },
+    {
+        id: 'Pro',
+        name: 'Pro',
+        subtitleKey: 'landing.pricing.pro.credits',
+        price: 39.90,
+        limit: 400,
+        stripePriceId: STRIPE_PRICES.PRO.MONTHLY,
+        annualPrice: 399,
+        annualStripePriceId: STRIPE_PRICES.PRO.ANNUAL,
+        icon: 'bolt',
+        featuresKey: 'landing.pricing.features.pro',
+        popularBadgeKey: 'landing.pricing.pro.popular',
+        accent: 'text-[#0047FF]',
+        iconBg: 'bg-blue-50 dark:bg-blue-900/20',
+        border: 'border-blue-500/40'
+    },
+    {
+        id: 'Power',
+        name: 'Power',
+        subtitleKey: 'landing.pricing.power.credits',
+        price: 99.00,
+        limit: 1400,
+        stripePriceId: STRIPE_PRICES.POWER.MONTHLY,
+        annualPrice: 990,
+        annualStripePriceId: STRIPE_PRICES.POWER.ANNUAL,
+        icon: 'electric_bolt',
+        featuresKey: 'landing.pricing.features.power',
+        premiumBadgeKey: 'landing.pricing.power.premium',
+        accent: 'text-[#B49248]',
+        iconBg: 'bg-amber-50 dark:bg-amber-900/20',
+        border: 'border-amber-400/50'
+    }
 ];
 
 const MyNumbers: React.FC = () => {
@@ -88,7 +95,7 @@ const MyNumbers: React.FC = () => {
     const { refreshUnreadCount } = useMessagesCount();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
     const [savingLabel, setSavingLabel] = useState(false);
@@ -148,26 +155,26 @@ const MyNumbers: React.FC = () => {
 
     // Lógica para detectar si volvemos desde el resumen de upgrade
     useEffect(() => {
-      if (location.state?.reopenUpgrade && slots.length > 0) {
-        const slot = slots.find(s => s.slot_id === location.state.slotId);
-        if (slot) {
-          setSlotToUpgrade(slot);
-          setShowUpgradeView(true);
-          // Limpiamos el estado para que no se reabra innecesariamente en futuros renders
-          window.history.replaceState({}, document.title);
+        if (location.state?.reopenUpgrade && slots.length > 0) {
+            const slot = slots.find(s => s.slot_id === location.state.slotId);
+            if (slot) {
+                setSlotToUpgrade(slot);
+                setShowUpgradeView(true);
+                // Limpiamos el estado para que no se reabra innecesariamente en futuros renders
+                window.history.replaceState({}, document.title);
+            }
         }
-      }
     }, [location.state, slots]);
 
     useEffect(() => {
-      if (location.state?.openAutomation && slots.length > 0) {
-        const slot = slots.find(s => s.phone_number === location.state.phoneNumber);
-        if (slot) {
-          openAutomationConfig(slot);
-          // Limpiamos el estado
-          window.history.replaceState({}, document.title);
+        if (location.state?.openAutomation && slots.length > 0) {
+            const slot = slots.find(s => s.phone_number === location.state.phoneNumber);
+            if (slot) {
+                openAutomationConfig(slot);
+                // Limpiamos el estado
+                window.history.replaceState({}, document.title);
+            }
         }
-      }
     }, [location.state, slots]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -194,7 +201,7 @@ const MyNumbers: React.FC = () => {
                 .from('slots')
                 .update({ label: tempLabelValue })
                 .eq('slot_id', slotId);
-            
+
             if (error) throw error;
             setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: tempLabelValue } : s));
             setEditingLabelId(null);
@@ -234,17 +241,17 @@ const MyNumbers: React.FC = () => {
 
             const { error: slotError } = await supabase
                 .from('slots')
-                .update({ 
-                    assigned_to: null, 
+                .update({
+                    assigned_to: null,
                     status: 'libre',
                     plan_type: null,
                     label: null,
                     forwarding_active: false
                 })
                 .eq('slot_id', slotToRelease.slot_id);
-            
+
             if (slotError) throw slotError;
-            
+
             refreshUnreadCount();
             showToast(t('mynumbers.release_success'));
             setIsReleaseModalOpen(false);
@@ -296,7 +303,7 @@ const MyNumbers: React.FC = () => {
                 .select('telegram_token, telegram_chat_id')
                 .eq('id', user.id)
                 .single();
-            
+
             if (error) throw error;
             if (!data?.telegram_token || !data?.telegram_chat_id) {
                 showToast(t('tg.test_error'), "error");
@@ -380,92 +387,91 @@ const MyNumbers: React.FC = () => {
     };
 
     if (showUpgradeView && slotToUpgrade) {
-      return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col animate-in fade-in duration-300">
-            {/* Header Integrado */}
-            <header className="flex items-center justify-between px-6 py-6 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50">
-                <button onClick={() => setShowUpgradeView(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
-                    <ArrowLeft className="size-6" />
-                </button>
-                <div className="text-center flex-1">
-                   <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">{t('mynumbers.change_plan')}</h1>
-                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puerto {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
-                </div>
-                <div className="w-10"></div>
-            </header>
+        return (
+            <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col animate-in fade-in duration-300">
+                {/* Header Integrado */}
+                <header className="flex items-center justify-between px-6 py-6 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50">
+                    <button onClick={() => setShowUpgradeView(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
+                        <ArrowLeft className="size-6" />
+                    </button>
+                    <div className="text-center flex-1">
+                        <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">{t('mynumbers.change_plan')}</h1>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puerto {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
+                    </div>
+                    <div className="w-10"></div>
+                </header>
 
-            <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
-                <div className="text-center mb-2">
-                    <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">{t('mynumbers.choose_plan')}</h2>
-                </div>
+                <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
+                    <div className="text-center mb-2">
+                        <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">{t('mynumbers.choose_plan')}</h2>
+                    </div>
 
-                <div className="flex-1 flex flex-col gap-3">
-                    {OFFICIAL_PLANS_DATA.map((plan) => {
-                        const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
-                        
-                        return (
-                            <div 
-                                key={plan.id}
-                                onClick={() => !isCurrent && confirmUpgrade(plan)}
-                                className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${
-                                  isCurrent 
-                                  ? 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none' 
-                                  : `hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`
-                                }`}
-                            >
-                                {/* Badges Integrados */}
-                                {plan.popularBadgeKey && (
-                                  <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                    {t(plan.popularBadgeKey)}
-                                  </div>
-                                )}
-                                {plan.premiumBadgeKey && (
-                                  <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                    {t(plan.premiumBadgeKey)}
-                                  </div>
-                                )}
+                    <div className="flex-1 flex flex-col gap-3">
+                        {OFFICIAL_PLANS_DATA.map((plan) => {
+                            const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
 
-                                <div className="flex justify-between items-start">
-                                    <div className="flex gap-3 items-center">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
-                                            <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
-                                        </div>
-                                        <div>
-                                            <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                                            <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{t(plan.subtitleKey)}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    {isCurrent ? (
-                                        <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                            <div className="size-1 rounded-full bg-emerald-500"></div>
-                                            <span className="text-[7px] font-black text-emerald-600 uppercase">{t('mynumbers.current_plan')}</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-baseline gap-0.5">
-                                            <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
-                                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
+                            return (
+                                <div
+                                    key={plan.id}
+                                    onClick={() => !isCurrent && confirmUpgrade(plan)}
+                                    className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${isCurrent
+                                            ? 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none'
+                                            : `hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`
+                                        }`}
+                                >
+                                    {/* Badges Integrados */}
+                                    {plan.popularBadgeKey && (
+                                        <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                            {t(plan.popularBadgeKey)}
                                         </div>
                                     )}
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2 mt-2">
-                                    {(t(plan.featuresKey) as unknown as string[]).map((feat, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
-                                                <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
-                                            </div>
-                                            <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
+                                    {plan.premiumBadgeKey && (
+                                        <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                            {t(plan.premiumBadgeKey)}
                                         </div>
-                                    ))}
+                                    )}
+
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-3 items-center">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
+                                                <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
+                                            </div>
+                                            <div>
+                                                <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
+                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{t(plan.subtitleKey)}</p>
+                                            </div>
+                                        </div>
+
+                                        {isCurrent ? (
+                                            <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                                <div className="size-1 rounded-full bg-emerald-500"></div>
+                                                <span className="text-[7px] font-black text-emerald-600 uppercase">{t('mynumbers.current_plan')}</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-baseline gap-0.5">
+                                                <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
+                                                <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2 mt-2">
+                                        {(t(plan.featuresKey) as unknown as string[]).map((feat, i) => (
+                                            <div key={i} className="flex items-center gap-2">
+                                                <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
+                                                    <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
+                                                </div>
+                                                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </main>
-        </div>
-      );
+                            );
+                        })}
+                    </div>
+                </main>
+            </div>
+        );
     }
 
     return (
@@ -491,7 +497,7 @@ const MyNumbers: React.FC = () => {
                         {slots.map((slot) => {
                             const style = getPlanStyle(slot.actual_plan_name);
                             const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);
-                            
+
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <div className={`relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500 p-7 aspect-[1.58/1] flex flex-col justify-between ${style.cardBg}`}>
@@ -597,7 +603,7 @@ const MyNumbers: React.FC = () => {
                             <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">{t('mynumbers.automation')}</h2>
                             <p className="text-[10px] font-black uppercase text-white/60 tracking-widest mt-1">Línea: {formatPhoneNumber(activeConfigSlot.phone_number)}</p>
                         </div>
-                        
+
                         <div className="p-8 space-y-8">
                             <div className="flex items-center justify-between p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-primary/20">
                                 <div className="flex flex-col">
@@ -616,7 +622,7 @@ const MyNumbers: React.FC = () => {
                             </div>
 
                             <div className="flex flex-col gap-3">
-                                <button 
+                                <button
                                     onClick={handleTestTelegram}
                                     disabled={testingTg || savingFwd}
                                     className="w-full h-12 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
@@ -624,7 +630,7 @@ const MyNumbers: React.FC = () => {
                                     {testingTg ? <Loader2 className="size-4 animate-spin" /> : <><Send className="size-4" /> {t('tg.test_connection')}</>}
                                 </button>
 
-                                <button 
+                                <button
                                     onClick={handleSaveAutomation}
                                     disabled={savingFwd || testingTg}
                                     className="w-full h-14 bg-primary text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"

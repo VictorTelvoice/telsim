@@ -36,15 +36,16 @@ export interface SMSLog {
   sender: string;
   content: string;
   received_at: string;
-  slot_id: string; 
+  slot_id: string;
   service_name?: string;
   verification_code?: string;
   is_spam?: boolean;
+  extracted_code?: string;
   is_read: boolean;
 }
 
 export interface Slot {
-  slot_id: string; 
+  slot_id: string;
   phone_number: string;
   plan_type: string;
   assigned_to: string;
