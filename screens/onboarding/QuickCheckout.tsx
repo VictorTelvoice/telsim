@@ -65,8 +65,14 @@ const QuickCheckout: React.FC = () => {
     if (savedEmail) { setEmail(savedEmail); sessionStorage.removeItem('checkout_email'); }
   }, []);
 
-  const planId = localStorage.getItem('selected_plan') || 'pro';
-  const plan = planMap[planId] || planMap.pro;
+  const savedPlan = JSON.parse(localStorage.getItem('selected_plan') || '{}');
+  const planId = savedPlan?.planId || 'pro';
+  const isAnnual = savedPlan?.billing === 'annual';
+  const plan = {
+    ...(planMap[planId] || planMap.pro),
+    price: savedPlan?.price ?? planMap[planId]?.price ?? planMap.pro.price,
+    stripePriceId: savedPlan?.stripePriceId ?? planMap[planId]?.stripePriceId,
+  };
 
   const billingDate = useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() + 7);
@@ -193,13 +199,17 @@ const QuickCheckout: React.FC = () => {
           <div className={`font-black text-white tracking-tight leading-none ${mobile ? 'text-3xl' : 'text-4xl'}`}>
             {plan.planName.toUpperCase()}
           </div>
-          <div className="text-[10px] font-600 text-white/40 mt-1.5">{plan.limit} créditos SMS / mes</div>
+          <div className="text-[10px] font-600 text-white/40 mt-1.5">
+            {plan.limit} créditos SMS / mes · {isAnnual ? 'Facturación anual' : 'Facturación mensual'}
+          </div>
         </div>
         <div className="text-right shrink-0">
           <div className={`font-black text-white tracking-tight leading-none ${mobile ? 'text-3xl' : 'text-4xl'}`}>
             ${plan.price.toFixed(2)}
           </div>
-          <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-1">/mes</div>
+          <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-1">
+            {isAnnual ? '/año' : '/mes'}
+          </div>
         </div>
       </div>
 
