@@ -120,11 +120,20 @@ export default async function handler(req: any, res: any) {
           .eq('status', 'trialing');
       }
 
-      const { data: slot } = await supabaseAdmin
+      const { data: slot, error: slotError } = await supabaseAdmin
         .from('slots')
         .select('phone_number')
         .eq('slot_id', slotId)
-        .single();
+        .maybeSingle();
+
+      if (slotError) {
+        console.error(`[WEBHOOK SLOT ERROR] Failed to fetch slot ${slotId}:`, slotError);
+        throw new Error(`Slot lookup failed: ${slotError.message}`);
+      }
+
+      if (!slot) {
+        console.warn(`[WEBHOOK SLOT MISSING] Slot ${slotId} not found in database`);
+      }
 
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
