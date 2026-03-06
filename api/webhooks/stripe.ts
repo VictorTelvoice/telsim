@@ -88,14 +88,6 @@ export default async function handler(req: any, res: any) {
       const firstLine = lines.data[0];
       const price = firstLine?.price as Stripe.Price | undefined;
 
-      let amount = 0;
-      if (price?.unit_amount) {
-        amount = price.unit_amount / 100;
-      } else {
-        // Fallback defensivo si no se puede leer unit_amount
-        amount = (session.amount_total || 0) / 100;
-      }
-
       // Determinar billing_type en base al intervalo real del precio en Stripe.
       // Si el intervalo del Price es "year" → 'annual', si es "month" → 'monthly'.
       // Como respaldo, usamos metadata.isAnnual si existe.
@@ -107,6 +99,20 @@ export default async function handler(req: any, res: any) {
         billingType = 'monthly';
       } else if (isAnnual === 'true') {
         billingType = 'annual';
+      }
+
+      const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+        'Starter': { monthly: 19.90, annual: 199 },
+        'Pro':     { monthly: 39.90, annual: 399 },
+        'Power':   { monthly: 99.00, annual: 990 },
+      };
+
+      const planPrices = PLAN_PRICES[planName] || null;
+      let amount = 0;
+      if (planPrices) {
+        amount = billingType === 'annual' ? planPrices.annual : planPrices.monthly;
+      } else {
+        amount = (price?.unit_amount || session.amount_total || 0) / 100;
       }
 
       let trialEnd: string | null = null;

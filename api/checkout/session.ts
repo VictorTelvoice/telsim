@@ -148,7 +148,8 @@ export default async function handler(req: any, res: any) {
               .insert({
                 user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
                 plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
-                status: 'active', stripe_session_id: stripeSub.id,
+                status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
+                stripe_session_id: stripeSub.id,
                 amount: correctAmount, billing_type: isAnnual ? 'annual' : 'monthly', currency: priceData.currency || 'usd',
                 created_at: new Date().toISOString()
               })
