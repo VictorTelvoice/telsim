@@ -113,6 +113,7 @@ const MyNumbers: React.FC = () => {
 
     const [showUpgradeView, setShowUpgradeView] = useState(false);
     const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
+    const [isAnnualUpgrade, setIsAnnualUpgrade] = useState(false);
 
     const fetchSlots = async () => {
         if (!user) return;
@@ -336,16 +337,19 @@ const MyNumbers: React.FC = () => {
 
     const confirmUpgrade = (plan: any) => {
         if (!slotToUpgrade) return;
+        const price = isAnnualUpgrade ? plan.annualPrice : plan.price;
+        const stripePriceId = isAnnualUpgrade ? plan.annualStripePriceId : plan.stripePriceId;
         navigate('/dashboard/upgrade-summary', {
             state: {
                 phoneNumber: slotToUpgrade.phone_number,
                 planName: plan.id,
                 currentPlanName: slotToUpgrade.actual_plan_name,
                 currentLimit: slotToUpgrade.monthly_limit,
-                price: plan.price,
+                price,
                 limit: plan.limit,
-                stripePriceId: plan.stripePriceId,
-                slot_id: slotToUpgrade.slot_id
+                stripePriceId,
+                slot_id: slotToUpgrade.slot_id,
+                isAnnual: isAnnualUpgrade,
             }
         });
         setShowUpgradeView(false);
@@ -406,9 +410,30 @@ const MyNumbers: React.FC = () => {
                         <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">{t('mynumbers.choose_plan')}</h2>
                     </div>
 
+                    {/* Toggle Anual / Mensual */}
+                    <div className="flex items-center justify-center gap-3 py-2">
+                        <span className={`text-sm font-bold transition-colors ${!isAnnualUpgrade ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Mensual</span>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isAnnualUpgrade}
+                            onClick={() => setIsAnnualUpgrade((prev) => !prev)}
+                            className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isAnnualUpgrade ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${isAnnualUpgrade ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                        <span className={`text-sm font-bold transition-colors ${isAnnualUpgrade ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Anual</span>
+                        {isAnnualUpgrade && (
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                                Ahorras 17%
+                            </span>
+                        )}
+                    </div>
+
                     <div className="flex-1 flex flex-col gap-3">
                         {OFFICIAL_PLANS_DATA.map((plan) => {
                             const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
+                            const displayPrice = isAnnualUpgrade ? plan.annualPrice : plan.price;
 
                             return (
                                 <div
@@ -449,8 +474,8 @@ const MyNumbers: React.FC = () => {
                                             </div>
                                         ) : (
                                             <div className="flex items-baseline gap-0.5">
-                                                <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${plan.price.toFixed(2)}</span>
-                                                <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">/m</span>
+                                                <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${displayPrice.toFixed(2)}</span>
+                                                <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">{isAnnualUpgrade ? '/yr' : '/m'}</span>
                                             </div>
                                         )}
                                     </div>

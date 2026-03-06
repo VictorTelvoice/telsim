@@ -18,10 +18,20 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body;
+    let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
+    }
+
+    // Si isAnnual no viene en el body (ej. upgrade), inferirlo del Price en Stripe
+    if (typeof isAnnual !== 'boolean' && priceId) {
+      try {
+        const priceObj = await stripe.prices.retrieve(priceId);
+        isAnnual = (priceObj as any).recurring?.interval === 'year';
+      } catch (e) {
+        isAnnual = false;
+      }
     }
 
     // 1. RECUPERACIÓN DE PERSISTENCIA DESDE TABLA 'profiles'

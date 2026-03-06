@@ -61,7 +61,7 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status').in('status', ['active', 'trialing']);
+      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status, billing_type').in('status', ['active', 'trialing']);
 
       if (subId) {
         query = query.eq('id', subId);
@@ -77,7 +77,7 @@ const Processing: React.FC = () => {
 
       if (data?.status === 'active' || data?.status === 'trialing') {
         // ✅ Payment confirmed — safe to clean up onboarding localStorage
-        const wasAnnual = localStorage.getItem('selected_plan_annual') === 'true';
+        const isAnnual = data.billing_type === 'annual';
         ['selected_plan', 'selected_plan_price', 'selected_plan_annual', 'selected_plan_price_id'].forEach(k => localStorage.removeItem(k));
 
         const phone = data.phone_number || '';
@@ -91,7 +91,7 @@ const Processing: React.FC = () => {
               amount: data.amount,
               currency: data.currency,
               monthlyLimit: data.monthly_limit,
-              isAnnual: wasAnnual
+              isAnnual,
             }
           });
           return;
@@ -105,7 +105,7 @@ const Processing: React.FC = () => {
             amount: data.amount,
             currency: data.currency,
             monthlyLimit: data.monthly_limit,
-            isAnnual: wasAnnual
+            isAnnual,
           }
         });
       }

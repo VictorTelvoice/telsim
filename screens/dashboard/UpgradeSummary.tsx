@@ -113,7 +113,15 @@ const UpgradeSummary: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: stripePriceId, userId: user.id, phoneNumber, planName, isUpgrade: true, slot_id, monthlyLimit: limit, forceManual
+          priceId: stripePriceId,
+          userId: user.id,
+          phoneNumber,
+          planName,
+          isUpgrade: true,
+          slot_id,
+          monthlyLimit: limit,
+          forceManual,
+          isAnnual: upgradeData.isAnnual ?? false,
         }),
       });
       const data = await response.json();
