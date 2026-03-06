@@ -11,6 +11,12 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+  'Starter': { monthly: 19.90, annual: 199 },
+  'Pro':     { monthly: 39.90, annual: 399 },
+  'Power':   { monthly: 99.00, annual: 990 },
+};
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -78,11 +84,6 @@ export default async function handler(req: any, res: any) {
               await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', activeSub.id);
 
               // Plan catalogue for correct annual pricing
-              const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-                'Starter': { monthly: 19.90, annual: 199 },
-                'Pro': { monthly: 39.90, annual: 399 },
-                'Power': { monthly: 99.00, annual: 990 }
-              };
               const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
               const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
 
@@ -97,7 +98,7 @@ export default async function handler(req: any, res: any) {
                   credits_used: activeSub.credits_used || 0,
                   status: 'active',
                   stripe_session_id: activeSub.stripe_session_id,
-                  amount: correctAmount,
+                  amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
                   billing_type: isAnnual ? 'annual' : 'monthly',
                   currency: priceData.currency || 'usd',
                   created_at: new Date().toISOString()
@@ -127,11 +128,6 @@ export default async function handler(req: any, res: any) {
             const priceData = await stripe.prices.retrieve(priceId);
 
             // Plan catalogue for correct annual pricing
-            const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-              'Starter': { monthly: 19.90, annual: 199 },
-              'Pro': { monthly: 39.90, annual: 399 },
-              'Power': { monthly: 99.00, annual: 990 }
-            };
             const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
             const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
 
@@ -150,7 +146,9 @@ export default async function handler(req: any, res: any) {
                 plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
                 status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
                 stripe_session_id: stripeSub.id,
-                amount: correctAmount, billing_type: isAnnual ? 'annual' : 'monthly', currency: priceData.currency || 'usd',
+                amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
+                billing_type: isAnnual ? 'annual' : 'monthly',
+                currency: priceData.currency || 'usd',
                 created_at: new Date().toISOString()
               })
               .select('id')
