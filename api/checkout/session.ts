@@ -30,11 +30,21 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
     }
 
-    // Si isAnnual no viene en el body (ej. upgrade), inferirlo del Price en Stripe
-    if (typeof isAnnual !== 'boolean' && priceId) {
+    // Normalizar isAnnual: puede llegar como boolean, string 'true'/'false', o undefined
+    if (typeof isAnnual === 'string') {
+      isAnnual = isAnnual === 'true';
+    } else if (typeof isAnnual !== 'boolean') {
+      // Solo inferir de Stripe si realmente no vino ningún valor
       try {
         const priceObj = await stripe.prices.retrieve(priceId);
-        isAnnual = (priceObj as any).recurring?.interval === 'year';
+        const interval = (priceObj as any).recurring?.interval;
+        // Determinar por el priceId directamente contra las constantes conocidas
+        const ANNUAL_PRICE_IDS = [
+          'price_1T52jPEADSrtMyiayfSm4e8m',
+          'price_1T52kUEADSrtMyiavL3rwWqH',
+          'price_1T52l1EADSrtMyiaGkuLXqy5',
+        ];
+        isAnnual = ANNUAL_PRICE_IDS.includes(priceId) || interval === 'year';
       } catch (e) {
         isAnnual = false;
       }
