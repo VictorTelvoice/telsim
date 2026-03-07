@@ -183,7 +183,7 @@ const Settings: React.FC = () => {
         <div>
           <SectionLabel label="Configuración" />
           <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
-            <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M9.5 16.5l-2-6.5L20 6l-4 13-3.5-3.5L9.5 16.5z"/><path d="M7.5 10l5.5 3.5"/></svg>} title="Telegram Bot" sub="Recibe SMS en Telegram" onClick={() => navigate('/dashboard/telegram-guide')} right={<Chevron/>} />
+            <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M9.5 16.5l-2-6.5L20 6l-4 13-3.5-3.5L9.5 16.5z"/><path d="M7.5 10l5.5 3.5"/></svg>} title="Telegram Bot" sub="Recibe SMS en Telegram" onClick={() => navigate('/dashboard/telegram-config')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>} title="API & Webhooks" sub="Credenciales y endpoints" onClick={() => navigate('/dashboard/webhooks')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>} title="Push Notifications" sub="In-app, Email y Telegram por evento" onClick={() => navigate('/dashboard/notification-settings')} right={<Chevron/>} />
             <Row
