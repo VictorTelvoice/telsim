@@ -15,7 +15,7 @@ import {
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
   Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
   HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2,
-  AlertCircle, AlertTriangle
+  AlertCircle, AlertTriangle, Activity
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
 
@@ -271,7 +271,17 @@ const KpiCard: React.FC<{
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'notifications' | 'help' | 'settings';
-type SettingsSection = 'profile' | 'profile-edit' | 'telegram' | 'api' | 'notifications' | 'billing' | 'language' | 'security';
+type SettingsSection = 'profile' | 'profile-edit' | 'telegram' | 'api' | 'api-logs' | 'notifications' | 'billing' | 'language' | 'security';
+
+type AutomationLogRow = {
+  id: string;
+  user_id: string;
+  slot_id: string | null;
+  status: string;
+  payload: Record<string, unknown> | null;
+  response_body?: unknown;
+  created_at: string;
+};
 
 const WebDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -328,6 +338,11 @@ const WebDashboard: React.FC = () => {
   const [webhookSaving, setWebhookSaving] = useState(false);
   const [webhookSaved, setWebhookSaved] = useState(false);
   const [webhookTesting, setWebhookTesting] = useState(false);
+
+  // ─── API Logs (automation_logs) state ───────────────────────────────────────
+  const [apiLogs, setApiLogs] = useState<AutomationLogRow[]>([]);
+  const [apiLogsLoading, setApiLogsLoading] = useState(false);
+  const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
 
   // ─── Language state ───────────────────────────────────────────────────────
   const [appLanguage, setAppLanguage] = useState<'es' | 'en'>(() =>
@@ -578,6 +593,26 @@ const WebDashboard: React.FC = () => {
       setTgBotStatus('idle');
     }
   }, [settingsSection, tgLoading, tgToken, tgChatId, verifyTgBot]);
+
+  useEffect(() => {
+    if (settingsSection !== 'api-logs' || !user) return;
+    let cancelled = false;
+    setApiLogsLoading(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('automation_logs')
+          .select('id, user_id, slot_id, status, payload, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (!cancelled && data) setApiLogs((data as AutomationLogRow[]) || []);
+      } finally {
+        if (!cancelled) setApiLogsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [settingsSection, user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -1664,6 +1699,7 @@ const WebDashboard: React.FC = () => {
                   { id: 'profile', icon: <Settings size={15} />, label: 'Mi Perfil' },
                   { id: 'telegram', icon: <Send size={15} />, label: 'Telegram Bot' },
                   { id: 'api', icon: <Link2 size={15} />, label: 'API & Webhooks' },
+                  { id: 'api-logs', icon: <Activity size={15} />, label: t('webhook_logs.api_logs') },
                   { id: 'notifications', icon: <Bell size={15} />, label: 'Notificaciones' },
                   { id: 'language', icon: <Globe size={15} />, label: 'Idioma' },
                   { id: 'security', icon: <ShieldCheck size={15} />, label: 'Seguridad' },
@@ -1957,6 +1993,98 @@ const WebDashboard: React.FC = () => {
                         </button>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Logs de API (automation_logs) */}
+                {settingsSection === 'api-logs' && (
+                  <div className="flex flex-col gap-4 relative">
+                    <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <Activity size={18} className="text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-black">{t('webhook_logs.api_logs')}</h3>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {t('webhook_logs.event_sms_received')} · {t('webhook_logs.destination')} · {t('webhook_logs.status')}
+                          </p>
+                        </div>
+                      </div>
+                      {apiLogsLoading ? (
+                        <div className="flex justify-center py-12">
+                          <Loader2 size={24} className="animate-spin text-primary" />
+                        </div>
+                      ) : apiLogs.length === 0 ? (
+                        <p className={`py-8 text-center text-[13px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                          {t('webhook_logs.no_logs_yet')}
+                        </p>
+                      ) : (
+                        <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                          <table className="w-full text-left">
+                            <thead className={isDark ? 'bg-slate-800' : 'bg-slate-50'}>
+                              <tr>
+                                <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.event_sms_received')}</th>
+                                <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.destination')}</th>
+                                <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.status')}</th>
+                                <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.date')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {apiLogs.map((log) => {
+                                const status = (log.status || '').toLowerCase();
+                                const statusDisplay = status === 'success' || status === '200' ? t('webhook_logs.status_ok') : status === 'error' || status === 'failed' || status === '400' ? t('webhook_logs.status_error') : t('webhook_logs.status_pending');
+                                const dest = (log.payload as Record<string, unknown>)?.chat_id ? t('webhook_logs.destination_telegram') : t('webhook_logs.destination_webhook');
+                                const dateStr = log.created_at ? new Date(log.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                                return (
+                                  <tr
+                                    key={log.id}
+                                    onClick={() => setApiLogsDrawerLog(log)}
+                                    className={`cursor-pointer transition-colors ${isDark ? 'hover:bg-slate-800 border-b border-slate-800' : 'hover:bg-slate-50 border-b border-slate-100'}`}
+                                  >
+                                    <td className="px-4 py-3 text-[12px] font-medium text-slate-900 dark:text-white">{t('webhook_logs.event_sms_received')}</td>
+                                    <td className="px-4 py-3 text-[12px] text-slate-600 dark:text-slate-300">{dest}</td>
+                                    <td className="px-4 py-3 text-[12px] font-semibold">{statusDisplay}</td>
+                                    <td className="px-4 py-3 text-[11px] text-slate-500 dark:text-slate-400">{dateStr}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Drawer: Payload + Response */}
+                    {apiLogsDrawerLog && (
+                      <>
+                        <div className="fixed inset-0 bg-black/50 z-[200]" onClick={() => setApiLogsDrawerLog(null)} />
+                        <div className={`fixed right-0 top-0 bottom-0 w-full max-w-md z-[201] shadow-2xl overflow-hidden flex flex-col ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+                          <div className={`flex items-center justify-between px-5 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                            <h4 className="text-[14px] font-black">{t('webhook_logs.payload')} / {t('webhook_logs.response')}</h4>
+                            <button onClick={() => setApiLogsDrawerLog(null)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                              <X size={18} />
+                            </button>
+                          </div>
+                          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                            <div>
+                              <p className={`text-[10px] font-black uppercase tracking-wider mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('webhook_logs.payload')}</p>
+                              <pre className={`p-4 rounded-xl text-[11px] overflow-x-auto font-mono ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-800'}`}>
+                                {JSON.stringify(apiLogsDrawerLog.payload ?? {}, null, 2)}
+                              </pre>
+                            </div>
+                            <div>
+                              <p className={`text-[10px] font-black uppercase tracking-wider mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('webhook_logs.response')}</p>
+                              <pre className={`p-4 rounded-xl text-[11px] overflow-x-auto font-mono ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-800'}`}>
+                                {apiLogsDrawerLog.response_body != null
+                                  ? JSON.stringify(apiLogsDrawerLog.response_body, null, 2)
+                                  : (t('webhook_logs.status') + ': ' + (apiLogsDrawerLog.status || '—'))}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
