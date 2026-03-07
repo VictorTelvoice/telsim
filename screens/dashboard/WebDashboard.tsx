@@ -832,9 +832,11 @@ const WebDashboard: React.FC = () => {
           </div>
           <button onClick={fetchData} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
           <button onClick={toggleTheme} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>{isDark ? <Sun size={15} className="text-slate-400" /> : <Moon size={15} className="text-slate-400" />}</button>
-          <button onClick={() => navigate('/dashboard/notifications')} className={`relative p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>
+          <button
+            onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }}
+            className={`relative p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>
             <Bell size={15} className="text-slate-400" />
-            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
+            {notifUnread > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
           </button>
         </header>
 
