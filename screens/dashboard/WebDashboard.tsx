@@ -295,6 +295,7 @@ const WebDashboard: React.FC = () => {
   const [slotToRelease, setSlotToRelease] = useState<Slot | null>(null);
   const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
@@ -669,6 +670,8 @@ const WebDashboard: React.FC = () => {
       setIsReleaseModalOpen(false);
       setSlotToRelease(null);
       setConfirmReleaseCheck(false);
+      setReleaseSuccessToast(true);
+      setTimeout(() => setReleaseSuccessToast(false), 4000);
     } catch (err: any) {
       console.error('[RELEASE ERROR]', err);
       alert(err.message || 'Error al dar de baja la SIM.');
@@ -2547,43 +2550,87 @@ const WebDashboard: React.FC = () => {
       </div>
 
       {isReleaseModalOpen && slotToRelease && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
-            <div className="bg-rose-500 p-8 text-white">
-              <AlertTriangle className="size-10 mb-4" />
-              <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Confirmar Baja</h2>
-              <p className="text-[11px] font-black uppercase text-white/70 tracking-widest mt-1">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/50 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden">
+
+            {/* Header rojo */}
+            <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-7 text-white">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+                <AlertTriangle size={24} className="text-white" />
+              </div>
+              <h2 className="text-xl font-black tracking-tight uppercase">Confirmar Baja</h2>
+              <p className="text-[12px] font-semibold text-white/70 mt-1">
                 {formatPhone(slotToRelease.phone_number)}
               </p>
             </div>
-            <div className="p-8 space-y-6">
-              <p className="text-sm font-bold text-slate-500 leading-relaxed italic">
-                Esta acción cancelará tu suscripción y liberará el número. No podrás recuperarlo una vez confirmado.
+
+            {/* Body */}
+            <div className="p-7 flex flex-col gap-5">
+              <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Al confirmar, tu suscripción quedará cancelada de inmediato y el número será liberado del sistema. <strong className="text-slate-700 dark:text-slate-200">Esta acción no puede deshacerse.</strong>
               </p>
-              <label className="flex items-start gap-3 cursor-pointer">
+
+              {/* Checklist de consecuencias */}
+              <div className={`rounded-2xl p-4 flex flex-col gap-2.5 ${isDark ? 'bg-slate-800' : 'bg-rose-50'}`}>
+                {[
+                  'Perderás acceso al número de forma permanente',
+                  'Los SMS pendientes no podrán recuperarse',
+                  'No se realizará ningún reembolso proporcional',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <X size={9} className="text-rose-500" />
+                    </div>
+                    <span className={`text-[11px] font-semibold leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Checkbox confirmación */}
+              <label className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={confirmReleaseCheck}
                   onChange={e => setConfirmReleaseCheck(e.target.checked)}
-                  className="mt-1 size-5 rounded border-slate-200 text-rose-500 focus:ring-rose-500"
+                  className="mt-0.5 w-4 h-4 rounded accent-rose-500 cursor-pointer flex-shrink-0"
                 />
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">
-                  Entiendo que esta acción es irreversible y perderé este número
+                <span className={`text-[11px] font-bold leading-snug select-none ${isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-500 group-hover:text-slate-700'} transition-colors`}>
+                  Confirmo que entiendo las consecuencias y deseo dar de baja este número
                 </span>
               </label>
-              <div className="flex flex-col gap-3">
+
+              {/* Botones */}
+              <div className="flex flex-col gap-2 pt-1">
                 <button
                   onClick={handleReleaseSlot}
                   disabled={!confirmReleaseCheck || releasing}
-                  className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-600 text-white shadow-xl active:scale-95' : 'bg-slate-100 text-slate-300'}`}>
-                  {releasing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Confirmar Baja'}
+                  className={`w-full h-12 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2 ${
+                    confirmReleaseCheck
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/30 active:scale-[0.98]'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  }`}>
+                  {releasing ? <Loader2 size={15} className="animate-spin" /> : 'Dar de baja definitivamente'}
                 </button>
                 <button
                   onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }}
-                  className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">
-                  Cancelar
+                  className={`w-full h-10 rounded-2xl text-[11px] font-bold transition-colors ${isDark ? 'text-slate-500 hover:text-slate-300 hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
+                  Cancelar, mantener mi SIM
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {releaseSuccessToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 size={16} className="text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">Suscripción cancelada exitosamente</p>
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>El número ha sido liberado del sistema</p>
             </div>
           </div>
         </div>
