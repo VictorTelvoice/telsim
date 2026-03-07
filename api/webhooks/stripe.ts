@@ -107,7 +107,8 @@ export default async function handler(req: any, res: any) {
         'Power':   { monthly: 99.00, annual: 990 },
       };
 
-      const planPrices = PLAN_PRICES[planName] || null;
+      // billingType ya fue calculado arriba — usarlo para determinar amount correcto
+      const planPrices = PLAN_PRICES[planName];
       let amount = 0;
       if (planPrices) {
         amount = billingType === 'annual' ? planPrices.annual : planPrices.monthly;
