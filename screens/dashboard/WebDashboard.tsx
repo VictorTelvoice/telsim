@@ -296,6 +296,8 @@ const WebDashboard: React.FC = () => {
   const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
@@ -396,6 +398,30 @@ const WebDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [user, activeTab]);
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+      await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
+      await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
+      setAvatarUrl(publicUrl);
+    } catch (err: any) {
+      alert(err.message || 'Error al subir la imagen.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   // ─── Manual feed refresh function ──────────────────────────────────────────────
   const handleFeedRefresh = async () => {
     if (!user) return;
@@ -418,6 +444,20 @@ const WebDashboard: React.FC = () => {
     setEditError('');
     setEditSuccess(false);
   }, [settingsSection, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadAvatar = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+      else if (user.user_metadata?.avatar_url) setAvatarUrl(user.user_metadata.avatar_url);
+    };
+    loadAvatar();
+  }, [user]);
 
   // ─── Telegram: load config when section opens ─────────────────────────────
   useEffect(() => {
@@ -1529,7 +1569,21 @@ const WebDashboard: React.FC = () => {
                   <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                     <h3 className="text-[15px] font-black mb-5">Mi Perfil</h3>
                     <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[22px] font-black flex-shrink-0">{userInitials}</div>
+                      <div className="relative flex-shrink-0">
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center">
+                          {avatarUrl
+                            ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                            : <span className="text-white text-[22px] font-black">{userInitials}</span>
+                          }
+                        </div>
+                        <label className={`absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer border-2 shadow-sm transition-colors ${isDark ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-white border-slate-100 hover:bg-slate-50'}`}>
+                          {uploadingAvatar
+                            ? <Loader2 size={11} className="animate-spin text-primary" />
+                            : <Pencil size={11} className="text-slate-400" />
+                          }
+                          <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                        </label>
+                      </div>
                       <div>
                         <p className="text-[16px] font-black">{userName}</p>
                         <p className={`text-[12px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{user?.email}</p>
