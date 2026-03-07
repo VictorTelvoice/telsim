@@ -343,6 +343,7 @@ const WebDashboard: React.FC = () => {
   const [apiLogs, setApiLogs] = useState<AutomationLogRow[]>([]);
   const [apiLogsLoading, setApiLogsLoading] = useState(false);
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
+  const [apiLogsRetryingId, setApiLogsRetryingId] = useState<string | null>(null);
 
   // ─── Language state ───────────────────────────────────────────────────────
   const [appLanguage, setAppLanguage] = useState<'es' | 'en'>(() =>
@@ -602,7 +603,7 @@ const WebDashboard: React.FC = () => {
       try {
         const { data } = await supabase
           .from('automation_logs')
-          .select('id, user_id, slot_id, status, payload, created_at')
+          .select('id, user_id, slot_id, status, payload, response_body, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100);
@@ -674,6 +675,39 @@ const WebDashboard: React.FC = () => {
 
   const toggleWebhookEvent = (ev: string) =>
     setWebhookEvents(prev => prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]);
+
+  // ─── API Log retry ───────────────────────────────────────────────────────────
+  const handleApiLogRetry = async (logId: string) => {
+    if (!user?.id || apiLogsRetryingId) return;
+    setApiLogsRetryingId(logId);
+    try {
+      const res = await fetch('/api/webhooks/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ log_id: logId, userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || t('webhook_logs.retry_failed'));
+        return;
+      }
+      const newStatus = String(data.status ?? '');
+      const newResponseBody = data.response_body;
+      setApiLogs(prev => prev.map(l => l.id === logId ? { ...l, status: newStatus, response_body: newResponseBody } : l));
+      if (apiLogsDrawerLog?.id === logId) {
+        setApiLogsDrawerLog(prev => prev ? { ...prev, status: newStatus, response_body: newResponseBody } : null);
+      }
+    } catch {
+      alert(t('webhook_logs.retry_failed'));
+    } finally {
+      setApiLogsRetryingId(null);
+    }
+  };
+
+  const isApiLogOk = (status: string) => {
+    const s = (status || '').toLowerCase();
+    return s === '200' || s === 'success';
+  };
 
   // ─── Language handler ─────────────────────────────────────────────────────────
 
@@ -2028,6 +2062,7 @@ const WebDashboard: React.FC = () => {
                                 <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.destination')}</th>
                                 <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.status')}</th>
                                 <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('webhook_logs.date')}</th>
+                                <th className={`px-4 py-3 text-[10px] font-black uppercase tracking-wider w-24 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                               </tr>
                             </thead>
                             <tbody>
@@ -2036,6 +2071,8 @@ const WebDashboard: React.FC = () => {
                                 const statusDisplay = status === 'success' || status === '200' ? t('webhook_logs.status_ok') : status === 'error' || status === 'failed' || status === '400' ? t('webhook_logs.status_error') : t('webhook_logs.status_pending');
                                 const dest = (log.payload as Record<string, unknown>)?.chat_id ? t('webhook_logs.destination_telegram') : t('webhook_logs.destination_webhook');
                                 const dateStr = log.created_at ? new Date(log.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                                const canRetry = !isApiLogOk(log.status);
+                                const isRetrying = apiLogsRetryingId === log.id;
                                 return (
                                   <tr
                                     key={log.id}
@@ -2046,6 +2083,19 @@ const WebDashboard: React.FC = () => {
                                     <td className="px-4 py-3 text-[12px] text-slate-600 dark:text-slate-300">{dest}</td>
                                     <td className="px-4 py-3 text-[12px] font-semibold">{statusDisplay}</td>
                                     <td className="px-4 py-3 text-[11px] text-slate-500 dark:text-slate-400">{dateStr}</td>
+                                    <td className="px-4 py-3 text-[11px]" onClick={e => e.stopPropagation()}>
+                                      {canRetry && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleApiLogRetry(log.id)}
+                                          disabled={!!apiLogsRetryingId}
+                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} disabled:opacity-50`}
+                                        >
+                                          {isRetrying ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                          {isRetrying ? t('webhook_logs.retrying') : t('webhook_logs.retry')}
+                                        </button>
+                                      )}
+                                    </td>
                                   </tr>
                                 );
                               })}
@@ -2062,9 +2112,22 @@ const WebDashboard: React.FC = () => {
                         <div className={`fixed right-0 top-0 bottom-0 w-full max-w-md z-[201] shadow-2xl overflow-hidden flex flex-col ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
                           <div className={`flex items-center justify-between px-5 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                             <h4 className="text-[14px] font-black">{t('webhook_logs.payload')} / {t('webhook_logs.response')}</h4>
-                            <button onClick={() => setApiLogsDrawerLog(null)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-                              <X size={18} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {!isApiLogOk(apiLogsDrawerLog.status) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApiLogRetry(apiLogsDrawerLog.id)}
+                                  disabled={!!apiLogsRetryingId}
+                                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition-colors ${isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} disabled:opacity-50`}
+                                >
+                                  {apiLogsRetryingId === apiLogsDrawerLog.id ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                  {apiLogsRetryingId === apiLogsDrawerLog.id ? t('webhook_logs.retrying') : t('webhook_logs.retry')}
+                                </button>
+                              )}
+                              <button onClick={() => setApiLogsDrawerLog(null)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                                <X size={18} />
+                              </button>
+                            </div>
                           </div>
                           <div className="flex-1 overflow-y-auto p-5 space-y-4">
                             <div>

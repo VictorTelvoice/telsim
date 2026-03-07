@@ -26,6 +26,7 @@ const WebhookLogs: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [retryingLogId, setRetryingLogId] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     if (!user?.id) return;
@@ -86,6 +87,46 @@ const WebhookLogs: React.FC = () => {
     if (s === 'success' || s === '200') return t('webhook_logs.status_ok');
     if (s === 'error' || s === 'failed' || s === '400') return t('webhook_logs.status_error');
     return t('webhook_logs.status_pending');
+  };
+
+  const isLogOk = (status: string) => {
+    const s = (status || '').toLowerCase();
+    return s === '200' || s === 'success';
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10 max-w-[90vw]`;
+    toast.innerHTML = `<span class="text-[11px] font-bold">${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  };
+
+  const handleRetry = async (logId: string) => {
+    if (!user?.id || retryingLogId) return;
+    setRetryingLogId(logId);
+    try {
+      const res = await fetch('/api/webhooks/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ log_id: logId, userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const newStatus = res.ok ? String(data.status ?? '') : '';
+      if (res.ok) {
+        setLogs(prev => prev.map(l => l.id === logId ? { ...l, status: newStatus } : l));
+        showToast(`${t('webhook_logs.retry_toast')}: ${newStatus || 'OK'}`);
+      } else {
+        showToast(t('webhook_logs.retry_failed'), 'error');
+      }
+    } catch {
+      showToast(t('webhook_logs.retry_failed'), 'error');
+    } finally {
+      setRetryingLogId(null);
+    }
   };
 
   if (!user) return null;
@@ -178,6 +219,21 @@ const WebhookLogs: React.FC = () => {
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
                       {formatDate(log.created_at)}
                     </p>
+                    {!isLogOk(log.status) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRetry(log.id); }}
+                        disabled={!!retryingLogId}
+                        className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 transition-colors"
+                      >
+                        {retryingLogId === log.id ? (
+                          <RefreshCw size={12} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={12} />
+                        )}
+                        {retryingLogId === log.id ? t('webhook_logs.retrying') : t('webhook_logs.retry')}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
