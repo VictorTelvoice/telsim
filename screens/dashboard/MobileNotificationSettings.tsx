@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { Bell, Loader2, Check, ChevronLeft, Mail, Send } from 'lucide-react';
 
@@ -16,22 +17,22 @@ const DEFAULT_PREFS: Record<string, { inapp: boolean; email: boolean; telegram: 
   daily_summary:   { inapp: false, email: false, telegram: false },
 };
 
-const SECTIONS: { section: string; items: { key: string; icon: string; label: string }[] }[] = [
-  { section: 'SMS & Mensajes', items: [
-    { key: 'sms_received',  icon: '💬', label: 'SMS recibido' },
-    { key: 'code_detected', icon: '🔐', label: 'Código OTP detectado' },
+const SECTIONS: { sectionKey: string; items: { key: string; icon: string }[] }[] = [
+  { sectionKey: 'section_sms', items: [
+    { key: 'sms_received',  icon: '💬' },
+    { key: 'code_detected', icon: '🔐' },
   ]},
-  { section: 'SIMs', items: [
-    { key: 'sim_activated', icon: '📱', label: 'SIM activada' },
-    { key: 'sim_expired',   icon: '⏰', label: 'SIM por vencer' },
+  { sectionKey: 'section_sims', items: [
+    { key: 'sim_activated', icon: '📱' },
+    { key: 'sim_expired',   icon: '⏰' },
   ]},
-  { section: 'Pagos & Facturación', items: [
-    { key: 'payment_success', icon: '✅', label: 'Pago exitoso' },
-    { key: 'payment_failed',  icon: '⚠️', label: 'Pago fallido' },
+  { sectionKey: 'section_billing', items: [
+    { key: 'payment_success', icon: '✅' },
+    { key: 'payment_failed',  icon: '⚠️' },
   ]},
-  { section: 'Sistema', items: [
-    { key: 'security_alerts', icon: '🛡️', label: 'Alertas de seguridad' },
-    { key: 'daily_summary',   icon: '📊', label: 'Resumen diario' },
+  { sectionKey: 'section_system', items: [
+    { key: 'security_alerts', icon: '🛡️' },
+    { key: 'daily_summary',   icon: '📊' },
   ]},
 ];
 
@@ -41,6 +42,7 @@ const MobileNotificationSettings: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === 'dark';
 
   const [notifPrefs, setNotifPrefs] = useState<Record<string, { inapp: boolean; email: boolean; telegram: boolean }>>(DEFAULT_PREFS);
@@ -86,12 +88,12 @@ const MobileNotificationSettings: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        showToast(data.error || 'Error al enviar.', 'error');
+        showToast(data.error || t('notif_settings.error_sending'), 'error');
         return;
       }
-      showToast('Notificación de prueba enviada a Telegram.');
+      showToast(t('notif_settings.test_notification_sent'));
     } catch (e) {
-      showToast('Error de conexión. Intenta de nuevo.', 'error');
+      showToast(t('notif_settings.connection_error'), 'error');
     } finally {
       setTestNotifLoading(false);
     }
@@ -143,14 +145,14 @@ const MobileNotificationSettings: React.FC = () => {
           <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-[18px] font-black text-slate-900 dark:text-white tracking-tight">Notificaciones</h1>
-          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">In-app, Email y Telegram</p>
+          <h1 className="text-[18px] font-black text-slate-900 dark:text-white tracking-tight">{t('notif_settings.title')}</h1>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">{t('notif_settings.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {saving && <Loader2 size={16} className="animate-spin text-slate-400" />}
           {saved && !saving && (
             <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500">
-              <Check size={12} /> Guardado
+              <Check size={12} /> {t('notif_settings.saved')}
             </span>
           )}
         </div>
@@ -165,8 +167,8 @@ const MobileNotificationSettings: React.FC = () => {
         ) : (
           <>
             {SECTIONS.map(group => (
-              <div key={group.section}>
-                <SectionLabel label={group.section} />
+              <div key={group.sectionKey}>
+                <SectionLabel label={t(`notif_settings.${group.sectionKey}`)} />
                 <div className={`rounded-[18px] border overflow-hidden ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
                   {/* Header: iconos con color justo encima de cada columna de toggles */}
                   <div className={`flex items-center px-4 pt-3 pb-1 border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
@@ -191,7 +193,7 @@ const MobileNotificationSettings: React.FC = () => {
                         className={`flex items-center gap-2 px-4 py-3.5 ${idx < group.items.length - 1 ? `border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}` : ''}`}
                       >
                         <span className="text-lg flex-shrink-0">{item.icon}</span>
-                        <p className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white min-w-0">{item.label}</p>
+                        <p className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white min-w-0">{t(`notif_settings.event_${item.key}`)}</p>
                         <div className="flex items-center gap-2 flex-shrink-0" style={{ width: TOGGLE_COLUMN_WIDTH * 3 + 16 }}>
                           <div className="flex justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
                             <Toggle on={prefs.inapp} onClick={() => handleToggle(item.key, 'inapp')} />
@@ -213,7 +215,7 @@ const MobileNotificationSettings: React.FC = () => {
             <div className={`flex gap-3 p-4 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50 border border-slate-100'}`}>
               <Bell size={16} className="text-slate-400 shrink-0 mt-0.5" />
               <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                Los cambios se guardan al instante. Si apagas Telegram para un evento, el bot dejará de enviarlo de inmediato.
+                {t('notif_settings.footer_auto_save')}
               </p>
             </div>
 
@@ -227,14 +229,14 @@ const MobileNotificationSettings: React.FC = () => {
               {testNotifLoading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Cargando...
+                  {t('notif_settings.loading')}
                 </>
               ) : (
-                '🧪 Probar Notificaciones'
+                `🧪 ${t('notif_settings.test_notifications')}`
               )}
             </button>
             <p className={`text-[10px] text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              Si no tienes configurado el Bot de Telegram, ve a Ajustes → Telegram Bot.
+              {t('notif_settings.configure_bot_hint')}
             </p>
           </>
         )}

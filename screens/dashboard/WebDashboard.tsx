@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot, SMSLog } from '../../types';
@@ -275,6 +276,7 @@ type SettingsSection = 'profile' | 'profile-edit' | 'telegram' | 'api' | 'notifi
 const WebDashboard: React.FC = () => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
   const { notifications, unreadCount: notifUnread, loading: notifLoading, markAsRead: markNotifRead, markAllAsRead: markAllNotifRead, clearAll: clearAllNotifs } = useNotifications();
@@ -679,12 +681,12 @@ const WebDashboard: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Error al enviar la notificación de prueba.');
+        alert(data.error || t('notif_settings.test_error_fallback'));
         return;
       }
-      alert('Notificación de prueba enviada a Telegram correctamente.');
+      alert(t('notif_settings.test_notification_sent'));
     } catch (e) {
-      alert('Error de conexión. Intenta de nuevo.');
+      alert(t('notif_settings.connection_error'));
     } finally {
       setTestNotifLoading(false);
     }
@@ -1734,10 +1736,10 @@ const WebDashboard: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-[15px] font-black flex items-center gap-2">
-                          Telegram Bot
+                          {t('profile.telegram_bot')}
                           <TelegramStatusDot status={tgBotStatus} />
                         </h3>
-                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recibe SMS directamente en Telegram</p>
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('settings.telegram_bot_sub')}</p>
                       </div>
                     </div>
 
@@ -1757,7 +1759,7 @@ const WebDashboard: React.FC = () => {
                             placeholder="Ej: 582910..."
                             className={`w-full h-11 rounded-xl px-4 text-[13px] font-mono outline-none focus:ring-2 focus:ring-primary/30 border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
                           />
-                          <p className={`text-[10px] ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Obténlo desde <span className="font-bold">@BotFather</span> en Telegram</p>
+                          <p className={`text-[10px] ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('tg.botfather_hint')}</p>
                         </div>
 
                         {/* Chat ID input */}
@@ -1783,7 +1785,7 @@ const WebDashboard: React.FC = () => {
                             className={`flex-1 h-10 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl border transition-all disabled:opacity-50 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
                           >
                             {tgTesting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                            Probar conexión
+                            {t('tg.test_connection')}
                           </button>
                           <button
                             onClick={handleTgSave}
@@ -1791,7 +1793,7 @@ const WebDashboard: React.FC = () => {
                             className="flex-1 h-10 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl bg-primary text-white hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-50"
                           >
                             {tgSaving ? <Loader2 size={13} className="animate-spin" /> : tgSaved ? <Check size={13} /> : <Save size={13} />}
-                            {tgSaved ? '¡Guardado!' : 'Guardar'}
+                            {tgSaved ? t('notif_settings.saved_excl') : t('common.save')}
                           </button>
                         </div>
 
@@ -1970,15 +1972,15 @@ const WebDashboard: React.FC = () => {
                             <Bell size={18} className="text-amber-500" />
                           </div>
                           <div>
-                            <h3 className="text-[15px] font-black">Notificaciones</h3>
-                            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Elige qué eventos te avisamos y por qué canal</p>
+                            <h3 className="text-[15px] font-black">{t('notif_settings.notifications_heading')}</h3>
+                            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('notif_settings.notifications_subheading')}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {notifPrefsSaving && <Loader2 size={13} className="animate-spin text-slate-400" />}
                           {notifPrefsSaved && !notifPrefsSaving && (
                             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-500">
-                              <Check size={12} /> Guardado
+                              <Check size={12} /> {t('notif_settings.saved')}
                             </span>
                           )}
                         </div>
@@ -1986,15 +1988,15 @@ const WebDashboard: React.FC = () => {
 
                       {/* Channel legend */}
                       <div className={`flex items-center gap-4 mt-4 px-4 py-3 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Canales:</span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('notif_settings.channels_label')}</span>
                         {[
-                          { icon: '🔔', label: 'In-app' },
-                          { icon: '✉️', label: 'Email' },
-                          { icon: '🤖', label: 'Telegram' },
+                          { icon: '🔔', labelKey: 'notif_settings.channel_inapp' },
+                          { icon: '✉️', labelKey: 'notif_settings.channel_email' },
+                          { icon: '🤖', labelKey: 'notif_settings.channel_telegram' },
                         ].map(c => (
-                          <div key={c.label} className="flex items-center gap-1.5">
+                          <div key={c.labelKey} className="flex items-center gap-1.5">
                             <span className="text-sm">{c.icon}</span>
-                            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{c.label}</span>
+                            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t(c.labelKey)}</span>
                           </div>
                         ))}
                       </div>
@@ -2050,7 +2052,7 @@ const WebDashboard: React.FC = () => {
                               <div className="flex items-center gap-4 flex-shrink-0">
                                 {/* In-app */}
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">In-app</span>
+                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">{t('notif_settings.channel_inapp')}</span>
                                   <button
                                     onClick={() => handleNotifPrefToggle(item.key, 'inapp')}
                                     className={`relative w-9 h-5 rounded-full transition-all duration-300 ${prefs.inapp ? 'bg-amber-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
@@ -2060,7 +2062,7 @@ const WebDashboard: React.FC = () => {
 
                                 {/* Email */}
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Email</span>
+                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">{t('notif_settings.channel_email')}</span>
                                   <button
                                     onClick={() => handleNotifPrefToggle(item.key, 'email')}
                                     className={`relative w-9 h-5 rounded-full transition-all duration-300 ${prefs.email ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
@@ -2070,7 +2072,7 @@ const WebDashboard: React.FC = () => {
 
                                 {/* Telegram */}
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Telegram</span>
+                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">{t('notif_settings.channel_telegram')}</span>
                                   <button
                                     onClick={() => handleNotifPrefToggle(item.key, 'telegram')}
                                     className={`relative w-9 h-5 rounded-full transition-all duration-300 ${prefs.telegram ? 'bg-sky-500' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
@@ -2089,7 +2091,7 @@ const WebDashboard: React.FC = () => {
                       <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
                       <div>
                         <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                          Los cambios se guardan automáticamente. Para recibir notificaciones por <strong>email</strong> asegúrate de tener tu correo verificado. Para <strong>Telegram</strong> configura tu bot en Ajustes → Telegram Bot.
+                          <span dangerouslySetInnerHTML={{ __html: t('notif_settings.footer_email_telegram') }} />
                         </p>
                       </div>
                     </div>
@@ -2101,7 +2103,7 @@ const WebDashboard: React.FC = () => {
                       disabled={testNotifLoading}
                       className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 text-[13px] font-bold transition-colors ${isDark ? 'border-slate-600 bg-slate-800/50 text-slate-200 hover:border-slate-500 hover:bg-slate-700/50' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'} disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                      {testNotifLoading ? <Loader2 size={16} className="animate-spin" /> : '🧪 Probar Notificaciones'}
+                      {testNotifLoading ? <Loader2 size={16} className="animate-spin" /> : `🧪 ${t('notif_settings.test_notifications')}`}
                     </button>
                   </div>
                 )}

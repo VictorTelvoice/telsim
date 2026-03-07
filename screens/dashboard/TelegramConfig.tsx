@@ -178,7 +178,7 @@ const TelegramConfig: React.FC = () => {
             {t('tg.bot_desc')}
           </p>
           {botStatus === 'error' && (
-            <p className="text-xs font-semibold text-red-500">Revisa tu Token en BotFather</p>
+            <p className="text-xs font-semibold text-red-500">{t('tg.check_token_botfather')}</p>
           )}
         </div>
 
