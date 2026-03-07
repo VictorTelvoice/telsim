@@ -13,7 +13,10 @@ import {
   Globe,
   Zap,
   Code,
-  CheckCircle2
+  CheckCircle2,
+  Key,
+  RefreshCw,
+  Copy
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -27,6 +30,10 @@ const Webhooks: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [apiSecretKey, setApiSecretKey] = useState<string | null>(null);
+  const [apiSecretKeyRevealed, setApiSecretKeyRevealed] = useState<string | null>(null);
+  const [apiSecretKeyRegenerating, setApiSecretKeyRegenerating] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -34,7 +41,7 @@ const Webhooks: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('user_webhook_url, webhook_is_active')
+          .select('user_webhook_url, webhook_is_active, api_secret_key')
           .eq('id', user.id)
           .single();
         
@@ -42,6 +49,8 @@ const Webhooks: React.FC = () => {
         if (data) {
           setWebhookUrl(data.user_webhook_url || '');
           setIsActive(data.webhook_is_active || false);
+          const key = (data as { api_secret_key?: string }).api_secret_key?.trim() || null;
+          setApiSecretKey(key);
         }
       } catch (err) {
         console.error(err);
@@ -52,6 +61,32 @@ const Webhooks: React.FC = () => {
 
     fetchConfig();
   }, [user]);
+
+  const handleRegenerateApiSecretKey = async () => {
+    if (!user || apiSecretKeyRegenerating) return;
+    setApiSecretKeyRegenerating(true);
+    try {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      const newKey = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      const { error } = await supabase.from('users').update({ api_secret_key: newKey }).eq('id', user.id);
+      if (error) throw error;
+      setApiSecretKey(newKey);
+      setApiSecretKeyRevealed(newKey);
+      setTimeout(() => setApiSecretKeyRevealed(null), 15000);
+    } catch {
+      alert(t('webhooks.error_saving'));
+    } finally {
+      setApiSecretKeyRegenerating(false);
+    }
+  };
+
+  const handleCopySecret = () => {
+    if (!apiSecretKeyRevealed) return;
+    navigator.clipboard.writeText(apiSecretKeyRevealed);
+    setCopiedSecret(true);
+    setTimeout(() => setCopiedSecret(false), 2000);
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -139,6 +174,43 @@ const Webhooks: React.FC = () => {
               placeholder={t('webhooks.url_placeholder')}
             />
             <p className="text-[10px] text-slate-400 font-medium ml-1">{t('webhooks.url_hint')}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <Key className="size-3" />
+              {t('webhooks.api_secret_key')} · {t('webhooks.security_signature')}
+            </label>
+            <div className="flex items-center gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <span className="flex-1 font-mono text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                {apiSecretKeyRevealed
+                  ? apiSecretKeyRevealed
+                  : apiSecretKey
+                    ? `whsec_****************${apiSecretKey.slice(-4)}`
+                    : t('webhooks.api_secret_key_none')}
+              </span>
+              {apiSecretKeyRevealed && (
+                <button
+                  type="button"
+                  onClick={handleCopySecret}
+                  className="p-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+                >
+                  {copiedSecret ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Copy className="size-4 text-slate-500" />}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRegenerateApiSecretKey}
+                disabled={apiSecretKeyRegenerating}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+              >
+                {apiSecretKeyRegenerating ? <RefreshCw className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                {apiSecretKeyRegenerating ? t('webhooks.regenerating') : t('webhooks.regenerate_key')}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium ml-1">
+              {apiSecretKeyRevealed ? t('webhooks.key_regenerated') : 'X-Telsim-Signature (HMAC-SHA256)'}
+            </p>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">

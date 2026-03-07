@@ -338,6 +338,9 @@ const WebDashboard: React.FC = () => {
   const [webhookSaving, setWebhookSaving] = useState(false);
   const [webhookSaved, setWebhookSaved] = useState(false);
   const [webhookTesting, setWebhookTesting] = useState(false);
+  const [apiSecretKey, setApiSecretKey] = useState<string | null>(null);
+  const [apiSecretKeyRevealed, setApiSecretKeyRevealed] = useState<string | null>(null);
+  const [apiSecretKeyRegenerating, setApiSecretKeyRegenerating] = useState(false);
 
   // ─── API Logs (automation_logs) state ───────────────────────────────────────
   const [apiLogs, setApiLogs] = useState<AutomationLogRow[]>([]);
@@ -615,6 +618,17 @@ const WebDashboard: React.FC = () => {
     return () => { cancelled = true; };
   }, [settingsSection, user?.id]);
 
+  // ─── API section: load api_secret_key from users ─────────────────────────
+  useEffect(() => {
+    if (settingsSection !== 'api' || !user) return;
+    (async () => {
+      const { data } = await supabase.from('users').select('api_secret_key').eq('id', user.id).single();
+      const key = (data as { api_secret_key?: string } | null)?.api_secret_key?.trim() || null;
+      setApiSecretKey(key);
+      if (key) setWebhookSecret(key);
+    })();
+  }, [settingsSection, user?.id]);
+
   useEffect(() => {
     if (!user) return;
     const ch = supabase.channel('web-sms-live')
@@ -647,11 +661,16 @@ const WebDashboard: React.FC = () => {
 
   // ─── Webhook handlers ────────────────────────────────────────────────────────
 
-  const handleWebhookSave = () => {
+  const handleWebhookSave = async () => {
+    if (!user) return;
     setWebhookSaving(true);
     localStorage.setItem('telsim_webhook_url', webhookUrl);
     localStorage.setItem('telsim_webhook_secret', webhookSecret);
     localStorage.setItem('telsim_webhook_events', JSON.stringify(webhookEvents));
+    try {
+      await supabase.from('users').update({ api_secret_key: webhookSecret?.trim() || null }).eq('id', user.id);
+      setApiSecretKey(webhookSecret?.trim() || null);
+    } catch (_) {}
     setTimeout(() => {
       setWebhookSaving(false);
       setWebhookSaved(true);
@@ -675,6 +694,26 @@ const WebDashboard: React.FC = () => {
 
   const toggleWebhookEvent = (ev: string) =>
     setWebhookEvents(prev => prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]);
+
+  const handleRegenerateApiSecretKey = async () => {
+    if (!user || apiSecretKeyRegenerating) return;
+    setApiSecretKeyRegenerating(true);
+    try {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      const newKey = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      const { error } = await supabase.from('users').update({ api_secret_key: newKey }).eq('id', user.id);
+      if (error) throw error;
+      setApiSecretKey(newKey);
+      setWebhookSecret(newKey);
+      setApiSecretKeyRevealed(newKey);
+      setTimeout(() => setApiSecretKeyRevealed(null), 15000);
+    } catch {
+      alert(t('webhooks.error_saving'));
+    } finally {
+      setApiSecretKeyRegenerating(false);
+    }
+  };
 
   // ─── API Log retry ───────────────────────────────────────────────────────────
   const handleApiLogRetry = async (logId: string) => {
@@ -1922,6 +1961,39 @@ const WebDashboard: React.FC = () => {
                         </div>
                         <p className={`text-[10px] mt-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
                           Incluye este token en el header: <code className="font-mono">Authorization: Bearer &lt;API_KEY&gt;</code>
+                        </p>
+                      </div>
+
+                      {/* API Secret Key (Firma de Seguridad) */}
+                      <div className="mb-5">
+                        <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('webhooks.api_secret_key')} · {t('webhooks.security_signature')}</p>
+                        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border font-mono text-[12px] ${isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                          <Key size={13} className="flex-shrink-0 text-amber-500" />
+                          <span className="flex-1 truncate">
+                            {apiSecretKeyRevealed
+                              ? apiSecretKeyRevealed
+                              : apiSecretKey
+                                ? `whsec_****************${apiSecretKey.slice(-4)}`
+                                : t('webhooks.api_secret_key_none')}
+                          </span>
+                          {apiSecretKeyRevealed && (
+                            <button onClick={() => { handleCopy('apisecret', apiSecretKeyRevealed || ''); }}
+                              className={`p-1 rounded-lg flex-shrink-0 ${copiedId === 'apisecret' ? 'text-emerald-500' : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')}`}>
+                              {copiedId === 'apisecret' ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleRegenerateApiSecretKey}
+                            disabled={apiSecretKeyRegenerating}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors flex-shrink-0 disabled:opacity-50 ${isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                          >
+                            {apiSecretKeyRegenerating ? <RefreshCw size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                            {apiSecretKeyRegenerating ? t('webhooks.regenerating') : t('webhooks.regenerate_key')}
+                          </button>
+                        </div>
+                        <p className={`text-[10px] mt-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {apiSecretKeyRevealed ? t('webhooks.key_regenerated') : <>Se usa para firmar el body (HMAC-SHA256) en el header <code className="font-mono">X-Telsim-Signature</code>.</>}
                         </p>
                       </div>
 
