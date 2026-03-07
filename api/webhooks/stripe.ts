@@ -165,6 +165,15 @@ export default async function handler(req: any, res: any) {
         console.warn(`[WEBHOOK SLOT MISSING] Slot ${slotId} not found in database`);
       }
 
+      console.log('[WEBHOOK AMOUNT DEBUG]', {
+        planName,
+        billingType,
+        isAnnual,
+        priceInterval: price?.recurring?.interval,
+        unitAmount: price?.unit_amount,
+        amount
+      });
+
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
