@@ -37,19 +37,21 @@ export default async function handler(req: any, res: any) {
 
   let event: Stripe.Event;
   try {
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const sig = req.headers['stripe-signature'] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => resolve());
+      req.on('error', reject);
+    });
+    const rawBody = Buffer.concat(chunks);
 
     if (webhookSecret && sig) {
-      // En Vercel, req.body ya viene como Buffer cuando bodyParser está deshabilitado
-      const rawBody = typeof req.body === 'string'
-        ? req.body
-        : Buffer.isBuffer(req.body)
-          ? req.body
-          : JSON.stringify(req.body);
       event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } else {
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      event = JSON.parse(rawBody.toString());
     }
   } catch (err: any) {
     console.error('[WEBHOOK SIGNATURE ERROR]', err.message);
