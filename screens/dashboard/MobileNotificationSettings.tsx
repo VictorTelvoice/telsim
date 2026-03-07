@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
-import { Bell, Loader2, Check, ChevronLeft } from 'lucide-react';
+import { Bell, Loader2, Check, ChevronLeft, Mail, Send } from 'lucide-react';
 
 const DEFAULT_PREFS: Record<string, { inapp: boolean; email: boolean; telegram: boolean }> = {
   sms_received:    { inapp: true,  email: false, telegram: false },
@@ -35,11 +35,7 @@ const SECTIONS: { section: string; items: { key: string; icon: string; label: st
   ]},
 ];
 
-const CHANNELS: { id: 'inapp' | 'email' | 'telegram'; label: string }[] = [
-  { id: 'inapp',    label: 'In-app' },
-  { id: 'email',    label: 'Email' },
-  { id: 'telegram', label: 'Telegram' },
-];
+const TOGGLE_COLUMN_WIDTH = 44;
 
 const MobileNotificationSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -168,32 +164,44 @@ const MobileNotificationSettings: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Channel legend */}
-            <div className={`flex items-center justify-center gap-4 py-3 px-4 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-100'}`}>
-              {CHANNELS.map(c => (
-                <span key={c.id} className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {c.label}
-                </span>
-              ))}
-            </div>
-
             {SECTIONS.map(group => (
               <div key={group.section}>
                 <SectionLabel label={group.section} />
                 <div className={`rounded-[18px] border overflow-hidden ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+                  {/* Header: iconos con color justo encima de cada columna de toggles */}
+                  <div className={`flex items-center px-4 pt-3 pb-1 border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                    <div className="flex-1 min-w-0" />
+                    <div className="flex items-center gap-0" style={{ width: TOGGLE_COLUMN_WIDTH * 3 + 16 }}>
+                      <div className="flex items-center justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                        <Bell size={14} className="text-amber-500" />
+                      </div>
+                      <div className="flex items-center justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                        <Mail size={14} className="text-blue-500" />
+                      </div>
+                      <div className="flex items-center justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                        <Send size={14} className="text-sky-500" />
+                      </div>
+                    </div>
+                  </div>
                   {group.items.map((item, idx) => {
                     const prefs = notifPrefs[item.key] ?? { inapp: false, email: false, telegram: false };
                     return (
                       <div
                         key={item.key}
-                        className={`flex items-center gap-3 px-4 py-3.5 ${idx < group.items.length - 1 ? `border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}` : ''}`}
+                        className={`flex items-center gap-2 px-4 py-3.5 ${idx < group.items.length - 1 ? `border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}` : ''}`}
                       >
                         <span className="text-lg flex-shrink-0">{item.icon}</span>
                         <p className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white min-w-0">{item.label}</p>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <Toggle on={prefs.inapp} onClick={() => handleToggle(item.key, 'inapp')} />
-                          <Toggle on={prefs.email} onClick={() => handleToggle(item.key, 'email')} />
-                          <Toggle on={prefs.telegram} onClick={() => handleToggle(item.key, 'telegram')} />
+                        <div className="flex items-center gap-2 flex-shrink-0" style={{ width: TOGGLE_COLUMN_WIDTH * 3 + 16 }}>
+                          <div className="flex justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                            <Toggle on={prefs.inapp} onClick={() => handleToggle(item.key, 'inapp')} />
+                          </div>
+                          <div className="flex justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                            <Toggle on={prefs.email} onClick={() => handleToggle(item.key, 'email')} />
+                          </div>
+                          <div className="flex justify-center" style={{ width: TOGGLE_COLUMN_WIDTH }}>
+                            <Toggle on={prefs.telegram} onClick={() => handleToggle(item.key, 'telegram')} />
+                          </div>
                         </div>
                       </div>
                     );
