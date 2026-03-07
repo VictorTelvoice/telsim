@@ -26,13 +26,6 @@ export default async function handler(req: any, res: any) {
   try {
     let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body;
 
-    console.log('[DEBUG ANNUAL]', {
-      isAnnual,
-      typeofIsAnnual: typeof isAnnual,
-      priceId,
-      planName
-    });
-
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
     }
@@ -104,12 +97,6 @@ export default async function handler(req: any, res: any) {
               const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
               const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
 
-              console.log('[DEBUG INSERT AMOUNT]', {
-                isAnnual,
-                planName,
-                amount: isAnnual ? (PLAN_PRICES[planName]?.annual) : (PLAN_PRICES[planName]?.monthly)
-              });
-
               const { data: newSub } = await supabaseAdmin
                 .from('subscriptions')
                 .insert({
@@ -160,12 +147,6 @@ export default async function handler(req: any, res: any) {
               default_payment_method: defaultPaymentMethod as string,
               trial_period_days: 7,
               metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
-            });
-
-            console.log('[DEBUG INSERT AMOUNT]', {
-              isAnnual,
-              planName,
-              amount: isAnnual ? (PLAN_PRICES[planName]?.annual) : (PLAN_PRICES[planName]?.monthly)
             });
 
             const { data: newSub } = await supabaseAdmin

@@ -68,8 +68,6 @@ export default async function handler(req: any, res: any) {
       `[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual(meta): ${isAnnual}`
     );
 
-    console.log('[WEBHOOK V2]', { planName, isAnnual, billingType: 'pending' });
-
     if (!userId || !slotId) {
       console.log(`[WEBHOOK SKIP] Metadata incomplete - userId: ${userId}, slotId: ${slotId}`);
       return res.status(200).json({ received: true });
@@ -159,15 +157,6 @@ export default async function handler(req: any, res: any) {
       if (!slot) {
         console.warn(`[WEBHOOK SLOT MISSING] Slot ${slotId} not found in database`);
       }
-
-      console.log('[WEBHOOK AMOUNT DEBUG]', {
-        planName,
-        billingType,
-        isAnnual,
-        priceInterval: price?.recurring?.interval,
-        unitAmount: price?.unit_amount,
-        amount
-      });
 
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
