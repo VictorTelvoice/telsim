@@ -186,8 +186,8 @@ export default async function handler(req: any, res: any) {
             return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
           }
         }
-      } catch (oneClickErr) {
-        console.warn("One-Click interno omitido, redirigiendo a Stripe Checkout...");
+      } catch (oneClickErr: any) {
+        console.error('[ONE-CLICK ERROR]', oneClickErr?.message, JSON.stringify(oneClickErr));
       }
     }
 
