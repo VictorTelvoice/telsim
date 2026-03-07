@@ -10,6 +10,20 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS api_secret_key text;
 
+-- 2b. RLS: permitir que usuarios autenticados actualicen y lean su propia fila (api_secret_key)
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+CREATE POLICY "Users can update own profile"
+  ON public.users FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
+CREATE POLICY "Users can view own profile"
+  ON public.users FOR SELECT
+  USING (auth.uid() = id);
+
 -- 3. Función que notifica al webhook del usuario con firma X-Telsim-Signature
 CREATE OR REPLACE FUNCTION public.notify_user_webhook(
   p_user_id uuid,

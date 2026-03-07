@@ -668,9 +668,15 @@ const WebDashboard: React.FC = () => {
     localStorage.setItem('telsim_webhook_secret', webhookSecret);
     localStorage.setItem('telsim_webhook_events', JSON.stringify(webhookEvents));
     try {
-      await supabase.from('users').update({ api_secret_key: webhookSecret?.trim() || null }).eq('id', user.id);
+      const { error } = await supabase.from('users').update({ api_secret_key: webhookSecret?.trim() || null }).eq('id', user.id);
+      if (error) throw error;
       setApiSecretKey(webhookSecret?.trim() || null);
-    } catch (_) {}
+    } catch (err: unknown) {
+      const detail = err && typeof err === 'object' && 'message' in err
+        ? String((err as { message?: string }).message)
+        : err != null ? String(err) : '';
+      if (detail) alert(`${t('webhooks.error_saving')}\n\n${detail}`);
+    }
     setTimeout(() => {
       setWebhookSaving(false);
       setWebhookSaved(true);
@@ -708,8 +714,11 @@ const WebDashboard: React.FC = () => {
       setWebhookSecret(newKey);
       setApiSecretKeyRevealed(newKey);
       setTimeout(() => setApiSecretKeyRevealed(null), 15000);
-    } catch {
-      alert(t('webhooks.error_saving'));
+    } catch (err: unknown) {
+      const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
+      const parts = [e?.message, e?.details, e?.hint].filter(Boolean);
+      const detail = parts.length ? parts.join(' · ') : (err != null ? String(err) : '');
+      alert(`${t('webhooks.error_saving')}${detail ? `\n\n${detail}` : ''}`);
     } finally {
       setApiSecretKeyRegenerating(false);
     }
