@@ -12,19 +12,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-async function getRawBody(readable: any): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of readable) {
-    if (typeof chunk === 'string') chunks.push(new TextEncoder().encode(chunk));
-    else chunks.push(new Uint8Array(chunk));
-  }
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
-  return result;
-}
-
 async function createNotification(
   userId: string,
   title: string,
@@ -48,17 +35,21 @@ async function createNotification(
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const sig = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event: Stripe.Event;
-
   try {
-    const rawBody = await getRawBody(req);
-    const rawBodyString = new TextDecoder().decode(rawBody);
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
     if (webhookSecret && sig) {
-      event = stripe.webhooks.constructEvent(rawBodyString, sig, webhookSecret);
+      // En Vercel, req.body ya viene como Buffer cuando bodyParser está deshabilitado
+      const rawBody = typeof req.body === 'string'
+        ? req.body
+        : Buffer.isBuffer(req.body)
+          ? req.body
+          : JSON.stringify(req.body);
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } else {
-      event = JSON.parse(rawBodyString);
+      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     }
   } catch (err: any) {
     console.error('[WEBHOOK SIGNATURE ERROR]', err.message);
