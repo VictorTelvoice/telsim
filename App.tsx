@@ -29,6 +29,7 @@ import Support from './screens/dashboard/Support';
 import HelpCenter from './screens/dashboard/HelpCenter';
 import TermsPrivacy from './screens/dashboard/TermsPrivacy';
 import SettingsScreen from './screens/dashboard/Settings';
+import MobileNotificationSettings from './screens/dashboard/MobileNotificationSettings';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
@@ -59,6 +60,7 @@ const BottomNav = () => {
   const isSettingsActive = 
     isActive('/dashboard/profile') || 
     isActive('/dashboard/settings') || 
+    isActive('/dashboard/notification-settings') ||
     isActive('/dashboard/help') || 
     isActive('/dashboard/terms') || 
     isActive('/dashboard/security') ||
@@ -258,6 +260,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/settings" 
                           element={<ProtectedRoute><DashboardLayout><SettingsScreen /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/notification-settings" 
+                          element={<ProtectedRoute><DashboardLayout><MobileNotificationSettings /></DashboardLayout></ProtectedRoute>} 
                         />
                         <Route 
                           path="/dashboard/notifications" 

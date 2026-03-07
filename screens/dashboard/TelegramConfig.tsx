@@ -1,9 +1,10 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import TelegramStatusDot from '../../components/TelegramStatusDot';
+import type { TelegramBotStatus } from '../../components/TelegramStatusDot';
 import { 
   ArrowLeft, 
   Send, 
@@ -26,6 +27,37 @@ const TelegramConfig: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [botStatus, setBotStatus] = useState<TelegramBotStatus>('idle');
+  const verifyCacheRef = useRef<{ key: string; status: 'online' | 'error'; until: number } | null>(null);
+
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const verifyBot = useCallback(async (token: string, chatId: string) => {
+    if (!token?.trim() || !chatId?.trim()) {
+      setBotStatus('idle');
+      return;
+    }
+    const key = `${token}:${chatId}`;
+    const cached = verifyCacheRef.current;
+    if (cached && cached.key === key && Date.now() < cached.until) {
+      setBotStatus(cached.status);
+      return;
+    }
+    setBotStatus('idle');
+    try {
+      const res = await fetch('/api/notifications/verify-bot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_token: token, telegram_chat_id: chatId }),
+      });
+      const data = await res.json();
+      const status = data.status === 'online' ? 'online' : 'error';
+      setBotStatus(status);
+      verifyCacheRef.current = { key, status, until: Date.now() + CACHE_TTL_MS };
+    } catch {
+      setBotStatus('error');
+      verifyCacheRef.current = { key, status: 'error', until: Date.now() + CACHE_TTL_MS };
+    }
+  }, []);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -36,7 +68,7 @@ const TelegramConfig: React.FC = () => {
           .select('telegram_token, telegram_chat_id')
           .eq('id', user.id)
           .single();
-        
+
         if (error) throw error;
         if (data) {
           setTgToken(data.telegram_token || '');
@@ -51,6 +83,14 @@ const TelegramConfig: React.FC = () => {
 
     fetchConfig();
   }, [user]);
+
+  useEffect(() => {
+    if (!loading && tgToken?.trim() && tgChatId?.trim()) {
+      verifyBot(tgToken, tgChatId);
+    } else if (!loading && (!tgToken?.trim() || !tgChatId?.trim())) {
+      setBotStatus('idle');
+    }
+  }, [loading, tgToken, tgChatId, verifyBot]);
 
   const handleTestConnection = async () => {
     if (!tgToken || !tgChatId) {
@@ -94,6 +134,7 @@ const TelegramConfig: React.FC = () => {
         .eq('id', user.id);
       
       if (error) throw error;
+      verifyBot(tgToken, tgChatId);
       alert(t('tg.config_saved'));
       navigate(-1);
     } catch (err) {
@@ -129,10 +170,16 @@ const TelegramConfig: React.FC = () => {
           <div className="size-16 bg-blue-500/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-blue-500/20 shadow-sm">
             <Bot className="size-8" />
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{t('tg.bot_title')}</h2>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase flex items-center justify-center gap-2">
+            {t('tg.bot_title')}
+            <TelegramStatusDot status={botStatus} />
+          </h2>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">
             {t('tg.bot_desc')}
           </p>
+          {botStatus === 'error' && (
+            <p className="text-xs font-semibold text-red-500">Revisa tu Token en BotFather</p>
+          )}
         </div>
 
         <div className="bg-white dark:bg-surface-dark rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-soft space-y-6">

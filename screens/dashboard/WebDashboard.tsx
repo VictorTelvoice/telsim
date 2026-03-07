@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,6 +16,7 @@ import {
   HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2,
   AlertCircle, AlertTriangle
 } from 'lucide-react';
+import TelegramStatusDot from '../../components/TelegramStatusDot';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
 
@@ -314,6 +315,7 @@ const WebDashboard: React.FC = () => {
   });
   const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
   const [notifPrefsSaved, setNotifPrefsSaved] = useState(false);
+  const [testNotifLoading, setTestNotifLoading] = useState(false);
 
   // ─── Webhook config state ─────────────────────────────────────────────────
   const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem('telsim_webhook_url') || '');
@@ -347,6 +349,8 @@ const WebDashboard: React.FC = () => {
   const [tgSaving, setTgSaving] = useState(false);
   const [tgTesting, setTgTesting] = useState(false);
   const [tgSaved, setTgSaved] = useState(false);
+  const [tgBotStatus, setTgBotStatus] = useState<'idle' | 'online' | 'error'>('idle');
+  const tgVerifyCacheRef = useRef<{ key: string; status: 'online' | 'error'; until: number } | null>(null);
 
   // ─── Profile Edit state ───────────────────────────────────────────────────
   const [editFullName, setEditFullName] = useState(user?.user_metadata?.full_name || '');
@@ -530,9 +534,48 @@ const WebDashboard: React.FC = () => {
       if (error) throw error;
       setTgSaved(true);
       setTimeout(() => setTgSaved(false), 3000);
+      // Verificar bot tras guardar (API cachea por 5 min)
+      verifyTgBot(tgToken, tgChatId);
     } catch { alert('Error al guardar la configuración.'); }
     finally { setTgSaving(false); }
   };
+
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const verifyTgBot = useCallback(async (token: string, chatId: string) => {
+    if (!token?.trim() || !chatId?.trim()) {
+      setTgBotStatus('idle');
+      return;
+    }
+    const key = `${token}:${chatId}`;
+    const cached = tgVerifyCacheRef.current;
+    if (cached && cached.key === key && Date.now() < cached.until) {
+      setTgBotStatus(cached.status);
+      return;
+    }
+    setTgBotStatus('idle');
+    try {
+      const res = await fetch('/api/notifications/verify-bot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_token: token, telegram_chat_id: chatId }),
+      });
+      const data = await res.json();
+      const status = data.status === 'online' ? 'online' : 'error';
+      setTgBotStatus(status);
+      tgVerifyCacheRef.current = { key, status, until: Date.now() + CACHE_TTL_MS };
+    } catch {
+      setTgBotStatus('error');
+      tgVerifyCacheRef.current = { key, status: 'error', until: Date.now() + CACHE_TTL_MS };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (settingsSection === 'telegram' && !tgLoading && tgToken?.trim() && tgChatId?.trim()) {
+      verifyTgBot(tgToken, tgChatId);
+    } else if (settingsSection === 'telegram' && !tgLoading && (!tgToken?.trim() || !tgChatId?.trim())) {
+      setTgBotStatus('idle');
+    }
+  }, [settingsSection, tgLoading, tgToken, tgChatId, verifyTgBot]);
 
   useEffect(() => {
     if (!user) return;
@@ -622,6 +665,28 @@ const WebDashboard: React.FC = () => {
       console.error(e);
     } finally {
       setNotifPrefsSaving(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (!user) return;
+    setTestNotifLoading(true);
+    try {
+      const res = await fetch('/api/notifications/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Error al enviar la notificación de prueba.');
+        return;
+      }
+      alert('Notificación de prueba enviada a Telegram correctamente.');
+    } catch (e) {
+      alert('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setTestNotifLoading(false);
     }
   };
 
@@ -1667,8 +1732,11 @@ const WebDashboard: React.FC = () => {
                       <div className="w-10 h-10 rounded-xl bg-[#229ED9]/10 flex items-center justify-center">
                         <Bot size={18} className="text-[#229ED9]" />
                       </div>
-                      <div>
-                        <h3 className="text-[15px] font-black">Telegram Bot</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[15px] font-black flex items-center gap-2">
+                          Telegram Bot
+                          <TelegramStatusDot status={tgBotStatus} />
+                        </h3>
                         <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recibe SMS directamente en Telegram</p>
                       </div>
                     </div>
@@ -2025,6 +2093,16 @@ const WebDashboard: React.FC = () => {
                         </p>
                       </div>
                     </div>
+
+                    {/* Probar notificaciones */}
+                    <button
+                      type="button"
+                      onClick={handleTestNotification}
+                      disabled={testNotifLoading}
+                      className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 text-[13px] font-bold transition-colors ${isDark ? 'border-slate-600 bg-slate-800/50 text-slate-200 hover:border-slate-500 hover:bg-slate-700/50' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'} disabled:opacity-60 disabled:cursor-not-allowed`}
+                    >
+                      {testNotifLoading ? <Loader2 size={16} className="animate-spin" /> : '🧪 Probar Notificaciones'}
+                    </button>
                   </div>
                 )}
 

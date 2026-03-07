@@ -1,0 +1,238 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
+import { Bell, Loader2, Check, ChevronLeft } from 'lucide-react';
+
+const DEFAULT_PREFS: Record<string, { inapp: boolean; email: boolean; telegram: boolean }> = {
+  sms_received:    { inapp: true,  email: false, telegram: false },
+  code_detected:   { inapp: true,  email: false, telegram: true  },
+  sim_activated:   { inapp: true,  email: true,  telegram: false },
+  sim_expired:     { inapp: true,  email: true,  telegram: true  },
+  payment_success: { inapp: true,  email: true,  telegram: false },
+  payment_failed:  { inapp: true,  email: true,  telegram: true  },
+  security_alerts: { inapp: true,  email: true,  telegram: false },
+  daily_summary:   { inapp: false, email: false, telegram: false },
+};
+
+const SECTIONS: { section: string; items: { key: string; icon: string; label: string }[] }[] = [
+  { section: 'SMS & Mensajes', items: [
+    { key: 'sms_received',  icon: '💬', label: 'SMS recibido' },
+    { key: 'code_detected', icon: '🔐', label: 'Código OTP detectado' },
+  ]},
+  { section: 'SIMs', items: [
+    { key: 'sim_activated', icon: '📱', label: 'SIM activada' },
+    { key: 'sim_expired',   icon: '⏰', label: 'SIM por vencer' },
+  ]},
+  { section: 'Pagos & Facturación', items: [
+    { key: 'payment_success', icon: '✅', label: 'Pago exitoso' },
+    { key: 'payment_failed',  icon: '⚠️', label: 'Pago fallido' },
+  ]},
+  { section: 'Sistema', items: [
+    { key: 'security_alerts', icon: '🛡️', label: 'Alertas de seguridad' },
+    { key: 'daily_summary',   icon: '📊', label: 'Resumen diario' },
+  ]},
+];
+
+const CHANNELS: { id: 'inapp' | 'email' | 'telegram'; label: string }[] = [
+  { id: 'inapp',    label: 'In-app' },
+  { id: 'email',    label: 'Email' },
+  { id: 'telegram', label: 'Telegram' },
+];
+
+const MobileNotificationSettings: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, { inapp: boolean; email: boolean; telegram: boolean }>>(DEFAULT_PREFS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [testNotifLoading, setTestNotifLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('notification_preferences')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data?.notification_preferences && typeof data.notification_preferences === 'object') {
+        setNotifPrefs(prev => ({ ...prev, ...data.notification_preferences }));
+      }
+    };
+    load().finally(() => setLoading(false));
+  }, [user]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const el = document.createElement('div');
+    el.className = `fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 text-white text-[11px] font-bold text-center max-w-[90vw] ${type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'}`;
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+      setTimeout(() => el.remove(), 300);
+    }, 2500);
+  };
+
+  const handleTestNotification = async () => {
+    if (!user) return;
+    setTestNotifLoading(true);
+    try {
+      const res = await fetch('/api/notifications/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Error al enviar.', 'error');
+        return;
+      }
+      showToast('Notificación de prueba enviada a Telegram.');
+    } catch (e) {
+      showToast('Error de conexión. Intenta de nuevo.', 'error');
+    } finally {
+      setTestNotifLoading(false);
+    }
+  };
+
+  const handleToggle = async (key: string, channel: 'inapp' | 'email' | 'telegram') => {
+    if (!user) return;
+    const updated = {
+      ...notifPrefs,
+      [key]: { ...notifPrefs[key], [channel]: !notifPrefs[key][channel] },
+    };
+    setNotifPrefs(updated);
+    setSaving(true);
+    try {
+      await supabase.from('users').update({ notification_preferences: updated }).eq('id', user.id);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={`w-10 h-6 rounded-full relative transition-colors duration-200 flex-shrink-0 ${on ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-600'}`}
+    >
+      <div className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all duration-200 ${on ? 'right-[3px]' : 'left-[3px]'}`} />
+    </button>
+  );
+
+  const SectionLabel = ({ label }: { label: string }) => (
+    <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-1.5 ml-1">{label}</p>
+  );
+
+  if (!user) return null;
+
+  return (
+    <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display flex flex-col">
+      {/* Header */}
+      <div className="bg-[#F0F4F8] dark:bg-background-dark pt-12 pb-3 px-4 flex items-center gap-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-800">
+        <button
+          onClick={() => navigate('/dashboard/settings')}
+          className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center flex-shrink-0"
+        >
+          <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-[18px] font-black text-slate-900 dark:text-white tracking-tight">Notificaciones</h1>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">In-app, Email y Telegram</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {saving && <Loader2 size={16} className="animate-spin text-slate-400" />}
+          {saved && !saving && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500">
+              <Check size={12} /> Guardado
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-4">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 size={28} className="animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {/* Channel legend */}
+            <div className={`flex items-center justify-center gap-4 py-3 px-4 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-100'}`}>
+              {CHANNELS.map(c => (
+                <span key={c.id} className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {c.label}
+                </span>
+              ))}
+            </div>
+
+            {SECTIONS.map(group => (
+              <div key={group.section}>
+                <SectionLabel label={group.section} />
+                <div className={`rounded-[18px] border overflow-hidden ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+                  {group.items.map((item, idx) => {
+                    const prefs = notifPrefs[item.key] ?? { inapp: false, email: false, telegram: false };
+                    return (
+                      <div
+                        key={item.key}
+                        className={`flex items-center gap-3 px-4 py-3.5 ${idx < group.items.length - 1 ? `border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}` : ''}`}
+                      >
+                        <span className="text-lg flex-shrink-0">{item.icon}</span>
+                        <p className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white min-w-0">{item.label}</p>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <Toggle on={prefs.inapp} onClick={() => handleToggle(item.key, 'inapp')} />
+                          <Toggle on={prefs.email} onClick={() => handleToggle(item.key, 'email')} />
+                          <Toggle on={prefs.telegram} onClick={() => handleToggle(item.key, 'telegram')} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <div className={`flex gap-3 p-4 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50 border border-slate-100'}`}>
+              <Bell size={16} className="text-slate-400 shrink-0 mt-0.5" />
+              <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                Los cambios se guardan al instante. Si apagas Telegram para un evento, el bot dejará de enviarlo de inmediato.
+              </p>
+            </div>
+
+            {/* Probar notificaciones */}
+            <button
+              type="button"
+              onClick={handleTestNotification}
+              disabled={testNotifLoading}
+              className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl border-2 text-[13px] font-bold ${isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-700'} disabled:opacity-60 disabled:cursor-not-allowed active:opacity-80`}
+            >
+              {testNotifLoading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                '🧪 Probar Notificaciones'
+              )}
+            </button>
+            <p className={`text-[10px] text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+              Si no tienes configurado el Bot de Telegram, ve a Ajustes → Telegram Bot.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MobileNotificationSettings;

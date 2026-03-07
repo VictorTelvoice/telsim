@@ -211,6 +211,49 @@ export default async function handler(req: any, res: any) {
 
       await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
 
+      // Notificación por Telegram solo si está configurado y sim_activated.telegram es true
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('telegram_token, telegram_chat_id, notification_preferences')
+          .eq('id', userId)
+          .maybeSingle();
+
+        const tgToken = userRow?.telegram_token;
+        const tgChatId = userRow?.telegram_chat_id;
+        const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
+        const sendSimActivated = prefs?.sim_activated?.telegram === true;
+
+        if (tgToken && tgChatId && sendSimActivated) {
+          const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const phoneNumber = escapeHtml(slot?.phone_number || '');
+          const planNameEscaped = escapeHtml(planName || '');
+
+          const telegramMessage = `<b>🚀 ¡NUEVA LÍNEA ACTIVADA!</b>
+━━━━━━━━━━━━━━━━━━
+📱 <b>Número:</b> <code>${phoneNumber}</code>
+💎 <b>Plan:</b> ${planNameEscaped}
+✅ <b>Estado:</b> Operativo`;
+
+          const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: tgChatId,
+              text: telegramMessage,
+              parse_mode: 'HTML',
+            }),
+          });
+
+          if (!tgRes.ok) {
+            const errBody = await tgRes.json().catch(() => ({}));
+            console.warn('[WEBHOOK] Telegram notification failed:', errBody?.description || tgRes.statusText);
+          }
+        }
+      } catch (tgErr: any) {
+        console.warn('[WEBHOOK] Telegram send skipped or failed:', tgErr?.message);
+      }
+
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] checkout.session.completed:', err.message);
       console.error('[WEBHOOK ERROR STACK]:', err.stack);

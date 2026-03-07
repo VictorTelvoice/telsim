@@ -19,7 +19,18 @@ serve(async (req) => {
       throw new Error("Credenciales de Telegram incompletas (Token/ChatID)")
     }
 
-    const message = `[TELSIM] 🔔 *NUEVO MENSAJE*\n\n📱 *De:* ${sender}\n🔑 *Código:* \`${verification_code || '---'}\`\n💬 *Texto:* ${content}`;
+    const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const safeSender = escapeHtml(sender ?? '')
+    const safeCode = escapeHtml(verification_code || '---')
+    const safeContent = escapeHtml(content ?? '')
+
+    const message = `<b>📩 NUEVO SMS RECIBIDO</b>
+━━━━━━━━━━━━━━━━━━
+<b>📱 De:</b> <code>${safeSender}</code>
+<b>🔑 Código OTP:</b> <code>${safeCode}</code>
+<b>💬 Mensaje:</b>
+<blockquote>${safeContent}</blockquote>
+<i>📡 Enviado vía Telsim</i>`
 
     console.log(`TELSIM LOG: Enviando mensaje de ${sender} a ChatID ${chat_id}`);
 
@@ -29,7 +40,7 @@ serve(async (req) => {
       body: JSON.stringify({
         chat_id: chat_id,
         text: message,
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       }),
     })
 
