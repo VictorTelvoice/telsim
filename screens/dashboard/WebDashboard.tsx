@@ -291,6 +291,10 @@ const WebDashboard: React.FC = () => {
   const [savingLabel, setSavingLabel] = useState(false);
   const [simsView, setSimsView] = useState<'card' | 'list'>('card');
   const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [slotToRelease, setSlotToRelease] = useState<Slot | null>(null);
+  const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
@@ -636,16 +640,40 @@ const WebDashboard: React.FC = () => {
     } catch (e: any) { alert('Error al abrir el portal de Stripe: ' + e.message); }
   };
 
-  // ─── Cancel subscription ─────────────────────────────────────────────────────
+  // ─── Release slot (cancel subscription + free slot) ───────────────────────────
 
-  const handleCancelSubscription = (slotId: string) => {
-    const slot = slots.find(s => s.slot_id === slotId);
-    const confirmed = window.confirm(
-      `¿Cancelar la suscripción para ${slot?.phone_number ?? 'esta SIM'}?\n\nSerás redirigido a Facturación para gestionar la cancelación.`
-    );
-    if (confirmed) {
-      setActiveTab('settings');
-      setSettingsSection('billing');
+  const handleReleaseSlot = async () => {
+    if (!slotToRelease || !user || !confirmReleaseCheck) return;
+    setReleasing(true);
+    try {
+      await supabase
+        .from('subscriptions')
+        .update({ status: 'canceled' })
+        .eq('slot_id', slotToRelease.slot_id)
+        .eq('user_id', user.id);
+
+      const { error: slotError } = await supabase
+        .from('slots')
+        .update({
+          assigned_to: null,
+          status: 'libre',
+          plan_type: null,
+          label: null,
+          forwarding_active: false,
+        })
+        .eq('slot_id', slotToRelease.slot_id);
+
+      if (slotError) throw slotError;
+
+      setSlots(prev => prev.filter(s => s.slot_id !== slotToRelease.slot_id));
+      setIsReleaseModalOpen(false);
+      setSlotToRelease(null);
+      setConfirmReleaseCheck(false);
+    } catch (err: any) {
+      console.error('[RELEASE ERROR]', err);
+      alert(err.message || 'Error al dar de baja la SIM.');
+    } finally {
+      setReleasing(false);
     }
   };
 
@@ -1299,8 +1327,8 @@ const WebDashboard: React.FC = () => {
 
                           {/* CANCEL subscription */}
                           <button
-                            onClick={() => handleCancelSubscription(slot.slot_id)}
-                            title="Cancelar suscripción"
+                            onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }}
+                            title="Dar de baja SIM"
                             className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-400'}`}>
                             <Trash2 size={13} />
                           </button>
@@ -1450,8 +1478,8 @@ const WebDashboard: React.FC = () => {
 
                                 {/* Cancel subscription */}
                                 <button
-                                  onClick={() => handleCancelSubscription(slot.slot_id)}
-                                  title="Cancelar suscripción"
+                                  onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }}
+                                  title="Dar de baja SIM"
                                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500'}`}>
                                   <Trash2 size={11} />
                                 </button>
@@ -2515,6 +2543,49 @@ const WebDashboard: React.FC = () => {
 
         </main>
       </div>
+
+      {isReleaseModalOpen && slotToRelease && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-lg animate-in fade-in duration-300">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
+            <div className="bg-rose-500 p-8 text-white">
+              <AlertTriangle className="size-10 mb-4" />
+              <h2 className="text-2xl font-black leading-tight tracking-tight uppercase">Confirmar Baja</h2>
+              <p className="text-[11px] font-black uppercase text-white/70 tracking-widest mt-1">
+                {formatPhone(slotToRelease.phone_number)}
+              </p>
+            </div>
+            <div className="p-8 space-y-6">
+              <p className="text-sm font-bold text-slate-500 leading-relaxed italic">
+                Esta acción cancelará tu suscripción y liberará el número. No podrás recuperarlo una vez confirmado.
+              </p>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmReleaseCheck}
+                  onChange={e => setConfirmReleaseCheck(e.target.checked)}
+                  className="mt-1 size-5 rounded border-slate-200 text-rose-500 focus:ring-rose-500"
+                />
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">
+                  Entiendo que esta acción es irreversible y perderé este número
+                </span>
+              </label>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleReleaseSlot}
+                  disabled={!confirmReleaseCheck || releasing}
+                  className={`w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${confirmReleaseCheck ? 'bg-rose-600 text-white shadow-xl active:scale-95' : 'bg-slate-100 text-slate-300'}`}>
+                  {releasing ? <Loader2 className="size-4 animate-spin mx-auto" /> : 'Confirmar Baja'}
+                </button>
+                <button
+                  onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }}
+                  className="w-full h-10 text-slate-400 font-black uppercase tracking-widest text-[9px]">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
