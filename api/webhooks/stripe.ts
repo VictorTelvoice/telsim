@@ -75,6 +75,8 @@ export default async function handler(req: any, res: any) {
       `[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual(meta): ${isAnnual}`
     );
 
+    console.log('[WEBHOOK V2]', { planName, isAnnual, billingType: 'pending' });
+
     if (!userId || !slotId) {
       console.log(`[WEBHOOK SKIP] Metadata incomplete - userId: ${userId}, slotId: ${slotId}`);
       return res.status(200).json({ received: true });
