@@ -302,6 +302,18 @@ const WebDashboard: React.FC = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
   const [notifFilter, setNotifFilter] = useState<string>('all');
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
+    sms_received: true,
+    code_detected: true,
+    sim_expired: true,
+    sim_activated: true,
+    payment_success: true,
+    payment_failed: true,
+    daily_summary: false,
+    security_alerts: true,
+  });
+  const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
+  const [notifPrefsSaved, setNotifPrefsSaved] = useState(false);
 
   // ─── Webhook config state ─────────────────────────────────────────────────
   const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem('telsim_webhook_url') || '');
@@ -459,6 +471,21 @@ const WebDashboard: React.FC = () => {
     loadAvatar();
   }, [user]);
 
+  useEffect(() => {
+    if (settingsSection !== 'notifications' || !user) return;
+    const loadPrefs = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('notification_preferences')
+        .eq('id', user.id)
+        .single();
+      if (data?.notification_preferences) {
+        setNotifPrefs(prev => ({ ...prev, ...data.notification_preferences }));
+      }
+    };
+    loadPrefs();
+  }, [settingsSection, user]);
+
   // ─── Telegram: load config when section opens ─────────────────────────────
   useEffect(() => {
     if (settingsSection !== 'telegram' || !user) return;
@@ -575,6 +602,24 @@ const WebDashboard: React.FC = () => {
     localStorage.setItem('telsim_language', lang);
     setLangSaved(true);
     setTimeout(() => setLangSaved(false), 3000);
+  };
+
+  const handleNotifPrefToggle = async (key: string) => {
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    setNotifPrefsSaving(true);
+    try {
+      await supabase
+        .from('users')
+        .update({ notification_preferences: updated })
+        .eq('id', user!.id);
+      setNotifPrefsSaved(true);
+      setTimeout(() => setNotifPrefsSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setNotifPrefsSaving(false);
+    }
   };
 
   // ─── Password change handler ──────────────────────────────────────────────────
@@ -1845,26 +1890,137 @@ const WebDashboard: React.FC = () => {
                 {/* Notificaciones */}
                 {settingsSection === 'notifications' && (
                   <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center"><Bell size={18} className="text-amber-500" /></div>
-                      <div><h3 className="text-[15px] font-black">Notificaciones</h3><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Administra cómo te alertamos</p></div>
-                    </div>
-                    {[
-                      { label: 'SMS recibido', desc: 'Notificación cada vez que llega un mensaje', enabled: true },
-                      { label: 'Código detectado', desc: 'Alerta cuando se extrae un código OTP', enabled: true },
-                      { label: 'SIM expirada', desc: 'Aviso 3 días antes del vencimiento', enabled: true },
-                      { label: 'Resumen diario', desc: 'Estadísticas al final del día', enabled: false },
-                    ].map((n, i) => (
-                      <div key={i} className={`flex items-center justify-between py-3 ${i < 3 ? `border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}` : ''}`}>
-                        <div>
-                          <p className="text-[13px] font-semibold">{n.label}</p>
-                          <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{n.desc}</p>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                          <Bell size={18} className="text-amber-500" />
                         </div>
-                        <div className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors ${n.enabled ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
-                          <div className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all ${n.enabled ? 'right-[3px]' : 'left-[3px]'}`} />
+                        <div>
+                          <h3 className="text-[15px] font-black">Notificaciones</h3>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Administra qué eventos te alertamos in-app</p>
                         </div>
                       </div>
-                    ))}
+                      {notifPrefsSaving && <Loader2 size={14} className="animate-spin text-slate-400" />}
+                      {notifPrefsSaved && !notifPrefsSaving && <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-500"><Check size={12} /> Guardado</span>}
+                    </div>
+
+                    {/* Sección: SMS & Mensajes */}
+                    <div className="mb-5">
+                      <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>SMS & Mensajes</p>
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { key: 'sms_received', label: 'SMS recibido', desc: 'Cada vez que llega un mensaje a cualquier SIM', icon: '💬' },
+                          { key: 'code_detected', label: 'Código OTP detectado', desc: 'Cuando se extrae automáticamente un código de verificación', icon: '🔐' },
+                        ].map(item => (
+                          <div key={item.key} className={`flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-base">{item.icon}</span>
+                              <div>
+                                <p className="text-[13px] font-semibold">{item.label}</p>
+                                <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleNotifPrefToggle(item.key)}
+                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${notifPrefs[item.key] ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
+                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${notifPrefs[item.key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={`h-px mb-5 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
+                    {/* Sección: SIMs */}
+                    <div className="mb-5">
+                      <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>SIMs</p>
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { key: 'sim_activated', label: 'SIM activada', desc: 'Confirmación cuando una nueva SIM queda operativa', icon: '📱' },
+                          { key: 'sim_expired', label: 'SIM por vencer', desc: 'Aviso 3 días antes del vencimiento de una SIM', icon: '⏰' },
+                        ].map(item => (
+                          <div key={item.key} className={`flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-base">{item.icon}</span>
+                              <div>
+                                <p className="text-[13px] font-semibold">{item.label}</p>
+                                <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleNotifPrefToggle(item.key)}
+                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${notifPrefs[item.key] ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
+                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${notifPrefs[item.key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={`h-px mb-5 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
+                    {/* Sección: Pagos */}
+                    <div className="mb-5">
+                      <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>Pagos & Facturación</p>
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { key: 'payment_success', label: 'Pago exitoso', desc: 'Confirmación cuando se procesa un cobro correctamente', icon: '✅' },
+                          { key: 'payment_failed', label: 'Pago fallido', desc: 'Alerta inmediata si falla un cobro o hay problema con tu tarjeta', icon: '⚠️' },
+                        ].map(item => (
+                          <div key={item.key} className={`flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-base">{item.icon}</span>
+                              <div>
+                                <p className="text-[13px] font-semibold">{item.label}</p>
+                                <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleNotifPrefToggle(item.key)}
+                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${notifPrefs[item.key] ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
+                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${notifPrefs[item.key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={`h-px mb-5 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
+                    {/* Sección: Sistema */}
+                    <div className="mb-5">
+                      <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>Sistema</p>
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { key: 'security_alerts', label: 'Alertas de seguridad', desc: 'Inicios de sesión, cambios de contraseña y actividad sospechosa', icon: '🛡️' },
+                          { key: 'daily_summary', label: 'Resumen diario', desc: 'Estadísticas al final del día: SMS recibidos, códigos detectados', icon: '📊' },
+                        ].map(item => (
+                          <div key={item.key} className={`flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-base">{item.icon}</span>
+                              <div>
+                                <p className="text-[13px] font-semibold">{item.label}</p>
+                                <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleNotifPrefToggle(item.key)}
+                              className={`relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${notifPrefs[item.key] ? 'bg-primary' : (isDark ? 'bg-slate-700' : 'bg-slate-200')}`}>
+                              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${notifPrefs[item.key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Info footer */}
+                    <div className={`mt-6 flex gap-3 p-4 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                      <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Los cambios se guardan automáticamente. Las notificaciones aparecen en el centro de notificaciones de Telsim.
+                      </p>
+                    </div>
                   </div>
                 )}
 
