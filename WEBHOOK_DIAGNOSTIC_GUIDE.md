@@ -22,7 +22,7 @@ Shows the last 20 subscriptions created, including:
 
 **Example URL:**
 ```
-https://telsim.vercel.app/api/diagnostics/subscriptions
+https://telsim.io/api/diagnostics/subscriptions
 ```
 
 **Expected Response:**
@@ -78,7 +78,7 @@ Simulates the webhook payload processing without requiring Stripe. Useful for te
 
 **Example cURL:**
 ```bash
-curl -X POST https://telsim.vercel.app/api/diagnostics/webhook-test \
+curl -X POST https://telsim.io/api/diagnostics/webhook-test \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "00000000-0000-0000-0000-000000000000",
@@ -116,7 +116,7 @@ The database insertion is failing. Check:
 
 ### If webhook shows 404 error in Stripe dashboard:
 The endpoint URL is not being found. Check:
-1. Webhook URL in Stripe dashboard should be exactly: `https://telsim.vercel.app/api/webhooks/stripe`
+1. Webhook URL in Stripe dashboard should be exactly: `https://telsim.io/api/webhooks/stripe`
 2. Verify this is a live endpoint in Vercel (not localhost)
 3. Check recent deployments - your code must be deployed to Vercel
 
@@ -139,12 +139,12 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
 1. **Check if slot is available:**
    ```bash
    # Visit diagnostics endpoint - check the slot_id values
-   https://telsim.vercel.app/api/diagnostics/subscriptions
+   https://telsim.io/api/diagnostics/subscriptions
    ```
 
 2. **Test the webhook directly:**
    ```bash
-   curl -X POST https://telsim.vercel.app/api/diagnostics/webhook-test \
+   curl -X POST https://telsim.io/api/diagnostics/webhook-test \
      -H "Content-Type: application/json" \
      -d '{
        "userId": "your-user-id",
@@ -156,7 +156,7 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
 
 3. **Verify subscription was created:**
    ```bash
-   https://telsim.vercel.app/api/diagnostics/subscriptions
+   https://telsim.io/api/diagnostics/subscriptions
    ```
 
 4. **Check Vercel logs for any errors:**

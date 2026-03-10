@@ -34,7 +34,7 @@ Go to Vercel and verify deployment is complete. The code should now be live.
 ### Step 2: Test if data was already saved
 Visit this URL in your browser:
 ```
-https://telsim.vercel.app/api/diagnostics/subscriptions
+https://telsim.io/api/diagnostics/subscriptions
 ```
 
 **Look for:**
@@ -49,7 +49,7 @@ Test the webhook system with the diagnostic endpoint:
 
 Open Postman or use this cURL command:
 ```bash
-curl -X POST https://telsim.vercel.app/api/diagnostics/webhook-test \
+curl -X POST https://telsim.io/api/diagnostics/webhook-test \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "your-actual-user-id",
@@ -152,7 +152,7 @@ The enhanced logging will show us exactly where it's failing.
 ## Quick Summary
 
 1. ✅ Deploy: `git push origin main`
-2. ✅ Test: Visit `https://telsim.vercel.app/api/diagnostics/subscriptions`
+2. ✅ Test: Visit `https://telsim.io/api/diagnostics/subscriptions`
 3. ✅ Check: If your Power $990 subscription is there, webhook works!
 4. ✅ If not: POST to `/api/diagnostics/webhook-test` to identify the issue
 5. ✅ Log: Check Vercel logs for `[WEBHOOK]` messages to see what's happening

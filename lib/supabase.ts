@@ -1,42 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Adaptador de almacenamiento personalizado para manejar QuotaExceededError.
- * Si localStorage falla, los datos se mantienen en memoria durante la sesión.
+ * Almacenamiento híbrido: localStorage primero, fallback a sessionStorage.
+ * En PWA en iOS Safari, localStorage puede limpiarse al cerrar la app;
+ * sessionStorage permite recuperar la sesión cuando esté disponible.
  */
-const memoryStorage: Record<string, string> = {};
-
-const customStorage = {
+const hybridStorage = {
   getItem: (key: string): string | null => {
     try {
-      return localStorage.getItem(key) || memoryStorage[key] || null;
+      return localStorage.getItem(key) ?? sessionStorage.getItem(key);
     } catch {
-      return memoryStorage[key] || null;
+      return sessionStorage.getItem(key);
     }
   },
   setItem: (key: string, value: string): void => {
     try {
       localStorage.setItem(key, value);
-    } catch (e) {
-      // Si el almacenamiento está lleno (QuotaExceededError), guardamos en memoria
-      console.warn("Storage quota exceeded, falling back to memory for key:", key);
-      memoryStorage[key] = value;
+    } catch {
+      sessionStorage.setItem(key, value);
     }
   },
   removeItem: (key: string): void => {
     try {
       localStorage.removeItem(key);
-    } catch {
-      // No hacer nada
-    }
-    delete memoryStorage[key];
+    } catch {}
+    sessionStorage.removeItem(key);
   },
 };
 
-const env = (import.meta as any).env;
-
-const supabaseUrl = env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const DEFAULT_URL = 'https://blujavukpveehdkpwfsq.supabase.co';
 const DEFAULT_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
@@ -44,18 +37,14 @@ const DEFAULT_KEY = 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
 const finalUrl = supabaseUrl || DEFAULT_URL;
 const finalKey = supabaseAnonKey || DEFAULT_KEY;
 
-console.log("--- TELSIM CONNECTION DIAGNOSTIC ---");
-console.log("Environment:", env ? "VITE_ENV_LOADED" : "NO_VITE_ENV");
-console.log("Storage Strategy: Resilient Hybrid (Local+Memory)");
-console.log("------------------------------------");
-
 export const isDemoMode = !supabaseUrl && window.location.hostname === 'localhost';
 
 export const supabase = createClient(finalUrl, finalKey, {
   auth: {
-    storage: customStorage,
     persistSession: true,
+    storageKey: 'telsim-auth',
+    storage: hybridStorage,
     autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
+    detectSessionInUrl: true,
+  },
 });
