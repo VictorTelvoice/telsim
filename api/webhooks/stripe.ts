@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { triggerEmail } from '../../lib/sendEmail';
 
 export const config = { api: { bodyParser: false } };
 
@@ -211,6 +212,8 @@ export default async function handler(req: any, res: any) {
 
       await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
 
+      await triggerEmail('purchase_success', userId, { plan: planName ?? '' });
+
       // Notificación por Telegram solo si está configurado y sim_activated.telegram es true
       try {
         const { data: userRow } = await supabaseAdmin
@@ -316,9 +319,32 @@ export default async function handler(req: any, res: any) {
           `Tu plan ${sub.plan_name} fue cancelado. Tu número ha sido liberado. Puedes activar un nuevo plan cuando quieras.`,
           'warning'
         );
+
+        await triggerEmail('subscription_cancelled', sub.user_id, {
+          plan: sub.plan_name ?? '',
+          end_date: new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
+        });
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);
+    }
+  }
+
+  else if (event.type === 'customer.subscription.created') {
+    const subscription = event.data.object as Stripe.Subscription;
+    try {
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('user_id, plan_name')
+        .eq('stripe_subscription_id', subscription.id)
+        .maybeSingle();
+      if (sub?.user_id) {
+        await triggerEmail('purchase_success', sub.user_id, {
+          plan: sub.plan_name ?? (subscription.metadata?.plan_name as string) ?? '',
+        });
+      }
+    } catch (err: any) {
+      console.warn('[WEBHOOK] customer.subscription.created email skip:', err?.message);
     }
   }
 
@@ -350,6 +376,11 @@ export default async function handler(req: any, res: any) {
         `No pudimos cobrar tu plan ${sub.plan_name}. Actualiza tu método de pago en Billing para no perder el acceso.`,
         'error'
       );
+
+      await triggerEmail('invoice_failed', sub.user_id, {
+        plan: sub.plan_name ?? '',
+        amount: ((invoice.amount_due ?? 0) / 100).toFixed(2),
+      });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_failed:', err.message);
     }
@@ -391,6 +422,12 @@ export default async function handler(req: any, res: any) {
           'success'
         );
       }
+
+      await triggerEmail('invoice_paid', sub.user_id, {
+        plan: sub.plan_name ?? '',
+        amount: ((invoice.amount_paid ?? 0) / 100).toFixed(2),
+        next_date: new Date((invoice.period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
+      });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', err.message);
     }
@@ -423,6 +460,12 @@ export default async function handler(req: any, res: any) {
         `Tu plan ${sub.plan_name} fue cancelado definitivamente. Reactiva tu suscripción cuando quieras.`,
         'error'
       );
+
+      const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
+      await triggerEmail('subscription_cancelled', sub.user_id, {
+        plan: sub.plan_name ?? '',
+        end_date: endDate,
+      });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
     }
