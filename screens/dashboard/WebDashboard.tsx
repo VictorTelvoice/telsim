@@ -688,14 +688,24 @@ const WebDashboard: React.FC = () => {
     if (!webhookUrl) { alert('Ingresa una URL de webhook primero.'); return; }
     setWebhookTesting(true);
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Telsim-Test': '1' },
-        body: JSON.stringify({ event: 'test', message: 'Webhook de prueba desde Telsim', timestamp: new Date().toISOString() }),
+      const { data, error: fnError } = await supabase.functions.invoke('test-webhook-connection', {
+        body: { url: webhookUrl.trim(), secret: webhookSecret?.trim() || undefined },
       });
-      alert('✅ Solicitud de prueba enviada. Verifica que tu servidor la recibió.');
-    } catch { alert('Error al conectar con la URL del webhook. Verifica que sea accesible desde internet.'); }
-    finally { setWebhookTesting(false); }
+      if (fnError) throw fnError;
+      const ok = data?.success === true && data?.statusCode === 200;
+      if (ok) {
+        alert('✅ Webhook probado correctamente. El servidor respondió 200 OK.');
+      } else {
+        const code = data?.statusCode;
+        const msg = data?.error || (code != null ? `El servidor respondió ${code}` : 'Error al conectar con la URL del webhook.');
+        alert(`Prueba fallida: ${msg}`);
+      }
+    } catch (err: unknown) {
+      const e = err as { message?: string } | null;
+      alert(`Error al conectar con la URL del webhook. ${e?.message || 'Verifica que sea accesible desde internet.'}`);
+    } finally {
+      setWebhookTesting(false);
+    }
   };
 
   const toggleWebhookEvent = (ev: string) =>
