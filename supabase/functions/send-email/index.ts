@@ -48,12 +48,12 @@ interface EmailPayload {
 // ─── Iconos y estilo del info box por evento ───────────────────────────────────
 
 const eventIcons: Record<EventType, string> = {
-  purchase_success: '🎉',
-  subscription_cancelled: '😔',
-  invoice_paid: '✅',
-  invoice_failed: '⚠️',
-  scheduled_event: '🔔',
-  low_credit: '📉',
+  purchase_success: '',
+  subscription_cancelled: '',
+  invoice_paid: '',
+  invoice_failed: '',
+  scheduled_event: '',
+  low_credit: '',
 };
 
 const eventInfoBoxBg: Partial<Record<EventType, string>> = {
@@ -67,7 +67,7 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: 'Tu número SIM Telsim está activo ✓',
+      subject: 'Tu número SIM Telsim está activo',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
@@ -75,7 +75,7 @@ const i18n = {
       infoLeftLabel: 'PLAN ACTIVO',
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
-      infoRightValue: () => '✓ Activo',
+      infoRightValue: () => 'Activo',
     },
     subscription_cancelled: {
       subject: 'Tu suscripción Telsim ha sido cancelada',
@@ -135,7 +135,7 @@ const i18n = {
   },
   en: {
     purchase_success: {
-      subject: 'Your Telsim SIM number is active ✓',
+      subject: 'Your Telsim SIM number is active',
       title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
@@ -143,7 +143,7 @@ const i18n = {
       infoLeftLabel: 'ACTIVE PLAN',
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
-      infoRightValue: () => '✓ Active',
+      infoRightValue: () => 'Active',
     },
     subscription_cancelled: {
       subject: 'Your Telsim subscription has been cancelled',
@@ -237,9 +237,7 @@ function buildHtml(params: {
 
         <!-- BODY -->
         <tr><td style="background:#ffffff;padding:40px 40px 32px;">
-          <div style="text-align:center;margin-bottom:24px;">
-            <span style="font-size:48px;">${params.icon}</span>
-          </div>
+          ${params.icon ? `<div style="text-align:center;margin-bottom:24px;"><span style="font-size:48px;">${params.icon}</span></div>` : ''}
           <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#111827;text-align:center;">
             ${params.title}
           </h1>

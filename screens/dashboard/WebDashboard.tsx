@@ -1041,10 +1041,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-            <span className="material-symbols-rounded text-white text-[17px]">sim_card</span>
-          </div>
-          <span className="text-[17px] font-extrabold tracking-tight text-slate-900 dark:text-white">Telsim</span>
+          <img src="/logo-512.png" alt="Telsim" style={{ height: 32, width: 'auto' }} />
         </div>
 
         {/* Plan badge */}
