@@ -17,7 +17,7 @@ const Register: React.FC = () => {
       const { error: authError } = await (supabase.auth as any).signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/#/onboarding/checkout`,
+          redirectTo: 'https://telsim.io/#/onboarding/checkout',
         },
       });
       if (authError) throw authError;

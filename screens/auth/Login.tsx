@@ -74,7 +74,9 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     await (supabase.auth as any).signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: 'https://telsim.io/dashboard',
+      },
     });
   };
 
