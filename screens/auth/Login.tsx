@@ -28,7 +28,20 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false);
   const prevUserRef = useRef(user);
 
-  // Destino post-auth: si hay plan guardado → ir a region, sino al dashboard
+  // Destino post-auth: post_login_redirect (desde landing con plan) o dashboard
+  const applyPostLoginRedirect = () => {
+    const redirect = localStorage.getItem('post_login_redirect');
+    if (redirect) {
+      localStorage.removeItem('post_login_redirect');
+      const plan = localStorage.getItem('selected_plan') || 'pro';
+      const billing = localStorage.getItem('selected_billing') || 'monthly';
+      localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
+      navigate(`${redirect}?plan=${plan}&billing=${billing}`);
+      return true;
+    }
+    return false;
+  };
+
   const getDestination = () => {
     const hasPlan = !!localStorage.getItem('selected_plan');
     if (hasPlan) return '/onboarding/region';
@@ -38,14 +51,16 @@ const Login = () => {
   // Cuando user pasa de null → autenticado, ir al destino correcto
   useEffect(() => {
     if (!prevUserRef.current && user) {
-      navigate(getDestination());
+      if (!applyPostLoginRedirect()) navigate(getDestination());
     }
     prevUserRef.current = user;
   }, [user, navigate]);
 
   // Si ya tiene sesión activa al cargar, ir directo
   useEffect(() => {
-    if (user) navigate(getDestination());
+    if (user) {
+      if (!applyPostLoginRedirect()) navigate(getDestination());
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
