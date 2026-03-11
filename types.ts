@@ -56,6 +56,8 @@ export interface Slot {
   forwarding_active?: boolean;
   forwarding_channel?: 'telegram' | 'discord' | 'webhook';
   forwarding_config?: string;
+  /** Join con subscriptions (left join); puede ser array según Supabase */
+  subscriptions?: any[];
 }
 
 export interface SimNumber {
