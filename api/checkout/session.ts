@@ -81,9 +81,15 @@ export default async function handler(req: any, res: any) {
               let stripeSubId = activeSub.stripe_subscription_id as string | undefined;
 
               if (!stripeSubId) {
-                // Fallback: obtenerlo desde la sesión de checkout
-                const checkoutSession = await stripe.checkout.sessions.retrieve(activeSub.stripe_session_id);
-                stripeSubId = checkoutSession.subscription as string;
+                const sessionId = activeSub.stripe_session_id as string;
+                if (sessionId?.startsWith('sub_')) {
+                  // Es directamente un stripe_subscription_id guardado en stripe_session_id
+                  stripeSubId = sessionId;
+                } else if (sessionId?.startsWith('cs_')) {
+                  // Es una sesión de checkout — recuperar la suscripción desde ella
+                  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+                  stripeSubId = checkoutSession.subscription as string;
+                }
               }
 
               if (!stripeSubId) throw new Error('No se encontró la suscripción de Stripe para este slot.');
