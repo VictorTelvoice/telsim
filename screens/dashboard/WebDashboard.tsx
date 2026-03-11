@@ -1443,7 +1443,7 @@ const WebDashboard: React.FC = () => {
                 /* ── CARD VIEW (SIM card grid) ── */
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {slots.map(slot => {
+                  {slots.map((slot, index) => {
                     const plan = (slot.plan_type || 'starter').toLowerCase();
                     const ps = getWebPlanStyle(plan);
                     const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
@@ -1538,7 +1538,11 @@ const WebDashboard: React.FC = () => {
                           {/* ── Row 2: SIM chip (left) + Subscriber number (right) ── */}
                           <div className="flex items-center gap-4 relative z-10">
                             {/* SIM chip — solid rectangle, simulates the physical gold contact pad */}
-                            <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
+                            <div className={`relative w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0 flex items-center justify-center`}>
+                              <span className="font-mono text-[10px] font-bold opacity-60" style={{ color: plan === 'power' ? '#1f2937' : plan === 'pro' ? '#1e293b' : '#78350f' }}>
+                                {String(index + 1).padStart(2, '0')}
+                              </span>
+                            </div>
 
                             <div>
                               <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>
@@ -1559,9 +1563,16 @@ const WebDashboard: React.FC = () => {
                               {plan === 'power' && <span className="text-[11px]">👑</span>}
                               {ps.label}
                             </span>
-                            <span className={`text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
-                              {isActive ? '● Activa' : '○ Expirada'}
-                            </span>
+                            <div className="text-right">
+                              <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
+                                {isActive ? '● Activa' : '○ Expirada'}
+                              </span>
+                              {slot.created_at && (
+                                <span className="block text-[8px] opacity-60 mt-0.5 font-mono tabular-nums" style={{ color: 'inherit' }}>
+                                  Desde: {new Date(slot.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
