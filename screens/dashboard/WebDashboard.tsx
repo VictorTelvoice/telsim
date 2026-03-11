@@ -403,13 +403,22 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [slotsRes, msgsRes] = await Promise.all([
-        supabase.from('slots').select('*, subscriptions(cycle_start_date, monthly_limit, credits_used, billing_type, status)').eq('assigned_to', user.id),
-        supabase.from('sms_logs').select('*').eq('user_id', user.id)
-          .order('received_at', { ascending: false }).limit(60),
-      ]);
-      console.log('Slots recibidos:', slotsRes.data);
-      if (slotsRes.data) setSlots(slotsRes.data as Slot[]);
+      const msgsRes = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
+        .order('received_at', { ascending: false }).limit(60);
+
+      const slotsRes = await supabase
+        .from('slots')
+        .select('*, subscriptions(cycle_start_date, monthly_limit, credits_used, billing_type, status)')
+        .eq('assigned_to', user.id);
+
+      if (slotsRes.error) {
+        console.warn('[fetchData] Join con subscriptions falló, cargando solo slots:', slotsRes.error.message);
+        const fallback = await supabase.from('slots').select('*').eq('assigned_to', user.id);
+        if (fallback.data) setSlots(fallback.data as Slot[]);
+      } else if (slotsRes.data) {
+        setSlots(slotsRes.data as Slot[]);
+      }
+
       if (msgsRes.data) setMessages(msgsRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -1445,31 +1454,32 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
-                    const sortedSlots = [...slots].sort((a, b) => {
-                      const subA = Array.isArray(a.subscriptions) ? a.subscriptions[0] : a.subscriptions;
-                      const subB = Array.isArray(b.subscriptions) ? b.subscriptions[0] : b.subscriptions;
-                      const dateA = new Date(subA?.cycle_start_date || a.created_at || 0).getTime();
-                      const dateB = new Date(subB?.cycle_start_date || b.created_at || 0).getTime();
+                    const safeSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id));
+                    const sortedSlots = [...safeSlots].sort((a, b) => {
+                      const dateStrA = a?.subscriptions?.[0]?.cycle_start_date ?? a?.created_at ?? '';
+                      const dateStrB = b?.subscriptions?.[0]?.cycle_start_date ?? b?.created_at ?? '';
+                      const dateA = new Date(dateStrA || 0).getTime();
+                      const dateB = new Date(dateStrB || 0).getTime();
                       return dateA - dateB;
                     });
                     return sortedSlots.map((slot, index) => {
-                    const slotSubs = Array.isArray(slot.subscriptions) ? slot.subscriptions : (slot.subscriptions ? [slot.subscriptions] : []);
-                    const activeSub = slotSubs.find((s: { status?: string }) => ['active', 'trialing'].includes(s?.status || ''));
-                    const plan = (slot.plan_type || 'starter').toLowerCase();
+                    const slotSubs = Array.isArray(slot?.subscriptions) ? slot.subscriptions : (slot?.subscriptions != null ? [slot.subscriptions] : []);
+                    const activeSub = slotSubs?.find((s: { status?: string }) => ['active', 'trialing'].includes(s?.status ?? '')) ?? null;
+                    const plan = (slot?.plan_type ?? 'starter').toLowerCase();
                     const ps = getWebPlanStyle(plan);
                     const defaultLimit = PLAN_CREDITS[plan] ?? 150;
-                    const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
-                    const isActive = slot.status !== 'expired';
-                    const isForwarding = !!slot.forwarding_active;
+                    const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
+                    const isActive = slot?.status !== 'expired';
+                    const isForwarding = !!slot?.forwarding_active;
                     const isTog = togglingSlot === slot.slot_id;
                     const isEditing = editingSlotId === slot.slot_id;
-                    const countryCode = (slot.region ?? 'cl').toUpperCase();
+                    const countryCode = (slot?.region ?? 'cl').toUpperCase();
                     const creditsUsed = activeSub?.credits_used ?? 0;
                     const monthlyLimit = activeSub?.monthly_limit ?? defaultLimit;
                     const usagePct = monthlyLimit > 0 ? Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100)) : 0;
                     const isAnnual = activeSub?.billing_type === 'annual';
                     const billingCycleLabel = isAnnual ? 'Plan Anual' : 'Plan Mensual';
-                    const dateForFrom = activeSub?.cycle_start_date || slot.created_at;
+                    const dateForFrom = activeSub?.cycle_start_date ?? slot?.created_at;
                     const activationDate = dateForFrom ? new Date(dateForFrom).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
 
                     return (
