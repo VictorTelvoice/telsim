@@ -17,6 +17,17 @@ const REGIONS = [
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getPlanName(): string {
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash || '';
+    const parts = hash.split('?');
+    if (parts[1]) {
+      const params = new URLSearchParams(parts[1]);
+      const planFromHash = params.get('plan');
+      if (planFromHash) {
+        return planFromHash.toLowerCase();
+      }
+    }
+  }
   const raw = localStorage.getItem('selected_plan') || 'pro';
   try { const p = JSON.parse(raw); return (p.planId || p.id || p.plan || raw).toLowerCase(); }
   catch { return raw.toLowerCase(); }
