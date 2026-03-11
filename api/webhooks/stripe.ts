@@ -17,6 +17,7 @@ async function triggerEmail(
   userId: string,
   data: Record<string, unknown>
 ): Promise<void> {
+  console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -237,6 +238,7 @@ export default async function handler(req: any, res: any) {
 
       await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
 
+      console.log('[WEBHOOK] checkout.session.completed - userId:', session.metadata?.userId, 'planName:', session.metadata?.planName);
       await triggerEmail('purchase_success', userId, { plan: planName ?? '' });
 
       // Notificación por Telegram solo si está configurado y sim_activated.telegram es true
