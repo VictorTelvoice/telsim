@@ -239,7 +239,10 @@ export default async function handler(req: any, res: any) {
       await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
 
       console.log('[WEBHOOK] checkout.session.completed - userId:', session.metadata?.userId, 'planName:', session.metadata?.planName);
-      await triggerEmail('purchase_success', userId, { plan: planName ?? '' });
+      await triggerEmail('purchase_success', userId, {
+        plan: planName ?? '',
+        to: session.customer_details?.email ?? '',
+      });
 
       // Notificación por Telegram solo si está configurado y sim_activated.telegram es true
       try {
@@ -350,6 +353,7 @@ export default async function handler(req: any, res: any) {
         await triggerEmail('subscription_cancelled', sub.user_id, {
           plan: sub.plan_name ?? '',
           end_date: new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
+          to: '',
         });
       }
     } catch (err: any) {
@@ -407,6 +411,7 @@ export default async function handler(req: any, res: any) {
       await triggerEmail('invoice_failed', sub.user_id, {
         plan: sub.plan_name ?? '',
         amount: ((invoice.amount_due ?? 0) / 100).toFixed(2),
+        to: invoice.customer_email ?? '',
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_failed:', err.message);
@@ -454,6 +459,7 @@ export default async function handler(req: any, res: any) {
         plan: sub.plan_name ?? '',
         amount: ((invoice.amount_paid ?? 0) / 100).toFixed(2),
         next_date: new Date((invoice.period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
+        to: invoice.customer_email ?? '',
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', err.message);
@@ -492,6 +498,7 @@ export default async function handler(req: any, res: any) {
       await triggerEmail('subscription_cancelled', sub.user_id, {
         plan: sub.plan_name ?? '',
         end_date: endDate,
+        to: '',
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);

@@ -262,18 +262,19 @@ Deno.serve(async (req) => {
 
     if (user_id) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-      const { data: user, error } = await supabase
+      const { data: user } = await supabase
         .from('users')
         .select('email, language')
         .eq('id', user_id)
         .single();
 
-      if (error || !user) {
-        return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 });
+      if (user) {
+        toEmail = toEmail ?? user.email;
+        lang = (user.language as Language) ?? lang;
+      } else {
+        console.warn('[send-email] User not found for id:', user_id, '- using fallback email');
+        toEmail = toEmail ?? (data.to as string) ?? null;
       }
-
-      toEmail = toEmail ?? user.email;
-      lang = (user.language as Language) ?? lang;
     }
 
     if (!toEmail) {
