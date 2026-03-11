@@ -467,7 +467,8 @@ const Landing: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo-512.png" alt="Telsim" style={{ height: 36, width: 'auto' }} />
+            <img src="/logo-512.png" alt="Telsim" style={{ height: 32, width: 'auto' }} />
+            <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button
@@ -520,7 +521,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO */}
-      <section className="tech-bg pt-14 md:pt-28 pb-16 md:pb-28">
+      <section className="tech-bg pt-12 md:pt-20 pb-14 md:pb-24">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-center fade-in">
           {/* Columna Izquierda */}
           <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
