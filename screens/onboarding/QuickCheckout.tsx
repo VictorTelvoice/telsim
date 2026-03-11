@@ -183,7 +183,7 @@ const QuickCheckout: React.FC = () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://telsim.io/dashboard',
+        redirectTo: 'https://www.telsim.io/dashboard#/login?oauth=1',
       },
     });
   };

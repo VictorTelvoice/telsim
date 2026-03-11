@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
@@ -50,6 +50,23 @@ import WebDashboard from './screens/dashboard/WebDashboard';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
+
+/** Red de seguridad: si el usuario llega al app ya logueado (p. ej. OAuth) y hay post_login_redirect, ir a onboarding */
+const PostLoginRedirectHandler: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const redirect = localStorage.getItem('post_login_redirect');
+    if (redirect && user) {
+      localStorage.removeItem('post_login_redirect');
+      const plan = localStorage.getItem('selected_plan') || 'pro';
+      const billing = localStorage.getItem('selected_billing') || 'monthly';
+      localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
+      navigate(`${redirect}?plan=${plan}&billing=${billing}`);
+    }
+  }, [user, navigate]);
+  return null;
+};
 
 const BottomNav = () => {
   const navigate = useNavigate();
@@ -191,6 +208,7 @@ const App: React.FC = () => {
             <MessagesProvider>
               <HashRouter>
                 <ScrollToTop />
+                <PostLoginRedirectHandler />
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
