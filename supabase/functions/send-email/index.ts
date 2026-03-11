@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
     }
 
     // Resolver email e idioma del usuario desde Supabase si viene user_id
-    let toEmail = payload.to;
+    let toEmail: string | null = null;
     let lang: Language = payload.language ?? 'es';
 
     if (user_id) {
@@ -357,12 +357,16 @@ Deno.serve(async (req) => {
       console.log('[send-email] user_id buscado:', user_id);
 
       if (user) {
-        toEmail = toEmail ?? user.email;
+        toEmail = user.email;
         lang = (user.language as Language) ?? lang;
       } else {
         console.warn('[send-email] User not found for id:', user_id, '- using fallback email');
-        toEmail = toEmail ?? (data.to as string) ?? null;
+        toEmail = (data.to as string) ?? payload.to ?? null;
       }
+    }
+
+    if (!user_id) {
+      toEmail = payload.to ?? null;
     }
 
     if (!toEmail) {
