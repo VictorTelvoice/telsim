@@ -1,20 +1,39 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Telsim
 
-# Run and deploy your AI Studio app
+Infraestructura de SIM física para bots y automatizaciones.
 
-This contains everything you need to run your app locally.
+## ¿Qué es Telsim?
 
-View your app in AI Studio: https://ai.studio/apps/drive/1G2hhh5NozI6EBfkkR0KvWcqvHATewDJP
+Telsim provee números SIM reales (no VoIP) para bots, automatizaciones y desarrolladores que necesitan recibir SMS y autenticarse en servicios que bloquean números virtuales.
 
-## Run Locally
+## Stack
 
-**Prerequisites:**  Node.js
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Edge Functions)
+- **Pagos**: Stripe
+- **Email**: Resend
+- **Deploy**: Vercel + Cloudflare
 
+## Servicios
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Números SIM físicos reales
+- Recepción de SMS en tiempo real
+- API REST + Webhooks
+- Notificaciones por Telegram
+- Dashboard de gestión
+- Planes: Starter, Pro, Power
+
+## Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+## Variables de entorno
+
+Ver `.env.example` para la lista completa de variables requeridas.
+
+## Contacto
+
+info@telsim.io · https://telsim.io
