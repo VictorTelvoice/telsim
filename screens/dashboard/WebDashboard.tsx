@@ -404,11 +404,11 @@ const WebDashboard: React.FC = () => {
     setLoading(true);
     try {
       const [slotsRes, msgsRes] = await Promise.all([
-        supabase.from('slots').select('*').eq('assigned_to', user.id),
+        supabase.from('slots').select('*, subscriptions(cycle_start_date, monthly_limit, credits_used, billing_type, status)').eq('assigned_to', user.id),
         supabase.from('sms_logs').select('*').eq('user_id', user.id)
           .order('received_at', { ascending: false }).limit(60),
       ]);
-      if (slotsRes.data) setSlots(slotsRes.data);
+      if (slotsRes.data) setSlots(slotsRes.data as (Slot & { subscriptions?: Array<{ cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string }> })[]);
       if (msgsRes.data) setMessages(msgsRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -1443,9 +1443,16 @@ const WebDashboard: React.FC = () => {
                 /* ── CARD VIEW (SIM card grid) ── */
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {[...slots]
-                    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
-                    .map((slot, index) => {
+                  {(() => {
+                    type SlotWithSubs = Slot & { subscriptions?: Array<{ cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string }> };
+                    const getCycleStart = (s: SlotWithSubs) => {
+                      const sub = (s.subscriptions as Array<{ cycle_start_date?: string; status?: string }> | undefined)?.find(x => ['active', 'trialing'].includes(x?.status || ''));
+                      return new Date(sub?.cycle_start_date || 0).getTime();
+                    };
+                    const sortedSlots = [...slots].sort((a, b) => getCycleStart(a as SlotWithSubs) - getCycleStart(b as SlotWithSubs));
+                    return sortedSlots.map((slot, index) => {
+                    const slotWithSubs = slot as SlotWithSubs;
+                    const activeSub = slotWithSubs.subscriptions?.find(s => ['active', 'trialing'].includes(s?.status || ''));
                     const plan = (slot.plan_type || 'starter').toLowerCase();
                     const ps = getWebPlanStyle(plan);
                     const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
@@ -1454,9 +1461,12 @@ const WebDashboard: React.FC = () => {
                     const isTog = togglingSlot === slot.slot_id;
                     const isEditing = editingSlotId === slot.slot_id;
                     const countryCode = (slot.region ?? 'cl').toUpperCase();
-                    const slotMeta = slot as { is_annual?: boolean; billing_cycle?: string };
-                    const isAnnual = slotMeta.billing_cycle === 'annual' || slotMeta.is_annual === true;
+                    const creditsUsed = activeSub?.credits_used ?? 0;
+                    const monthlyLimit = activeSub?.monthly_limit ?? 150;
+                    const usagePct = monthlyLimit > 0 ? Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100)) : 0;
+                    const isAnnual = activeSub?.billing_type === 'annual';
                     const billingCycleLabel = isAnnual ? 'Plan Anual' : 'Plan Mensual';
+                    const activationDate = activeSub?.cycle_start_date ? new Date(activeSub.cycle_start_date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
 
                     return (
                       <div key={slot.slot_id} className="flex flex-col gap-2">
@@ -1539,8 +1549,8 @@ const WebDashboard: React.FC = () => {
                                   onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
                               </div>
-                              <span className={`text-[10px] font-black font-mono ${ps.phoneColor}`}>
-                                ID: {String(index + 1).padStart(2, '0')}
+                              <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>
+                                #{String(index + 1).padStart(2, '0')}
                               </span>
                             </div>
                           </div>
@@ -1557,6 +1567,16 @@ const WebDashboard: React.FC = () => {
                               <p className={`text-[17px] font-black font-mono tracking-wide leading-none ${ps.phoneColor}`}>
                                 {formatPhone(slot.phone_number)}
                               </p>
+                              {/* Indicador de créditos SMS */}
+                              <p className={`text-[9px] font-semibold mt-2 ${ps.labelColor}`}>
+                                SMS: {creditsUsed} / {monthlyLimit}
+                              </p>
+                              <div className={`mt-1 h-1.5 rounded-full overflow-hidden ${plan === 'power' ? 'bg-amber-900/30' : plan === 'pro' ? 'bg-white/20' : 'bg-slate-400/30'}`} title={`${usagePct}% usado`}>
+                                <div
+                                  className={`h-full rounded-full transition-all ${plan === 'power' ? 'bg-amber-200' : plan === 'pro' ? 'bg-white/90' : 'bg-slate-700'}`}
+                                  style={{ width: `${usagePct}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
 
@@ -1578,9 +1598,9 @@ const WebDashboard: React.FC = () => {
                               <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
                                 {isActive ? '● Activa' : '○ Expirada'}
                               </span>
-                              {slot.created_at && (
+                              {activationDate && (
                                 <span className={`block text-[8px] opacity-60 mt-0.5 font-mono tabular-nums ${ps.labelColor}`}>
-                                  Desde: {new Date(slot.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                  Desde: {activationDate}
                                 </span>
                               )}
                             </div>
@@ -1644,7 +1664,8 @@ const WebDashboard: React.FC = () => {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
 
                 /* ── LIST VIEW ── */
