@@ -73,8 +73,19 @@ export default async function handler(req: any, res: any) {
               .from('subscriptions')
               .select('*')
               .eq('slot_id', slot_id)
+              .eq('user_id', userId)
               .in('status', ['active', 'trialing'])
+              .order('created_at', { ascending: false })
+              .limit(1)
               .maybeSingle();
+
+            console.log('[UPGRADE] activeSub encontrado:', JSON.stringify({
+              id: activeSub?.id,
+              slot_id: activeSub?.slot_id,
+              status: activeSub?.status,
+              stripe_subscription_id: activeSub?.stripe_subscription_id,
+              stripe_session_id: activeSub?.stripe_session_id,
+            }));
 
             if (activeSub?.stripe_session_id) {
               // Recuperar stripe_subscription_id desde el stripe_session_id guardado
