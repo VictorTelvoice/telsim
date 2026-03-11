@@ -241,16 +241,14 @@ export default async function handler(req: any, res: any) {
       await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
 
     } catch (err: any) {
-      console.error('[WEBHOOK ERROR] checkout.session.completed:', err.message);
-      console.error('[WEBHOOK ERROR STACK]:', err.stack);
-      console.error('[WEBHOOK ERROR FULL]:', JSON.stringify(err, null, 2));
+      console.error('[WEBHOOK ERROR]:', err.message);
     }
 
-    // ── Email (independiente del try/catch de DB) ──────────────────
-    triggerEmail('purchase_success', userId, {
+    // FUERA del try/catch — siempre se ejecuta:
+    await triggerEmail('purchase_success', userId, {
       plan: planName ?? '',
       to: session.customer_details?.email ?? '',
-    }).catch(err => console.error('[EMAIL] Failed:', err));
+    });
 
     // ── Telegram (independiente) ───────────────────────────────────
     try {

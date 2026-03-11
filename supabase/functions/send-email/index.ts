@@ -232,7 +232,7 @@ function buildHtml(params: {
 
         <!-- HEADER -->
         <tr><td style="background:#ffffff;border-radius:12px 12px 0 0;padding:24px 40px;border-bottom:1px solid #e5e7eb;">
-          <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="120" style="display:block;height:auto;">
+          <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="60" style="display:block;height:auto;">
         </td></tr>
 
         <!-- BODY -->
@@ -280,7 +280,7 @@ function buildHtml(params: {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="padding-bottom:16px;">
-                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="80" style="display:block;height:auto;opacity:0.6;">
+                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="40" style="display:block;height:auto;opacity:0.6;">
               </td>
             </tr>
             <tr>
@@ -352,6 +352,9 @@ Deno.serve(async (req) => {
         .select('email, language')
         .eq('id', user_id)
         .single();
+
+      console.log('[send-email] user lookup result:', JSON.stringify(user));
+      console.log('[send-email] user_id buscado:', user_id);
 
       if (user) {
         toEmail = toEmail ?? user.email;
