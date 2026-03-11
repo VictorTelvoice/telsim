@@ -408,7 +408,7 @@ const WebDashboard: React.FC = () => {
 
       const slotsRes = await supabase
         .from('slots')
-        .select('*, subscriptions(cycle_start_date, monthly_limit, credits_used, billing_type, status)')
+        .select('*, subscriptions(created_at, cycle_start_date, monthly_limit, credits_used, billing_type, status)')
         .eq('assigned_to', user.id);
 
       if (slotsRes.error) {
@@ -1454,17 +1454,21 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
+                    type SubRow = { created_at?: string; cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string };
+                    const getSlotSubs = (s: Slot) => Array.isArray(s?.subscriptions) ? s.subscriptions as SubRow[] : (s?.subscriptions != null ? [s.subscriptions as SubRow] : []);
+                    const getActiveSub = (s: Slot): SubRow | null => {
+                      const subs = getSlotSubs(s);
+                      return subs.find((sub: SubRow) => sub?.status === 'active' || sub?.status === 'trialing') ?? subs[0] ?? null;
+                    };
+                    const getSortDate = (s: Slot) => getActiveSub(s)?.created_at ?? s?.created_at ?? '';
                     const safeSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id));
                     const sortedSlots = [...safeSlots].sort((a, b) => {
-                      const dateStrA = a?.subscriptions?.[0]?.cycle_start_date ?? a?.created_at ?? '';
-                      const dateStrB = b?.subscriptions?.[0]?.cycle_start_date ?? b?.created_at ?? '';
-                      const dateA = new Date(dateStrA || 0).getTime();
-                      const dateB = new Date(dateStrB || 0).getTime();
+                      const dateA = new Date(getSortDate(a) || 0).getTime();
+                      const dateB = new Date(getSortDate(b) || 0).getTime();
                       return dateA - dateB;
                     });
                     return sortedSlots.map((slot, index) => {
-                    const slotSubs = Array.isArray(slot?.subscriptions) ? slot.subscriptions : (slot?.subscriptions != null ? [slot.subscriptions] : []);
-                    const activeSub = slotSubs?.find((s: { status?: string }) => ['active', 'trialing'].includes(s?.status ?? '')) ?? null;
+                    const activeSub = getActiveSub(slot);
                     const plan = (slot?.plan_type ?? 'starter').toLowerCase();
                     const ps = getWebPlanStyle(plan);
                     const defaultLimit = PLAN_CREDITS[plan] ?? 150;
@@ -1479,7 +1483,7 @@ const WebDashboard: React.FC = () => {
                     const usagePct = monthlyLimit > 0 ? Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100)) : 0;
                     const isAnnual = activeSub?.billing_type === 'annual';
                     const billingCycleLabel = isAnnual ? 'Plan Anual' : 'Plan Mensual';
-                    const dateForFrom = activeSub?.cycle_start_date ?? slot?.created_at;
+                    const dateForFrom = activeSub?.created_at ?? slot?.created_at;
                     const activationDate = dateForFrom ? new Date(dateForFrom).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
 
                     return (
