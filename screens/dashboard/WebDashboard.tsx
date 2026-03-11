@@ -1329,7 +1329,7 @@ const WebDashboard: React.FC = () => {
                   <button key={slot.slot_id} onClick={() => setSelectedSlot(slot.slot_id)}
                     className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1.5 ${selectedSlot === slot.slot_id ? 'bg-primary text-white' : (isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-white text-slate-500 hover:bg-slate-100')}`}>
                     {REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐'}
-                    {slot.label || slot.phone_number.slice(-6)}
+                    {slot.label || formatPhone(slot.phone_number)}
                   </button>
                 ))}
               </div>
