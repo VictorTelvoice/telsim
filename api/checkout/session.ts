@@ -67,57 +67,45 @@ export default async function handler(req: any, res: any) {
         const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
         if (defaultPaymentMethod) {
-          // ESCENARIO A: UPGRADE (Auditoría: Cancelar anterior / Crear nueva)
+          // ESCENARIO A: UPGRADE (upgrade instantáneo vía Stripe; Supabase se actualiza por webhook)
           if (isUpgrade && slot_id) {
             const { data: activeSub } = await supabaseAdmin
               .from('subscriptions')
               .select('*')
               .eq('slot_id', slot_id)
-              .eq('status', 'active')
+              .in('status', ['active', 'trialing'])
               .maybeSingle();
 
             if (activeSub?.stripe_session_id) {
-              const priceData = await stripe.prices.retrieve(priceId);
-              // Actualizar suscripción en Stripe directamente
-              const session = await stripe.checkout.sessions.retrieve(activeSub.stripe_session_id);
-              const stripeSubId = session.subscription as string;
-              
-              if (stripeSubId) {
-                const subscription = await stripe.subscriptions.retrieve(stripeSubId);
-                await stripe.subscriptions.update(stripeSubId, {
-                  items: [{ id: subscription.items.data[0].id, price: priceId }],
-                  proration_behavior: 'always_invoice',
-                });
+              // Recuperar stripe_subscription_id desde el stripe_session_id guardado
+              let stripeSubId = activeSub.stripe_subscription_id as string | undefined;
+
+              if (!stripeSubId) {
+                // Fallback: obtenerlo desde la sesión de checkout
+                const checkoutSession = await stripe.checkout.sessions.retrieve(activeSub.stripe_session_id);
+                stripeSubId = checkoutSession.subscription as string;
               }
 
-              // Lógica de Auditoría: Cerramos la suscripción anterior
-              await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', activeSub.id);
+              if (!stripeSubId) throw new Error('No se encontró la suscripción de Stripe para este slot.');
 
-              // Plan catalogue for correct annual pricing
-              const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
-              const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
+              // Actualizar el plan en Stripe → dispara customer.subscription.updated → webhook procesa el resto
+              const subscription = await stripe.subscriptions.retrieve(stripeSubId);
+              await stripe.subscriptions.update(stripeSubId, {
+                items: [{ id: subscription.items.data[0].id, price: priceId }],
+                proration_behavior: 'always_invoice',
+                metadata: {
+                  userId,
+                  slot_id,
+                  planName,
+                  monthlyLimit: String(monthlyLimit),
+                  isAnnual: isAnnual ? 'true' : 'false',
+                  transactionType: 'UPGRADE',
+                },
+              });
 
-              const { data: newSub } = await supabaseAdmin
-                .from('subscriptions')
-                .insert({
-                  user_id: userId,
-                  slot_id: slot_id,
-                  phone_number: activeSub.phone_number,
-                  plan_name: planName,
-                  monthly_limit: monthlyLimit,
-                  credits_used: activeSub.credits_used || 0,
-                  status: 'active',
-                  stripe_session_id: activeSub.stripe_session_id,
-                  amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
-                  billing_type: isAnnual ? 'annual' : 'monthly',
-                  currency: priceData.currency || 'usd',
-                  created_at: new Date().toISOString()
-                })
-                .select('id')
-                .single();
-
-              await supabaseAdmin.from('slots').update({ plan_type: planName }).eq('slot_id', slot_id);
-              return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
+              // El webhook customer.subscription.updated actualizará Supabase automáticamente.
+              // Solo retornamos el ID de la sub existente para que Processing.tsx pueda mostrar éxito.
+              return res.status(200).json({ instant: true, subscriptionId: activeSub.id });
             }
           }
 

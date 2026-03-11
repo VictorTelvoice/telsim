@@ -327,6 +327,40 @@ export default async function handler(req: any, res: any) {
 
       if (!sub) return res.status(200).json({ received: true });
 
+      // Detectar cambio de plan (upgrade/downgrade)
+      const previousPriceId = (previousAttributes as any)?.items?.data?.[0]?.price?.id;
+      const newPriceId = subscription.items.data[0]?.price?.id;
+      const planChanged = previousPriceId && newPriceId && previousPriceId !== newPriceId;
+
+      if (planChanged) {
+        const meta = subscription.metadata || {};
+        const slotId = meta.slot_id;
+        const newPlanName = meta.planName;
+        const newMonthlyLimit = meta.monthlyLimit ? parseInt(meta.monthlyLimit) : undefined;
+
+        if (slotId && newPlanName) {
+          // Actualizar subscriptions y slots en Supabase
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              plan_name: newPlanName,
+              monthly_limit: newMonthlyLimit,
+              status: subscription.status,
+              billing_type: meta.isAnnual === 'true' ? 'annual' : 'monthly',
+            })
+            .eq('slot_id', slotId)
+            .in('status', ['active', 'trialing']);
+
+          await supabaseAdmin
+            .from('slots')
+            .update({ plan_type: newPlanName })
+            .eq('slot_id', slotId);
+
+          // Notificación de upgrade (opcional)
+          console.log(`[UPGRADE] slot ${slotId} → ${newPlanName}`);
+        }
+      }
+
       const statusMap: Record<string, string> = {
         active: 'active',
         trialing: 'trialing',

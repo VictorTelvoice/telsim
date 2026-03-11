@@ -234,24 +234,39 @@ const MyNumbers: React.FC = () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
         try {
-            await supabase
+            // 1. Obtener stripe_subscription_id
+            const { data: subData } = await supabase
                 .from('subscriptions')
-                .update({ status: 'canceled' })
+                .select('stripe_subscription_id')
                 .eq('slot_id', slotToRelease.slot_id)
-                .eq('user_id', user.id);
+                .eq('user_id', user.id)
+                .in('status', ['active', 'trialing'])
+                .maybeSingle();
 
-            const { error: slotError } = await supabase
-                .from('slots')
-                .update({
-                    assigned_to: null,
-                    status: 'libre',
-                    plan_type: null,
-                    label: null,
-                    forwarding_active: false
-                })
-                .eq('slot_id', slotToRelease.slot_id);
+            // 2. Cancelar en Stripe (genera el webhook → correo + Telegram)
+            if (subData?.stripe_subscription_id) {
+                const res = await fetch('/api/cancel-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscriptionId: subData.stripe_subscription_id }),
+                });
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    throw new Error(errBody.error || 'Error al cancelar en Stripe');
+                }
+            } else {
+                // Fallback: sin stripe_subscription_id, cancelar directo en Supabase
+                await supabase
+                    .from('subscriptions')
+                    .update({ status: 'canceled' })
+                    .eq('slot_id', slotToRelease.slot_id)
+                    .eq('user_id', user.id);
 
-            if (slotError) throw slotError;
+                await supabase
+                    .from('slots')
+                    .update({ assigned_to: null, status: 'libre', plan_type: null, label: null, forwarding_active: false })
+                    .eq('slot_id', slotToRelease.slot_id);
+            }
 
             refreshUnreadCount();
             showToast('Suscripción cancelada · Número liberado exitosamente');
@@ -261,7 +276,7 @@ const MyNumbers: React.FC = () => {
             fetchSlots();
         } catch (err: any) {
             console.error("[RELEASE ERROR]", err);
-            showToast(err.message || (t('common.error')), "error");
+            showToast(err.message || t('common.error'), "error");
         } finally {
             setReleasing(false);
         }
