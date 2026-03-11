@@ -1452,6 +1452,7 @@ const WebDashboard: React.FC = () => {
                     const isTog = togglingSlot === slot.slot_id;
                     const isEditing = editingSlotId === slot.slot_id;
                     const countryCode = (slot.region ?? 'cl').toUpperCase();
+                    const billingCycle = (slot as { is_annual?: boolean }).is_annual ? 'Anual' : 'Mensual';
 
                     return (
                       <div key={slot.slot_id} className="flex flex-col gap-2">
@@ -1524,25 +1525,26 @@ const WebDashboard: React.FC = () => {
                               )}
                             </div>
 
-                            {/* Circular flag */}
-                            <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg flex-shrink-0 bg-slate-300">
-                              <img
-                                src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`}
-                                alt={countryCode}
-                                className="w-full h-full object-cover"
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                              />
+                            {/* Circular flag + ID de secuencia */}
+                            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                              <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg bg-slate-300">
+                                <img
+                                  src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`}
+                                  alt={countryCode}
+                                  className="w-full h-full object-cover"
+                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              </div>
+                              <span className={`text-[10px] font-bold font-mono ${ps.phoneColor}`}>
+                                {String(index + 1).padStart(2, '0')}
+                              </span>
                             </div>
                           </div>
 
                           {/* ── Row 2: SIM chip (left) + Subscriber number (right) ── */}
                           <div className="flex items-center gap-4 relative z-10">
                             {/* SIM chip — solid rectangle, simulates the physical gold contact pad */}
-                            <div className={`relative w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0 flex items-center justify-center`}>
-                              <span className="font-mono text-[10px] font-bold opacity-60" style={{ color: plan === 'power' ? '#1f2937' : plan === 'pro' ? '#1e293b' : '#78350f' }}>
-                                {String(index + 1).padStart(2, '0')}
-                              </span>
-                            </div>
+                            <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
 
                             <div>
                               <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>
@@ -1556,13 +1558,18 @@ const WebDashboard: React.FC = () => {
 
                           {/* ── Row 3: Plan badge + active indicator ── */}
                           <div className="flex items-end justify-between relative z-10">
-                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
-                              plan === 'pro' ? 'border-white/40   text-white/90    bg-black/20' :
-                                'border-slate-300/70 text-slate-600 bg-white/60'
-                              }`}>
-                              {plan === 'power' && <span className="text-[11px]">👑</span>}
-                              {ps.label}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
+                                plan === 'pro' ? 'border-white/40   text-white/90    bg-black/20' :
+                                  'border-slate-300/70 text-slate-600 bg-white/60'
+                                }`}>
+                                {plan === 'power' && <span className="text-[11px]">👑</span>}
+                                {ps.label}
+                              </span>
+                              <span className={`text-[9px] font-semibold opacity-80 ${ps.labelColor}`}>
+                                {billingCycle}
+                              </span>
+                            </div>
                             <div className="text-right">
                               <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
                                 {isActive ? '● Activa' : '○ Expirada'}
