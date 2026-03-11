@@ -231,7 +231,7 @@ function buildHtml(params: {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
         <!-- HEADER -->
-        <tr><td style="background:#1d4ed8;border-radius:12px 12px 0 0;padding:24px 40px;">
+        <tr><td style="background:#ffffff;border-radius:12px 12px 0 0;padding:24px 40px;border-bottom:1px solid #e5e7eb;">
           <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="120" style="display:block;height:auto;">
         </td></tr>
 
