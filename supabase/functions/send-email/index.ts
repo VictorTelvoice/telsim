@@ -231,10 +231,8 @@ function buildHtml(params: {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
         <!-- HEADER -->
-        <tr><td style="background:#1d4ed8;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
-          <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 20px;">
-            <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;">TELSIM</span>
-          </div>
+        <tr><td style="background:#1d4ed8;border-radius:12px 12px 0 0;padding:24px 40px;">
+          <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="120" style="display:block;height:auto;">
         </td></tr>
 
         <!-- BODY -->
@@ -280,13 +278,31 @@ function buildHtml(params: {
         </td></tr>
 
         <!-- FOOTER -->
-        <tr><td style="background:#ffffff;border-radius:0 0 12px 12px;padding:24px 40px;text-align:center;">
-          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">
-            ${params.footerText}
-          </p>
-          <p style="margin:0;font-size:13px;color:#9ca3af;">
-            © ${params.year} Telsim · <a href="https://telsim.io" style="color:#1d4ed8;text-decoration:none;">telsim.io</a>
-          </p>
+        <tr><td style="background:#f9fafb;border-radius:0 0 12px 12px;padding:32px 40px;border-top:1px solid #e5e7eb;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-bottom:16px;">
+                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="80" style="display:block;height:auto;opacity:0.6;">
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-bottom:12px;">
+                <a href="https://www.telsim.io" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">telsim.io</a>
+                <a href="https://www.telsim.io/privacy" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Privacidad</a>
+                <a href="https://www.telsim.io/terms" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Términos</a>
+                <a href="mailto:unsubscribe@telsim.io?subject=unsubscribe" style="color:#6b7280;font-size:13px;text-decoration:none;">Cancelar suscripción</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+                  Recibes este email porque tienes una cuenta en Telsim.<br>
+                  Telsim · Donde la privacidad y la tecnología se encuentran<br>
+                  © 2026 Telsim. Todos los derechos reservados.
+                </p>
+              </td>
+            </tr>
+          </table>
         </td></tr>
 
       </table>
@@ -299,12 +315,12 @@ function buildHtml(params: {
 // ─── CTA URLs por evento ───────────────────────────────────────────────────────
 
 const ctaUrls: Record<EventType, string> = {
-  purchase_success: 'https://telsim.io/dashboard',
-  subscription_cancelled: 'https://telsim.io/dashboard/planes',
-  invoice_paid: 'https://telsim.io/dashboard/facturacion',
-  invoice_failed: 'https://telsim.io/dashboard/facturacion',
-  scheduled_event: 'https://telsim.io/dashboard/facturacion',
-  low_credit: 'https://telsim.io/dashboard/facturacion',
+  purchase_success: 'https://www.telsim.io/dashboard#/login',
+  subscription_cancelled: 'https://www.telsim.io/dashboard#/login',
+  invoice_paid: 'https://www.telsim.io/dashboard#/login',
+  invoice_failed: 'https://www.telsim.io/dashboard#/login',
+  scheduled_event: 'https://www.telsim.io/dashboard#/login',
+  low_credit: 'https://www.telsim.io/dashboard#/login',
 };
 
 // ─── Handler principal ────────────────────────────────────────────────────────
