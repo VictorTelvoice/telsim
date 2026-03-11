@@ -391,6 +391,10 @@ Deno.serve(async (req) => {
         to: [toEmail],
         subject: t.subject,
         html,
+        headers: {
+          'List-Unsubscribe': '<mailto:unsubscribe@telsim.io?subject=unsubscribe>',
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
       }),
     });
 
