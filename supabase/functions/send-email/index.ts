@@ -45,6 +45,23 @@ interface EmailPayload {
   data?: Record<string, unknown>;
 }
 
+// ─── Iconos y estilo del info box por evento ───────────────────────────────────
+
+const eventIcons: Record<EventType, string> = {
+  purchase_success: '🎉',
+  subscription_cancelled: '😔',
+  invoice_paid: '✅',
+  invoice_failed: '⚠️',
+  scheduled_event: '🔔',
+  low_credit: '📉',
+};
+
+const eventInfoBoxBg: Partial<Record<EventType, string>> = {
+  invoice_failed: '#fff5f5',
+  low_credit: '#fffbeb',
+};
+const DEFAULT_INFO_BG = '#f0f4ff';
+
 // ─── Traducciones ─────────────────────────────────────────────────────────────
 
 const i18n = {
@@ -53,50 +70,67 @@ const i18n = {
       subject: '¡Bienvenido a Telsim! Tu suscripción está activa 🎉',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
-        `Tu plan <strong>${d.plan ?? ''}</strong> está activo. 
-         Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
+        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
       cta: 'Ir al Dashboard',
+      infoLeftLabel: 'PLAN ACTIVO',
+      infoRightLabel: 'ESTADO',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: () => '✓ Activo',
     },
     subscription_cancelled: {
       subject: 'Tu suscripción Telsim ha sido cancelada',
       title: 'Suscripción cancelada',
       body: (d: Record<string, unknown>) =>
-        `Tu suscripción al plan <strong>${d.plan ?? ''}</strong> ha sido cancelada. 
-         Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
-      cta: 'Reactivar suscripción',
+        `Tu suscripción al plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
+      cta: 'Ver planes',
+      infoLeftLabel: 'PLAN',
+      infoRightLabel: 'FECHA VENCIMIENTO',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
       subject: 'Pago recibido — Telsim',
-      title: 'Pago procesado exitosamente',
+      title: 'Pago recibido',
       body: (d: Record<string, unknown>) =>
-        `Hemos recibido tu pago de <strong>$${d.amount ?? ''} USD</strong> 
-         para el plan <strong>${d.plan ?? ''}</strong>. 
-         Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
-      cta: 'Ver factura',
+        `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
+      cta: 'Ver facturación',
+      infoLeftLabel: 'MONTO',
+      infoRightLabel: 'PRÓXIMO COBRO',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
       subject: '⚠️ Problema con tu pago — Telsim',
-      title: 'No pudimos procesar tu pago',
+      title: 'Pago fallido',
       body: (d: Record<string, unknown>) =>
-        `Hubo un problema al cobrar <strong>$${d.amount ?? ''} USD</strong>. 
-         Por favor actualiza tu método de pago para evitar interrupciones en tu servicio.`,
+        `Hubo un problema al cobrar <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Por favor actualiza tu método de pago para evitar interrupciones.`,
       cta: 'Actualizar método de pago',
+      infoLeftLabel: 'MONTO',
+      infoRightLabel: 'ACCIÓN',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoRightValue: () => 'Actualizar pago',
     },
     scheduled_event: {
       subject: 'Recordatorio: Tu suscripción Telsim se renueva pronto',
-      title: 'Renovación próxima',
+      title: 'Recordatorio de renovación',
       body: (d: Record<string, unknown>) =>
-        `Tu plan <strong>${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> 
-         por <strong>$${d.amount ?? ''} USD</strong>.`,
-      cta: 'Gestionar suscripción',
+        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> por <strong>$${d.amount ?? ''} USD</strong>.`,
+      cta: 'Ver suscripción',
+      infoLeftLabel: 'FECHA',
+      infoRightLabel: 'MONTO',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.renewal_date ?? ''),
+      infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
     },
     low_credit: {
       subject: '⚠️ Crédito bajo en tu cuenta Telsim',
-      title: 'Tu crédito está bajo',
+      title: 'Saldo bajo',
       body: (d: Record<string, unknown>) =>
-        `Tu saldo actual es de <strong>$${d.balance ?? ''} USD</strong>. 
-         Recarga tu cuenta para mantener tu servicio activo sin interrupciones.`,
-      cta: 'Recargar crédito',
+        `Tu saldo actual es de <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Recarga tu cuenta para mantener tu servicio activo.`,
+      cta: 'Recargar saldo',
+      infoLeftLabel: 'SALDO ACTUAL',
+      infoRightLabel: 'ACCIÓN',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.balance ?? ''} USD`,
+      infoRightValue: () => 'Recargar',
     },
   },
   en: {
@@ -104,122 +138,159 @@ const i18n = {
       subject: 'Welcome to Telsim! Your subscription is active 🎉',
       title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
-        `Your <strong>${d.plan ?? ''}</strong> plan is now active. 
-         You can access your SIM number and start receiving SMS messages.`,
+        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
       cta: 'Go to Dashboard',
+      infoLeftLabel: 'ACTIVE PLAN',
+      infoRightLabel: 'STATUS',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: () => '✓ Active',
     },
     subscription_cancelled: {
       subject: 'Your Telsim subscription has been cancelled',
       title: 'Subscription cancelled',
       body: (d: Record<string, unknown>) =>
-        `Your <strong>${d.plan ?? ''}</strong> plan subscription has been cancelled. 
-         Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
-      cta: 'Reactivate subscription',
+        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
+      cta: 'View plans',
+      infoLeftLabel: 'PLAN',
+      infoRightLabel: 'END DATE',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
       subject: 'Payment received — Telsim',
-      title: 'Payment successfully processed',
+      title: 'Payment received',
       body: (d: Record<string, unknown>) =>
-        `We received your payment of <strong>$${d.amount ?? ''} USD</strong> 
-         for the <strong>${d.plan ?? ''}</strong> plan. 
-         Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
-      cta: 'View invoice',
+        `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
+      cta: 'View billing',
+      infoLeftLabel: 'AMOUNT',
+      infoRightLabel: 'NEXT CHARGE',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
       subject: '⚠️ Payment issue — Telsim',
-      title: "We couldn't process your payment",
+      title: 'Payment failed',
       body: (d: Record<string, unknown>) =>
-        `There was a problem charging <strong>$${d.amount ?? ''} USD</strong>. 
-         Please update your payment method to avoid service interruptions.`,
+        `There was a problem charging <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Please update your payment method to avoid service interruptions.`,
       cta: 'Update payment method',
+      infoLeftLabel: 'AMOUNT',
+      infoRightLabel: 'ACTION',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoRightValue: () => 'Update payment',
     },
     scheduled_event: {
       subject: 'Reminder: Your Telsim subscription renews soon',
-      title: 'Upcoming renewal',
+      title: 'Renewal reminder',
       body: (d: Record<string, unknown>) =>
-        `Your <strong>${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> 
-         for <strong>$${d.amount ?? ''} USD</strong>.`,
-      cta: 'Manage subscription',
+        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> for <strong>$${d.amount ?? ''} USD</strong>.`,
+      cta: 'View subscription',
+      infoLeftLabel: 'DATE',
+      infoRightLabel: 'AMOUNT',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.renewal_date ?? ''),
+      infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
     },
     low_credit: {
       subject: '⚠️ Low balance on your Telsim account',
-      title: 'Your balance is running low',
+      title: 'Low balance',
       body: (d: Record<string, unknown>) =>
-        `Your current balance is <strong>$${d.balance ?? ''} USD</strong>. 
-         Top up your account to keep your service running without interruptions.`,
+        `Your current balance is <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Top up your account to keep your service running.`,
       cta: 'Top up balance',
+      infoLeftLabel: 'CURRENT BALANCE',
+      infoRightLabel: 'ACTION',
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.balance ?? ''} USD`,
+      infoRightValue: () => 'Top up',
     },
   },
 };
 
-// ─── Template HTML ─────────────────────────────────────────────────────────────
+// ─── Template HTML (diseño profesional unificado) ──────────────────────────────
 
 function buildHtml(params: {
+  icon: string;
   title: string;
   body: string;
-  cta: string;
+  infoBoxBg: string;
+  infoLeftLabel: string;
+  infoLeftValue: string;
+  infoRightLabel: string;
+  infoRightValue: string;
+  ctaText: string;
   ctaUrl: string;
-  lang: Language;
+  footerText: string;
+  year: number;
 }): string {
-  const footer =
-    params.lang === 'es'
-      ? 'Recibes este email porque tienes una cuenta en Telsim. <a href="https://telsim.io/dashboard" style="color:#6b7280;">Gestionar preferencias</a>'
-      : 'You receive this email because you have a Telsim account. <a href="https://telsim.io/dashboard" style="color:#6b7280;">Manage preferences</a>';
-
   return `<!DOCTYPE html>
-<html lang="${params.lang}">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>${params.title}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-          <!-- Header -->
-          <tr>
-            <td align="center" style="padding:0 0 24px 0;">
-              <table cellpadding="0" cellspacing="0">
+        <!-- HEADER -->
+        <tr><td style="background:#1d4ed8;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+          <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 20px;">
+            <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;">TELSIM</span>
+          </div>
+        </td></tr>
+
+        <!-- BODY -->
+        <tr><td style="background:#ffffff;padding:40px 40px 32px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <span style="font-size:48px;">${params.icon}</span>
+          </div>
+          <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#111827;text-align:center;">
+            ${params.title}
+          </h1>
+          <p style="margin:0 0 24px;font-size:16px;color:#6b7280;text-align:center;line-height:1.6;">
+            ${params.body}
+          </p>
+
+          <!-- INFO BOX -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:${params.infoBoxBg};border-radius:10px;margin-bottom:28px;">
+            <tr><td style="padding:20px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background:#1d4ed8;border-radius:14px;padding:10px 14px;">
-                    <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">TELSIM</span>
-                  </td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;">${params.infoLeftLabel}</td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;">${params.infoRightLabel}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:18px;font-weight:700;color:#1d4ed8;">${params.infoLeftValue}</td>
+                  <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;">${params.infoRightValue}</td>
                 </tr>
               </table>
-            </td>
-          </tr>
+            </td></tr>
+          </table>
 
-          <!-- Card -->
-          <tr>
-            <td style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-              <h1 style="margin:0 0 16px 0;font-size:22px;font-weight:700;color:#0f172a;line-height:1.3;">
-                ${params.title}
-              </h1>
-              <p style="margin:0 0 32px 0;font-size:15px;color:#475569;line-height:1.7;">
-                ${params.body}
-              </p>
-              <a href="${params.ctaUrl}"
-                 style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;
-                        padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">
-                ${params.cta} →
-              </a>
-            </td>
-          </tr>
+          <!-- CTA BUTTON -->
+          <div style="text-align:center;">
+            <a href="${params.ctaUrl}"
+               style="display:inline-block;background:#1d4ed8;color:#fff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+              ${params.ctaText} →
+            </a>
+          </div>
+        </td></tr>
 
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="padding:24px 0 0 0;font-size:12px;color:#94a3b8;line-height:1.6;">
-              ${footer}<br/>
-              © ${new Date().getFullYear()} Telsim · <a href="https://telsim.io" style="color:#94a3b8;">telsim.io</a>
-            </td>
-          </tr>
+        <!-- DIVIDER -->
+        <tr><td style="background:#ffffff;padding:0 40px;">
+          <hr style="border:none;border-top:1px solid #f3f4f6;margin:0;">
+        </td></tr>
 
-        </table>
-      </td>
-    </tr>
+        <!-- FOOTER -->
+        <tr><td style="background:#ffffff;border-radius:0 0 12px 12px;padding:24px 40px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">
+            ${params.footerText}
+          </p>
+          <p style="margin:0;font-size:13px;color:#9ca3af;">
+            © ${params.year} Telsim · <a href="https://telsim.io" style="color:#1d4ed8;text-decoration:none;">telsim.io</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
   </table>
 </body>
 </html>`;
@@ -282,17 +353,30 @@ Deno.serve(async (req) => {
     }
 
     // Construir email
-    const t = i18n[lang][event as EventType];
+    const ev = event as EventType;
+    const t = i18n[lang][ev];
     if (!t) {
       return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
     }
 
+    const footerText =
+      lang === 'es'
+        ? 'Recibes este email porque tienes una cuenta en Telsim.'
+        : 'You receive this email because you have a Telsim account.';
+
     const html = buildHtml({
+      icon: eventIcons[ev],
       title: t.title,
       body: t.body(data),
-      cta: t.cta,
-      ctaUrl: ctaUrls[event as EventType],
-      lang,
+      infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
+      infoLeftLabel: t.infoLeftLabel,
+      infoLeftValue: t.infoLeftValue(data),
+      infoRightLabel: t.infoRightLabel,
+      infoRightValue: t.infoRightValue(data),
+      ctaText: t.cta,
+      ctaUrl: ctaUrls[ev],
+      footerText,
+      year: new Date().getFullYear(),
     });
 
     // Enviar via Resend
