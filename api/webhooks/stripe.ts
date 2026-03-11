@@ -241,7 +241,6 @@ export default async function handler(req: any, res: any) {
       console.log('[WEBHOOK] checkout.session.completed - userId:', session.metadata?.userId, 'planName:', session.metadata?.planName);
       await triggerEmail('purchase_success', userId, {
         plan: planName ?? '',
-        to: session.customer_details?.email ?? '',
       });
 
       // Notificación por Telegram solo si está configurado y sim_activated.telegram es true
