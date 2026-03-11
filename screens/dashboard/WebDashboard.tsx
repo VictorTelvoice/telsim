@@ -1443,7 +1443,9 @@ const WebDashboard: React.FC = () => {
                 /* ── CARD VIEW (SIM card grid) ── */
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {slots.map((slot, index) => {
+                  {[...slots]
+                    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+                    .map((slot, index) => {
                     const plan = (slot.plan_type || 'starter').toLowerCase();
                     const ps = getWebPlanStyle(plan);
                     const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
@@ -1452,7 +1454,9 @@ const WebDashboard: React.FC = () => {
                     const isTog = togglingSlot === slot.slot_id;
                     const isEditing = editingSlotId === slot.slot_id;
                     const countryCode = (slot.region ?? 'cl').toUpperCase();
-                    const billingCycle = (slot as { is_annual?: boolean }).is_annual ? 'Anual' : 'Mensual';
+                    const slotMeta = slot as { is_annual?: boolean; billing_cycle?: string };
+                    const isAnnual = slotMeta.billing_cycle === 'annual' || slotMeta.is_annual === true;
+                    const billingCycleLabel = isAnnual ? 'Plan Anual' : 'Plan Mensual';
 
                     return (
                       <div key={slot.slot_id} className="flex flex-col gap-2">
@@ -1535,8 +1539,8 @@ const WebDashboard: React.FC = () => {
                                   onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
                               </div>
-                              <span className={`text-[10px] font-bold font-mono ${ps.phoneColor}`}>
-                                {String(index + 1).padStart(2, '0')}
+                              <span className={`text-[10px] font-black font-mono ${ps.phoneColor}`}>
+                                ID: {String(index + 1).padStart(2, '0')}
                               </span>
                             </div>
                           </div>
@@ -1566,8 +1570,8 @@ const WebDashboard: React.FC = () => {
                                 {plan === 'power' && <span className="text-[11px]">👑</span>}
                                 {ps.label}
                               </span>
-                              <span className={`text-[9px] font-semibold opacity-80 ${ps.labelColor}`}>
-                                {billingCycle}
+                              <span className={`text-[9px] font-bold opacity-90 ${ps.labelColor}`}>
+                                {billingCycleLabel}
                               </span>
                             </div>
                             <div className="text-right">
@@ -1575,8 +1579,8 @@ const WebDashboard: React.FC = () => {
                                 {isActive ? '● Activa' : '○ Expirada'}
                               </span>
                               {slot.created_at && (
-                                <span className="block text-[8px] opacity-60 mt-0.5 font-mono tabular-nums" style={{ color: 'inherit' }}>
-                                  Desde: {new Date(slot.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                <span className={`block text-[8px] opacity-60 mt-0.5 font-mono tabular-nums ${ps.labelColor}`}>
+                                  Desde: {new Date(slot.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                 </span>
                               )}
                             </div>
