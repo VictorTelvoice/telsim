@@ -232,7 +232,10 @@ function buildHtml(params: {
 
         <!-- HEADER -->
         <tr><td style="background:#ffffff;border-radius:12px 12px 0 0;padding:24px 40px;border-bottom:1px solid #e5e7eb;">
-          <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="60" style="display:block;height:auto;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="42" style="display:block;height:auto;">
+            <span style="font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.5px;">Telsim</span>
+          </div>
         </td></tr>
 
         <!-- BODY -->
@@ -280,7 +283,7 @@ function buildHtml(params: {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="padding-bottom:16px;">
-                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="40" style="display:block;height:auto;opacity:0.6;">
+                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="20" style="display:block;height:auto;opacity:0.6;">
               </td>
             </tr>
             <tr>
@@ -313,7 +316,7 @@ function buildHtml(params: {
 // ─── CTA URLs por evento ───────────────────────────────────────────────────────
 
 const ctaUrls: Record<EventType, string> = {
-  purchase_success: 'https://www.telsim.io/dashboard#/login',
+  purchase_success: 'https://www.telsim.io/dashboard#/dashboard',
   subscription_cancelled: 'https://www.telsim.io/dashboard#/login',
   invoice_paid: 'https://www.telsim.io/dashboard#/login',
   invoice_failed: 'https://www.telsim.io/dashboard#/login',
