@@ -90,7 +90,7 @@ const Login = () => {
     await (supabase.auth as any).signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://www.telsim.io/dashboard#/login?oauth=1',
+        redirectTo: 'https://www.telsim.io/dashboard',
       },
     });
   };

@@ -64,11 +64,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
+
       if (event === 'SIGNED_IN' && currentUser) {
         syncUserToPublicTable(currentUser);
+
+        // Post-OAuth redirect: si hay un destino guardado (ej. /onboarding/region desde landing)
+        const redirect = localStorage.getItem('post_login_redirect');
+        if (redirect) {
+          localStorage.removeItem('post_login_redirect');
+          const plan = localStorage.getItem('selected_plan') || 'pro';
+          const billing = localStorage.getItem('selected_billing') || 'monthly';
+          localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
+          // Usar setTimeout para que el router ya esté montado
+          setTimeout(() => {
+            window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
+          }, 100);
+        }
       }
-      
+
       setLoading(false);
     });
 
