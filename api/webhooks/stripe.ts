@@ -303,7 +303,14 @@ export default async function handler(req: any, res: any) {
     const subscription = event.data.object as Stripe.Subscription;
     const previousAttributes = (event.data as any).previous_attributes || {};
 
-    if (!previousAttributes.status) {
+    const cancelAtPeriodEndChanged =
+      previousAttributes.cancel_at_period_end === false &&
+      subscription.cancel_at_period_end === true;
+
+    const statusChanged = !!previousAttributes.status;
+
+    // Ignorar si no hay cambio relevante
+    if (!statusChanged && !cancelAtPeriodEndChanged) {
       return res.status(200).json({ received: true });
     }
 
@@ -343,10 +350,15 @@ export default async function handler(req: any, res: any) {
         );
       }
 
-      if (newStatus === 'canceled' && prevStatus !== 'canceled') {
-        await supabaseAdmin.from('slots').update({
-          status: 'libre', assigned_to: null, plan_type: null,
-        }).eq('slot_id', sub.slot_id);
+      const isCanceledNow = newStatus === 'canceled' && prevStatus !== 'canceled';
+      const isCanceledAtPeriodEnd = cancelAtPeriodEndChanged;
+
+      if (isCanceledNow || isCanceledAtPeriodEnd) {
+        if (isCanceledNow) {
+          await supabaseAdmin.from('slots').update({
+            status: 'libre', assigned_to: null, plan_type: null,
+          }).eq('slot_id', sub.slot_id);
+        }
 
         await createNotification(
           sub.user_id,
