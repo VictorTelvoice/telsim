@@ -67,7 +67,7 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: '¡Bienvenido a Telsim! Tu suscripción está activa 🎉',
+      subject: 'Tu número SIM Telsim está activo ✓',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
@@ -89,7 +89,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: 'Pago recibido — Telsim',
+      subject: 'Pago confirmado - Telsim',
       title: 'Pago recibido',
       body: (d: Record<string, unknown>) =>
         `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
@@ -100,7 +100,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
-      subject: '⚠️ Problema con tu pago — Telsim',
+      subject: 'Acción requerida: problema con tu pago en Telsim',
       title: 'Pago fallido',
       body: (d: Record<string, unknown>) =>
         `Hubo un problema al cobrar <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Por favor actualiza tu método de pago para evitar interrupciones.`,
@@ -111,7 +111,7 @@ const i18n = {
       infoRightValue: () => 'Actualizar pago',
     },
     scheduled_event: {
-      subject: 'Recordatorio: Tu suscripción Telsim se renueva pronto',
+      subject: 'Tu renovación Telsim se acerca',
       title: 'Recordatorio de renovación',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> por <strong>$${d.amount ?? ''} USD</strong>.`,
@@ -122,7 +122,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
     },
     low_credit: {
-      subject: '⚠️ Crédito bajo en tu cuenta Telsim',
+      subject: 'Saldo bajo en tu cuenta Telsim',
       title: 'Saldo bajo',
       body: (d: Record<string, unknown>) =>
         `Tu saldo actual es de <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Recarga tu cuenta para mantener tu servicio activo.`,
@@ -135,7 +135,7 @@ const i18n = {
   },
   en: {
     purchase_success: {
-      subject: 'Welcome to Telsim! Your subscription is active 🎉',
+      subject: 'Your Telsim SIM number is active ✓',
       title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
@@ -157,7 +157,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: 'Payment received — Telsim',
+      subject: 'Payment confirmed - Telsim',
       title: 'Payment received',
       body: (d: Record<string, unknown>) =>
         `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
@@ -168,7 +168,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
-      subject: '⚠️ Payment issue — Telsim',
+      subject: 'Action required: payment issue on Telsim',
       title: 'Payment failed',
       body: (d: Record<string, unknown>) =>
         `There was a problem charging <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Please update your payment method to avoid service interruptions.`,
@@ -179,7 +179,7 @@ const i18n = {
       infoRightValue: () => 'Update payment',
     },
     scheduled_event: {
-      subject: 'Reminder: Your Telsim subscription renews soon',
+      subject: 'Your Telsim renewal is coming up',
       title: 'Renewal reminder',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> for <strong>$${d.amount ?? ''} USD</strong>.`,
@@ -190,7 +190,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
     },
     low_credit: {
-      subject: '⚠️ Low balance on your Telsim account',
+      subject: 'Low balance on your Telsim account',
       title: 'Low balance',
       body: (d: Record<string, unknown>) =>
         `Your current balance is <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Top up your account to keep your service running.`,
