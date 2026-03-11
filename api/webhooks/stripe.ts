@@ -358,8 +358,31 @@ export default async function handler(req: any, res: any) {
         await triggerEmail('subscription_cancelled', sub.user_id, {
           plan: sub.plan_name ?? '',
           end_date: new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
-          to: '',
         });
+
+        try {
+          const { data: userRow } = await supabaseAdmin
+            .from('users')
+            .select('telegram_token, telegram_chat_id, notification_preferences')
+            .eq('id', sub.user_id)
+            .maybeSingle();
+
+          const tgToken = userRow?.telegram_token;
+          const tgChatId = userRow?.telegram_chat_id;
+          const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean } } | null | undefined;
+          const sendTg = prefs?.sim_expired?.telegram === true;
+
+          if (tgToken && tgChatId && sendTg) {
+            const telegramMessage = `<b>⚠️ SUSCRIPCIÓN CANCELADA</b>\n━━━━━━━━━━━━━━━━━━\n💎 <b>Plan:</b> ${sub.plan_name ?? ''}\n📅 <b>Activo hasta:</b> ${new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL')}\n\nPuedes reactivar tu plan cuando quieras.`;
+            await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'HTML' }),
+            });
+          }
+        } catch (tgErr: any) {
+          console.warn('[WEBHOOK] Telegram cancelación skipped:', tgErr?.message);
+        }
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);
@@ -503,7 +526,6 @@ export default async function handler(req: any, res: any) {
       await triggerEmail('subscription_cancelled', sub.user_id, {
         plan: sub.plan_name ?? '',
         end_date: endDate,
-        to: '',
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
