@@ -423,13 +423,17 @@ const WebDashboard: React.FC = () => {
         .select('*')
         .in('slot_id', slotIds);
 
-      // Unimos la info asegurando que cada tarjeta tenga su sub
-      const finalSlots = slotsData?.map(slot => ({
-        ...slot,
-        activeSub: subsData.find((s: { slot_id: string }) => s.slot_id === slot.slot_id)
-      })).filter(s => s.activeSub);
+      // Solo incluir líneas que tengan una suscripción activa o trialing vinculada al usuario
+      type SubWithStatus = { slot_id: string; status?: string; created_at?: string; credits_used?: number; monthly_limit?: number; plan_name?: string; billing_type?: string };
+      const joinedData = subsData
+        .map((sub: SubWithStatus) => {
+          const slot = slotsData?.find(s => s.slot_id === sub.slot_id);
+          if (!slot) return null;
+          return { ...slot, activeSub: sub };
+        })
+        .filter((item): item is Slot & { activeSub: SubWithStatus } => item !== null && (item.activeSub?.status === 'active' || item.activeSub?.status === 'trialing'));
 
-      setSlots((finalSlots || []) as Slot[]);
+      setSlots(joinedData as Slot[]);
 
       const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
       if (msgs) setMessages(msgs as SMSLog[]);
@@ -1482,26 +1486,26 @@ const WebDashboard: React.FC = () => {
 
                       return (
                         <div key={slot.slot_id} className="flex flex-col gap-2">
-                          <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl text-white`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
+                          <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
                             <div className="flex items-start justify-between relative z-10">
                               <div>
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70">Telsim Online</p>
-                                <p className="text-[12px] font-bold italic uppercase">{slot.label || 'SIN ETIQUETA'}</p>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${ps.labelColor}`}>Telsim Online</p>
+                                <p className={`text-[12px] font-bold italic uppercase ${ps.phoneColor}`}>{slot.label || 'SIN ETIQUETA'}</p>
                               </div>
                               <div className="flex flex-col items-center gap-1">
                                 <div className="w-10 h-10 rounded-full border-2 border-white/30 overflow-hidden shadow-lg">
                                   <img src={`https://flagcdn.com/80x60/${(slot.region || 'cl').toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
                                 </div>
-                                <span className="text-[11px] font-black font-mono">#{String(index + 1).padStart(2, '0')}</span>
+                                <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>#{String(index + 1).padStart(2, '0')}</span>
                               </div>
                             </div>
                             <div className="relative z-10">
-                              <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Subscriber Number</p>
-                              <p className="text-[18px] font-black font-mono tracking-wider">{formatPhone(slot.phone_number)}</p>
+                              <p className={`text-[8px] font-bold uppercase mb-0.5 ${ps.labelColor}`}>Subscriber Number</p>
+                              <p className={`text-[18px] font-black font-mono tracking-wider ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
                               <div className="mt-2 w-32">
-                                <div className="flex justify-between text-[8px] font-black mb-1 uppercase">
-                                  <span>Consumo</span>
-                                  <span>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
+                                <div className={`flex justify-between text-[8px] font-black mb-1 uppercase ${ps.labelColor}`}>
+                                  <span>Consumo SMS</span>
+                                  <span className={ps.phoneColor}>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
                                 </div>
                                 <div className="h-1 bg-black/20 rounded-full overflow-hidden">
                                   <div className={`h-full ${planName === 'starter' ? 'bg-blue-400' : 'bg-white'}`} style={{ width: `${usagePct}%` }} />
@@ -1510,12 +1514,12 @@ const WebDashboard: React.FC = () => {
                             </div>
                             <div className="flex items-end justify-between relative z-10">
                               <div className="flex flex-col">
-                                <span className="px-2 py-0.5 rounded-full border border-white/20 bg-black/10 text-[9px] font-black uppercase">{ps.label}</span>
-                                <span className="text-[8px] font-bold mt-1 opacity-60">💳 {sub?.billing_type === 'annual' ? 'Plan Anual' : 'Plan Mensual'}</span>
+                                <span className={`px-2 py-0.5 rounded-full border border-white/20 bg-black/10 text-[9px] font-black uppercase ${ps.phoneColor}`}>{ps.label}</span>
+                                <span className={`text-[8px] font-bold mt-1 ${ps.labelColor}`}>💳 {sub?.billing_type === 'annual' ? 'Plan Anual' : 'Plan Mensual'}</span>
                               </div>
                               <div className="text-right">
-                                <span className="block text-[9px] font-black">● ACTIVA</span>
-                                <span className="block text-[8px] opacity-60 font-mono">Desde: {sub?.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}</span>
+                                <span className={`block text-[9px] font-black ${ps.phoneColor}`}>● ACTIVA</span>
+                                <span className={`block text-[8px] font-mono ${ps.labelColor}`}>Desde: {sub?.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}</span>
                               </div>
                             </div>
                           </div>
