@@ -19,8 +19,8 @@ async function triggerEmail(
 ): Promise<void> {
   console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
   try {
-    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const email = (data?.email as string) || authUser?.user?.email;
+    const { data: userRow } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
+    const email = (data?.email as string) || userRow?.email;
     if (!email) {
       console.error('[triggerEmail] No email address resolved');
       return;
@@ -158,25 +158,16 @@ export default async function handler(req: any, res: any) {
         })
         .eq('slot_id', meta.slot_id);
 
-      console.log('[UPGRADE] Supabase actualizado OK');
+      console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
 
-      // Notificaciones de upgrade exitoso (mismo tipo que compra nueva: purchase_success)
-      console.log('[UPGRADE] Enviando notificaciones...');
-      const { data: authData } = await supabaseAdmin.auth.admin.getUserById(meta.user_id as string);
-      const userEmail = authData?.user?.email;
-      console.log('[UPGRADE] Email resuelto:', userEmail ?? '(sin email)');
+      // Notificación email upgrade (mismo tipo que compra nueva: subscription_activated)
+      await triggerEmail('subscription_activated', meta.user_id as string, {
+        plan_name: meta.new_plan_name,
+        billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
+        slot_id: meta.slot_id,
+      });
 
-      if (userEmail) {
-        await triggerEmail('purchase_success', meta.user_id as string, {
-          plan_name: meta.new_plan_name,
-          billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
-          slot_id: meta.slot_id,
-          email: userEmail,
-        });
-        console.log('[UPGRADE] Email enviado');
-      }
-
-      let telegramResult: boolean | string = false;
+      // Notificación Telegram — mismo patrón que compra nueva
       try {
         const { data: userRow } = await supabaseAdmin
           .from('users')
@@ -194,18 +185,15 @@ export default async function handler(req: any, res: any) {
 📱 <b>Slot:</b> ${meta.slot_id}
 💎 <b>Plan:</b> ${meta.new_plan_name} · ${billingLabel}
 👤 <b>Usuario:</b> ${meta.user_id}`;
-          const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+          await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'HTML' }),
           });
-          telegramResult = tgRes.ok;
         }
       } catch (tgErr: any) {
-        telegramResult = (tgErr as Error)?.message ?? 'error';
         console.warn('[WEBHOOK] Telegram upgrade notification skipped:', tgErr?.message);
       }
-      console.log('[UPGRADE] Telegram enviado:', telegramResult);
 
       return res.status(200).json({ received: true });
     }
