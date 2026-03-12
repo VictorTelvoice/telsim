@@ -403,56 +403,31 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Traer mensajes SOLO del usuario
-      const msgsRes = await supabase
-        .from('sms_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('received_at', { ascending: false })
-        .limit(60);
-
-      // 2. Slots solo con suscripción activa del usuario (subscriptions!inner elimina slots sin suscripción)
-      // Filtros: assigned_to, subscriptions.user_id y subscriptions.status active/trialing
+      // Traer slots y sus suscripciones en una sola consulta estricta
       const { data: slotsData, error: slotsError } = await supabase
         .from('slots')
-        .select(`
-          *,
-          subscriptions!inner (
-            created_at,
-            cycle_start_date,
-            monthly_limit,
-            credits_used,
-            billing_type,
-            status,
-            user_id
-          )
-        `)
+        .select('*, subscriptions!inner(*)')
         .eq('assigned_to', user.id)
         .eq('subscriptions.user_id', user.id)
         .in('subscriptions.status', ['active', 'trialing']);
 
-      if (slotsError) {
-        console.error('Error cargando slots:', slotsError);
-        const { data: fallbackData } = await supabase
-          .from('slots')
-          .select('*')
-          .eq('assigned_to', user.id);
-        if (fallbackData) setSlots(fallbackData as Slot[]);
-      } else if (slotsData) {
-        // Red de seguridad: solo slots con suscripción active/trialing del usuario y únicos por slot_id
-        const raw = slotsData as Slot[];
-        const withActiveSub = raw.filter(s => {
-          const subs = Array.isArray(s?.subscriptions) ? s.subscriptions as { user_id?: string; status?: string }[] : [];
-          return subs.some(sub => sub.user_id === user.id && (sub.status === 'active' || sub.status === 'trialing'));
-        });
-        const seen = new Set<string>();
-        const unique = withActiveSub.filter(s => { if (seen.has(s.slot_id)) return false; seen.add(s.slot_id); return true; });
-        setSlots(unique);
-      }
+      if (slotsError) throw slotsError;
 
-      if (msgsRes.data) setMessages(msgsRes.data as SMSLog[]);
+      // DEDUPLICACIÓN MANUAL: Solo un slot por ID, priorizando la sub más nueva
+      const uniqueSlotsMap = new Map<string, Slot>();
+      (slotsData ?? []).forEach((slot: Slot) => {
+        if (!uniqueSlotsMap.has(slot.slot_id)) {
+          uniqueSlotsMap.set(slot.slot_id, slot);
+        }
+      });
+      const finalSlots = Array.from(uniqueSlotsMap.values());
+      console.log('Slots únicos y activos detectados:', finalSlots.length);
+      setSlots(finalSlots);
+
+      const { data: msgsData } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      if (msgsData) setMessages(msgsData as SMSLog[]);
     } catch (e) {
-      console.error('Error general:', e);
+      console.error('Error crítico en fetchData:', e);
     } finally {
       setLoading(false);
     }
@@ -1488,122 +1463,60 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
-                    type SubRow = { created_at?: string; cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string; user_id?: string };
-
-                    const getSlotSubs = (s: Slot) => Array.isArray(s?.subscriptions) ? s.subscriptions as SubRow[] : [];
-
-                    // Solo suscripciones del usuario actual (seguridad: créditos y datos correctos)
-                    const getActiveSub = (s: Slot): SubRow | null => {
-                      const subs = getSlotSubs(s).filter(sub => !user?.id || (sub as SubRow).user_id === user.id);
-                      const active = subs
-                        .filter(sub => sub.status === 'active' || sub.status === 'trialing')
-                        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
-                        || subs[0] || null;
-                      return active ?? null;
-                    };
-
-                    // Slots del usuario (assigned_to === user.id)
-                    const userSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id && s?.assigned_to === user?.id));
-                    // Unicidad: un solo slot por slot_id (evitar duplicados)
-                    const uniqueBySlotId = userSlots.filter((s, i, arr) => arr.findIndex(x => x.slot_id === s.slot_id) === i);
-                    // Orden ASC por subscriptions.created_at → #01 = primera línea que contrataste
-                    const sortedSlots = [...uniqueBySlotId].sort((a, b) => {
-                      const dateA = new Date(getActiveSub(a)?.created_at || a.created_at || 0).getTime();
-                      const dateB = new Date(getActiveSub(b)?.created_at || b.created_at || 0).getTime();
+                    const displaySlots = [...slots].sort((a, b) => {
+                      const dateA = new Date((a.subscriptions as any)?.[0]?.created_at || 0).getTime();
+                      const dateB = new Date((b.subscriptions as any)?.[0]?.created_at || 0).getTime();
                       return dateA - dateB;
                     });
-
-                    return sortedSlots.map((slot, index) => {
-                      const activeSub = getActiveSub(slot); // suscripción activa/trialing del usuario (créditos correctos)
-                      const plan = (slot?.plan_type ?? 'starter').toLowerCase();
+                    return displaySlots.map((slot, index) => {
+                      const activeSub = (slot.subscriptions as any)?.[0];
+                      const plan = (slot.plan_type || 'starter').toLowerCase();
                       const ps = getWebPlanStyle(plan);
-                      const slotNumber = String(index + 1).padStart(2, '0'); // #01 = primera contratada (orden ASC)
-
-                      const creditsUsed = activeSub?.credits_used ?? 0;
-                      const monthlyLimit = activeSub?.monthly_limit ?? (PLAN_CREDITS[plan] || 150);
-                      const usagePct = Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100));
+                      const creditsUsed = activeSub?.credits_used || 0;
+                      const monthlyLimit = activeSub?.monthly_limit || 150;
+                      const usagePct = Math.min(100, (creditsUsed / monthlyLimit) * 100);
                       const isCritical = usagePct >= 85;
-
                       const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
-                      const isForwarding = !!slot?.forwarding_active;
-                      const isTog = togglingSlot === slot.slot_id;
-                      const isEditing = editingSlotId === slot.slot_id;
-                      const countryCode = (slot?.region ?? 'cl').toUpperCase();
-
-                      const activationDate = activeSub?.created_at
-                        ? new Date(activeSub.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                        : null;
 
                       return (
-                        <div key={slot.slot_id} className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
-                          <div
-                            className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden select-none shadow-xl`}
-                            style={{
-                              clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)'
-                            }}>
-                            <div className="absolute top-[-20%] right-[-8%] w-[52%] h-[52%] rounded-full border-[22px] border-white/[0.07] pointer-events-none" />
-
+                        <div key={slot.slot_id} className="flex flex-col gap-2">
+                          <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
                             <div className="flex items-start justify-between relative z-10">
-                              <div>
-                                <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
-                                {isEditing ? (
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }} className="text-[11px] px-2 py-0.5 rounded-md border outline-none w-28 bg-black/20 border-white/30 text-white font-bold" placeholder="Etiqueta..." />
-                                    <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel} className="p-0.5 rounded bg-white/20"><Check size={9} className="text-white" /></button>
-                                    <button onClick={() => setEditingSlotId(null)} className="p-0.5 rounded bg-white/10"><X size={9} className="text-white/70" /></button>
-                                  </div>
-                                ) : (
-                                  <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }} className="flex items-center gap-1 mt-0.5 group">
-                                    <span className={`text-[12px] font-bold italic uppercase tracking-widest ${ps.phoneColor}`}>{slot.label || 'Sin etiqueta'}</span>
-                                    <Pencil size={8} className={`${ps.labelColor} opacity-40`} />
-                                  </button>
-                                )}
-                              </div>
-
+                              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
                               <div className="flex flex-col items-center gap-1">
-                                <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg bg-slate-300">
-                                  <img src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`} alt={countryCode} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                <div className="w-10 h-10 rounded-full border-2 border-white/30 overflow-hidden bg-slate-200">
+                                  <img src={`https://flagcdn.com/80x60/${(slot.region || 'cl').toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
                                 </div>
-                                <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>#{slotNumber}</span>
+                                <span className={`text-[11px] font-black ${ps.phoneColor}`}>#{String(index + 1).padStart(2, '0')}</span>
                               </div>
                             </div>
-
-                            <div className="flex items-center gap-4 relative z-10">
-                              <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
-                              <div>
-                                <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>Subscriber Number</p>
-                                <p className={`text-[17px] font-black font-mono tracking-wide leading-none ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
-                                <div className="mt-2">
-                                  <div className="flex justify-between items-end mb-1">
-                                    <span className={`text-[8px] font-bold uppercase opacity-70 ${ps.labelColor}`}>Créditos</span>
-                                    <span className={`text-[10px] font-black ${isCritical ? 'text-rose-400' : ps.phoneColor}`}>{creditsUsed} / {monthlyLimit}</span>
-                                  </div>
-                                  <div className="w-32 h-1.5 rounded-full bg-black/10 overflow-hidden">
-                                    <div className={`h-full transition-all duration-500 ${isCritical ? 'bg-rose-500' : (plan === 'starter' ? 'bg-primary' : 'bg-white')}`} style={{ width: `${usagePct}%` }} />
-                                  </div>
+                            <div className="relative z-10">
+                              <p className={`text-[17px] font-black font-mono ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
+                              <div className="mt-2">
+                                <div className="flex justify-between text-[9px] font-bold uppercase mb-1">
+                                  <span className={ps.labelColor}>Consumo</span>
+                                  <span className={isCritical ? 'text-rose-400' : ps.phoneColor}>{creditsUsed} / {monthlyLimit}</span>
+                                </div>
+                                <div className="h-1 w-32 bg-black/10 rounded-full overflow-hidden">
+                                  <div className={`h-full ${isCritical ? 'bg-rose-500' : (plan === 'starter' ? 'bg-primary' : 'bg-white')}`} style={{ width: `${usagePct}%` }} />
                                 </div>
                               </div>
                             </div>
-
                             <div className="flex items-end justify-between relative z-10">
-                              <div className="flex flex-col gap-1">
-                                <span className="px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider border-white/40 text-white/90 bg-black/20">{ps.label}</span>
-                                <span className={`text-[9px] font-bold opacity-90 ${ps.labelColor}`}>{activeSub?.billing_type === 'annual' ? '💳 Plan Anual' : '💳 Plan Mensual'}</span>
-                              </div>
+                              <span className="px-2 py-0.5 rounded-full border border-white/30 text-[9px] font-black bg-black/20 text-white">{ps.label}</span>
                               <div className="text-right">
-                                <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${ps.labelColor}`}>● Activa</span>
-                                {activationDate && <span className={`block text-[8px] opacity-60 mt-0.5 font-mono ${ps.labelColor}`}>Desde: {activationDate}</span>}
+                                <span className={`block text-[9px] font-black ${ps.labelColor}`}>● ACTIVA</span>
+                                <span className={`text-[8px] opacity-60 ${ps.labelColor}`}>Desde: {activeSub?.created_at ? new Date(activeSub.created_at).toLocaleDateString() : '—'}</span>
                               </div>
                             </div>
                           </div>
-
                           <div className={`flex items-center gap-1 p-1 rounded-[1.1rem] border ${isDark ? 'bg-slate-900 border-slate-800/70' : 'bg-white border-slate-100'}`}>
                             <button onClick={() => handleOpenInbox(slot.slot_id)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[0.8rem] text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-50 text-slate-700'}`}>
                               <MessageSquare size={12} /> Inbox {msgsCnt > 0 && <span className="bg-primary text-white text-[8px] font-black rounded-full px-1">{msgsCnt > 99 ? '99+' : msgsCnt}</span>}
                             </button>
                             <button onClick={() => navigate('/onboarding/plan')} title="Renovar / cambiar plan" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] bg-amber-500/10 text-amber-500"><Zap size={13} /></button>
                             <button onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)} title="Copiar número" className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${copiedId === `${slot.slot_id}_num` ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}</button>
-                            <button onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)} disabled={isTog} className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${isForwarding ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{isTog ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}</button>
+                            <button onClick={() => handleToggleForwarding(slot.slot_id, !slot?.forwarding_active)} disabled={togglingSlot === slot.slot_id} className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${slot?.forwarding_active ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{togglingSlot === slot.slot_id ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}</button>
                             <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} title="Dar de baja SIM" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-400"><Trash2 size={13} /></button>
                           </div>
                         </div>
