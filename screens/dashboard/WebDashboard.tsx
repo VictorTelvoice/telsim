@@ -403,11 +403,6 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Traer mensajes
-      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
-      if (msgs) setMessages(msgs as SMSLog[]);
-
-      // 2. Traer suscripciones activas/trialing del usuario
       const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
@@ -421,34 +416,24 @@ const WebDashboard: React.FC = () => {
         return;
       }
 
-      // 3. DEDUPLICAR: Si un slot_id tiene varias suscripciones, nos quedamos solo con la más nueva
-      const uniqueSubsMap = new Map<string, (typeof subsData)[0]>();
-      subsData.forEach((sub: { slot_id: string }) => {
-        if (!uniqueSubsMap.has(sub.slot_id)) {
-          uniqueSubsMap.set(sub.slot_id, sub);
-        }
-      });
-      const cleanSubs = Array.from(uniqueSubsMap.values());
+      // Quedarse solo con la suscripción más reciente por cada slot_id
+      const uniqueSubs = Array.from(new Map(subsData.map((s: { slot_id: string }) => [s.slot_id, s])).values());
 
-      // 4. Traer los slots correspondientes a esas suscripciones únicas
-      const { data: slotsData } = await supabase
-        .from('slots')
-        .select('*')
-        .in('slot_id', cleanSubs.map(s => s.slot_id));
+      const { data: slotsData } = await supabase.from('slots').select('*').in('slot_id', uniqueSubs.map(s => s.slot_id));
 
-      // 5. Unir datos: Un slot por cada suscripción única encontrada
-      const finalData = cleanSubs
+      const finalData = uniqueSubs
         .map(sub => {
           const slot = slotsData?.find(s => s.slot_id === sub.slot_id);
-          if (!slot) return null;
-          return { ...slot, activeSub: sub };
+          return slot ? { ...slot, activeSub: sub } : null;
         })
         .filter(Boolean);
 
-      console.log('Lineas reales detectadas:', finalData.length);
       setSlots(finalData as Slot[]);
+
+      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      if (msgs) setMessages(msgs as SMSLog[]);
     } catch (e) {
-      console.error('Error:', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -1485,13 +1470,13 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
-                    const sorted = [...slots].sort((a, b) =>
+                    const sorted = [...slots].sort((a: Slot, b: Slot) =>
                       new Date(a.activeSub?.created_at || 0).getTime() - new Date(b.activeSub?.created_at || 0).getTime()
                     );
                     return sorted.map((slot, index) => {
                       const sub = slot.activeSub;
-                      const planName = (sub?.plan_name || slot.plan_type || 'starter').toLowerCase();
-                      const ps = getWebPlanStyle(planName);
+                      const plan = (sub?.plan_name || slot.plan_type || 'starter').toLowerCase();
+                      const ps = getWebPlanStyle(plan);
                       const usagePct = Math.min(100, ((sub?.credits_used || 0) / (sub?.monthly_limit || 150)) * 100);
                       const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
 
@@ -1500,37 +1485,40 @@ const WebDashboard: React.FC = () => {
                           <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
                             <div className="flex items-start justify-between relative z-10">
                               <div>
-                                <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${ps.labelColor}`}>Telsim Online</p>
-                                <p className={`text-[12px] font-bold italic uppercase ${ps.phoneColor}`}>{slot.label || 'SIN ETIQUETA'}</p>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.2em] opacity-60 ${ps.labelColor}`}>Telsim Online</p>
+                                <p className={`text-[13px] font-black italic uppercase ${ps.phoneColor}`}>{slot.label || 'SIN ETIQUETA'}</p>
                               </div>
                               <div className="flex flex-col items-center gap-1">
-                                <div className="w-10 h-10 rounded-full border-2 border-white/30 overflow-hidden shadow-lg">
+                                <div className="w-10 h-10 rounded-full border-2 border-white/40 overflow-hidden bg-slate-200">
                                   <img src={`https://flagcdn.com/80x60/${(slot.region || 'cl').toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
                                 </div>
                                 <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>#{String(index + 1).padStart(2, '0')}</span>
                               </div>
                             </div>
-                            <div className="relative z-10">
-                              <p className={`text-[8px] font-bold uppercase mb-0.5 ${ps.labelColor}`}>Subscriber Number</p>
-                              <p className={`text-[18px] font-black font-mono tracking-wider ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
-                              <div className="mt-2 w-32">
-                                <div className={`flex justify-between text-[8px] font-black mb-1 uppercase ${ps.labelColor}`}>
-                                  <span>Consumo SMS</span>
-                                  <span className={ps.phoneColor}>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
-                                </div>
-                                <div className="h-1 bg-black/20 rounded-full overflow-hidden">
-                                  <div className={`h-full ${planName === 'starter' ? 'bg-blue-400' : 'bg-white'}`} style={{ width: `${usagePct}%` }} />
+                            <div className="flex items-center gap-4 relative z-10">
+                              <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
+                              <div>
+                                <p className={`text-[8px] font-bold uppercase opacity-60 mb-0.5 ${ps.labelColor}`}>Subscriber Number</p>
+                                <p className={`text-[19px] font-black font-mono tracking-wider ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
+                                <div className="mt-2">
+                                  <div className="flex justify-between text-[8px] font-black mb-1 uppercase opacity-80">
+                                    <span className={ps.labelColor}>Consumo SMS</span>
+                                    <span className={ps.phoneColor}>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
+                                  </div>
+                                  <div className="h-1.5 w-32 bg-black/10 rounded-full overflow-hidden">
+                                    <div className={`h-full ${plan === 'starter' ? 'bg-primary' : 'bg-white'}`} style={{ width: `${usagePct}%` }} />
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-end justify-between relative z-10">
-                              <div className="flex flex-col">
-                                <span className={`px-2 py-0.5 rounded-full border border-white/20 bg-black/10 text-[9px] font-black uppercase ${ps.phoneColor}`}>{ps.label}</span>
-                                <span className={`text-[8px] font-bold mt-1 ${ps.labelColor}`}>💳 {sub?.billing_type === 'annual' ? 'Plan Anual' : 'Plan Mensual'}</span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className={`px-2 py-0.5 rounded-full border border-white/30 bg-black/20 text-[9px] font-black uppercase w-fit ${ps.phoneColor}`}>{ps.label}</span>
+                                <span className={`text-[8px] font-bold opacity-60 ${ps.labelColor}`}>💳 Plan {sub?.billing_type === 'annual' ? 'Anual' : 'Mensual'}</span>
                               </div>
                               <div className="text-right">
-                                <span className={`block text-[9px] font-black ${ps.phoneColor}`}>● ACTIVA</span>
-                                <span className={`block text-[8px] font-mono ${ps.labelColor}`}>Desde: {sub?.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}</span>
+                                <span className={`block text-[9px] font-black ${ps.labelColor}`}>● ACTIVA</span>
+                                <span className={`block text-[8px] opacity-60 font-mono ${ps.labelColor}`}>Desde: {sub?.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}</span>
                               </div>
                             </div>
                           </div>
