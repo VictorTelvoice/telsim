@@ -32,6 +32,7 @@ import SettingsScreen from './screens/dashboard/Settings';
 import MobileNotificationSettings from './screens/dashboard/MobileNotificationSettings';
 import UpgradeSummary from './screens/dashboard/UpgradeSummary';
 import UpgradeSuccess from './screens/dashboard/UpgradeSuccess';
+import UpgradePlanSelector from './screens/dashboard/UpgradePlanSelector';
 import TelegramSetupGuide from './screens/dashboard/TelegramSetupGuide';
 import ApiGuide from './screens/dashboard/ApiGuide';
 import TelegramConfig from './screens/dashboard/TelegramConfig';
@@ -287,6 +288,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/notifications" 
                           element={<ProtectedRoute><Notifications /></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/upgrade-plan" 
+                          element={<ProtectedRoute><UpgradePlanSelector /></ProtectedRoute>} 
                         />
                         <Route 
                           path="/dashboard/upgrade-summary" 
