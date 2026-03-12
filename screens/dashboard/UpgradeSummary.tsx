@@ -1,110 +1,37 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { ArrowLeft, Check, Zap, Shield, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { 
-  ArrowLeft, 
-  Loader2, 
-  ShieldCheck, 
-  CheckCircle2, 
-  ArrowUpRight,
-  TrendingDown,
-  AlertTriangle,
-  Lock,
-  CreditCard,
-  Sparkles,
-  Crown,
-  Zap,
-  Leaf
-} from 'lucide-react';
 
-const UpgradeSummary: React.FC = () => {
+const PLAN_CONFIG: Record<string, any> = {
+  Starter: {
+    color: '#64748b', bg: '#f8fafc', border: '#e2e8f0',
+    features: ['150 SMS mensuales', 'Número SIM Real', 'Notificaciones en tiempo real', 'Soporte vía Ticket'],
+  },
+  Pro: {
+    color: '#0047FF', bg: '#eff6ff', border: '#0047FF',
+    features: ['400 SMS mensuales', 'SMS 100% automatizados', 'Acceso a API y Webhooks', 'Soporte prioritario Chat en vivo'],
+  },
+  Power: {
+    color: '#f59e0b', bg: '#fffbeb', border: '#f59e0b',
+    features: ['1,400 SMS mensuales', 'Seguridad y Control Empresarial', 'Integraciones Personalizadas', 'Soporte Prioritario 24/7'],
+  },
+};
+
+export default function UpgradeSummary() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { state } = useLocation();
   const { user } = useAuth();
-  const { t } = useLanguage();
-  
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentInfo, setPaymentInfo] = useState<{status: string, brand: string, last4: string} | null>(null);
-  const [loadingPayment, setLoadingPayment] = useState(true);
 
-  const upgradeData = location.state;
+  const {
+    phoneNumber, slot_id, planName, currentPlanName,
+    stripePriceId, limit, price, isAnnual,
+  } = state || {};
 
-  useEffect(() => {
-    const fetchPaymentInfo = async () => {
-      if (!user) return;
-      try {
-        const response = await fetch('/api/get-payment-info', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-        });
-        const data = await response.json();
-        if (data.status === 'success') setPaymentInfo(data);
-      } catch (err) { console.error(err); } finally { setLoadingPayment(false); }
-    };
-    fetchPaymentInfo();
-  }, [user]);
-
-  const planHierarchy = ['STARTER', 'PRO', 'POWER'];
-
-  const planConfig = useMemo(() => {
-    if (!upgradeData) return null;
-    const name = upgradeData.planName.toUpperCase();
-    const currentName = (upgradeData.currentPlanName || 'STARTER').toUpperCase();
-    
-    const targetIdx = planHierarchy.indexOf(name);
-    const currentIdx = planHierarchy.indexOf(currentName);
-    const isDowngrade = targetIdx < currentIdx;
-    
-    // Configuración base (STARTER)
-    const config: any = {
-      isDowngrade,
-      title: isDowngrade ? t('upgrade_summary.downgrade_title') : t('upgrade_summary.title'),
-      ctaText: isDowngrade ? t('upgrade_summary.cta_downgrade') : t('upgrade_summary.cta_upgrade'),
-      features: t('upgrade_summary.starter_features').split(', '),
-      warningMsg: '',
-      // Identidad cromática (Default Starter)
-      accentColor: 'text-primary',
-      barColor: 'bg-primary',
-      buttonGradient: 'from-primary to-blue-700',
-      borderColor: 'border-slate-100 dark:border-slate-800',
-      icon: <Leaf className="size-4" />,
-      checkColor: 'text-emerald-500'
-    };
-
-    if (name.includes('POWER')) {
-      config.features = t('upgrade_summary.power_features').split(', ');
-      config.accentColor = 'text-amber-600';
-      config.barColor = 'bg-gradient-to-r from-amber-400 to-yellow-600';
-      config.buttonGradient = 'from-[#B49248] via-[#D4AF37] to-[#8C6B1C]';
-      config.borderColor = 'border-amber-200/50 dark:border-amber-900/30';
-      config.icon = <Crown className="size-4" />;
-      config.checkColor = 'text-amber-500';
-    } else if (name.includes('PRO')) {
-      config.features = t('upgrade_summary.pro_features').split(', ');
-      config.accentColor = 'text-blue-600';
-      config.barColor = 'bg-blue-600';
-      config.buttonGradient = 'from-blue-600 to-indigo-800';
-      config.borderColor = 'border-blue-100 dark:border-blue-900/30';
-      config.icon = <Zap className="size-4" />;
-      config.checkColor = 'text-blue-600';
-    }
-
-    if (isDowngrade) {
-        if (currentName === 'POWER' && name === 'PRO') {
-            config.warningMsg = t('upgrade_summary.power_to_pro_warning');
-        } else if (name === 'STARTER') {
-            config.warningMsg = t('upgrade_summary.to_starter_warning');
-        }
-    }
-    
-    return config;
-  }, [upgradeData, t]);
-
-  if (!user || !upgradeData || !planConfig) return <Navigate to="/dashboard/numbers" replace />;
-
-  const { phoneNumber, planName, price, limit, stripePriceId, slot_id, currentLimit } = upgradeData;
+  const config = PLAN_CONFIG[planName] || PLAN_CONFIG.Starter;
+  const displayPrice = isAnnual ? price : price;
+  const billingLabel = isAnnual ? '/año' : '/mes';
 
   const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
@@ -119,13 +46,13 @@ const UpgradeSummary: React.FC = () => {
           newPriceId: stripePriceId,
           planName,
           monthlyLimit: limit,
-          isAnnual: upgradeData.isAnnual ?? false,
+          isAnnual: isAnnual ?? false,
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       navigate('/dashboard/upgrade-success', {
-        state: { phoneNumber, planName, amount: price, currency: 'usd', monthlyLimit: limit }
+        state: { phoneNumber, planName, price, isAnnual, limit }
       });
     } catch (err: any) {
       alert(err.message || 'Error al procesar el upgrade');
@@ -133,173 +60,138 @@ const UpgradeSummary: React.FC = () => {
     }
   };
 
-  const handleBack = () => {
-    if (isProcessing) return;
-    // Volvemos a MyNumbers pasando el estado para reabrir la vista de "Cambiar Plan"
-    navigate('/dashboard/numbers', { 
-      state: { 
-        reopenUpgrade: true, 
-        slotId: slot_id 
-      } 
-    });
-  };
-
-  const formatPhoneNumber = (num: string) => {
-    const cleaned = ('' + num).replace(/\D/g, '');
-    if (cleaned.startsWith('569') && cleaned.length === 11) return `+56 9 ${cleaned.substring(3, 7)} ${cleaned.substring(7)}`;
-    return num.startsWith('+') ? num : `+${num}`;
-  };
-
   return (
-    <div className="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased min-h-screen flex flex-col items-center">
-        <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-x-hidden shadow-2xl">
-            {/* Header - Flecha personalizada para volver a Cambiar Plan */}
-            <div className="sticky top-0 z-20 flex items-center bg-background-light/90 dark:bg-background-dark/90 px-4 py-3 backdrop-blur-sm">
-                <div 
-                    onClick={handleBack}
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer ${isProcessing ? 'opacity-30' : ''}`}
-                >
-                    <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{fontSize: '24px'}}>arrow_back</span>
-                </div>
-                <h2 className="text-[#111318] dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-10">{planConfig.title}</h2>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'inherit' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 32px', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 14, fontWeight: 600 }}
+        >
+          <ArrowLeft size={16} /> Cambiar plan
+        </button>
+        <span style={{ color: '#cbd5e1' }}>/</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Confirmar upgrade</span>
+        <span style={{ fontSize: 12, background: '#f1f5f9', color: '#64748b', padding: '2px 10px', borderRadius: 20, fontFamily: 'monospace' }}>{phoneNumber}</span>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 32px', display: 'grid', gridTemplateColumns: '1fr 420px', gap: 32, alignItems: 'start' }}>
+
+        {/* LEFT: Plan details */}
+        <div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>Confirma tu nuevo plan</h1>
+          <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 32px' }}>
+            Cambias de <strong style={{ color: '#475569' }}>{currentPlanName || 'Starter'}</strong> a <strong style={{ color: config.color }}>{planName}</strong>. El cambio es inmediato.
+          </p>
+
+          {/* Plan card */}
+          <div style={{ background: 'white', borderRadius: 20, border: `2px solid ${config.border}`, padding: 28, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 800, color: config.color, textTransform: 'uppercase', letterSpacing: 2, margin: '0 0 4px' }}>{planName}</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: 0 }}>{limit?.toLocaleString()} créditos/mes</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: 42, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed(2)}</span>
+                <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{billingLabel}</span>
+              </div>
             </div>
-            
-            <div className="flex flex-col gap-2 px-6 pt-2 pb-4">
-                <div className="flex justify-between items-center">
-                    <p className={`${planConfig.accentColor} text-sm font-bold leading-normal`}>{t('billing.plan_adjustment')}</p>
-                    <p className="text-gray-400 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                       {planConfig.icon}
-                       {planName}
-                    </p>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-gray-800 overflow-hidden">
-                    <div className={`h-full ${planConfig.barColor} transition-all duration-700 ease-out`} style={{width: '100%'}}></div>
-                </div>
-            </div>
-
-            <div className="flex-1 flex flex-col px-6 pb-44 overflow-y-auto no-scrollbar">
-                <div className="pb-6 pt-2">
-                    <h1 className="text-[#111318] dark:text-white tracking-tight text-[28px] font-extrabold leading-tight text-left mb-2">{t('upgrade_summary.review_change')}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-base font-medium leading-relaxed">{t('upgrade_summary.confirm_details')}</p>
-                </div>
-
-                {/* Tarjeta Principal */}
-                <div className={`relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#1A2230] p-0 shadow-soft border-2 ${planConfig.borderColor} mb-6 transition-colors duration-500`}>
-                    <div className="flex items-center gap-4 p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 dark:bg-slate-800/30">
-                        <div className="size-12 shrink-0 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900 flex items-center justify-center text-2xl">
-                           🇨🇱
-                        </div>
-                        <div className="flex flex-col justify-center">
-                            <p className="text-[#111318] dark:text-white text-[15px] font-bold leading-tight uppercase tracking-tight">{t('upgrade_summary.port')} {formatPhoneNumber(phoneNumber)}</p>
-                            <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${planConfig.accentColor}`}>Infraestructura Real (+56)</p>
-                        </div>
-                    </div>
-                    
-                    <div className="p-6 space-y-5">
-                        <div className="flex justify-between items-start">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1">{t('upgrade_summary.new_plan')}</span>
-                                <span className={`font-black text-xl uppercase tracking-tight ${planConfig.accentColor}`}>{planName}</span>
-                                <span className="text-[10px] font-bold text-slate-500 mt-1">{limit} {t('upgrade_summary.monthly_credits')}</span>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[#111318] dark:text-white font-black text-2xl tracking-tighter">${Number(price).toFixed(2)}</span>
-                                <span className="text-[10px] font-black text-gray-400 block uppercase tracking-widest mt-0.5">{t('upgrade_summary.per_month')}</span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                           {planConfig.features.map((f: string, i: number) => (
-                             <div key={i} className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                                <CheckCircle2 className={`size-4 shrink-0 ${planConfig.checkColor}`} />
-                                {f}
-                             </div>
-                           ))}
-                        </div>
-
-                        {/* Bloque Informativo */}
-                        {planConfig.isDowngrade ? (
-                          <div className="rounded-2xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/40 p-4 animate-in fade-in slide-in-from-top-1">
-                              <div className="flex items-start gap-3 mb-3">
-                                  <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={20} />
-                                  <div className="flex flex-col">
-                                      <p className="text-rose-800 dark:text-rose-300 text-sm font-black leading-tight uppercase tracking-tight">{t('upgrade_summary.benefit_reduction')}</p>
-                                      <p className="text-rose-700 dark:text-rose-400/80 text-[11px] font-medium leading-relaxed mt-1 italic">
-                                          "{planConfig.warningMsg}"
-                                      </p>
-                                  </div>
-                              </div>
-                              <div className="pt-3 border-t border-rose-500/10 flex justify-between items-center">
-                                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{t('upgrade_summary.previous_capacity')}:</span>
-                                  <span className="text-[11px] font-black text-rose-700 dark:text-rose-300 line-through opacity-50">{currentLimit} SMS</span>
-                              </div>
-                          </div>
-                        ) : (
-                          <div className={`rounded-2xl border p-4 ${planName.toUpperCase().includes('POWER') ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-800/30' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800/40'}`}>
-                              <div className="flex items-start gap-3 mb-3">
-                                  {planName.toUpperCase().includes('POWER') ? (
-                                    <Crown className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" size={20} />
-                                  ) : (
-                                    <CheckCircle2 className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" size={20} />
-                                  )}
-                                  <div className="flex flex-col">
-                                      <p className={`text-sm font-black leading-tight uppercase tracking-tight ${planName.toUpperCase().includes('POWER') ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`}>{t('upgrade_summary.power_upgrade')}</p>
-                                      <p className={`text-[11px] font-medium leading-relaxed mt-1 ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-400/80' : 'text-emerald-700 dark:text-emerald-400/80'}`}>{t('upgrade_summary.reconfigure_instantly').replace('{{plan}}', planName)}</p>
-                                  </div>
-                              </div>
-                              <div className={`pt-3 border-t flex justify-between items-center ${planName.toUpperCase().includes('POWER') ? 'border-amber-500/10' : 'border-emerald-500/10'}`}>
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${planName.toUpperCase().includes('POWER') ? 'text-amber-600' : 'text-emerald-600'}`}>{t('upgrade_summary.sync')}:</span>
-                                  <span className={`text-[11px] font-black ${planName.toUpperCase().includes('POWER') ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>{t('upgrade_summary.immediate')}</span>
-                              </div>
-                          </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Sección de Pago */}
-                {paymentInfo && (
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('upgrade_summary.payment_method')}</span>
-                        <Lock className="size-3 text-slate-300" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                           <div className="size-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
-                              <CreditCard className={`size-5 ${planConfig.accentColor}`} />
-                           </div>
-                           <div>
-                              <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{paymentInfo.brand} •• {paymentInfo.last4}</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('upgrade_summary.processed_via')}</p>
-                           </div>
-                        </div>
-                        <div className={`size-2 rounded-full animate-pulse ${planName.toUpperCase().includes('POWER') ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
-                    </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {config.features.map((f: string, i: number) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Check size={11} color="#16a34a" strokeWidth={3} />
                   </div>
-                )}
+                  <span style={{ fontSize: 13, color: '#475569' }}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Info inmediato */}
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <Zap size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#15803d', margin: '0 0 2px' }}>Activación inmediata</p>
+              <p style={{ fontSize: 12, color: '#16a34a', margin: 0 }}>Tu línea se reconfigurará instantáneamente con las nuevas capacidades {planName}. Sin tiempo de espera.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Summary box */}
+        <div style={{ position: 'sticky', top: 24 }}>
+          <div style={{ background: 'white', borderRadius: 20, border: '1px solid #e2e8f0', padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 20px' }}>Resumen del pedido</h3>
+
+            {/* Number */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shield size={16} color="#64748b" />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, margin: 0 }}>NÚMERO SIM</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0, fontFamily: 'monospace' }}>{phoneNumber}</p>
+              </div>
             </div>
 
-            {/* Footer de Acción - Limpio de textos adicionales */}
-            <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-4">
-                <button 
-                    onClick={handleConfirmUpgrade}
-                    disabled={isProcessing}
-                    className={`group w-full bg-gradient-to-r ${planConfig.buttonGradient} hover:brightness-110 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70`}
-                >
-                    <div className="w-12 flex items-center justify-center">
-                        {isProcessing ? <Loader2 className="size-5 animate-spin text-white/80" /> : <ArrowUpRight className="size-6 text-white/40" />}
-                    </div>
-                    <span className="text-[17px] tracking-wide uppercase font-black">
-                        {isProcessing ? t('upgrade_summary.sincronizando') : planConfig.ctaText}
-                    </span>
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                        <Sparkles className="size-6 text-white" />
-                    </div>
-                </button>
+            {/* Plan change */}
+            <div style={{ padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: '#94a3b8' }}>Plan anterior</span>
+                <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{currentPlanName}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>Nuevo plan</span>
+                <span style={{ fontSize: 13, color: config.color, fontWeight: 700 }}>{planName}</span>
+              </div>
             </div>
+
+            {/* Billing */}
+            <div style={{ padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Facturación</span>
+                <span style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{isAnnual ? 'Anual' : 'Mensual'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Período de prueba</span>
+                <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>Sin trial</span>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0 20px' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Total hoy</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed(2)}</span>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={handleConfirmUpgrade}
+              disabled={isProcessing}
+              style={{
+                width: '100%', padding: '15px 0', borderRadius: 14, border: 'none',
+                background: isProcessing ? '#94a3b8' : config.color,
+                color: 'white', fontSize: 15, fontWeight: 800, cursor: isProcessing ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              {isProcessing ? (
+                <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Procesando...</>
+              ) : (
+                <>Confirmar upgrade a {planName} →</>
+              )}
+            </button>
+
+            <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', margin: '12px 0 0' }}>
+              🔒 Pago seguro. El cobro es inmediato y sin período de prueba.
+            </p>
+          </div>
         </div>
+      </div>
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
-};
-
-export default UpgradeSummary;
+}
