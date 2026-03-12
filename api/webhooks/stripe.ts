@@ -146,14 +146,21 @@ export default async function handler(req: any, res: any) {
       const PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
       const SMS_BY_PLAN: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
 
-      // Insertar nueva sub en Supabase (con monthly_limit para que el dashboard muestre el límite correcto)
+      // Monto y billing desde el price de Stripe (no session.amount_total que puede ser 0)
+      const newSub = await stripe.subscriptions.retrieve(newSubId, { expand: ['items.data.price'] });
+      const firstPrice = newSub.items.data[0]?.price;
+      const amount = (firstPrice?.unit_amount ?? 0) / 100;
+      const billingTypeFromStripe = firstPrice?.recurring?.interval === 'year' ? 'annual' : 'monthly';
+
+      // Insertar nueva sub en Supabase (con monthly_limit y amount correctos)
       await supabaseAdmin.from('subscriptions').insert({
         user_id: meta.user_id,
         slot_id: meta.slot_id,
         stripe_subscription_id: newSubId,
         plan_name: meta.new_plan_name,
         monthly_limit: PLAN_LIMITS[meta.new_plan_name as string] ?? 150,
-        billing_type: meta.is_annual === 'true' ? 'annual' : 'monthly',
+        billing_type: billingTypeFromStripe,
+        amount,
         status: 'active',
       });
 

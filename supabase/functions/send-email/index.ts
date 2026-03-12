@@ -31,6 +31,7 @@ type Language = 'es' | 'en';
 
 type EventType =
   | 'purchase_success'
+  | 'subscription_activated'
   | 'subscription_cancelled'
   | 'invoice_paid'
   | 'invoice_failed'
@@ -40,6 +41,7 @@ type EventType =
 interface EmailPayload {
   event: EventType;
   user_id?: string;
+  email?: string;
   to?: string;
   language?: Language;
   data?: Record<string, unknown>;
@@ -49,6 +51,7 @@ interface EmailPayload {
 
 const eventIcons: Record<EventType, string> = {
   purchase_success: '',
+  subscription_activated: '',
   subscription_cancelled: '',
   invoice_paid: '',
   invoice_failed: '',
@@ -75,6 +78,17 @@ const i18n = {
       infoLeftLabel: 'PLAN ACTIVO',
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: () => 'Activo',
+    },
+    subscription_activated: {
+      subject: 'Tu plan ha sido actualizado',
+      title: '¡Plan actualizado!',
+      body: (d: Record<string, unknown>) =>
+        `Tu plan se ha actualizado a <strong style="color:#1d4ed8;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Mensual'}. Tu línea está activa.`,
+      cta: 'Ir al Dashboard',
+      infoLeftLabel: 'PLAN ACTIVO',
+      infoRightLabel: 'ESTADO',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Activo',
     },
     subscription_cancelled: {
@@ -143,6 +157,17 @@ const i18n = {
       infoLeftLabel: 'ACTIVE PLAN',
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoRightValue: () => 'Active',
+    },
+    subscription_activated: {
+      subject: 'Your plan has been updated',
+      title: 'Plan updated!',
+      body: (d: Record<string, unknown>) =>
+        `Your plan has been updated to <strong style="color:#1d4ed8;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Monthly'}. Your line is active.`,
+      cta: 'Go to Dashboard',
+      infoLeftLabel: 'ACTIVE PLAN',
+      infoRightLabel: 'STATUS',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Active',
     },
     subscription_cancelled: {
@@ -317,6 +342,7 @@ function buildHtml(params: {
 
 const ctaUrls: Record<EventType, string> = {
   purchase_success: 'https://www.telsim.io/dashboard#/dashboard',
+  subscription_activated: 'https://www.telsim.io/#/web',
   subscription_cancelled: 'https://www.telsim.io/dashboard#/login',
   invoice_paid: 'https://www.telsim.io/dashboard#/login',
   invoice_failed: 'https://www.telsim.io/dashboard#/login',
@@ -344,35 +370,30 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
     }
 
-    // Resolver email e idioma del usuario desde Supabase si viene user_id
-    let toEmail: string | null = null;
+    // Resolver email: primero el pasado en el body, sino lookup en public.users
+    let toEmail: string | null = (payload.email as string) ?? payload.to ?? null;
     let lang: Language = payload.language ?? 'es';
 
-    if (user_id) {
+    if (!toEmail && user_id) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
       const { data: user } = await supabase
         .from('users')
         .select('email, language')
         .eq('id', user_id)
-        .single();
+        .maybeSingle();
 
       console.log('[send-email] user lookup result:', JSON.stringify(user));
-      console.log('[send-email] user_id buscado:', user_id);
-
       if (user) {
-        toEmail = user.email;
+        toEmail = user.email ?? null;
         lang = (user.language as Language) ?? lang;
       } else {
-        console.warn('[send-email] User not found for id:', user_id, '- using fallback email');
         toEmail = (data.to as string) ?? payload.to ?? null;
+        if (!toEmail) console.warn('[send-email] User not found for id:', user_id);
       }
     }
 
-    if (!user_id) {
-      toEmail = payload.to ?? null;
-    }
-
     if (!toEmail) {
+      console.error('[triggerEmail] {"error":"No email address resolved"}');
       return new Response(JSON.stringify({ error: 'No email address resolved' }), { status: 400 });
     }
 
