@@ -53,10 +53,7 @@ export default async function handler(req: any, res: any) {
     const customerId = profileData?.stripe_customer_id;
     if (!customerId) return res.status(400).json({ error: 'No se encontró customer de Stripe.' });
 
-    // Cancelar suscripción antigua en Stripe (el webhook la marcará canceled en Supabase → queda en historial)
-    await stripe.subscriptions.cancel(stripeSubId);
-
-    // Crear nueva suscripción con nuevo plan, mismo slot, cobrando inmediatamente
+    // 1. Crear nueva suscripción con nuevo plan, mismo slot, cobrando inmediatamente
     const newStripeSub = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: newPriceId }],
@@ -74,21 +71,19 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const paymentStatus = (newStripeSub as any).latest_invoice?.payment_intent?.status;
-    const isConfirmedActive = newStripeSub.status === 'active';
-
-    if (!isConfirmedActive && newStripeSub.status !== 'trialing') {
-      return res.status(402).json({
-        error: 'El pago fue rechazado. Verifica tu método de pago.',
-        stripeStatus: newStripeSub.status,
-        paymentStatus,
-      });
+    // 2. Validar que la nueva suscripción quedó activa o en trial
+    const isConfirmedActive = newStripeSub.status === 'active' || newStripeSub.status === 'trialing';
+    if (!isConfirmedActive) {
+      return res.status(402).json({ error: 'El pago fue rechazado.' });
     }
 
     const subStatus: 'active' | 'trialing' =
       newStripeSub.status === 'trialing' ? 'trialing' : 'active';
 
-    // Crear nuevo registro en Supabase (misma slot, nuevo plan, fecha nueva)
+    // 3. Solo si la nueva fue exitosa, cancelar la suscripción antigua
+    await stripe.subscriptions.cancel(stripeSubId);
+
+    // 4. Crear nuevo registro en Supabase (misma slot, nuevo plan, fecha nueva)
     const planPrices = PLAN_PRICES[planName];
     const amount = isAnnual ? (planPrices?.annual ?? 0) : (planPrices?.monthly ?? 0);
     const { data: newSubRecord } = await supabaseAdmin.from('subscriptions').insert({
