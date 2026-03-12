@@ -403,42 +403,38 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Paso A: Traer los SLOTS que te pertenecen
-      const { data: slotsData, error: slotsErr } = await supabase
-        .from('slots')
-        .select('*')
-        .eq('assigned_to', user.id);
-
-      if (slotsErr) throw slotsErr;
-
-      // Paso B: Traer tus SUSCRIPCIONES activas/trialing
-      const { data: subsData, error: subsErr } = await supabase
+      // Traemos solo las suscripciones pagadas y activas del usuario
+      const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
         .in('status', ['active', 'trialing']);
 
-      if (subsErr) throw subsErr;
+      if (!subsData || subsData.length === 0) {
+        setSlots([]);
+        setLoading(false);
+        return;
+      }
 
-      // Paso C: Unir los datos en memoria (deduplicando y vinculando)
-      const processedSlots = (slotsData || []).map(slot => {
-        const sub = subsData?.find((s: { slot_id: string }) => s.slot_id === slot.slot_id);
-        return { ...slot, subscriptions: sub ? [sub] : [] };
-      }).filter(s => s.subscriptions.length > 0);
-
-      setSlots(processedSlots as Slot[]);
-
-      // Traer mensajes
-      const { data: msgsData } = await supabase
-        .from('sms_logs')
+      // Traemos los detalles de los slots correspondientes a esas suscripciones
+      const slotIds = subsData.map((s: { slot_id: string }) => s.slot_id);
+      const { data: slotsData } = await supabase
+        .from('slots')
         .select('*')
-        .eq('user_id', user.id)
-        .order('received_at', { ascending: false })
-        .limit(60);
+        .in('slot_id', slotIds);
 
-      if (msgsData) setMessages(msgsData as SMSLog[]);
+      // Unimos la info asegurando que cada tarjeta tenga su sub
+      const finalSlots = slotsData?.map(slot => ({
+        ...slot,
+        activeSub: subsData.find((s: { slot_id: string }) => s.slot_id === slot.slot_id)
+      })).filter(s => s.activeSub);
+
+      setSlots((finalSlots || []) as Slot[]);
+
+      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      if (msgs) setMessages(msgs as SMSLog[]);
     } catch (e) {
-      console.error('Error en fetchData:', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -1474,51 +1470,52 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
-                    // Ordenar por fecha de la suscripción (subscriptions[0].created_at) → #01 = primera contratada
-                    const displaySlots = [...slots].sort((a, b) => {
-                      const dateA = new Date((a.subscriptions?.[0] as { created_at?: string })?.created_at || 0).getTime();
-                      const dateB = new Date((b.subscriptions?.[0] as { created_at?: string })?.created_at || 0).getTime();
-                      return dateA - dateB;
-                    });
-                    return displaySlots.map((slot, index) => {
-                      const activeSub = slot.subscriptions?.[0] as { credits_used?: number; monthly_limit?: number; created_at?: string } | undefined;
-                      const plan = (slot.plan_type || 'starter').toLowerCase();
-                      const ps = getWebPlanStyle(plan);
-                      const creditsUsed = activeSub?.credits_used ?? 0;
-                      const monthlyLimit = activeSub?.monthly_limit ?? 150;
-                      const usagePct = Math.min(100, (creditsUsed / monthlyLimit) * 100);
-                      const isCritical = usagePct >= 85;
+                    const sorted = [...slots].sort((a, b) =>
+                      new Date(a.activeSub?.created_at || 0).getTime() - new Date(b.activeSub?.created_at || 0).getTime()
+                    );
+                    return sorted.map((slot, index) => {
+                      const sub = slot.activeSub;
+                      const planName = (sub?.plan_name || slot.plan_type || 'starter').toLowerCase();
+                      const ps = getWebPlanStyle(planName);
+                      const usagePct = Math.min(100, ((sub?.credits_used || 0) / (sub?.monthly_limit || 150)) * 100);
                       const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
 
                       return (
                         <div key={slot.slot_id} className="flex flex-col gap-2">
-                          <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
+                          <div className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden shadow-xl text-white`} style={{ clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)' }}>
                             <div className="flex items-start justify-between relative z-10">
-                              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
+                              <div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70">Telsim Online</p>
+                                <p className="text-[12px] font-bold italic uppercase">{slot.label || 'SIN ETIQUETA'}</p>
+                              </div>
                               <div className="flex flex-col items-center gap-1">
-                                <div className="w-10 h-10 rounded-full border-2 border-white/30 overflow-hidden bg-slate-200">
+                                <div className="w-10 h-10 rounded-full border-2 border-white/30 overflow-hidden shadow-lg">
                                   <img src={`https://flagcdn.com/80x60/${(slot.region || 'cl').toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
                                 </div>
-                                <span className={`text-[11px] font-black ${ps.phoneColor}`}>#{String(index + 1).padStart(2, '0')}</span>
+                                <span className="text-[11px] font-black font-mono">#{String(index + 1).padStart(2, '0')}</span>
                               </div>
                             </div>
                             <div className="relative z-10">
-                              <p className={`text-[17px] font-black font-mono ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
-                              <div className="mt-2">
-                                <div className="flex justify-between text-[9px] font-bold uppercase mb-1">
-                                  <span className={ps.labelColor}>Consumo</span>
-                                  <span className={isCritical ? 'text-rose-400' : ps.phoneColor}>{creditsUsed} / {monthlyLimit}</span>
+                              <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Subscriber Number</p>
+                              <p className="text-[18px] font-black font-mono tracking-wider">{formatPhone(slot.phone_number)}</p>
+                              <div className="mt-2 w-32">
+                                <div className="flex justify-between text-[8px] font-black mb-1 uppercase">
+                                  <span>Consumo</span>
+                                  <span>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
                                 </div>
-                                <div className="h-1 w-32 bg-black/10 rounded-full overflow-hidden">
-                                  <div className={`h-full ${isCritical ? 'bg-rose-500' : (plan === 'starter' ? 'bg-primary' : 'bg-white')}`} style={{ width: `${usagePct}%` }} />
+                                <div className="h-1 bg-black/20 rounded-full overflow-hidden">
+                                  <div className={`h-full ${planName === 'starter' ? 'bg-blue-400' : 'bg-white'}`} style={{ width: `${usagePct}%` }} />
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-end justify-between relative z-10">
-                              <span className="px-2 py-0.5 rounded-full border border-white/30 text-[9px] font-black bg-black/20 text-white">{ps.label}</span>
+                              <div className="flex flex-col">
+                                <span className="px-2 py-0.5 rounded-full border border-white/20 bg-black/10 text-[9px] font-black uppercase">{ps.label}</span>
+                                <span className="text-[8px] font-bold mt-1 opacity-60">💳 {sub?.billing_type === 'annual' ? 'Plan Anual' : 'Plan Mensual'}</span>
+                              </div>
                               <div className="text-right">
-                                <span className={`block text-[9px] font-black ${ps.labelColor}`}>● ACTIVA</span>
-                                <span className={`text-[8px] opacity-60 ${ps.labelColor}`}>Desde: {activeSub?.created_at ? new Date(activeSub.created_at).toLocaleDateString() : '—'}</span>
+                                <span className="block text-[9px] font-black">● ACTIVA</span>
+                                <span className="block text-[8px] opacity-60 font-mono">Desde: {sub?.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}</span>
                               </div>
                             </div>
                           </div>

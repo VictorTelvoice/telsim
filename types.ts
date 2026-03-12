@@ -58,6 +58,8 @@ export interface Slot {
   forwarding_config?: string;
   /** Join con subscriptions (left join); puede ser array según Supabase */
   subscriptions?: any[];
+  /** Suscripción activa vinculada (merge en fetchData) */
+  activeSub?: { created_at?: string; credits_used?: number; monthly_limit?: number; plan_name?: string; billing_type?: string };
 }
 
 export interface SimNumber {
