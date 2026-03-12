@@ -1,61 +1,41 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2026-01-28.clover' as any,
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2026-01-28.clover' as any });
+const supabaseAdmin = createClient(process.env.SUPABASE_URL || '', process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+  'Starter': { monthly: 19.90, annual: 199 },
+  'Pro': { monthly: 39.90, annual: 399 },
+  'Power': { monthly: 99.00, annual: 990 },
+};
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
-
   const { userId, slot_id, phoneNumber, newPriceId, planName, monthlyLimit, isAnnual } = req.body;
-
-  if (!userId || !newPriceId || !planName) {
-    return res.status(400).json({ error: 'Parámetros insuficientes.' });
-  }
+  if (!userId || !newPriceId || !planName) return res.status(400).json({ error: 'Parámetros insuficientes.' });
 
   try {
-    // 1. Buscar suscripción activa por slot_id, fallback por phoneNumber
+    // Buscar suscripción activa por slot_id, fallback por phoneNumber
     let activeSub: any = null;
-
     if (slot_id) {
-      const { data } = await supabaseAdmin
-        .from('subscriptions')
-        .select('*')
-        .eq('slot_id', slot_id)
-        .eq('user_id', userId)
+      const { data } = await supabaseAdmin.from('subscriptions').select('*')
+        .eq('slot_id', slot_id).eq('user_id', userId)
         .in('status', ['active', 'trialing'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
       activeSub = data;
     }
-
     if (!activeSub && phoneNumber) {
-      const { data } = await supabaseAdmin
-        .from('subscriptions')
-        .select('*')
-        .eq('phone_number', phoneNumber)
-        .eq('user_id', userId)
+      const { data } = await supabaseAdmin.from('subscriptions').select('*')
+        .eq('phone_number', phoneNumber).eq('user_id', userId)
         .in('status', ['active', 'trialing'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
       activeSub = data;
     }
+    if (!activeSub) return res.status(404).json({ error: 'No se encontró suscripción activa para este número.' });
 
-    if (!activeSub) {
-      return res.status(404).json({ error: 'No se encontró suscripción activa para este número.' });
-    }
-
-    // 2. Resolver stripe_subscription_id
+    // Resolver stripe_subscription_id
     let stripeSubId = activeSub.stripe_subscription_id as string | undefined;
-
     if (!stripeSubId) {
       const sessionId = activeSub.stripe_session_id as string;
       if (sessionId?.startsWith('sub_')) {
@@ -63,43 +43,23 @@ export default async function handler(req: any, res: any) {
       } else if (sessionId?.startsWith('cs_')) {
         const cs = await stripe.checkout.sessions.retrieve(sessionId);
         stripeSubId = cs.subscription as string;
-        await supabaseAdmin
-          .from('subscriptions')
-          .update({ stripe_subscription_id: stripeSubId })
-          .eq('id', activeSub.id);
+        await supabaseAdmin.from('subscriptions').update({ stripe_subscription_id: stripeSubId }).eq('id', activeSub.id);
       }
     }
+    if (!stripeSubId) return res.status(400).json({ error: 'No se encontró ID de suscripción Stripe.' });
 
-    if (!stripeSubId) {
-      return res.status(400).json({ error: 'No se encontró ID de suscripción Stripe para cancelar.' });
-    }
-
-    // 3. Obtener stripe_customer_id
-    const { data: profileData } = await supabaseAdmin
-      .from('profiles')
-      .select('stripe_customer_id')
-      .eq('id', userId)
-      .maybeSingle();
-
+    // Obtener customer
+    const { data: profileData } = await supabaseAdmin.from('profiles').select('stripe_customer_id').eq('id', userId).maybeSingle();
     const customerId = profileData?.stripe_customer_id;
-    if (!customerId) {
-      return res.status(400).json({ error: 'No se encontró customer de Stripe.' });
-    }
+    if (!customerId) return res.status(400).json({ error: 'No se encontró customer de Stripe.' });
 
-    // 4. Cancelar suscripción antigua en Stripe inmediatamente
+    // Cancelar suscripción antigua en Stripe (el webhook la marcará canceled en Supabase → queda en historial)
     await stripe.subscriptions.cancel(stripeSubId);
 
-    // 5. Crear nueva suscripción en Stripe con el nuevo plan, mismo slot
-    const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-      'Starter': { monthly: 19.90, annual: 199 },
-      'Pro':     { monthly: 39.90, annual: 399 },
-      'Power':   { monthly: 99.00, annual: 990 },
-    };
-
+    // Crear nueva suscripción con nuevo plan, mismo slot, sin trial
     const newStripeSub = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: newPriceId }],
-      trial_period_days: 0,
       metadata: {
         userId,
         slot_id: activeSub.slot_id,
@@ -111,41 +71,29 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    // 6. Crear nuevo registro en Supabase para la nueva suscripción
+    // Crear nuevo registro en Supabase (misma slot, nuevo plan, fecha nueva)
     const planPrices = PLAN_PRICES[planName];
     const amount = isAnnual ? (planPrices?.annual ?? 0) : (planPrices?.monthly ?? 0);
+    const { data: newSubRecord } = await supabaseAdmin.from('subscriptions').insert({
+      user_id: userId,
+      slot_id: activeSub.slot_id,
+      phone_number: activeSub.phone_number,
+      plan_name: planName,
+      monthly_limit: monthlyLimit,
+      credits_used: 0,
+      status: newStripeSub.status === 'trialing' ? 'trialing' : 'active',
+      stripe_subscription_id: newStripeSub.id,
+      stripe_session_id: newStripeSub.id,
+      amount,
+      billing_type: isAnnual ? 'annual' : 'monthly',
+      currency: 'usd',
+      created_at: new Date().toISOString(),
+    }).select('id').single();
 
-    const { data: newSubRecord } = await supabaseAdmin
-      .from('subscriptions')
-      .insert({
-        user_id: userId,
-        slot_id: activeSub.slot_id,
-        phone_number: activeSub.phone_number,
-        plan_name: planName,
-        monthly_limit: monthlyLimit,
-        credits_used: 0,
-        status: newStripeSub.status === 'trialing' ? 'trialing' : 'active',
-        stripe_subscription_id: newStripeSub.id,
-        stripe_session_id: newStripeSub.id,
-        amount,
-        billing_type: isAnnual ? 'annual' : 'monthly',
-        currency: 'usd',
-        created_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+    // Actualizar slot con nuevo plan
+    await supabaseAdmin.from('slots').update({ plan_type: planName }).eq('slot_id', activeSub.slot_id);
 
-    // 7. Actualizar el slot con el nuevo plan
-    await supabaseAdmin
-      .from('slots')
-      .update({ plan_type: planName })
-      .eq('slot_id', activeSub.slot_id);
-
-    return res.status(200).json({
-      success: true,
-      subscriptionId: newSubRecord?.id,
-    });
-
+    return res.status(200).json({ success: true, subscriptionId: newSubRecord?.id });
   } catch (err: any) {
     console.error('[UPGRADE-SUBSCRIPTION ERROR]', err.message);
     return res.status(500).json({ error: err.message });

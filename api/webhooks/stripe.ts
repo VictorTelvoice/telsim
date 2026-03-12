@@ -389,9 +389,18 @@ export default async function handler(req: any, res: any) {
 
       if (isCanceledNow || isCanceledAtPeriodEnd) {
         if (isCanceledNow) {
-          await supabaseAdmin.from('slots').update({
-            status: 'libre', assigned_to: null, plan_type: null,
-          }).eq('slot_id', sub.slot_id);
+          const { data: otherActiveSub } = await supabaseAdmin
+            .from('subscriptions').select('id')
+            .eq('slot_id', sub.slot_id)
+            .in('status', ['active', 'trialing'])
+            .neq('id', sub.id)
+            .maybeSingle();
+
+          if (!otherActiveSub) {
+            await supabaseAdmin.from('slots').update({
+              status: 'libre', assigned_to: null, plan_type: null,
+            }).eq('slot_id', sub.slot_id);
+          }
         }
 
         await createNotification(
@@ -557,16 +566,15 @@ export default async function handler(req: any, res: any) {
         .update({ status: 'canceled' })
         .eq('id', sub.id);
 
-      // Solo liberar el slot si NO hay otra suscripción activa/trialing en ese slot
-      const { data: anotherActiveSub } = await supabaseAdmin
-        .from('subscriptions')
-        .select('id')
+      // No liberar el slot si ya tiene otra suscripción activa (p. ej. del upgrade)
+      const { data: otherActiveSub } = await supabaseAdmin
+        .from('subscriptions').select('id')
         .eq('slot_id', sub.slot_id)
         .in('status', ['active', 'trialing'])
         .neq('id', sub.id)
         .maybeSingle();
 
-      if (!anotherActiveSub) {
+      if (!otherActiveSub) {
         await supabaseAdmin.from('slots').update({
           status: 'libre', assigned_to: null, plan_type: null,
         }).eq('slot_id', sub.slot_id);

@@ -122,18 +122,10 @@ const UpgradeSummary: React.FC = () => {
           isAnnual: upgradeData.isAnnual ?? false,
         }),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-
       navigate('/dashboard/upgrade-success', {
-        state: {
-          phoneNumber,
-          planName,
-          amount: price,
-          currency: 'usd',
-          monthlyLimit: limit,
-        }
+        state: { phoneNumber, planName, amount: price, currency: 'usd', monthlyLimit: limit }
       });
     } catch (err: any) {
       alert(err.message || 'Error al procesar el upgrade');
