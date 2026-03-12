@@ -41,30 +41,29 @@ export default function UpgradePlanSelector() {
   const currentOrder = PLAN_ORDER[(currentPlanName || 'Starter').toUpperCase()] ?? 1;
   const currentBilling = billing_type || 'monthly';
 
-  // Lógica correcta:
-  // - Si el usuario tiene Plan X Mensual → puede ir a Plan X Anual
-  //   O cualquier plan superior (mensual o anual según el toggle)
-  // - Si el usuario tiene Plan X Anual → solo puede ir a planes SUPERIORES
-  // - El badge "Cambia a Anual" solo aparece en la card del mismo plan
-  //   Y solo cuando el toggle está en Anual
-  const availablePlans = PLANS.filter(plan => {
+  // REGLA:
+  // - Si el usuario tiene Plan X Mensual, siempre mostrar primero el Plan X Anual,
+  //   más los planes superiores (afectados por el toggle).
+  // - Si el usuario tiene Plan X Anual, solo mostrar planes superiores.
+  const samePlanAnnual = currentBilling === 'monthly'
+    ? PLANS.find(p => PLAN_ORDER[p.id.toUpperCase()] === currentOrder) ?? null
+    : null;
+
+  const higherPlans = PLANS.filter(plan => {
     const order = PLAN_ORDER[plan.id.toUpperCase()] ?? 1;
-    if (order > currentOrder) return true; // planes superiores siempre disponibles
-    if (order === currentOrder && currentBilling === 'monthly' && isAnnual) return true; // mismo plan solo si toggle en Anual y actualmente es mensual
-    return false;
+    return order > currentOrder;
   });
 
-  const onlyAnnualSamePlan = availablePlans.length === 1 &&
-    PLAN_ORDER[availablePlans[0]?.id?.toUpperCase()] === currentOrder;
-
-  const handleSelect = (plan: typeof PLANS[0]) => {
+  const handleSelect = (plan: typeof PLANS[0], opts?: { forceAnnual?: boolean }) => {
+    const annual = opts?.forceAnnual ?? isAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber, slot_id, planName: plan.id, currentPlanName,
-        stripePriceId: isAnnual ? plan.annualStripePriceId : plan.stripePriceId,
+        stripePriceId: annual ? plan.annualStripePriceId : plan.stripePriceId,
         limit: plan.limit,
-        price: isAnnual ? plan.annualPrice : plan.price,
-        isAnnual, isUpgrade: true,
+        price: annual ? plan.annualPrice : plan.price,
+        isAnnual: annual,
+        isUpgrade: true,
       }
     });
   };
@@ -95,8 +94,8 @@ export default function UpgradePlanSelector() {
           </p>
         </div>
 
-        {/* Toggle */}
-        {!onlyAnnualSamePlan && (
+        {/* Toggle: solo controla planes superiores, nunca el mismo plan anual */}
+        {higherPlans.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 40 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: !isAnnual ? '#0f172a' : '#94a3b8' }}>Mensual</span>
             <button
@@ -124,15 +123,85 @@ export default function UpgradePlanSelector() {
         {/* Plan cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: availablePlans.length === 1 ? '360px' : availablePlans.length === 2 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+          gridTemplateColumns:
+            (samePlanAnnual && higherPlans.length === 0) ? '360px'
+            : (samePlanAnnual && higherPlans.length === 1) ? 'repeat(2, 1fr)'
+            : (higherPlans.length <= 2 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'),
           gap: 24,
           justifyContent: 'center',
         }}>
-          {availablePlans.map(plan => {
-            const isSameAnnualUpgrade =
-              PLAN_ORDER[plan.id.toUpperCase()] === currentOrder &&
-              currentBilling === 'monthly' &&
-              isAnnual;
+          {/* Mismo plan anual primero (si aplica) */}
+          {samePlanAnnual && (
+            <div
+              key={samePlanAnnual.id}
+              onClick={() => handleSelect(samePlanAnnual, { forceAnnual: true })}
+              style={{
+                position: 'relative', display: 'flex', flexDirection: 'column',
+                background: 'white', borderRadius: 20, border: `2px solid ${samePlanAnnual.border}`,
+                padding: '28px 24px 24px', cursor: 'pointer',
+                boxShadow: samePlanAnnual.popular ? `0 8px 32px ${samePlanAnnual.accent}22` : '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 16px 40px ${samePlanAnnual.accent}33`; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = samePlanAnnual.popular ? `0 8px 32px ${samePlanAnnual.accent}22` : '0 2px 8px rgba(0,0,0,0.06)'; }}
+            >
+              {/* Badge for same plan annual */}
+              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#059669', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
+                Cambia a anual · Ahorra 17%
+              </div>
+
+              {/* Plan name */}
+              <p style={{ fontSize: 11, fontWeight: 800, color: samePlanAnnual.accent, letterSpacing: 2, textTransform: 'uppercase', margin: '0 0 4px' }}>{samePlanAnnual.name}</p>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f8fafc', borderRadius: 20, padding: '4px 10px', marginBottom: 16, width: 'fit-content' }}>
+                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{samePlanAnnual.credits}</span>
+              </div>
+
+              {/* Price (always annual for same plan) */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+                  <span style={{ fontSize: 52, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>${samePlanAnnual.annualMonthly.toFixed(2)}</span>
+                  <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>/mo</span>
+                </div>
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${samePlanAnnual.annualPrice}/año</p>
+              </div>
+
+              {/* Features */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                {samePlanAnnual.features.map((f: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                      <Check size={10} color="#16a34a" strokeWidth={3} />
+                    </div>
+                    <span style={{ fontSize: 13, color: '#475569' }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ideal para */}
+              <div style={{ background: samePlanAnnual.popular ? '#eff6ff' : samePlanAnnual.id === 'Power' ? '#fffbeb' : '#f8fafc', borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
+                <p style={{ fontSize: 9, fontWeight: 800, color: samePlanAnnual.accent, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 3px' }}>Ideal para</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: samePlanAnnual.popular ? '#1d4ed8' : samePlanAnnual.id === 'Power' ? '#b45309' : '#475569', margin: 0 }}>{samePlanAnnual.idealFor}</p>
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={e => { e.stopPropagation(); handleSelect(samePlanAnnual, { forceAnnual: true }); }}
+                style={{
+                  width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
+                  background: samePlanAnnual.popular ? '#0047FF' : samePlanAnnual.id === 'Power' ? '#f59e0b' : '#0f172a',
+                  color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+              >
+                Seleccionar plan →
+              </button>
+            </div>
+          )}
+
+          {/* Planes superiores, afectados por el toggle */}
+          {higherPlans.map(plan => {
             const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
             return (
               <div
@@ -148,15 +217,10 @@ export default function UpgradePlanSelector() {
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 16px 40px ${plan.accent}33`; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = plan.popular ? `0 8px 32px ${plan.accent}22` : '0 2px 8px rgba(0,0,0,0.06)'; }}
               >
-                {/* Badge */}
-                {plan.popular && !isSameAnnualUpgrade && (
+                {/* Badge solo para populares, nunca para "cambia a anual" */}
+                {plan.popular && (
                   <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: plan.badgeBg, color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
                     <Zap size={9} /> Más Popular
-                  </div>
-                )}
-                {isSameAnnualUpgrade && (
-                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#059669', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
-                    Cambia a anual · Ahorra 17%
                   </div>
                 )}
 
