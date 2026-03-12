@@ -69,7 +69,9 @@ export default async function handler(req: any, res: any) {
         if (defaultPaymentMethod) {
           // ESCENARIO A: UPGRADE (upgrade instantáneo vía Stripe; Supabase se actualiza por webhook)
           if (isUpgrade && slot_id) {
-            const { data: activeSub } = await supabaseAdmin
+            let activeSub: Record<string, unknown> | null = null;
+
+            const { data: bySlot } = await supabaseAdmin
               .from('subscriptions')
               .select('*')
               .eq('slot_id', slot_id)
@@ -79,17 +81,37 @@ export default async function handler(req: any, res: any) {
               .limit(1)
               .maybeSingle();
 
-            if (activeSub?.stripe_subscription_id || activeSub?.stripe_session_id) {
-              // Recuperar stripe_subscription_id desde el stripe_session_id guardado
+            activeSub = bySlot as Record<string, unknown> | null;
+
+            if (!activeSub && phoneNumber) {
+              const { data: byPhone } = await supabaseAdmin
+                .from('subscriptions')
+                .select('*')
+                .eq('phone_number', phoneNumber)
+                .eq('user_id', userId)
+                .in('status', ['active', 'trialing'])
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              activeSub = byPhone as Record<string, unknown> | null;
+            }
+
+            console.log('[UPGRADE] activeSub encontrado:', JSON.stringify({
+              id: activeSub?.id,
+              slot_id: activeSub?.slot_id,
+              status: activeSub?.status,
+              stripe_subscription_id: activeSub?.stripe_subscription_id,
+              stripe_session_id: activeSub?.stripe_session_id,
+            }));
+
+            if (activeSub && (activeSub.stripe_subscription_id || activeSub.stripe_session_id)) {
               let stripeSubId = activeSub.stripe_subscription_id as string | undefined;
 
               if (!stripeSubId) {
                 const sessionId = activeSub.stripe_session_id as string;
                 if (sessionId?.startsWith('sub_')) {
-                  // Es directamente un stripe_subscription_id guardado en stripe_session_id
                   stripeSubId = sessionId;
                 } else if (sessionId?.startsWith('cs_')) {
-                  // Es una sesión de checkout — recuperar la suscripción desde ella
                   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
                   stripeSubId = checkoutSession.subscription as string;
                 }
@@ -97,14 +119,13 @@ export default async function handler(req: any, res: any) {
 
               if (!stripeSubId) throw new Error('No se encontró la suscripción de Stripe para este slot.');
 
-              // Actualizar el plan en Stripe → dispara customer.subscription.updated → webhook procesa el resto
               const subscription = await stripe.subscriptions.retrieve(stripeSubId);
               await stripe.subscriptions.update(stripeSubId, {
                 items: [{ id: subscription.items.data[0].id, price: priceId }],
                 proration_behavior: 'always_invoice',
                 metadata: {
                   userId,
-                  slot_id,
+                  slot_id: activeSub.slot_id as string,
                   planName,
                   monthlyLimit: String(monthlyLimit),
                   isAnnual: isAnnual ? 'true' : 'false',
@@ -112,8 +133,6 @@ export default async function handler(req: any, res: any) {
                 },
               });
 
-              // El webhook customer.subscription.updated actualizará Supabase automáticamente.
-              // Solo retornamos el ID de la sub existente para que Processing.tsx pueda mostrar éxito.
               return res.status(200).json({ instant: true, subscriptionId: activeSub.id });
             }
           }
