@@ -19,6 +19,12 @@ async function triggerEmail(
 ): Promise<void> {
   console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
   try {
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = (data?.email as string) || authUser?.user?.email;
+    if (!email) {
+      console.error('[triggerEmail] No email address resolved');
+      return;
+    }
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceKey) {
@@ -31,7 +37,7 @@ async function triggerEmail(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ event, user_id: userId, data }),
+      body: JSON.stringify({ event, user_id: userId, email, data }),
     });
     if (!res.ok) console.error('[triggerEmail]', await res.text());
   } catch (err) {
@@ -108,10 +114,15 @@ export default async function handler(req: any, res: any) {
 
     // Flujo especial de UPGRADE via Checkout
     if (meta.upgrade === 'true' && meta.slot_id && meta.user_id) {
-      console.log('[WEBHOOK] Processing upgrade for slot', meta.slot_id);
+      console.log('[UPGRADE] Iniciando procesamiento upgrade:', JSON.stringify({
+        slot_id: meta.slot_id,
+        user_id: meta.user_id,
+        new_plan: meta.new_plan_name,
+        old_sub: meta.old_subscription_id,
+      }));
       const newSubId = session.subscription as string;
 
-      // Cancelar sub vieja en Stripe
+      // Cancelar sub vieja en Stripe (sin metadata; customer.subscription.deleted detecta upgrade por sub activa en mismo slot)
       if (meta.old_subscription_id) {
         try {
           await stripe.subscriptions.cancel(meta.old_subscription_id as string);
@@ -147,7 +158,55 @@ export default async function handler(req: any, res: any) {
         })
         .eq('slot_id', meta.slot_id);
 
-      console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
+      console.log('[UPGRADE] Supabase actualizado OK');
+
+      // Notificaciones de upgrade exitoso (mismo tipo que compra nueva: purchase_success)
+      console.log('[UPGRADE] Enviando notificaciones...');
+      const { data: authData } = await supabaseAdmin.auth.admin.getUserById(meta.user_id as string);
+      const userEmail = authData?.user?.email;
+      console.log('[UPGRADE] Email resuelto:', userEmail ?? '(sin email)');
+
+      if (userEmail) {
+        await triggerEmail('purchase_success', meta.user_id as string, {
+          plan_name: meta.new_plan_name,
+          billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
+          slot_id: meta.slot_id,
+          email: userEmail,
+        });
+        console.log('[UPGRADE] Email enviado');
+      }
+
+      let telegramResult: boolean | string = false;
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('telegram_token, telegram_chat_id, notification_preferences')
+          .eq('id', meta.user_id)
+          .maybeSingle();
+        const tgToken = userRow?.telegram_token;
+        const tgChatId = userRow?.telegram_chat_id;
+        const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
+        const sendUpgrade = prefs?.sim_activated?.telegram === true;
+        if (tgToken && tgChatId && sendUpgrade) {
+          const billingLabel = meta.is_annual === 'true' ? 'Anual' : 'Mensual';
+          const telegramMessage = `<b>⚡ UPGRADE EXITOSO</b>
+━━━━━━━━━━━━━━━━━━
+📱 <b>Slot:</b> ${meta.slot_id}
+💎 <b>Plan:</b> ${meta.new_plan_name} · ${billingLabel}
+👤 <b>Usuario:</b> ${meta.user_id}`;
+          const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'HTML' }),
+          });
+          telegramResult = tgRes.ok;
+        }
+      } catch (tgErr: any) {
+        telegramResult = (tgErr as Error)?.message ?? 'error';
+        console.warn('[WEBHOOK] Telegram upgrade notification skipped:', tgErr?.message);
+      }
+      console.log('[UPGRADE] Telegram enviado:', telegramResult);
+
       return res.status(200).json({ received: true });
     }
 
@@ -612,15 +671,35 @@ export default async function handler(req: any, res: any) {
 
   else if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as Stripe.Subscription;
+    const subId = subscription.id;
 
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
         .select('id, user_id, plan_name, slot_id')
-        .eq('stripe_subscription_id', subscription.id)
+        .eq('stripe_subscription_id', subId)
         .maybeSingle();
 
-      if (!sub) return res.status(200).json({ received: true });
+      if (!sub) {
+        console.log('[WEBHOOK] Sub deleted no encontrada en Supabase, ignorando');
+        return res.status(200).json({ received: true });
+      }
+
+      // Si hay una sub activa más reciente para el mismo slot, fue upgrade — no notificar cancelación
+      const { data: activeSub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, created_at')
+        .eq('slot_id', sub.slot_id)
+        .eq('status', 'active')
+        .neq('stripe_subscription_id', subId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSub) {
+        console.log('[WEBHOOK] Sub deleted es parte de un upgrade, omitiendo notificación de cancelación');
+        return res.status(200).json({ received: true });
+      }
 
       await supabaseAdmin
         .from('subscriptions')
