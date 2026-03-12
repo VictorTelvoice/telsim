@@ -91,8 +91,22 @@ export default async function handler(req: any, res: any) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
 
+    // Primero resolver metadata, que en upgrades puede venir desde la suscripción
+    let meta = session.metadata || {};
+
+    // Si no hay flag de upgrade en session.metadata, intentar leerla desde la suscripción
+    if (!meta.upgrade && session.subscription) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+        meta = subscription.metadata || meta;
+      } catch (e: any) {
+        console.warn('[WEBHOOK] No se pudo leer metadata desde subscription:', e?.message);
+      }
+    }
+
     // Flujo especial de UPGRADE via Checkout
-    const meta = session.metadata || {};
     if (meta.upgrade === 'true' && meta.slot_id && meta.user_id) {
       console.log('[WEBHOOK] Processing upgrade for slot', meta.slot_id);
       const newSubId = session.subscription as string;
@@ -125,14 +139,13 @@ export default async function handler(req: any, res: any) {
         status: 'active',
       });
 
-      // Actualizar el slot
+      // Actualizar el slot (solo plan_type, como en flujo estándar)
       await supabaseAdmin
         .from('slots')
         .update({
           plan_type: meta.new_plan_name,
         })
-        .eq('slot_id', meta.slot_id)
-        .eq('assigned_to', meta.user_id);
+        .eq('slot_id', meta.slot_id);
 
       console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
       return res.status(200).json({ received: true });
