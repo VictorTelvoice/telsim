@@ -35,27 +35,35 @@ const PLANS = [
 export default function UpgradePlanSelector() {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const [isAnnual, setIsAnnual] = useState(false);
 
-  const { phoneNumber, slot_id, currentPlanName, billing_type } = state || {};
-  const currentOrder = PLAN_ORDER[(currentPlanName || 'Starter').toUpperCase()] ?? 1;
-  const currentBilling = billing_type || 'monthly';
+  const { phoneNumber, slot_id } = state || {};
 
-  // REGLA:
-  // - Si el usuario tiene Plan X Mensual, siempre mostrar primero el Plan X Anual,
-  //   más los planes superiores (afectados por el toggle).
-  // - Si el usuario tiene Plan X Anual, solo mostrar planes superiores.
-  const samePlanAnnual = currentBilling === 'monthly'
-    ? PLANS.find(p => PLAN_ORDER[p.id.toUpperCase()] === currentOrder) ?? null
-    : null;
+  // Plan actual que viene del state
+  const currentPlanName = (state?.currentPlanName || 'Starter') as string;
+  const currentBilling  = (state?.billing_type   || 'monthly') as 'monthly' | 'annual';
 
-  const higherPlans = PLANS.filter(plan => {
-    const order = PLAN_ORDER[plan.id.toUpperCase()] ?? 1;
-    return order > currentOrder;
+  // Toggle controla qué precio mostrar — arranca en el billing actual
+  const [showAnnual, setShowAnnual] = useState(currentBilling === 'annual');
+
+  // Mostrar TODOS los planes excepto el que ya tiene (mismo plan + mismo billing)
+  const visiblePlans = PLANS.filter(plan => {
+    const isSamePlan = plan.id.toLowerCase() === currentPlanName.toLowerCase();
+    const isSameBilling = showAnnual
+      ? currentBilling === 'annual'
+      : currentBilling === 'monthly';
+    return !(isSamePlan && isSameBilling);
   });
 
-  const handleSelect = (plan: typeof PLANS[0], opts?: { forceAnnual?: boolean }) => {
-    const annual = opts?.forceAnnual ?? isAnnual;
+  // Grid dinámico
+  const totalCards = visiblePlans.length;
+  const gridCols = totalCards === 1
+    ? '420px'
+    : totalCards === 2
+    ? 'repeat(2, 1fr)'
+    : 'repeat(3, 1fr)';
+
+  const handleSelect = (plan: typeof PLANS[0]) => {
+    const annual = showAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber, slot_id, planName: plan.id, currentPlanName,
@@ -94,25 +102,25 @@ export default function UpgradePlanSelector() {
           </p>
         </div>
 
-        {/* Toggle: solo controla planes superiores, nunca el mismo plan anual */}
-        {higherPlans.length > 0 && (
+        {/* Toggle de billing */}
+        {visiblePlans.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 40 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: !isAnnual ? '#0f172a' : '#94a3b8' }}>Mensual</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: !showAnnual ? '#0f172a' : '#94a3b8' }}>Mensual</span>
             <button
-              onClick={() => setIsAnnual(p => !p)}
+              onClick={() => setShowAnnual(p => !p)}
               style={{
                 width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
-                background: isAnnual ? '#0047FF' : '#e2e8f0', position: 'relative', transition: 'background 0.2s'
+                background: showAnnual ? '#0047FF' : '#e2e8f0', position: 'relative', transition: 'background 0.2s'
               }}
             >
               <div style={{
-                position: 'absolute', top: 3, left: isAnnual ? 25 : 3,
+              position: 'absolute', top: 3, left: showAnnual ? 25 : 3,
                 width: 20, height: 20, borderRadius: '50%', background: 'white',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
               }} />
             </button>
-            <span style={{ fontSize: 14, fontWeight: 600, color: isAnnual ? '#0f172a' : '#94a3b8' }}>Anual</span>
-            {isAnnual && (
+            <span style={{ fontSize: 14, fontWeight: 600, color: showAnnual ? '#0f172a' : '#94a3b8' }}>Anual</span>
+            {showAnnual && (
               <span style={{ fontSize: 11, fontWeight: 700, background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: 20, border: '1px solid #a7f3d0' }}>
                 Ahorra 17%
               </span>
@@ -123,88 +131,12 @@ export default function UpgradePlanSelector() {
         {/* Plan cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: (() => {
-            const totalCards = (samePlanAnnual ? 1 : 0) + higherPlans.length;
-            if (totalCards <= 1) return '360px';
-            if (totalCards === 2) return 'repeat(2, 1fr)';
-            return 'repeat(3, 1fr)';
-          })(),
+          gridTemplateColumns: gridCols,
           gap: 24,
           justifyContent: 'center',
         }}>
-          {/* Mismo plan anual primero (si aplica) */}
-          {samePlanAnnual && (
-            <div
-              key={samePlanAnnual.id}
-              onClick={() => handleSelect(samePlanAnnual, { forceAnnual: true })}
-              style={{
-                position: 'relative', display: 'flex', flexDirection: 'column',
-                background: 'white', borderRadius: 20, border: `2px solid ${samePlanAnnual.border}`,
-                padding: '28px 24px 24px', cursor: 'pointer',
-                boxShadow: samePlanAnnual.popular ? `0 8px 32px ${samePlanAnnual.accent}22` : '0 2px 8px rgba(0,0,0,0.06)',
-                transition: 'transform 0.15s, box-shadow 0.15s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 16px 40px ${samePlanAnnual.accent}33`; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = samePlanAnnual.popular ? `0 8px 32px ${samePlanAnnual.accent}22` : '0 2px 8px rgba(0,0,0,0.06)'; }}
-            >
-              {/* Badge for same plan annual */}
-              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#059669', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
-                Cambia a anual · Ahorra 17%
-              </div>
-
-              {/* Plan name */}
-              <p style={{ fontSize: 11, fontWeight: 800, color: samePlanAnnual.accent, letterSpacing: 2, textTransform: 'uppercase', margin: '0 0 4px' }}>{samePlanAnnual.name}</p>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f8fafc', borderRadius: 20, padding: '4px 10px', marginBottom: 16, width: 'fit-content' }}>
-                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{samePlanAnnual.credits}</span>
-              </div>
-
-              {/* Price (always annual for same plan) */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-                  <span style={{ fontSize: 52, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>${samePlanAnnual.annualMonthly.toFixed(2)}</span>
-                  <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>/mo</span>
-                </div>
-                <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${samePlanAnnual.annualPrice}/año</p>
-              </div>
-
-              {/* Features */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                {samePlanAnnual.features.map((f: string, i: number) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                      <Check size={10} color="#16a34a" strokeWidth={3} />
-                    </div>
-                    <span style={{ fontSize: 13, color: '#475569' }}>{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Ideal para */}
-              <div style={{ background: samePlanAnnual.popular ? '#eff6ff' : samePlanAnnual.id === 'Power' ? '#fffbeb' : '#f8fafc', borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
-                <p style={{ fontSize: 9, fontWeight: 800, color: samePlanAnnual.accent, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 3px' }}>Ideal para</p>
-                <p style={{ fontSize: 12, fontWeight: 600, color: samePlanAnnual.popular ? '#1d4ed8' : samePlanAnnual.id === 'Power' ? '#b45309' : '#475569', margin: 0 }}>{samePlanAnnual.idealFor}</p>
-              </div>
-
-              {/* CTA */}
-              <button
-                onClick={e => { e.stopPropagation(); handleSelect(samePlanAnnual, { forceAnnual: true }); }}
-                style={{
-                  width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
-                  background: samePlanAnnual.popular ? '#0047FF' : samePlanAnnual.id === 'Power' ? '#f59e0b' : '#0f172a',
-                  color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  transition: 'opacity 0.15s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
-              >
-                Seleccionar plan →
-              </button>
-            </div>
-          )}
-
-          {/* Planes superiores, afectados por el toggle */}
-          {higherPlans.map(plan => {
-            const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
+          {visiblePlans.map(plan => {
+            const displayPrice = showAnnual ? plan.annualMonthly : plan.price;
             return (
               <div
                 key={plan.id}

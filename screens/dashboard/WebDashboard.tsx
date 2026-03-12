@@ -1531,8 +1531,8 @@ const WebDashboard: React.FC = () => {
                                 state: {
                                   phoneNumber: slot.phone_number,
                                   slot_id: slot.slot_id,
-                                  currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
-                                  billing_type: (slot as any).billing_type || 'monthly',
+                                  currentPlanName: (slot as any).activeSub?.plan_name || slot.plan_type || 'Starter',
+                                  billing_type: (slot as any).activeSub?.billing_type || 'monthly',
                                 }
                               })}
                               title="Renovar / cambiar plan"
@@ -1675,8 +1675,8 @@ const WebDashboard: React.FC = () => {
                                     state: {
                                       phoneNumber: slot.phone_number,
                                       slot_id: slot.slot_id,
-                                      currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
-                                      billing_type: (slot as any).billing_type || 'monthly',
+                                      currentPlanName: (slot as any).activeSub?.plan_name || slot.plan_type || 'Starter',
+                                      billing_type: (slot as any).activeSub?.billing_type || 'monthly',
                                     }
                                   })}
                                   title="Renovar / cambiar plan"
