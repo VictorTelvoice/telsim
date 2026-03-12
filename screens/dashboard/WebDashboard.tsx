@@ -403,25 +403,50 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const msgsRes = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
-        .order('received_at', { ascending: false }).limit(60);
+      // 1. Traer mensajes SOLO del usuario
+      const msgsRes = await supabase
+        .from('sms_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(60);
 
-      const slotsRes = await supabase
+      // 2. Traer SLOTS estrictamente donde assigned_to === user.id
+      // subscriptions!inner + filter user_id: solo suscripciones del usuario actual
+      const { data: slotsData, error: slotsError } = await supabase
         .from('slots')
-        .select('*, subscriptions(created_at, cycle_start_date, monthly_limit, credits_used, billing_type, status)')
-        .eq('assigned_to', user.id);
+        .select(`
+          *,
+          subscriptions!inner (
+            created_at,
+            cycle_start_date,
+            monthly_limit,
+            credits_used,
+            billing_type,
+            status,
+            user_id
+          )
+        `)
+        .eq('assigned_to', user.id)
+        .eq('subscriptions.user_id', user.id);
 
-      if (slotsRes.error) {
-        console.warn('[fetchData] Join con subscriptions falló, cargando solo slots:', slotsRes.error.message);
-        const fallback = await supabase.from('slots').select('*').eq('assigned_to', user.id);
-        if (fallback.data) setSlots(fallback.data as Slot[]);
-      } else if (slotsRes.data) {
-        setSlots(slotsRes.data as Slot[]);
+      if (slotsError) {
+        console.error('Error cargando slots:', slotsError);
+        const { data: fallbackData } = await supabase
+          .from('slots')
+          .select('*')
+          .eq('assigned_to', user.id);
+        if (fallbackData) setSlots(fallbackData as Slot[]);
+      } else if (slotsData) {
+        setSlots(slotsData as Slot[]);
       }
 
-      if (msgsRes.data) setMessages(msgsRes.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      if (msgsRes.data) setMessages(msgsRes.data as SMSLog[]);
+    } catch (e) {
+      console.error('Error general:', e);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -1454,21 +1479,24 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
-                    type SubRow = { created_at?: string; cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string };
+                    type SubRow = { created_at?: string; cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string; user_id?: string };
 
                     const getSlotSubs = (s: Slot) => Array.isArray(s?.subscriptions) ? s.subscriptions as SubRow[] : [];
 
+                    // Solo suscripciones del usuario actual (seguridad: créditos y datos correctos)
                     const getActiveSub = (s: Slot): SubRow | null => {
-                      const subs = getSlotSubs(s);
-                      return subs
+                      const subs = getSlotSubs(s).filter(sub => !user?.id || (sub as SubRow).user_id === user.id);
+                      const active = subs
                         .filter(sub => sub.status === 'active' || sub.status === 'trialing')
                         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
                         || subs[0] || null;
+                      return active ?? null;
                     };
 
-                    const safeSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id));
-
-                    const sortedSlots = [...safeSlots].sort((a, b) => {
+                    // Slots filtrados: solo del usuario actual (assigned_to === user.id)
+                    const userSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id && s?.assigned_to === user?.id));
+                    // Ordenar por subscriptions.created_at de más antigua a más nueva → #01 = más antigua
+                    const sortedSlots = [...userSlots].sort((a, b) => {
                       const dateA = new Date(getActiveSub(a)?.created_at || a.created_at || 0).getTime();
                       const dateB = new Date(getActiveSub(b)?.created_at || b.created_at || 0).getTime();
                       return dateA - dateB;
