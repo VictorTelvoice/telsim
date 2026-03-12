@@ -1,54 +1,151 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, ArrowRight, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { CheckCircle, Zap, Calendar, CreditCard, ArrowRight, Star } from 'lucide-react';
 
-const PLAN_CONFIG: Record<string, any> = {
-  Starter: { color: '#64748b', bg: '#f8fafc' },
-  Pro: { color: '#0047FF', bg: '#eff6ff' },
-  Power: { color: '#f59e0b', bg: '#fffbeb' },
+const PLAN_CREDITS: Record<string, number> = {
+  Starter: 150,
+  Pro: 400,
+  Power: 1400,
+};
+
+const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
+  Starter: { monthly: 19.90, annual: 199 },
+  Pro:     { monthly: 39.90, annual: 479 },
+  Power:   { monthly: 99.00, annual: 1188 },
+};
+
+const PLAN_COLORS: Record<string, string> = {
+  Starter: 'from-yellow-400 to-orange-400',
+  Pro:     'from-blue-500 to-blue-600',
+  Power:   'from-yellow-600 to-yellow-700',
 };
 
 export default function UpgradeSuccess() {
   const navigate = useNavigate();
-  const { state } = useLocation();
-  const { phoneNumber, planName, price, isAnnual, limit } = state || {};
-  const config = PLAN_CONFIG[planName] || PLAN_CONFIG.Starter;
+  const location = useLocation();
+  const [countdown, setCountdown] = useState(10);
+
+  // Leer params de la URL: ?slotId=8A&planName=Starter&isAnnual=true
+  const params = new URLSearchParams(location.search);
+  const planName = params.get('planName') || 'Pro';
+  const isAnnual  = params.get('isAnnual') === 'true';
+  const slotId    = params.get('slotId') || '';
+
+  const credits = PLAN_CREDITS[planName] ?? 400;
+  const price   = PLAN_PRICES[planName]?.[isAnnual ? 'annual' : 'monthly'] ?? 0;
+  const billingLabel = isAnnual ? 'Anual' : 'Mensual';
+  const planGradient = PLAN_COLORS[planName] ?? 'from-blue-500 to-blue-600';
+
+  // Auto-redirect countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          navigate('/web');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [navigate]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <div style={{ maxWidth: 560, width: '100%', background: 'white', borderRadius: 24, border: '1px solid #e2e8f0', padding: 48, textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.08)' }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#f0fdf4', border: '2px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-          <CheckCircle size={36} color="#16a34a" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+
+        {/* Card principal */}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+
+          {/* Header con gradiente del plan */}
+          <div className={`bg-gradient-to-r ${planGradient} p-8 text-white text-center`}>
+            <div className="flex justify-center mb-4">
+              <div className="bg-white/20 rounded-full p-4">
+                <CheckCircle className="w-12 h-12 text-white" strokeWidth={1.5} />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold mb-1">¡Upgrade exitoso!</h1>
+            <p className="text-white/80 text-sm">
+              Tu línea ha sido actualizada al plan <strong>{planName} · {billingLabel}</strong>
+            </p>
+          </div>
+
+          {/* Detalles del plan */}
+          <div className="p-6 space-y-4">
+
+            {/* Fila plan activado */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <Star className="w-4 h-4" />
+                Plan activado
+              </div>
+              <span className="font-semibold text-gray-900">{planName} · {billingLabel}</span>
+            </div>
+
+            {/* Fila créditos */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <Zap className="w-4 h-4" />
+                Créditos SMS / mes
+              </div>
+              <span className="font-semibold text-gray-900">{credits.toLocaleString()} SMS</span>
+            </div>
+
+            {/* Fila facturación */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <Calendar className="w-4 h-4" />
+                Facturación
+              </div>
+              <span className="font-semibold text-gray-900">{billingLabel}</span>
+            </div>
+
+            {/* Fila monto */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <CreditCard className="w-4 h-4" />
+                Monto cobrado
+              </div>
+              <span className="font-semibold text-gray-900">
+                ${price.toFixed(2)} {isAnnual ? '/ año' : '/ mes'}
+              </span>
+            </div>
+
+            {/* Fila estado */}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                Estado
+              </div>
+              <span className="flex items-center gap-1.5 text-green-600 font-semibold text-sm">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />
+                Activo inmediatamente
+              </span>
+            </div>
+
+          </div>
+
+          {/* Footer con botón */}
+          <div className="px-6 pb-6 space-y-3">
+            <button
+              onClick={() => navigate('/web')}
+              className="w-full bg-gray-900 hover:bg-gray-700 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
+            >
+              Ir a Mis SIMs
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <p className="text-center text-xs text-gray-400">
+              Redirigiendo automáticamente en {countdown}s
+            </p>
+          </div>
+
         </div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>¡Upgrade exitoso!</h1>
-        <p style={{ color: '#64748b', fontSize: 15, margin: '0 0 32px' }}>
-          Tu SIM <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>{phoneNumber}</span> ha sido actualizada al plan <span style={{ fontWeight: 800, color: config.color }}>{planName}</span>.
+
+        {/* Badge inferior */}
+        <p className="text-center text-xs text-gray-400 mt-4">
+          🔒 Pago procesado de forma segura por Stripe
         </p>
-        <div style={{ background: config.bg, borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'left' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Plan activado</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: config.color }}>{planName}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Créditos disponibles</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{limit?.toLocaleString()} SMS/mes</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Monto cobrado</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>${price?.toFixed(2)} {isAnnual ? '/año' : '/mes'}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Estado</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Zap size={12} /> Activo inmediatamente
-            </span>
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/web')}
-          style={{ width: '100%', padding: '14px 0', borderRadius: 14, border: 'none', background: config.color, color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          Ir a Mis SIMs <ArrowRight size={16} />
-        </button>
+
       </div>
     </div>
   );
