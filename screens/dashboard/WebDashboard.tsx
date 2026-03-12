@@ -1527,18 +1527,12 @@ const WebDashboard: React.FC = () => {
                               <MessageSquare size={12} /> Inbox {msgsCnt > 0 && <span className="bg-primary text-white text-[8px] font-black rounded-full px-1">{msgsCnt > 99 ? '99+' : msgsCnt}</span>}
                             </button>
                             <button
-                              onClick={() => navigate('/dashboard/upgrade-summary', {
+                              onClick={() => navigate('/dashboard/upgrade-plan', {
                                 state: {
                                   phoneNumber: slot.phone_number,
                                   slot_id: slot.slot_id,
-                                  planName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
                                   currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
                                   billing_type: (slot as any).billing_type || 'monthly',
-                                  isUpgrade: true,
-                                  stripePriceId: '',
-                                  limit: (slot as any).monthly_limit || 150,
-                                  price: 0,
-                                  isAnnual: false,
                                 }
                               })}
                               title="Renovar / cambiar plan"
@@ -1677,18 +1671,12 @@ const WebDashboard: React.FC = () => {
 
                                 {/* Upgrade */}
                                 <button
-                                  onClick={() => navigate('/dashboard/upgrade-summary', {
+                                  onClick={() => navigate('/dashboard/upgrade-plan', {
                                     state: {
                                       phoneNumber: slot.phone_number,
                                       slot_id: slot.slot_id,
-                                      planName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
                                       currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
                                       billing_type: (slot as any).billing_type || 'monthly',
-                                      isUpgrade: true,
-                                      stripePriceId: '',
-                                      limit: (slot as any).monthly_limit || 150,
-                                      price: 0,
-                                      isAnnual: false,
                                     }
                                   })}
                                   title="Renovar / cambiar plan"
