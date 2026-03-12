@@ -403,31 +403,42 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Traer slots y sus suscripciones en una sola consulta estricta
-      const { data: slotsData, error: slotsError } = await supabase
+      // Paso A: Traer los SLOTS que te pertenecen
+      const { data: slotsData, error: slotsErr } = await supabase
         .from('slots')
-        .select('*, subscriptions!inner(*)')
-        .eq('assigned_to', user.id)
-        .eq('subscriptions.user_id', user.id)
-        .in('subscriptions.status', ['active', 'trialing']);
+        .select('*')
+        .eq('assigned_to', user.id);
 
-      if (slotsError) throw slotsError;
+      if (slotsErr) throw slotsErr;
 
-      // DEDUPLICACIÓN MANUAL: Solo un slot por ID, priorizando la sub más nueva
-      const uniqueSlotsMap = new Map<string, Slot>();
-      (slotsData ?? []).forEach((slot: Slot) => {
-        if (!uniqueSlotsMap.has(slot.slot_id)) {
-          uniqueSlotsMap.set(slot.slot_id, slot);
-        }
-      });
-      const finalSlots = Array.from(uniqueSlotsMap.values());
-      console.log('Slots únicos y activos detectados:', finalSlots.length);
-      setSlots(finalSlots);
+      // Paso B: Traer tus SUSCRIPCIONES activas/trialing
+      const { data: subsData, error: subsErr } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'trialing']);
 
-      const { data: msgsData } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      if (subsErr) throw subsErr;
+
+      // Paso C: Unir los datos en memoria (deduplicando y vinculando)
+      const processedSlots = (slotsData || []).map(slot => {
+        const sub = subsData?.find((s: { slot_id: string }) => s.slot_id === slot.slot_id);
+        return { ...slot, subscriptions: sub ? [sub] : [] };
+      }).filter(s => s.subscriptions.length > 0);
+
+      setSlots(processedSlots as Slot[]);
+
+      // Traer mensajes
+      const { data: msgsData } = await supabase
+        .from('sms_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(60);
+
       if (msgsData) setMessages(msgsData as SMSLog[]);
     } catch (e) {
-      console.error('Error crítico en fetchData:', e);
+      console.error('Error en fetchData:', e);
     } finally {
       setLoading(false);
     }
@@ -1463,17 +1474,18 @@ const WebDashboard: React.FC = () => {
               ) : simsView === 'card' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
+                    // Ordenar por fecha de la suscripción (subscriptions[0].created_at) → #01 = primera contratada
                     const displaySlots = [...slots].sort((a, b) => {
-                      const dateA = new Date((a.subscriptions as any)?.[0]?.created_at || 0).getTime();
-                      const dateB = new Date((b.subscriptions as any)?.[0]?.created_at || 0).getTime();
+                      const dateA = new Date((a.subscriptions?.[0] as { created_at?: string })?.created_at || 0).getTime();
+                      const dateB = new Date((b.subscriptions?.[0] as { created_at?: string })?.created_at || 0).getTime();
                       return dateA - dateB;
                     });
                     return displaySlots.map((slot, index) => {
-                      const activeSub = (slot.subscriptions as any)?.[0];
+                      const activeSub = slot.subscriptions?.[0] as { credits_used?: number; monthly_limit?: number; created_at?: string } | undefined;
                       const plan = (slot.plan_type || 'starter').toLowerCase();
                       const ps = getWebPlanStyle(plan);
-                      const creditsUsed = activeSub?.credits_used || 0;
-                      const monthlyLimit = activeSub?.monthly_limit || 150;
+                      const creditsUsed = activeSub?.credits_used ?? 0;
+                      const monthlyLimit = activeSub?.monthly_limit ?? 150;
                       const usagePct = Math.min(100, (creditsUsed / monthlyLimit) * 100);
                       const isCritical = usagePct >= 85;
                       const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
