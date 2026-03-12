@@ -411,8 +411,8 @@ const WebDashboard: React.FC = () => {
         .order('received_at', { ascending: false })
         .limit(60);
 
-      // 2. Traer SLOTS estrictamente donde assigned_to === user.id
-      // subscriptions!inner + filter user_id: solo suscripciones del usuario actual
+      // 2. Slots solo con suscripción activa del usuario (subscriptions!inner elimina slots sin suscripción)
+      // Filtros: assigned_to, subscriptions.user_id y subscriptions.status active/trialing
       const { data: slotsData, error: slotsError } = await supabase
         .from('slots')
         .select(`
@@ -428,7 +428,8 @@ const WebDashboard: React.FC = () => {
           )
         `)
         .eq('assigned_to', user.id)
-        .eq('subscriptions.user_id', user.id);
+        .eq('subscriptions.user_id', user.id)
+        .in('subscriptions.status', ['active', 'trialing']);
 
       if (slotsError) {
         console.error('Error cargando slots:', slotsError);
@@ -438,7 +439,15 @@ const WebDashboard: React.FC = () => {
           .eq('assigned_to', user.id);
         if (fallbackData) setSlots(fallbackData as Slot[]);
       } else if (slotsData) {
-        setSlots(slotsData as Slot[]);
+        // Red de seguridad: solo slots con suscripción active/trialing del usuario y únicos por slot_id
+        const raw = slotsData as Slot[];
+        const withActiveSub = raw.filter(s => {
+          const subs = Array.isArray(s?.subscriptions) ? s.subscriptions as { user_id?: string; status?: string }[] : [];
+          return subs.some(sub => sub.user_id === user.id && (sub.status === 'active' || sub.status === 'trialing'));
+        });
+        const seen = new Set<string>();
+        const unique = withActiveSub.filter(s => { if (seen.has(s.slot_id)) return false; seen.add(s.slot_id); return true; });
+        setSlots(unique);
       }
 
       if (msgsRes.data) setMessages(msgsRes.data as SMSLog[]);
@@ -1493,20 +1502,22 @@ const WebDashboard: React.FC = () => {
                       return active ?? null;
                     };
 
-                    // Slots filtrados: solo del usuario actual (assigned_to === user.id)
+                    // Slots del usuario (assigned_to === user.id)
                     const userSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id && s?.assigned_to === user?.id));
-                    // Ordenar por subscriptions.created_at de más antigua a más nueva → #01 = más antigua
-                    const sortedSlots = [...userSlots].sort((a, b) => {
+                    // Unicidad: un solo slot por slot_id (evitar duplicados)
+                    const uniqueBySlotId = userSlots.filter((s, i, arr) => arr.findIndex(x => x.slot_id === s.slot_id) === i);
+                    // Orden ASC por subscriptions.created_at → #01 = primera línea que contrataste
+                    const sortedSlots = [...uniqueBySlotId].sort((a, b) => {
                       const dateA = new Date(getActiveSub(a)?.created_at || a.created_at || 0).getTime();
                       const dateB = new Date(getActiveSub(b)?.created_at || b.created_at || 0).getTime();
                       return dateA - dateB;
                     });
 
                     return sortedSlots.map((slot, index) => {
-                      const activeSub = getActiveSub(slot);
+                      const activeSub = getActiveSub(slot); // suscripción activa/trialing del usuario (créditos correctos)
                       const plan = (slot?.plan_type ?? 'starter').toLowerCase();
                       const ps = getWebPlanStyle(plan);
-                      const slotNumber = String(index + 1).padStart(2, '0');
+                      const slotNumber = String(index + 1).padStart(2, '0'); // #01 = primera contratada (orden ASC)
 
                       const creditsUsed = activeSub?.credits_used ?? 0;
                       const monthlyLimit = activeSub?.monthly_limit ?? (PLAN_CREDITS[plan] || 150);
