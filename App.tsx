@@ -227,6 +227,9 @@ const App: React.FC = () => {
                   <Route path="/onboarding/activation-success" element={<ProtectedRoute><ActivationSuccess /></ProtectedRoute>} />
                   <Route path="/dashboard/telegram-guide" element={<ProtectedRoute><TelegramSetupGuide /></ProtectedRoute>} />
                   <Route path="/dashboard/api-guide"      element={<ProtectedRoute><ApiGuide /></ProtectedRoute>} />
+                  <Route path="/dashboard/upgrade-plan"   element={<ProtectedRoute><UpgradePlanSelector /></ProtectedRoute>} />
+                  <Route path="/dashboard/upgrade-summary" element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} />
+                  <Route path="/dashboard/upgrade-success" element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} />
 
                   <Route path="*" element={
                     <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
@@ -288,18 +291,6 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/notifications" 
                           element={<ProtectedRoute><Notifications /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/dashboard/upgrade-plan" 
-                          element={<ProtectedRoute><UpgradePlanSelector /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/dashboard/upgrade-summary" 
-                          element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} 
-                        />
-                        <Route 
-                          path="/dashboard/upgrade-success" 
-                          element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} 
                         />
                         <Route
                           path="/dashboard/telegram-config"
