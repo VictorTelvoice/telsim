@@ -56,10 +56,13 @@ export default async function handler(req: any, res: any) {
     // Cancelar suscripción antigua en Stripe (el webhook la marcará canceled en Supabase → queda en historial)
     await stripe.subscriptions.cancel(stripeSubId);
 
-    // Crear nueva suscripción con nuevo plan, mismo slot, sin trial
+    // Crear nueva suscripción con nuevo plan, mismo slot, usando payment_behavior seguro
     const newStripeSub = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: newPriceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
       metadata: {
         userId,
         slot_id: activeSub.slot_id,
@@ -71,6 +74,20 @@ export default async function handler(req: any, res: any) {
       },
     });
 
+    const isConfirmedActive =
+      newStripeSub.status === 'active' &&
+      (newStripeSub as any).latest_invoice?.payment_intent?.status === 'succeeded';
+
+    if (!isConfirmedActive && newStripeSub.status !== 'trialing') {
+      return res.status(402).json({
+        error: 'El pago fue rechazado. Verifica tu método de pago en Stripe.',
+        stripeStatus: newStripeSub.status,
+        paymentIntentStatus: (newStripeSub as any).latest_invoice?.payment_intent?.status,
+      });
+    }
+
+    const subStatus = newStripeSub.status === 'trialing' ? 'trialing' : 'active';
+
     // Crear nuevo registro en Supabase (misma slot, nuevo plan, fecha nueva)
     const planPrices = PLAN_PRICES[planName];
     const amount = isAnnual ? (planPrices?.annual ?? 0) : (planPrices?.monthly ?? 0);
@@ -81,7 +98,7 @@ export default async function handler(req: any, res: any) {
       plan_name: planName,
       monthly_limit: monthlyLimit,
       credits_used: 0,
-      status: newStripeSub.status === 'trialing' ? 'trialing' : 'active',
+      status: subStatus,
       stripe_subscription_id: newStripeSub.id,
       stripe_session_id: newStripeSub.id,
       amount,
@@ -90,8 +107,11 @@ export default async function handler(req: any, res: any) {
       created_at: new Date().toISOString(),
     }).select('id').single();
 
-    // Actualizar slot con nuevo plan
-    await supabaseAdmin.from('slots').update({ plan_type: planName }).eq('slot_id', activeSub.slot_id);
+    // Actualizar slot con nuevo plan solo si el pago fue confirmado (o trialing)
+    if (isConfirmedActive || newStripeSub.status === 'trialing') {
+      await supabaseAdmin.from('slots').update({ plan_type: planName })
+        .eq('slot_id', activeSub.slot_id);
+    }
 
     return res.status(200).json({ success: true, subscriptionId: newSubRecord?.id });
   } catch (err: any) {
