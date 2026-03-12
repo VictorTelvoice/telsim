@@ -106,33 +106,39 @@ const UpgradeSummary: React.FC = () => {
 
   const { phoneNumber, planName, price, limit, stripePriceId, slot_id, currentLimit } = upgradeData;
 
-  const handleConfirmUpgrade = async (forceManual: boolean = false) => {
+  const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
     try {
-      const response = await fetch('/api/checkout/session', {
+      const response = await fetch('/api/upgrade-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: stripePriceId,
           userId: user.id,
-          phoneNumber,
-          planName,
-          isUpgrade: true,
           slot_id,
+          phoneNumber,
+          newPriceId: stripePriceId,
+          planName,
           monthlyLimit: limit,
-          forceManual,
           isAnnual: upgradeData.isAnnual ?? false,
         }),
       });
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      if (data.instant && data.subscriptionId) {
-        navigate(`/onboarding/processing?id=${data.subscriptionId}&plan=${planName}&isUpgrade=true`);
-        return;
-      }
-      if (data.url) window.location.href = data.url;
-    } catch (err: any) { alert(err.message || t('common.error')); setIsProcessing(false); }
+      navigate('/dashboard/upgrade-success', {
+        state: {
+          phoneNumber,
+          planName,
+          amount: price,
+          currency: 'usd',
+          monthlyLimit: limit,
+        }
+      });
+    } catch (err: any) {
+      alert(err.message || 'Error al procesar el upgrade');
+      setIsProcessing(false);
+    }
   };
 
   const handleBack = () => {
@@ -284,7 +290,7 @@ const UpgradeSummary: React.FC = () => {
             {/* Footer de Acción - Limpio de textos adicionales */}
             <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10 flex flex-col gap-4">
                 <button 
-                    onClick={() => handleConfirmUpgrade(false)}
+                    onClick={handleConfirmUpgrade}
                     disabled={isProcessing}
                     className={`group w-full bg-gradient-to-r ${planConfig.buttonGradient} hover:brightness-110 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70`}
                 >
@@ -298,7 +304,6 @@ const UpgradeSummary: React.FC = () => {
                         <Sparkles className="size-6 text-white" />
                     </div>
                 </button>
-                <button onClick={() => handleConfirmUpgrade(true)} disabled={isProcessing} className="w-full text-center text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-[0.2em] hover:text-primary transition-all disabled:opacity-50 py-1">{t('upgrade_summary.change_payment_method')}</button>
             </div>
         </div>
     </div>
