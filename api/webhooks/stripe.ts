@@ -19,10 +19,13 @@ async function triggerEmail(
 ): Promise<void> {
   console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
   try {
-    const { data: userRow } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
-    const email = (data?.email as string) || userRow?.email;
+    let email = data?.email as string | undefined;
     if (!email) {
-      console.error('[triggerEmail] No email address resolved');
+      const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
+      email = userData?.email;
+    }
+    if (!email) {
+      console.error('[triggerEmail] {"error":"No email address resolved"}');
       return;
     }
     const supabaseUrl = process.env.SUPABASE_URL;
