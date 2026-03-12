@@ -1455,234 +1455,121 @@ const WebDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {(() => {
                     type SubRow = { created_at?: string; cycle_start_date?: string; monthly_limit?: number; credits_used?: number; billing_type?: string; status?: string };
-                    const getSlotSubs = (s: Slot) => Array.isArray(s?.subscriptions) ? s.subscriptions as SubRow[] : (s?.subscriptions != null ? [s.subscriptions as SubRow] : []);
+
+                    const getSlotSubs = (s: Slot) => Array.isArray(s?.subscriptions) ? s.subscriptions as SubRow[] : [];
+
                     const getActiveSub = (s: Slot): SubRow | null => {
                       const subs = getSlotSubs(s);
-                      return subs.find((sub: SubRow) => sub?.status === 'active' || sub?.status === 'trialing') ?? subs[0] ?? null;
+                      return subs
+                        .filter(sub => sub.status === 'active' || sub.status === 'trialing')
+                        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
+                        || subs[0] || null;
                     };
-                    const getSortDate = (s: Slot) => getActiveSub(s)?.created_at ?? s?.created_at ?? '';
+
                     const safeSlots = (slots ?? []).filter((s): s is Slot => Boolean(s?.slot_id));
+
                     const sortedSlots = [...safeSlots].sort((a, b) => {
-                      const dateA = new Date(getSortDate(a) || 0).getTime();
-                      const dateB = new Date(getSortDate(b) || 0).getTime();
+                      const dateA = new Date(getActiveSub(a)?.created_at || a.created_at || 0).getTime();
+                      const dateB = new Date(getActiveSub(b)?.created_at || b.created_at || 0).getTime();
                       return dateA - dateB;
                     });
+
                     return sortedSlots.map((slot, index) => {
-                    const activeSub = getActiveSub(slot);
-                    const plan = (slot?.plan_type ?? 'starter').toLowerCase();
-                    const ps = getWebPlanStyle(plan);
-                    const defaultLimit = PLAN_CREDITS[plan] ?? 150;
-                    const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
-                    const isActive = slot?.status !== 'expired';
-                    const isForwarding = !!slot?.forwarding_active;
-                    const isTog = togglingSlot === slot.slot_id;
-                    const isEditing = editingSlotId === slot.slot_id;
-                    const countryCode = (slot?.region ?? 'cl').toUpperCase();
-                    const creditsUsed = activeSub?.credits_used ?? 0;
-                    const monthlyLimit = activeSub?.monthly_limit ?? defaultLimit;
-                    const usagePct = monthlyLimit > 0 ? Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100)) : 0;
-                    const isAnnual = activeSub?.billing_type === 'annual';
-                    const billingCycleLabel = isAnnual ? 'Plan Anual' : 'Plan Mensual';
-                    const dateForFrom = activeSub?.created_at ?? slot?.created_at;
-                    const activationDate = dateForFrom ? new Date(dateForFrom).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
+                      const activeSub = getActiveSub(slot);
+                      const plan = (slot?.plan_type ?? 'starter').toLowerCase();
+                      const ps = getWebPlanStyle(plan);
+                      const slotNumber = String(index + 1).padStart(2, '0');
 
-                    return (
-                      <div key={slot.slot_id} className="flex flex-col gap-2">
+                      const creditsUsed = activeSub?.credits_used ?? 0;
+                      const monthlyLimit = activeSub?.monthly_limit ?? (PLAN_CREDITS[plan] || 150);
+                      const usagePct = Math.min(100, Math.round((creditsUsed / monthlyLimit) * 100));
+                      const isCritical = usagePct >= 85;
 
-                        {/* ═══ SIM Card ═══
-                            Shape: chamfered top-right corner (36px) + left-side center notch (SIM tray notch)
-                            All other 3 corners: 8px chamfer for physical SIM aesthetic          */}
-                        <div
-                          className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden select-none shadow-xl`}
-                          style={{
-                            clipPath: [
-                              '8px 0',
-                              'calc(100% - 36px) 0',   /* top-right: start of corner cut */
-                              '100% 36px',              /* top-right: end of corner cut   */
-                              '100% calc(100% - 8px)',
-                              'calc(100% - 8px) 100%',
-                              '8px 100%',
-                              '0 calc(100% - 8px)',
-                              '0 calc(50% + 22px)',     /* left edge: below tray notch    */
-                              '7px calc(50% + 22px)',   /* tray notch inner bottom-right  */
-                              '7px calc(50% - 22px)',   /* tray notch inner top-right     */
-                              '0 calc(50% - 22px)',     /* left edge: above tray notch    */
-                              '0 8px',
-                            ].map(p => p).join(', ').replace(/^/, 'polygon(') + ')',
-                          }}>
+                      const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
+                      const isForwarding = !!slot?.forwarding_active;
+                      const isTog = togglingSlot === slot.slot_id;
+                      const isEditing = editingSlotId === slot.slot_id;
+                      const countryCode = (slot?.region ?? 'cl').toUpperCase();
 
-                          {/* Decorative rings */}
-                          <div className="absolute top-[-20%] right-[-8%] w-[52%] h-[52%] rounded-full border-[22px] border-white/[0.07] pointer-events-none" />
-                          <div className="absolute bottom-[-12%] right-[8%]  w-[36%] h-[36%] rounded-full border-[12px] border-white/[0.05] pointer-events-none" />
+                      const activationDate = activeSub?.created_at
+                        ? new Date(activeSub.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : null;
 
-                          {/* ── Row 1: Brand name + Circular flag ── */}
-                          <div className="flex items-start justify-between relative z-10">
-                            <div>
-                              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
+                      return (
+                        <div key={slot.slot_id} className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
+                          <div
+                            className={`relative w-full aspect-[1.58/1] ${ps.cardBg} p-5 flex flex-col justify-between overflow-hidden select-none shadow-xl`}
+                            style={{
+                              clipPath: 'polygon(8px 0, calc(100% - 36px) 0, 100% 36px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 calc(50% + 22px), 7px calc(50% + 22px), 7px calc(50% - 22px), 0 calc(50% - 22px), 0 8px)'
+                            }}>
+                            <div className="absolute top-[-20%] right-[-8%] w-[52%] h-[52%] rounded-full border-[22px] border-white/[0.07] pointer-events-none" />
 
-                              {/* Editable label inline on the card */}
-                              {isEditing ? (
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <input
-                                    autoFocus value={labelDraft}
-                                    onChange={e => setLabelDraft(e.target.value)}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') handleSaveLabel(slot.slot_id);
-                                      if (e.key === 'Escape') setEditingSlotId(null);
-                                    }}
-                                    className="text-[11px] px-2 py-0.5 rounded-md border outline-none w-28 bg-black/20 border-white/30 text-white placeholder-white/40 font-bold"
-                                    placeholder="Etiqueta..."
-                                  />
-                                  <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel}
-                                    className="p-0.5 rounded bg-white/20 hover:bg-white/30 transition-colors">
-                                    {savingLabel ? <RefreshCw size={9} className="animate-spin text-white" /> : <Check size={9} className="text-white" />}
+                            <div className="flex items-start justify-between relative z-10">
+                              <div>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${ps.labelColor}`}>Telsim Online</p>
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <input autoFocus value={labelDraft} onChange={e => setLabelDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(slot.slot_id); if (e.key === 'Escape') setEditingSlotId(null); }} className="text-[11px] px-2 py-0.5 rounded-md border outline-none w-28 bg-black/20 border-white/30 text-white font-bold" placeholder="Etiqueta..." />
+                                    <button onClick={() => handleSaveLabel(slot.slot_id)} disabled={savingLabel} className="p-0.5 rounded bg-white/20"><Check size={9} className="text-white" /></button>
+                                    <button onClick={() => setEditingSlotId(null)} className="p-0.5 rounded bg-white/10"><X size={9} className="text-white/70" /></button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }} className="flex items-center gap-1 mt-0.5 group">
+                                    <span className={`text-[12px] font-bold italic uppercase tracking-widest ${ps.phoneColor}`}>{slot.label || 'Sin etiqueta'}</span>
+                                    <Pencil size={8} className={`${ps.labelColor} opacity-40`} />
                                   </button>
-                                  <button onClick={() => setEditingSlotId(null)}
-                                    className="p-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors">
-                                    <X size={9} className="text-white/70" />
-                                  </button>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg bg-slate-300">
+                                  <img src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`} alt={countryCode} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                 </div>
-                              ) : (
-                                <button
-                                  onClick={() => { setEditingSlotId(slot.slot_id); setLabelDraft(slot.label || ''); }}
-                                  className="flex items-center gap-1 mt-0.5 group">
-                                  <span className={`text-[12px] font-bold italic uppercase tracking-widest ${ps.phoneColor}`}>
-                                    {slot.label
-                                      ? slot.label
-                                      : <span className={`not-italic normal-case tracking-normal font-normal opacity-50 ${ps.labelColor}`}>Sin etiqueta</span>
-                                    }
-                                  </span>
-                                  <Pencil size={8} className={`${ps.labelColor} opacity-40 group-hover:opacity-90 transition-opacity ml-0.5`} />
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Circular flag + ID de secuencia */}
-                            <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                              <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/25 shadow-lg bg-slate-300">
-                                <img
-                                  src={`https://flagcdn.com/80x60/${countryCode.toLowerCase()}.png`}
-                                  alt={countryCode}
-                                  className="w-full h-full object-cover"
-                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
+                                <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>#{slotNumber}</span>
                               </div>
-                              <span className={`text-[11px] font-black font-mono ${ps.phoneColor}`}>
-                                #{String(index + 1).padStart(2, '0')}
-                              </span>
                             </div>
-                          </div>
 
-                          {/* ── Row 2: SIM chip (left) + Subscriber number (right) ── */}
-                          <div className="flex items-center gap-4 relative z-10">
-                            {/* SIM chip — solid rectangle, simulates the physical gold contact pad */}
-                            <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
+                            <div className="flex items-center gap-4 relative z-10">
+                              <div className={`w-14 h-[38px] rounded-lg ${ps.chip} shadow-md flex-shrink-0`} />
+                              <div>
+                                <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>Subscriber Number</p>
+                                <p className={`text-[17px] font-black font-mono tracking-wide leading-none ${ps.phoneColor}`}>{formatPhone(slot.phone_number)}</p>
+                                <div className="mt-2">
+                                  <div className="flex justify-between items-end mb-1">
+                                    <span className={`text-[8px] font-bold uppercase opacity-70 ${ps.labelColor}`}>Créditos</span>
+                                    <span className={`text-[10px] font-black ${isCritical ? 'text-rose-400' : ps.phoneColor}`}>{creditsUsed} / {monthlyLimit}</span>
+                                  </div>
+                                  <div className="w-32 h-1.5 rounded-full bg-black/10 overflow-hidden">
+                                    <div className={`h-full transition-all duration-500 ${isCritical ? 'bg-rose-500' : (plan === 'starter' ? 'bg-primary' : 'bg-white')}`} style={{ width: `${usagePct}%` }} />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
 
-                            <div>
-                              <p className={`text-[8px] font-bold uppercase tracking-[0.22em] mb-1 ${ps.labelColor}`}>
-                                Subscriber Number
-                              </p>
-                              <p className={`text-[17px] font-black font-mono tracking-wide leading-none ${ps.phoneColor}`}>
-                                {formatPhone(slot.phone_number)}
-                              </p>
-                              {/* Indicador de créditos SMS */}
-                              <p className={`text-[9px] font-semibold mt-2 ${ps.labelColor}`}>
-                                SMS: {creditsUsed} / {monthlyLimit}
-                              </p>
-                              <div className="mt-1 h-1.5 rounded-full overflow-hidden bg-black/10" title={`${usagePct}% usado`}>
-                                <div
-                                  className={`h-full rounded-full transition-all ${plan === 'power' ? 'bg-amber-200' : plan === 'pro' ? 'bg-white/90' : 'bg-slate-600'}`}
-                                  style={{ width: `${usagePct}%` }}
-                                />
+                            <div className="flex items-end justify-between relative z-10">
+                              <div className="flex flex-col gap-1">
+                                <span className="px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider border-white/40 text-white/90 bg-black/20">{ps.label}</span>
+                                <span className={`text-[9px] font-bold opacity-90 ${ps.labelColor}`}>{activeSub?.billing_type === 'annual' ? '💳 Plan Anual' : '💳 Plan Mensual'}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${ps.labelColor}`}>● Activa</span>
+                                {activationDate && <span className={`block text-[8px] opacity-60 mt-0.5 font-mono ${ps.labelColor}`}>Desde: {activationDate}</span>}
                               </div>
                             </div>
                           </div>
 
-                          {/* ── Row 3: Plan badge + active indicator ── */}
-                          <div className="flex items-end justify-between relative z-10">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${plan === 'power' ? 'border-amber-300/60 text-amber-100   bg-black/20' :
-                                plan === 'pro' ? 'border-white/40   text-white/90    bg-black/20' :
-                                  'border-slate-300/70 text-slate-600 bg-white/60'
-                                }`}>
-                                {plan === 'power' && <span className="text-[11px]">👑</span>}
-                                {ps.label}
-                              </span>
-                              <span className={`text-[9px] font-bold opacity-90 ${ps.labelColor}`}>
-                                {billingCycleLabel}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <span className={`block text-[9px] font-bold uppercase tracking-[0.15em] ${isActive ? ps.labelColor : 'text-red-400/80'}`}>
-                                {isActive ? '● Activa' : '○ Expirada'}
-                              </span>
-                              {activationDate && (
-                                <span className={`block text-[8px] opacity-60 mt-0.5 font-mono tabular-nums ${ps.labelColor}`}>
-                                  Desde: {activationDate}
-                                </span>
-                              )}
-                            </div>
+                          <div className={`flex items-center gap-1 p-1 rounded-[1.1rem] border ${isDark ? 'bg-slate-900 border-slate-800/70' : 'bg-white border-slate-100'}`}>
+                            <button onClick={() => handleOpenInbox(slot.slot_id)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[0.8rem] text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-50 text-slate-700'}`}>
+                              <MessageSquare size={12} /> Inbox {msgsCnt > 0 && <span className="bg-primary text-white text-[8px] font-black rounded-full px-1">{msgsCnt > 99 ? '99+' : msgsCnt}</span>}
+                            </button>
+                            <button onClick={() => navigate('/onboarding/plan')} title="Renovar / cambiar plan" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] bg-amber-500/10 text-amber-500"><Zap size={13} /></button>
+                            <button onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)} title="Copiar número" className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${copiedId === `${slot.slot_id}_num` ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}</button>
+                            <button onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)} disabled={isTog} className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${isForwarding ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{isTog ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}</button>
+                            <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} title="Dar de baja SIM" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-400"><Trash2 size={13} /></button>
                           </div>
                         </div>
-
-                        {/* ── Action buttons bar ── */}
-                        <div className={`flex items-center gap-1 p-1 rounded-[1.1rem] border ${isDark ? 'bg-slate-900 border-slate-800/70' : 'bg-white border-slate-100'}`}>
-
-                          {/* INBOX — wider, primary action */}
-                          <button
-                            onClick={() => handleOpenInbox(slot.slot_id)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[0.8rem] text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 text-slate-700'}`}>
-                            <MessageSquare size={12} />
-                            <span>Inbox</span>
-                            {msgsCnt > 0 && (
-                              <span className="bg-primary text-white text-[8px] font-black rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
-                                {msgsCnt > 99 ? '99+' : msgsCnt}
-                              </span>
-                            )}
-                          </button>
-
-                          {/* UPGRADE */}
-                          <button
-                            onClick={() => navigate('/onboarding/plan')}
-                            title="Renovar / cambiar plan"
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
-                            <Zap size={13} />
-                          </button>
-
-                          {/* COPY number */}
-                          <button
-                            onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)}
-                            title="Copiar número"
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${copiedId === `${slot.slot_id}_num`
-                              ? 'bg-emerald-500 text-white'
-                              : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
-                              }`}>
-                            {copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}
-                          </button>
-
-                          {/* BOT toggle */}
-                          <button
-                            onClick={() => handleToggleForwarding(slot.slot_id, !isForwarding)}
-                            disabled={isTog}
-                            title={isForwarding ? 'Bot activo – clic para desactivar' : 'Bot inactivo – clic para activar'}
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isForwarding
-                              ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
-                              : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-50 hover:bg-slate-100 text-slate-500')
-                              } ${isTog ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                            {isTog ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
-                          </button>
-
-                          {/* CANCEL subscription */}
-                          <button
-                            onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }}
-                            title="Dar de baja SIM"
-                            className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] transition-colors flex-shrink-0 ${isDark ? 'bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400' : 'bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-400'}`}>
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  });
+                      );
+                    });
                   })()}
                 </div>
 
