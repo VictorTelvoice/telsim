@@ -35,6 +35,7 @@ interface SlotWithPlan extends Slot {
     actual_plan_name?: string;
     monthly_limit?: number;
     credits_used?: number;
+    billing_type?: string;
 }
 
 const OFFICIAL_PLANS_DATA = [
@@ -127,7 +128,7 @@ const MyNumbers: React.FC = () => {
 
             const { data: subsData } = await supabase
                 .from('subscriptions')
-                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id')
+                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type')
                 .eq('user_id', user.id)
                 .in('status', ['active', 'trialing']);
 
@@ -138,6 +139,7 @@ const MyNumbers: React.FC = () => {
                     actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter',
                     monthly_limit: subscription?.monthly_limit || 150,
                     credits_used: subscription?.credits_used || 0,
+                    billing_type: subscription?.billing_type || 'monthly',
                     forwarding_active: slot.forwarding_active || false
                 };
             });
@@ -406,23 +408,44 @@ const MyNumbers: React.FC = () => {
     };
 
     if (showUpgradeView && slotToUpgrade) {
+        const PLAN_ORDER: Record<string, number> = { 'STARTER': 1, 'PRO': 2, 'POWER': 3 };
+        const currentPlanName = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase();
+        const currentBillingType = slotToUpgrade.billing_type || 'monthly'; // 'monthly' | 'annual'
+        const currentPlanOrder = PLAN_ORDER[currentPlanName] ?? 1;
+
+        const availablePlans = OFFICIAL_PLANS_DATA.filter((plan) => {
+            const planOrder = PLAN_ORDER[plan.id.toUpperCase()] ?? 1;
+            // Mostrar planes superiores al actual
+            if (planOrder > currentPlanOrder) return true;
+            // Mostrar el mismo plan si está en mensual (para upgrade a anual)
+            if (planOrder === currentPlanOrder && currentBillingType === 'monthly') return true;
+            return false;
+        });
+
         return (
             <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col animate-in fade-in duration-300">
-                {/* Header Integrado */}
+                {/* Header */}
                 <header className="flex items-center justify-between px-6 py-6 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50">
                     <button onClick={() => setShowUpgradeView(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
                         <ArrowLeft className="size-6" />
                     </button>
                     <div className="text-center flex-1">
-                        <h1 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">{t('mynumbers.change_plan')}</h1>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puerto {formatPhoneNumber(slotToUpgrade.phone_number)}</p>
+                        <h1 className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.change_plan')}</h1>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{formatPhoneNumber(slotToUpgrade.phone_number)}</p>
                     </div>
                     <div className="w-10"></div>
                 </header>
 
                 <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
-                    <div className="text-center mb-2">
-                        <h2 className="text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight">{t('mynumbers.choose_plan')}</h2>
+                    {/* Plan actual */}
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl px-4 py-3">
+                        <div className="size-2 rounded-full bg-emerald-500"></div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                            Plan actual:
+                        </span>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                            {slotToUpgrade.actual_plan_name || 'Starter'} {currentBillingType === 'annual' ? '· Anual' : '· Mensual'}
+                        </span>
                     </div>
 
                     {/* Toggle Anual / Mensual */}
@@ -446,60 +469,50 @@ const MyNumbers: React.FC = () => {
                     </div>
 
                     <div className="flex-1 flex flex-col gap-3">
-                        {OFFICIAL_PLANS_DATA.map((plan) => {
-                            const isCurrent = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase() === plan.id.toUpperCase();
+                        {availablePlans.map((plan) => {
+                            const isSamePlanAnnualUpgrade = PLAN_ORDER[plan.id.toUpperCase()] === currentPlanOrder && currentBillingType === 'monthly';
                             const displayPrice = isAnnualUpgrade ? plan.annualPrice : plan.price;
-
                             return (
                                 <div
                                     key={plan.id}
-                                    onClick={() => !isCurrent && confirmUpgrade(plan)}
-                                    className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer ${isCurrent
-                                            ? 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none'
-                                            : `hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`
-                                        }`}
+                                    onClick={() => confirmUpgrade(plan)}
+                                    className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`}
                                 >
-                                    {/* Badges Integrados */}
-                                    {plan.popularBadgeKey && (
+                                    {isSamePlanAnnualUpgrade && (
+                                        <div className="absolute -top-2.5 left-8 bg-emerald-500 text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
+                                            Cambia a anual · Ahorra 17%
+                                        </div>
+                                    )}
+                                    {!isSamePlanAnnualUpgrade && plan.popularBadgeKey && (
                                         <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
                                             {t(plan.popularBadgeKey)}
                                         </div>
                                     )}
-                                    {plan.premiumBadgeKey && (
+                                    {!isSamePlanAnnualUpgrade && plan.premiumBadgeKey && (
                                         <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
                                             {t(plan.premiumBadgeKey)}
                                         </div>
                                     )}
-
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-3 items-center">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isCurrent ? 'bg-slate-100' : `${plan.iconBg} ${plan.accent}`}`}>
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${plan.iconBg} ${plan.accent}`}>
                                                 <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
                                             </div>
                                             <div>
-                                                <h3 className={`text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${isCurrent ? 'text-slate-300' : plan.accent}`}>{t(plan.subtitleKey)}</p>
+                                                <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{plan.name}</h3>
+                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${plan.accent}`}>{t(plan.subtitleKey)}</p>
                                             </div>
                                         </div>
-
-                                        {isCurrent ? (
-                                            <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                                <div className="size-1 rounded-full bg-emerald-500"></div>
-                                                <span className="text-[7px] font-black text-emerald-600 uppercase">{t('mynumbers.current_plan')}</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-baseline gap-0.5">
-                                                <span className={`text-2xl font-black tracking-tighter tabular-nums ${isCurrent ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${displayPrice.toFixed(2)}</span>
-                                                <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">{isAnnualUpgrade ? '/yr' : '/m'}</span>
-                                            </div>
-                                        )}
+                                        <div className="flex items-baseline gap-0.5">
+                                            <span className="text-2xl font-black tracking-tighter tabular-nums text-slate-900 dark:text-white">${displayPrice.toFixed(2)}</span>
+                                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">{isAnnualUpgrade ? '/yr' : '/m'}</span>
+                                        </div>
                                     </div>
-
                                     <div className="grid grid-cols-1 gap-2 mt-2">
                                         {(t(plan.featuresKey) as unknown as string[]).map((feat, i) => (
                                             <div key={i} className="flex items-center gap-2">
-                                                <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${isCurrent ? 'bg-slate-100' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50'}`}>
-                                                    <span className={`material-symbols-outlined text-[10px] font-black ${isCurrent ? 'text-slate-300' : plan.accent}`}>done</span>
+                                                <div className={`size-4 rounded-full flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50`}>
+                                                    <span className={`material-symbols-outlined text-[10px] font-black ${plan.accent}`}>done</span>
                                                 </div>
                                                 <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
                                             </div>
