@@ -1526,7 +1526,26 @@ const WebDashboard: React.FC = () => {
                             <button onClick={() => handleOpenInbox(slot.slot_id)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[0.8rem] text-[11px] font-bold transition-colors ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-50 text-slate-700'}`}>
                               <MessageSquare size={12} /> Inbox {msgsCnt > 0 && <span className="bg-primary text-white text-[8px] font-black rounded-full px-1">{msgsCnt > 99 ? '99+' : msgsCnt}</span>}
                             </button>
-                            <button onClick={() => navigate('/onboarding/plan')} title="Renovar / cambiar plan" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] bg-amber-500/10 text-amber-500"><Zap size={13} /></button>
+                            <button
+                              onClick={() => navigate('/dashboard/upgrade-summary', {
+                                state: {
+                                  phoneNumber: slot.phone_number,
+                                  slot_id: slot.slot_id,
+                                  planName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
+                                  currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
+                                  billing_type: (slot as any).billing_type || 'monthly',
+                                  isUpgrade: true,
+                                  stripePriceId: '',
+                                  limit: (slot as any).monthly_limit || 150,
+                                  price: 0,
+                                  isAnnual: false,
+                                }
+                              })}
+                              title="Renovar / cambiar plan"
+                              className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] bg-amber-500/10 text-amber-500"
+                            >
+                              <Zap size={13} />
+                            </button>
                             <button onClick={() => handleCopy(`${slot.slot_id}_num`, slot.phone_number)} title="Copiar número" className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${copiedId === `${slot.slot_id}_num` ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{copiedId === `${slot.slot_id}_num` ? <Check size={13} /> : <Copy size={13} />}</button>
                             <button onClick={() => handleToggleForwarding(slot.slot_id, !slot?.forwarding_active)} disabled={togglingSlot === slot.slot_id} className={`w-9 h-9 flex items-center justify-center rounded-[0.8rem] ${slot?.forwarding_active ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{togglingSlot === slot.slot_id ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}</button>
                             <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} title="Dar de baja SIM" className="w-9 h-9 flex items-center justify-center rounded-[0.8rem] hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-400"><Trash2 size={13} /></button>
@@ -1658,7 +1677,20 @@ const WebDashboard: React.FC = () => {
 
                                 {/* Upgrade */}
                                 <button
-                                  onClick={() => navigate('/onboarding/plan')}
+                                  onClick={() => navigate('/dashboard/upgrade-summary', {
+                                    state: {
+                                      phoneNumber: slot.phone_number,
+                                      slot_id: slot.slot_id,
+                                      planName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
+                                      currentPlanName: (slot as any).actual_plan_name || slot.plan_type || 'Starter',
+                                      billing_type: (slot as any).billing_type || 'monthly',
+                                      isUpgrade: true,
+                                      stripePriceId: '',
+                                      limit: (slot as any).monthly_limit || 150,
+                                      price: 0,
+                                      isAnnual: false,
+                                    }
+                                  })}
                                   title="Renovar / cambiar plan"
                                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 text-amber-500'}`}>
                                   <Zap size={11} />
