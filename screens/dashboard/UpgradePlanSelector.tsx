@@ -123,10 +123,12 @@ export default function UpgradePlanSelector() {
         {/* Plan cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns:
-            (samePlanAnnual && higherPlans.length === 0) ? '360px'
-            : (samePlanAnnual && higherPlans.length === 1) ? 'repeat(2, 1fr)'
-            : (higherPlans.length <= 2 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'),
+          gridTemplateColumns: (() => {
+            const totalCards = (samePlanAnnual ? 1 : 0) + higherPlans.length;
+            if (totalCards <= 1) return '360px';
+            if (totalCards === 2) return 'repeat(2, 1fr)';
+            return 'repeat(3, 1fr)';
+          })(),
           gap: 24,
           justifyContent: 'center',
         }}>
