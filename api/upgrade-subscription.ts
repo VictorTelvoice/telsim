@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const customerId = profile.stripe_customer_id;
 
-    // 2. Obtener la suscripción activa actual del slot
+    // 2. Obtener la suscripción activa actual del slot y el teléfono del slot
     const { data: currentSub } = await supabaseAdmin
       .from('subscriptions')
       .select('stripe_subscription_id')
@@ -42,6 +42,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('user_id', userId)
       .eq('status', 'active')
       .single();
+
+    const { data: slotRow } = await supabaseAdmin
+      .from('slots')
+      .select('phone_number')
+      .eq('slot_id', slotId)
+      .maybeSingle();
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.telsim.io';
 
@@ -58,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           old_subscription_id: currentSub?.stripe_subscription_id || '',
           new_plan_name: newPlanName,
           is_annual: isAnnual ? 'true' : 'false',
+          phone_number: slotRow?.phone_number || '',
         },
       },
       payment_method_collection: 'always',

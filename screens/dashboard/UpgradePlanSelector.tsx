@@ -42,17 +42,25 @@ export default function UpgradePlanSelector() {
   const currentPlanName = (state?.currentPlanName || 'Starter') as string;
   const currentBilling  = (state?.billing_type   || 'monthly') as 'monthly' | 'annual';
 
-  // Toggle controla qué precio mostrar — arranca en el billing actual
+  // Toggle controla qué precio mostrar para planes que no son "mismo plan anual"
   const [showAnnual, setShowAnnual] = useState(currentBilling === 'annual');
 
-  // Mostrar TODOS los planes excepto el que ya tiene (mismo plan + mismo billing)
-  const visiblePlans = PLANS.filter(plan => {
-    const isSamePlan = plan.id.toLowerCase() === currentPlanName.toLowerCase();
-    const isSameBilling = showAnnual
-      ? currentBilling === 'annual'
-      : currentBilling === 'monthly';
-    return !(isSamePlan && isSameBilling);
-  });
+  // Plan actual en anual (fijo, siempre visible si está en mensual)
+  const samePlanAnnual = currentBilling === 'monthly'
+    ? PLANS.find(p => p.id.toLowerCase() === currentPlanName.toLowerCase()) ?? null
+    : null;
+
+  // Planes diferentes al actual — respetan el toggle
+  const otherPlans = PLANS.filter(
+    p => p.id.toLowerCase() !== currentPlanName.toLowerCase()
+  );
+
+  // Array final: samePlanAnnual primero (si aplica) con forceAnnual, luego los otros
+  type PlanWithForce = typeof PLANS[0] & { forceAnnual?: boolean };
+  const visiblePlans: PlanWithForce[] = [
+    ...(samePlanAnnual ? [{ ...samePlanAnnual, forceAnnual: true }] : []),
+    ...otherPlans,
+  ];
 
   // Grid dinámico
   const totalCards = visiblePlans.length;
@@ -62,14 +70,15 @@ export default function UpgradePlanSelector() {
     ? 'repeat(2, 1fr)'
     : 'repeat(3, 1fr)';
 
-  const handleSelect = (plan: typeof PLANS[0]) => {
+  const handleSelect = (plan: PlanWithForce) => {
+    const cardIsAnnual = plan.forceAnnual ?? showAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber, slot_id, planName: plan.id, currentPlanName,
-        stripePriceId: showAnnual ? plan.annualStripePriceId : plan.stripePriceId,
+        stripePriceId: cardIsAnnual ? plan.annualStripePriceId : plan.stripePriceId,
         limit: plan.limit,
-        price: showAnnual ? plan.annualPrice : plan.price,
-        isAnnual: showAnnual,
+        price: cardIsAnnual ? plan.annualPrice : plan.price,
+        isAnnual: cardIsAnnual,
         isUpgrade: true,
       }
     });
@@ -135,7 +144,8 @@ export default function UpgradePlanSelector() {
           justifyContent: 'center',
         }}>
           {visiblePlans.map(plan => {
-            const displayPrice = showAnnual ? plan.annualMonthly : plan.price;
+            const cardIsAnnual = plan.forceAnnual ?? showAnnual;
+            const displayPrice = cardIsAnnual ? plan.annualMonthly : plan.price;
             return (
               <div
                 key={plan.id}
@@ -150,8 +160,12 @@ export default function UpgradePlanSelector() {
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 16px 40px ${plan.accent}33`; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = plan.popular ? `0 8px 32px ${plan.accent}22` : '0 2px 8px rgba(0,0,0,0.06)'; }}
               >
-                {/* Badge solo para populares, nunca para "cambia a anual" */}
-                {plan.popular && (
+                {plan.forceAnnual && (
+                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#059669', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Cambia a anual · Ahorra 17%
+                  </div>
+                )}
+                {!plan.forceAnnual && plan.popular && (
                   <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: plan.badgeBg, color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
                     <Zap size={9} /> Más Popular
                   </div>
@@ -169,7 +183,7 @@ export default function UpgradePlanSelector() {
                     <span style={{ fontSize: 52, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>${displayPrice.toFixed(2)}</span>
                     <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>/mo</span>
                   </div>
-                  {showAnnual && <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${plan.annualPrice}/año</p>}
+                  {cardIsAnnual && <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${plan.annualPrice}/año</p>}
                 </div>
 
                 {/* Features */}

@@ -140,47 +140,54 @@ export default async function handler(req: any, res: any) {
           .eq('stripe_subscription_id', meta.old_subscription_id as string);
       }
 
-      // Insertar nueva sub en Supabase
+      const PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
+      const SMS_BY_PLAN: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
+
+      // Insertar nueva sub en Supabase (con monthly_limit para que el dashboard muestre el límite correcto)
       await supabaseAdmin.from('subscriptions').insert({
         user_id: meta.user_id,
         slot_id: meta.slot_id,
         stripe_subscription_id: newSubId,
         plan_name: meta.new_plan_name,
+        monthly_limit: PLAN_LIMITS[meta.new_plan_name as string] ?? 150,
         billing_type: meta.is_annual === 'true' ? 'annual' : 'monthly',
         status: 'active',
       });
 
-      // Actualizar el slot (solo plan_type, como en flujo estándar)
+      // Actualizar el slot (plan_type y sms_limit para que la UI muestre el límite correcto)
       await supabaseAdmin
         .from('slots')
         .update({
           plan_type: meta.new_plan_name,
+          sms_limit: SMS_BY_PLAN[meta.new_plan_name as string] ?? 150,
         })
         .eq('slot_id', meta.slot_id);
 
       console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
 
-      // ── NOTIFICACIONES UPGRADE ──────────────────────────────
+      // Email de upgrade
       const { data: userData } = await supabaseAdmin
         .from('users')
-        .select('email')
+        .select('email, nombre')
         .eq('id', meta.user_id)
         .maybeSingle();
 
-      const userEmail = userData?.email;
-      console.log('[UPGRADE] Email resuelto:', userEmail ?? '(sin email)');
-
-      if (userEmail) {
+      if (userData?.email) {
         await triggerEmail('subscription_activated', meta.user_id as string, {
           plan_name: meta.new_plan_name,
           billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
           slot_id: meta.slot_id,
-          email: userEmail,
+          email: userData.email,
         });
-        console.log('[UPGRADE] Email enviado OK');
+        console.log('[UPGRADE] Email enviado a:', userData.email);
       }
 
-      // Telegram — mismo helper que compra nueva (checkout normal)
+      // Telegram — mismo patrón que compra nueva (inline fetch a api.telegram.org)
+      const phoneNumber = meta.phone_number || meta.slot_id;
+      const now = new Date().toLocaleDateString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
       try {
         const { data: userRow } = await supabaseAdmin
           .from('users')
@@ -193,22 +200,21 @@ export default async function handler(req: any, res: any) {
         const sendUpgrade = prefs?.sim_activated?.telegram === true;
         if (tgToken && tgChatId && sendUpgrade) {
           const billingLabel = meta.is_annual === 'true' ? 'Anual' : 'Mensual';
-          const telegramMessage = `<b>⚡ UPGRADE EXITOSO</b>
-━━━━━━━━━━━━━━━━━━
-📱 <b>Slot:</b> ${meta.slot_id}
-💎 <b>Plan:</b> ${meta.new_plan_name} · ${billingLabel}
-👤 <b>Usuario:</b> ${meta.user_id}`;
+          const telegramMessage = `⚡ *UPGRADE EXITOSO*
+📱 Número: +${phoneNumber}
+📦 Plan: ${meta.new_plan_name} · ${billingLabel}
+📅 Activación: ${now}
+✅ Estado: Activo`;
           await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'HTML' }),
+            body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'Markdown' }),
           });
         }
       } catch (tgErr: any) {
         console.warn('[WEBHOOK] Telegram upgrade notification skipped:', tgErr?.message);
       }
       console.log('[UPGRADE] Telegram enviado OK');
-      // ────────────────────────────────────────────────────────
 
       return res.status(200).json({ received: true });
     }
