@@ -41,12 +41,21 @@ export default function UpgradePlanSelector() {
   const currentOrder = PLAN_ORDER[(currentPlanName || 'Starter').toUpperCase()] ?? 1;
   const currentBilling = billing_type || 'monthly';
 
+  // Lógica correcta:
+  // - Si el usuario tiene Plan X Mensual → puede ir a Plan X Anual
+  //   O cualquier plan superior (mensual o anual según el toggle)
+  // - Si el usuario tiene Plan X Anual → solo puede ir a planes SUPERIORES
+  // - El badge "Cambia a Anual" solo aparece en la card del mismo plan
+  //   Y solo cuando el toggle está en Anual
   const availablePlans = PLANS.filter(plan => {
     const order = PLAN_ORDER[plan.id.toUpperCase()] ?? 1;
-    if (order > currentOrder) return true;
-    if (order === currentOrder && currentBilling === 'monthly') return true;
+    if (order > currentOrder) return true; // planes superiores siempre disponibles
+    if (order === currentOrder && currentBilling === 'monthly' && isAnnual) return true; // mismo plan solo si toggle en Anual y actualmente es mensual
     return false;
   });
+
+  const onlyAnnualSamePlan = availablePlans.length === 1 &&
+    PLAN_ORDER[availablePlans[0]?.id?.toUpperCase()] === currentOrder;
 
   const handleSelect = (plan: typeof PLANS[0]) => {
     navigate('/dashboard/upgrade-summary', {
@@ -87,28 +96,30 @@ export default function UpgradePlanSelector() {
         </div>
 
         {/* Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 40 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: !isAnnual ? '#0f172a' : '#94a3b8' }}>Mensual</span>
-          <button
-            onClick={() => setIsAnnual(p => !p)}
-            style={{
-              width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
-              background: isAnnual ? '#0047FF' : '#e2e8f0', position: 'relative', transition: 'background 0.2s'
-            }}
-          >
-            <div style={{
-              position: 'absolute', top: 3, left: isAnnual ? 25 : 3,
-              width: 20, height: 20, borderRadius: '50%', background: 'white',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
-            }} />
-          </button>
-          <span style={{ fontSize: 14, fontWeight: 600, color: isAnnual ? '#0f172a' : '#94a3b8' }}>Anual</span>
-          {isAnnual && (
-            <span style={{ fontSize: 11, fontWeight: 700, background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: 20, border: '1px solid #a7f3d0' }}>
-              Ahorra 17%
-            </span>
-          )}
-        </div>
+        {!onlyAnnualSamePlan && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 40 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: !isAnnual ? '#0f172a' : '#94a3b8' }}>Mensual</span>
+            <button
+              onClick={() => setIsAnnual(p => !p)}
+              style={{
+                width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+                background: isAnnual ? '#0047FF' : '#e2e8f0', position: 'relative', transition: 'background 0.2s'
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: 3, left: isAnnual ? 25 : 3,
+                width: 20, height: 20, borderRadius: '50%', background: 'white',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
+              }} />
+            </button>
+            <span style={{ fontSize: 14, fontWeight: 600, color: isAnnual ? '#0f172a' : '#94a3b8' }}>Anual</span>
+            {isAnnual && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: 20, border: '1px solid #a7f3d0' }}>
+                Ahorra 17%
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Plan cards */}
         <div style={{
@@ -118,7 +129,10 @@ export default function UpgradePlanSelector() {
           justifyContent: 'center',
         }}>
           {availablePlans.map(plan => {
-            const isSameAnnual = PLAN_ORDER[plan.id.toUpperCase()] === currentOrder && currentBilling === 'monthly';
+            const isSameAnnualUpgrade =
+              PLAN_ORDER[plan.id.toUpperCase()] === currentOrder &&
+              currentBilling === 'monthly' &&
+              isAnnual;
             const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
             return (
               <div
@@ -135,12 +149,12 @@ export default function UpgradePlanSelector() {
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = plan.popular ? `0 8px 32px ${plan.accent}22` : '0 2px 8px rgba(0,0,0,0.06)'; }}
               >
                 {/* Badge */}
-                {plan.popular && !isSameAnnual && (
+                {plan.popular && !isSameAnnualUpgrade && (
                   <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: plan.badgeBg, color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
                     <Zap size={9} /> Más Popular
                   </div>
                 )}
-                {isSameAnnual && (
+                {isSameAnnualUpgrade && (
                   <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#059669', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 1 }}>
                     Cambia a anual · Ahorra 17%
                   </div>
