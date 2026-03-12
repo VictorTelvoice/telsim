@@ -160,14 +160,27 @@ export default async function handler(req: any, res: any) {
 
       console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
 
-      // Notificación email upgrade (mismo tipo que compra nueva: subscription_activated)
-      await triggerEmail('subscription_activated', meta.user_id as string, {
-        plan_name: meta.new_plan_name,
-        billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
-        slot_id: meta.slot_id,
-      });
+      // ── NOTIFICACIONES UPGRADE ──────────────────────────────
+      const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', meta.user_id)
+        .maybeSingle();
 
-      // Notificación Telegram — mismo patrón que compra nueva
+      const userEmail = userData?.email;
+      console.log('[UPGRADE] Email resuelto:', userEmail ?? '(sin email)');
+
+      if (userEmail) {
+        await triggerEmail('subscription_activated', meta.user_id as string, {
+          plan_name: meta.new_plan_name,
+          billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
+          slot_id: meta.slot_id,
+          email: userEmail,
+        });
+        console.log('[UPGRADE] Email enviado OK');
+      }
+
+      // Telegram — mismo helper que compra nueva (checkout normal)
       try {
         const { data: userRow } = await supabaseAdmin
           .from('users')
@@ -194,6 +207,8 @@ export default async function handler(req: any, res: any) {
       } catch (tgErr: any) {
         console.warn('[WEBHOOK] Telegram upgrade notification skipped:', tgErr?.message);
       }
+      console.log('[UPGRADE] Telegram enviado OK');
+      // ────────────────────────────────────────────────────────
 
       return res.status(200).json({ received: true });
     }
