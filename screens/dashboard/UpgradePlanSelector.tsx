@@ -63,14 +63,13 @@ export default function UpgradePlanSelector() {
     : 'repeat(3, 1fr)';
 
   const handleSelect = (plan: typeof PLANS[0]) => {
-    const annual = showAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber, slot_id, planName: plan.id, currentPlanName,
-        stripePriceId: annual ? plan.annualStripePriceId : plan.stripePriceId,
+        stripePriceId: showAnnual ? plan.annualStripePriceId : plan.stripePriceId,
         limit: plan.limit,
-        price: annual ? plan.annualPrice : plan.price,
-        isAnnual: annual,
+        price: showAnnual ? plan.annualPrice : plan.price,
+        isAnnual: showAnnual,
         isUpgrade: true,
       }
     });
@@ -170,7 +169,7 @@ export default function UpgradePlanSelector() {
                     <span style={{ fontSize: 52, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>${displayPrice.toFixed(2)}</span>
                     <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>/mo</span>
                   </div>
-                  {isAnnual && <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${plan.annualPrice}/año</p>}
+                  {showAnnual && <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Facturado como ${plan.annualPrice}/año</p>}
                 </div>
 
                 {/* Features */}
