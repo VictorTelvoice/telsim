@@ -56,12 +56,12 @@ export default async function handler(req: any, res: any) {
     // Cancelar suscripción antigua en Stripe (el webhook la marcará canceled en Supabase → queda en historial)
     await stripe.subscriptions.cancel(stripeSubId);
 
-    // Crear nueva suscripción con nuevo plan, mismo slot, usando payment_behavior seguro
+    // Crear nueva suscripción con nuevo plan, mismo slot, cobrando inmediatamente
     const newStripeSub = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: newPriceId }],
-      payment_behavior: 'default_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
+      off_session: true,
+      payment_behavior: 'error_if_incomplete',
       expand: ['latest_invoice.payment_intent'],
       metadata: {
         userId,
@@ -74,19 +74,19 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const isConfirmedActive =
-      newStripeSub.status === 'active' &&
-      (newStripeSub as any).latest_invoice?.payment_intent?.status === 'succeeded';
+    const paymentStatus = (newStripeSub as any).latest_invoice?.payment_intent?.status;
+    const isConfirmedActive = newStripeSub.status === 'active';
 
     if (!isConfirmedActive && newStripeSub.status !== 'trialing') {
       return res.status(402).json({
-        error: 'El pago fue rechazado. Verifica tu método de pago en Stripe.',
+        error: 'El pago fue rechazado. Verifica tu método de pago.',
         stripeStatus: newStripeSub.status,
-        paymentIntentStatus: (newStripeSub as any).latest_invoice?.payment_intent?.status,
+        paymentStatus,
       });
     }
 
-    const subStatus = newStripeSub.status === 'trialing' ? 'trialing' : 'active';
+    const subStatus: 'active' | 'trialing' =
+      newStripeSub.status === 'trialing' ? 'trialing' : 'active';
 
     // Crear nuevo registro en Supabase (misma slot, nuevo plan, fecha nueva)
     const planPrices = PLAN_PRICES[planName];
