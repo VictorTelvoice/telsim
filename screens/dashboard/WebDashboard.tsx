@@ -403,12 +403,17 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Traemos solo las suscripciones pagadas y activas del usuario
+      // 1. Traer mensajes
+      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      if (msgs) setMessages(msgs as SMSLog[]);
+
+      // 2. Traer suscripciones activas/trialing del usuario
       const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['active', 'trialing']);
+        .in('status', ['active', 'trialing'])
+        .order('created_at', { ascending: false });
 
       if (!subsData || subsData.length === 0) {
         setSlots([]);
@@ -416,29 +421,34 @@ const WebDashboard: React.FC = () => {
         return;
       }
 
-      // Traemos los detalles de los slots correspondientes a esas suscripciones
-      const slotIds = subsData.map((s: { slot_id: string }) => s.slot_id);
+      // 3. DEDUPLICAR: Si un slot_id tiene varias suscripciones, nos quedamos solo con la más nueva
+      const uniqueSubsMap = new Map<string, (typeof subsData)[0]>();
+      subsData.forEach((sub: { slot_id: string }) => {
+        if (!uniqueSubsMap.has(sub.slot_id)) {
+          uniqueSubsMap.set(sub.slot_id, sub);
+        }
+      });
+      const cleanSubs = Array.from(uniqueSubsMap.values());
+
+      // 4. Traer los slots correspondientes a esas suscripciones únicas
       const { data: slotsData } = await supabase
         .from('slots')
         .select('*')
-        .in('slot_id', slotIds);
+        .in('slot_id', cleanSubs.map(s => s.slot_id));
 
-      // Solo incluir líneas que tengan una suscripción activa o trialing vinculada al usuario
-      type SubWithStatus = { slot_id: string; status?: string; created_at?: string; credits_used?: number; monthly_limit?: number; plan_name?: string; billing_type?: string };
-      const joinedData = subsData
-        .map((sub: SubWithStatus) => {
+      // 5. Unir datos: Un slot por cada suscripción única encontrada
+      const finalData = cleanSubs
+        .map(sub => {
           const slot = slotsData?.find(s => s.slot_id === sub.slot_id);
           if (!slot) return null;
           return { ...slot, activeSub: sub };
         })
-        .filter((item): item is Slot & { activeSub: SubWithStatus } => item !== null && (item.activeSub?.status === 'active' || item.activeSub?.status === 'trialing'));
+        .filter(Boolean);
 
-      setSlots(joinedData as Slot[]);
-
-      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
-      if (msgs) setMessages(msgs as SMSLog[]);
+      console.log('Lineas reales detectadas:', finalData.length);
+      setSlots(finalData as Slot[]);
     } catch (e) {
-      console.error(e);
+      console.error('Error:', e);
     } finally {
       setLoading(false);
     }
@@ -1035,7 +1045,8 @@ const WebDashboard: React.FC = () => {
 
   const today = new Date().toDateString();
   const todayMessages = messages.filter(m => new Date(m.received_at).toDateString() === today);
-  const activeSlots = slots.filter(s => s.status !== 'expired');
+  // slots ya viene filtrado con solo líneas activas/trialing (una por slot_id)
+  const activeSlots = slots;
 
   const activityData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
