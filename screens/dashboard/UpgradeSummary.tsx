@@ -41,19 +41,24 @@ export default function UpgradeSummary() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          slot_id,
-          phoneNumber,
+          slotId: slot_id,
           newPriceId: stripePriceId,
-          planName,
-          monthlyLimit: limit,
+          newPlanName: planName,
           isAnnual: isAnnual ?? false,
         }),
       });
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      navigate('/dashboard/upgrade-success', {
-        state: { phoneNumber, planName, price, isAnnual, limit }
-      });
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al procesar el upgrade');
+      }
+
+      // Redirigir a Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
     } catch (err: any) {
       alert(err.message || 'Error al procesar el upgrade');
       setIsProcessing(false);

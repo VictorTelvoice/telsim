@@ -90,6 +90,54 @@ export default async function handler(req: any, res: any) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
+
+    // Flujo especial de UPGRADE via Checkout
+    const meta = session.metadata || {};
+    if (meta.upgrade === 'true' && meta.slot_id && meta.user_id) {
+      console.log('[WEBHOOK] Processing upgrade for slot', meta.slot_id);
+      const newSubId = session.subscription as string;
+
+      // Cancelar sub vieja en Stripe
+      if (meta.old_subscription_id) {
+        try {
+          await stripe.subscriptions.cancel(meta.old_subscription_id as string);
+          console.log('[WEBHOOK] Cancelled old subscription', meta.old_subscription_id);
+        } catch (e: any) {
+          console.warn('[WEBHOOK] Could not cancel old sub:', e?.message);
+        }
+      }
+
+      // Marcar sub vieja como cancelada en Supabase
+      if (meta.old_subscription_id) {
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ status: 'canceled' })
+          .eq('stripe_subscription_id', meta.old_subscription_id as string);
+      }
+
+      // Insertar nueva sub en Supabase
+      await supabaseAdmin.from('subscriptions').insert({
+        user_id: meta.user_id,
+        slot_id: meta.slot_id,
+        stripe_subscription_id: newSubId,
+        plan_name: meta.new_plan_name,
+        billing_type: meta.is_annual === 'true' ? 'annual' : 'monthly',
+        status: 'active',
+      });
+
+      // Actualizar el slot
+      await supabaseAdmin
+        .from('slots')
+        .update({
+          plan_type: meta.new_plan_name,
+        })
+        .eq('slot_id', meta.slot_id)
+        .eq('assigned_to', meta.user_id);
+
+      console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
+      return res.status(200).json({ received: true });
+    }
+
     const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = session.metadata || {};
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
