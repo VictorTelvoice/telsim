@@ -805,6 +805,8 @@ export default async function handler(req: any, res: any) {
 
       const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
 
+      console.log('[CANCEL] userData:', userData?.email, 'userId:', userId);
+
       if (userData?.email && userId) {
         await triggerEmail('subscription_cancelled', userId, {
           plan: sub.plan_name ?? '',
@@ -815,6 +817,8 @@ export default async function handler(req: any, res: any) {
           to_email: userData.email,
         });
         console.log('[CANCEL] Email enviado a:', userData.email);
+      } else {
+        console.error('[CANCEL] No se encontró email para userId:', userId);
       }
 
       const telegramMessage = `❌ *CANCELACIÓN*
