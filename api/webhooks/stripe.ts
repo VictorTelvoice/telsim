@@ -40,7 +40,7 @@ async function triggerEmail(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ event, user_id: userId, email, data }),
+      body: JSON.stringify({ event, user_id: userId, to_email: email, data }),
     });
     if (!res.ok) console.error('[triggerEmail]', await res.text());
   } catch (err) {

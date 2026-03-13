@@ -364,37 +364,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: EmailPayload = await req.json();
-    const { event, user_id, data = {} } = payload;
+    const payload = await req.json();
+    const { event, user_id, to_email, data = {} } = payload;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
     }
 
-    // Resolver email: primero el pasado en el body, sino lookup en public.users
-    let toEmail: string | null = (payload.email as string) ?? payload.to ?? null;
+    // Usar to_email si viene directo del webhook, sino intentar lookup
+    let email: string | null = to_email ?? (payload.email as string) ?? payload.to ?? null;
     let lang: Language = payload.language ?? 'es';
 
-    if (!toEmail && user_id) {
+    if (!email && user_id) {
+      console.log('[send-email] user_id buscado:', user_id);
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-      const { data: user } = await supabase
+      const { data: user, error } = await supabase
         .from('users')
         .select('email, language')
         .eq('id', user_id)
         .maybeSingle();
-
-      console.log('[send-email] user lookup result:', JSON.stringify(user));
+      console.log('[send-email] user lookup result:', user, 'error:', error);
       if (user) {
-        toEmail = user.email ?? null;
+        email = user.email ?? null;
         lang = (user.language as Language) ?? lang;
       } else {
-        toEmail = (data.to as string) ?? payload.to ?? null;
-        if (!toEmail) console.warn('[send-email] User not found for id:', user_id);
+        email = (data.to as string) ?? payload.to ?? null;
+        if (!email) console.warn('[send-email] User not found for id:', user_id);
       }
     }
 
-    if (!toEmail) {
-      console.error('[triggerEmail] {"error":"No email address resolved"}');
+    if (!email) {
+      console.error('[send-email] No email resolved');
       return new Response(JSON.stringify({ error: 'No email address resolved' }), { status: 400 });
     }
 
@@ -434,7 +434,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: RESEND_FROM,
-        to: [toEmail],
+        to: [email],
         subject: t.subject,
         html,
         headers: {
