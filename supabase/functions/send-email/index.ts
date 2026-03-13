@@ -23,7 +23,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const RESEND_FROM = 'TELSIM <noreply@telsim.io>';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-// Service role key bypasea RLS para poder leer email desde public.users
+// service_role — bypasea RLS, puede leer public.users
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
     let lang: Language = payload.language ?? 'es';
 
     if (!toEmail && user_id) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY); // service_role → bypass RLS
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
       const { data: user } = await supabase
         .from('users')
         .select('email, language')
