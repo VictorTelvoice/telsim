@@ -76,7 +76,7 @@ const Landing: React.FC = () => {
     };
     const handleCasos = () => {
       if (!casosEl) return;
-      setCasosPage(Math.round(casosEl.scrollLeft / (casosEl.scrollWidth / 8)));
+      setCasosPage(Math.round(casosEl.scrollLeft / (casosEl.scrollWidth / casosUso.length)));
     };
     const handlePlanes = () => {
       if (!planesEl) return;
@@ -206,51 +206,39 @@ const Landing: React.FC = () => {
   const casosUso = [
     {
       iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="4" y="12" width="10" height="8" rx="2" fill="#1d4ed8" opacity="0.85" /><path d="M14 13L24 8V24L14 19V13Z" fill="#3b82f6" /><path d="M8 20L10 27" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" /><path d="M26 12C27.8 13.8 27.8 18.2 26 20" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" fill="none" /><path d="M29 10C31.5 12.5 31.5 19.5 29 22" stroke="#bfdbfe" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6" /></svg>,
-      title: t('landing.use_cases.item1.title'),
-      desc: 'Gestiona y verifica decenas de cuentas publicitarias en Google Ads y Meta con números independientes. Cada cuenta opera con su propia identidad SIM, sin riesgo de bloqueo en medio de una campaña activa.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="10" y="5" width="12" height="10" rx="3" fill="#1d4ed8" opacity="0.18" /><circle cx="13.5" cy="10" r="1.5" fill="#1d4ed8" /><circle cx="18.5" cy="10" r="1.5" fill="#1d4ed8" /><path d="M8 19H4C3 19 3 22 4 22H8" stroke="#1d4ed8" strokeWidth="1.8" /><path d="M24 19H28C29 19 29 22 28 22H24" stroke="#1d4ed8" strokeWidth="1.8" /></svg>,
+      title: "Agentes de IA + OTP",
+      desc: "Un Agente de IA que te despierta para pedirte un código no es autónomo. Conecta tu IA a nuestra bóveda; el bot recibe el SMS, lee el código vía API y sigue operando sin intervención humana.",
     },
     {
       iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" fill="#10b981" opacity="0.15" /><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" stroke="#10b981" strokeWidth="1.8" fill="none" /><path d="M11 16L14.5 19.5L21 13" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-      title: t('landing.use_cases.item2.title'),
-      desc: 'Valida el acceso de nuevos usuarios en tu plataforma usando un número real sin exponer datos personales. Ofrece verificación SMS limpia, segura y completamente escalable desde el primer acceso.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 4L6 8V16C6 21.5 10.5 26.5 16 28C21.5 26.5 26 21.5 26 16V8L16 4Z" fill="#10b981" opacity="0.15" /><path d="M11 16L14.5 19.5L21 13" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" /></svg>,
+      title: "Automatización (Make / n8n)",
+      desc: "El eslabón que le faltaba a tu flujo. Transforma un mensaje de texto en un trigger JSON instantáneo. Recibe OTPs y dispárale los datos a Python, Make o n8n en tiempo real.",
     },
     {
       iconBg: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="6" y="15" width="4" height="9" rx="1" fill="#f59e0b" /><line x1="8" y1="11" x2="8" y2="15" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="24" x2="8" y2="27" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><rect x="14" y="9" width="4" height="11" rx="1" fill="#10b981" /><line x1="16" y1="5" x2="16" y2="9" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" /><line x1="16" y1="20" x2="16" y2="23" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" /><rect x="22" y="12" width="4" height="8" rx="1" fill="#f59e0b" /><line x1="24" y1="9" x2="24" y2="12" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><line x1="24" y1="20" x2="24" y2="24" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" /><path d="M5 25L12 19L18 22L27 13" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 1.5" opacity="0.6" /></svg>,
-      title: t('landing.use_cases.item3.title'),
-      desc: 'Autentica operaciones, retiros y transferencias con 2FA de forma completamente autónoma en exchanges como Binance o Coinbase. Tu bot actúa sin depender de intervención humana en ningún paso del flujo.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="8" y="10" width="16" height="12" rx="2" stroke="#f59e0b" strokeWidth="2"/><path d="M16 14v4M13 16h6" stroke="#f59e0b" strokeWidth="2"/></svg>,
+      title: "Agencias + 2FA Seguro",
+      desc: "Gestiona cientos de cuentas de clientes sin depender del celular personal del dueño. Todo tu equipo puede acceder a los códigos 2FA de Meta, Google o TikTok desde un Dashboard centralizado.",
     },
     {
       iconBg: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="10" y="5" width="12" height="10" rx="3" fill="#0ea5e9" opacity="0.18" /><rect x="10" y="5" width="12" height="10" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none" /><circle cx="13.5" cy="10" r="1.5" fill="#0ea5e9" /><circle cx="18.5" cy="10" r="1.5" fill="#0ea5e9" /><line x1="16" y1="5" x2="16" y2="3" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><circle cx="16" cy="2" r="1.2" fill="#0ea5e9" /><rect x="8" y="16" width="16" height="11" rx="3" fill="#0ea5e9" opacity="0.1" /><rect x="8" y="16" width="16" height="11" rx="3" stroke="#0ea5e9" strokeWidth="1.8" fill="none" /><path d="M8 19H4C3 19 3 22 4 22H8" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><path d="M24 19H28C29 19 29 22 28 22H24" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round" /><line x1="16" y1="15" x2="16" y2="16" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" /></svg>,
-      title: t('landing.use_cases.item4.title'),
-      desc: 'Integra Telsim en tus flujos de Make, n8n, UiPath o Power Automate y resuelve el bloqueo por SMS en ERP, nóminas y portales corporativos. La autenticación deja de ser el cuello de botella de tu automatización.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M22 12s-1.5-2-6-2-6 2-6 2v10s1.5 2 6 2 6-2 6-2V12z" stroke="#0ea5e9" strokeWidth="2"/><path d="M10 16s1.5 2 6 2 6-2 6-2M10 20s1.5 2 6 2 6-2 6-2" stroke="#0ea5e9" strokeWidth="2"/></svg>,
+      title: "Identidad Móvil Real",
+      desc: "Evita los bloqueos de números virtuales (VoIP). Nuestras SIMs de la bóveda son chips físicos reales que pasan los filtros más exigentes de WhatsApp, Telegram y Apps Bancarias.",
     },
     {
       iconBg: 'linear-gradient(135deg,#fdf4ff,#fae8ff)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M3 11L7 5H25L29 11H3Z" fill="#a855f7" opacity="0.15" /><path d="M3 11L7 5H25L29 11" stroke="#a855f7" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" /><path d="M3 11V26C3 27.1 3.9 28 5 28H27C28.1 28 29 27.1 29 26V11" stroke="#a855f7" strokeWidth="1.7" fill="none" /><rect x="12" y="18" width="8" height="10" rx="1.5" fill="#a855f7" opacity="0.18" /><rect x="12" y="18" width="8" height="10" rx="1.5" stroke="#a855f7" strokeWidth="1.4" fill="none" /><rect x="6" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3" /><rect x="22" y="16" width="4" height="4" rx="1" fill="#a855f7" opacity="0.3" /><circle cx="25" cy="8" r="4" fill="#a855f7" /><path d="M23 8L24.5 9.5L27 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-      title: t('landing.use_cases.item5.title'),
-      desc: 'Opera decenas de cuentas de vendedor en Mercado Libre, Amazon o Shopify sin vincularlas entre sí. Cada cuenta cuenta con su número independiente y verificado, minimizando el riesgo de suspensiones masivas.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="10" stroke="#a855f7" strokeWidth="2"/><path d="M16 10v12M12 14l4-4 4 4" stroke="#a855f7" strokeWidth="2"/></svg>,
+      title: "Fintech & Backoffice",
+      desc: "Valida transferencias y retiros en exchanges (Binance, Coinbase) 24/7 de forma autónoma. Tu software recibe el código y autoriza la transacción al instante, sin errores manuales.",
     },
     {
       iconBg: 'linear-gradient(135deg,#fff1f2,#ffe4e6)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="9" y="4" width="14" height="22" rx="3" fill="#f43f5e" opacity="0.1" /><rect x="9" y="4" width="14" height="22" rx="3" stroke="#f43f5e" strokeWidth="1.8" fill="none" /><path d="M16 18C16 18 12 15.5 12 13C12 11.3 13.3 10 15 10C15.7 10 16.3 10.3 16.7 10.8C17.1 10.3 17.7 10 18.5 10C20.2 10 21.5 11.3 21.5 13C21.5 15.5 16 18 16 18Z" fill="#f43f5e" opacity="0.7" /><circle cx="16" cy="23" r="1.2" fill="#f43f5e" /><path d="M25 11C26.5 12.5 26.5 15.5 25 17" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" fill="none" /><path d="M27.5 9C30 11.5 30 18.5 27.5 21" stroke="#fda4af" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity="0.5" /></svg>,
-      title: t('landing.use_cases.item6.title'),
-      desc: 'Crea y opera cuentas en Instagram, TikTok, X o Facebook de forma completamente autónoma. Tu bot publica, interactúa y crece verificado con un número SIM real desde el primer día de operación.',
-    },
-    {
-      iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="24" rx="3" fill="#059669" opacity="0.07" /><rect x="5" y="5" width="22" height="24" rx="3" stroke="#059669" strokeWidth="1.7" fill="none" /><circle cx="10" cy="12" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="12" x2="23" y2="12" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="10" cy="17" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="17" x2="23" y2="17" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="10" cy="22" r="1.5" fill="#059669" opacity="0.5" /><line x1="13.5" y1="22" x2="23" y2="22" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" /><circle cx="24" cy="7" r="5" fill="#059669" /><path d="M21.5 7L23.2 8.8L26.5 5.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-      title: t('landing.use_cases.item7.title'),
-      desc: 'Regístrate automáticamente en múltiples plataformas, marketplaces o portales sin intervención manual. Ideal para agencias que necesitan escalar cuentas verificadas de forma rápida y eficiente.',
-    },
-    {
-      iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
-      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="3" y="6" width="26" height="20" rx="3" fill="#1d4ed8" opacity="0.07" /><rect x="3" y="6" width="26" height="20" rx="3" stroke="#1d4ed8" strokeWidth="1.7" fill="none" /><rect x="3" y="6" width="26" height="5.5" rx="3" fill="#1d4ed8" opacity="0.1" /><circle cx="7.5" cy="8.8" r="1.2" fill="#f43f5e" opacity="0.8" /><circle cx="11.5" cy="8.8" r="1.2" fill="#f59e0b" opacity="0.8" /><circle cx="15.5" cy="8.8" r="1.2" fill="#10b981" opacity="0.8" /><path d="M9 17L7 19L9 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" /><path d="M23 17L25 19L23 21" stroke="#1d4ed8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" /><line x1="18" y1="15" x2="14" y2="23" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" /></svg>,
-      title: t('landing.use_cases.item8.title'),
-      desc: 'Prueba y valida flujos de autenticación SMS en entornos de desarrollo, staging y producción sin usar números personales ni pagar por servicios de testing caros. Números reales para cada entorno de prueba.',
+      icon: <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="6" y="8" width="20" height="16" rx="2" stroke="#f43f5e" strokeWidth="2"/><path d="M6 14h20M10 18h2" stroke="#f43f5e" strokeWidth="2"/></svg>,
+      title: "E-commerce & Sellers",
+      desc: "Opera múltiples cuentas de vendedor en Amazon, Mercado Libre o eBay con identidades totalmente independientes. Minimiza el riesgo de suspensiones por vinculación de cuentas.",
     },
   ];
 
@@ -517,110 +505,52 @@ const Landing: React.FC = () => {
         </div>
       </nav>
 
-      {/* HERO */}
-      <section className="tech-bg pt-12 md:pt-20 pb-14 md:pb-24">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 md:gap-14 items-center fade-in">
-          {/* Columna Izquierda */}
-          <div className="flex flex-col gap-6 items-center text-center md:items-start md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold">
-              <div className="signal-dot"></div>
-              {t('landing.hero.badge')}
-              <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
-            </div>
-
-            <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight">
-              {t('landing.hero.title')}<br /><span className="text-primary">{t('landing.hero.subtitle')}</span>
-            </h1>
-
-            <p className="text-slate-500 text-lg leading-relaxed font-medium max-w-[52ch]">
-              {t('landing.hero.desc')}
-            </p>
-
-            {/* Botones Mobile */}
-            <div className="flex flex-col sm:flex-row gap-3 md:hidden w-full">
-              <button
-                onClick={() => {
-                  const el = document.getElementById('precios');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-7 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
-              >
-                {t('common.try_free')}
-                <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
-              </button>
-              <button onClick={() => setVideoOpen(true)} className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-7 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all">
-                <span className="material-symbols-rounded text-[20px]">play_circle</span>
-                {t('common.see_how')}
-              </button>
-            </div>
-
-            {/* Trust badges — solo desktop (en móvil se muestran debajo de la tarjeta GRATIS) */}
-            <div className="hidden md:flex items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center md:justify-start">
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
-            </div>
+      {/* HERO CENTRADO */}
+      <section className="tech-bg pt-16 md:pt-24 pb-16 md:pb-28">
+        <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center fade-in">
+          {/* Badge superior */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
+            <div className="signal-dot"></div>
+            Infraestructura Global para Agentes Autónomos
+            <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
-          {/* Columna Derecha */}
-          <div className="w-full md:w-[360px] flex flex-col gap-0">
-            {/* Feature card */}
-            <div className="relative bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 w-full text-left border border-gray-100 overflow-hidden">
-              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded-bl-2xl shadow-sm tracking-wide">
-                {t('landing.hero.trial_badge')}
-              </div>
+          {/* Título Principal */}
+          <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
+            Que tu bot no use tu número personal. <br />
+            <span className="text-primary">Dale una identidad propia.</span>
+          </h1>
 
-              <div className="mb-6 pt-1">
-                <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{t('landing.pricing.tag')}</p>
-                <div className="flex items-baseline gap-2 flex-wrap mb-1">
-                  <h2 className="text-4xl font-extrabold text-emerald-500 tracking-tight">{t('landing.hero.trial_title')}</h2>
-                  <span className="text-xl font-bold text-[#1B3A6B]">{t('landing.hero.trial_sub')}</span>
-                </div>
-                <p className="text-sm font-medium text-gray-400">{t('landing.hero.trial_footer')}</p>
-              </div>
+          {/* Subtítulo / Descripción */}
+          <p className="text-slate-500 text-lg md:text-xl leading-relaxed font-medium max-w-[70ch] mb-10">
+            En un mundo globalizado, tu código no debe depender de un celular físico.
+            Accede a nuestra <strong>Bóveda de SIMs reales</strong> y escala tus agentes de IA
+            y automatizaciones sin límites.
+          </p>
 
-              <div className="space-y-4">
-                {[
-                  { label: t('landing.hero.feature1'), sub: t('landing.hero.feature1_sub') },
-                  { label: t('landing.hero.feature2') },
-                  { label: t('landing.hero.feature3') },
-                  { label: t('landing.hero.feature4') },
-                  { label: t('landing.hero.feature5') }
-                ].map((f, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center mt-0.5">
-                      <span className="material-symbols-rounded text-white text-[13px]">check</span>
-                    </div>
-                    <span className="text-sm font-semibold text-slate-600">
-                      {f.label} {f.sub && <span className="text-slate-400">{f.sub}</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Botones de Acción */}
+          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center mb-12">
+            <button
+              onClick={() => navigate('/login')}
+              className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-10 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
+            >
+              Empezar gratis
+              <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
+            </button>
+            <button
+              onClick={() => window.location.href = 'mailto:info@telsim.io'}
+              className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-10 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all shadow-sm"
+            >
+              <span className="material-symbols-rounded text-[20px]">calendar_today</span>
+              Agenda una demo
+            </button>
+          </div>
 
-            {/* Trust badges — solo móvil, debajo de la tarjeta GRATIS */}
-            <div className="flex md:hidden items-center gap-5 text-xs font-semibold text-slate-400 flex-wrap justify-center mt-4">
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.autonomy')}</span>
-              <span className="flex items-center gap-1"><span className="material-symbols-rounded text-emerald-brand text-[14px]">check_circle</span>{t('landing.hero.activation')}</span>
-            </div>
-
-            {/* Botones Desktop */}
-            <div className="hidden md:flex gap-2.5 mt-5">
-              <button
-                onClick={() => {
-                  const el = document.getElementById('precios');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="bg-primary hover:bg-primary-dark text-white font-bold py-3.5 px-5 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98] whitespace-nowrap"
-              >
-                {t('common.try_free')}
-                <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
-              </button>
-              <button onClick={() => setVideoOpen(true)} className="bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all whitespace-nowrap">
-                <span className="material-symbols-rounded text-[20px]">play_circle</span>
-                {t('common.see_how')}
-              </button>
-            </div>
+          {/* Trust badges centrados */}
+          <div className="flex items-center justify-center gap-6 text-xs font-semibold text-slate-400 flex-wrap">
+            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>SIMs Físicas Reales</span>
+            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Sin Contratos</span>
+            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Activación Instantánea</span>
           </div>
         </div>
       </section>
@@ -774,7 +704,7 @@ const Landing: React.FC = () => {
             </div>
             {/* Fade right edge hint */}
             <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
-            <ScrollDots total={8} current={casosPage} scrollRef={casosUsoRef} />
+            <ScrollDots total={casosUso.length} current={casosPage} scrollRef={casosUsoRef} />
           </div>
 
           {/* Desktop: grid 2 columnas */}
