@@ -90,22 +90,26 @@ export default async function handler(req: any, res: any) {
       }));
       const newSubId = session.subscription as string;
 
-      // Cancelar sub vieja en Stripe (sin metadata; customer.subscription.deleted detecta upgrade por sub activa en mismo slot)
-      if (meta.old_subscription_id) {
-        try {
-          await stripe.subscriptions.cancel(meta.old_subscription_id as string);
-          console.log('[WEBHOOK] Cancelled old subscription', meta.old_subscription_id);
-        } catch (e: any) {
-          console.warn('[WEBHOOK] Could not cancel old sub:', e?.message);
-        }
-      }
+      // Cancelar TODAS las subs active/trialing del slot, excepto la nueva
+      const { data: oldSubs } = await supabaseAdmin
+        .from('subscriptions')
+        .select('stripe_subscription_id')
+        .eq('slot_id', meta.slot_id)
+        .in('status', ['active', 'trialing'])
+        .neq('stripe_subscription_id', newSubId);
 
-      // Marcar sub vieja como cancelada en Supabase
-      if (meta.old_subscription_id) {
+      for (const oldSub of oldSubs ?? []) {
+        if (!oldSub.stripe_subscription_id) continue;
+        try {
+          await stripe.subscriptions.cancel(oldSub.stripe_subscription_id);
+          console.log('[UPGRADE] Cancelled old sub:', oldSub.stripe_subscription_id);
+        } catch (e: any) {
+          console.log('[UPGRADE] Sub ya cancelada en Stripe:', oldSub.stripe_subscription_id);
+        }
         await supabaseAdmin
           .from('subscriptions')
           .update({ status: 'canceled' })
-          .eq('stripe_subscription_id', meta.old_subscription_id as string);
+          .eq('stripe_subscription_id', oldSub.stripe_subscription_id);
       }
 
       const PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
