@@ -19,7 +19,7 @@ async function triggerEmail(
 ): Promise<void> {
   console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
   try {
-    let email = data?.email as string | undefined;
+    let email = (data?.to_email as string) ?? (data?.email as string) ?? undefined;
     if (!email) {
       const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
       email = userData?.email;
@@ -43,7 +43,7 @@ async function triggerEmail(
       body: JSON.stringify({
         event,
         user_id: userId,
-        to_email: (data?.email as string) ?? email,
+        to_email: email,
         data,
       }),
     });
@@ -722,6 +722,8 @@ export default async function handler(req: any, res: any) {
         .limit(1)
         .maybeSingle();
 
+      console.log('[CANCEL] Sub deleted recibida:', subId, 'slot:', sub?.slot_id, 'activeSub:', activeSub?.id);
+
       if (activeSub) {
         console.log('[WEBHOOK] Sub deleted es parte de un upgrade, omitiendo notificación de cancelación');
         return res.status(200).json({ received: true });
@@ -783,6 +785,7 @@ export default async function handler(req: any, res: any) {
           end_date: endDate,
           slot_id: slotId,
           email: userData.email,
+          to_email: userData.email,
         });
         console.log('[CANCEL] Email enviado a:', userData.email);
       }
