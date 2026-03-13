@@ -40,8 +40,15 @@ async function triggerEmail(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ event, user_id: userId, to_email: email, data }),
+      body: JSON.stringify({
+        event,
+        user_id: userId,
+        to_email: (data?.email as string) ?? email,
+        data,
+      }),
     });
+    const result = await res.json().catch(() => ({}));
+    console.log('[triggerEmail] resultado:', result);
     if (!res.ok) console.error('[triggerEmail]', await res.text());
   } catch (err) {
     console.error('[triggerEmail] Failed:', err);
@@ -746,11 +753,67 @@ export default async function handler(req: any, res: any) {
         'error'
       );
 
-      const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
-      await triggerEmail('subscription_cancelled', sub.user_id, {
-        plan: sub.plan_name ?? '',
-        end_date: endDate,
+      // ── NOTIFICACIONES CANCELACIÓN REAL ─────────────────────────
+      const userId = sub.user_id;
+      const slotId = sub.slot_id;
+
+      const { data: slotData } = await supabaseAdmin
+        .from('slots')
+        .select('phone_number, plan_type')
+        .eq('slot_id', slotId)
+        .maybeSingle();
+
+      const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const now = new Date().toLocaleDateString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
       });
+
+      const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
+
+      if (userData?.email && userId) {
+        await triggerEmail('subscription_cancelled', userId, {
+          plan: sub.plan_name ?? '',
+          plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
+          end_date: endDate,
+          slot_id: slotId,
+          email: userData.email,
+        });
+        console.log('[CANCEL] Email enviado a:', userData.email);
+      }
+
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('telegram_token, telegram_chat_id, notification_preferences')
+          .eq('id', userId)
+          .maybeSingle();
+        const tgToken = userRow?.telegram_token;
+        const tgChatId = userRow?.telegram_chat_id;
+        const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean } } | null | undefined;
+        const sendTg = prefs?.sim_expired?.telegram === true;
+        if (tgToken && tgChatId && sendTg) {
+          const telegramMessage = `❌ *CANCELACIÓN*
+📱 Número: +${slotData?.phone_number || slotId}
+📦 Plan: ${slotData?.plan_type ?? sub.plan_name ?? ''}
+📅 Cancelación: ${now}
+🔴 Estado: Cancelado`;
+          await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'Markdown' }),
+          });
+        }
+      } catch (tgErr: any) {
+        console.warn('[WEBHOOK] Telegram cancelación skipped:', tgErr?.message);
+      }
+      console.log('[CANCEL] Telegram enviado OK');
+      // ────────────────────────────────────────────────────────────
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
     }
