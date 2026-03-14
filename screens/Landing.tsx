@@ -522,7 +522,7 @@ const Landing: React.FC = () => {
 
           {/* Subtítulo / Descripción */}
           <p className="text-slate-500 text-lg md:text-xl leading-relaxed font-medium max-w-[70ch] mb-10">
-            Elimina el cuello de botella del OTP. Deja que tus bots reciban, procesen y validen SMS en tiempo real sin que tú muevas un dedo.
+            Elimina el cuello de botella del OTP. Deja que tus bots reciban, procesen y validen SMS en tiempo real sin intervención humana.
           </p>
 
           {/* Botones de Acción */}
@@ -935,7 +935,7 @@ const Landing: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20 items-start">
             {/* Columna Izquierda: Formulario de contacto */}
             <div className="order-2 md:order-1 flex flex-col w-full">
-              <h2 className="text-4xl font-black text-white leading-tight tracking-tight mb-3">CONTACTANOS</h2>
+              <h2 className="text-4xl font-black text-white leading-tight tracking-tight mb-3">Contáctanos</h2>
               <p className="text-slate-400 text-sm mb-8">
                 Escala tu infraestructura de agentes autónomos con soporte técnico especializado.
               </p>
