@@ -345,6 +345,7 @@ const WebDashboard: React.FC = () => {
   // ─── API Logs (automation_logs) state ───────────────────────────────────────
   const [apiLogs, setApiLogs] = useState<AutomationLogRow[]>([]);
   const [apiLogsLoading, setApiLogsLoading] = useState(false);
+  const [automationLogsOverview, setAutomationLogsOverview] = useState<AutomationLogRow[]>([]);
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
   const [apiLogsRetryingId, setApiLogsRetryingId] = useState<string | null>(null);
 
@@ -432,6 +433,14 @@ const WebDashboard: React.FC = () => {
 
       const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
       if (msgs) setMessages(msgs as SMSLog[]);
+
+      const { data: logsData } = await supabase
+        .from('automation_logs')
+        .select('id, user_id, slot_id, status, payload, response_body, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (logsData) setAutomationLogsOverview((logsData as AutomationLogRow[]) || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -1033,6 +1042,36 @@ const WebDashboard: React.FC = () => {
   // slots ya viene filtrado con solo líneas activas/trialing (una por slot_id)
   const activeSlots = slots;
 
+  // ─── API Bridge health (from automation_logs) ─────────────────────────────────
+  const isLogSuccess = (status: string) => {
+    const s = (status || '').toLowerCase();
+    return s === 'success' || s === '200';
+  };
+  const totalLogs = automationLogsOverview.length;
+  const successCount = automationLogsOverview.filter(l => isLogSuccess(l.status)).length;
+  const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 100;
+  const now24h = Date.now() - 24 * 60 * 60 * 1000;
+  const totalTriggersToday = automationLogsOverview.filter(l => new Date(l.created_at).getTime() >= now24h).length;
+  const lastLog = automationLogsOverview[0];
+  const lastTriggerTime = lastLog?.created_at
+    ? (() => {
+        const sec = Math.floor((Date.now() - new Date(lastLog.created_at).getTime()) / 1000);
+        if (sec < 60) return `${sec} s`;
+        if (sec < 3600) return `${Math.floor(sec / 60)} min`;
+        if (sec < 86400) return `${Math.floor(sec / 3600)} h`;
+        return `${Math.floor(sec / 86400)} d`;
+      })()
+    : null;
+  const lastAttemptFailed = lastLog ? !isLogSuccess(lastLog.status) : false;
+  const bridgeState: 'Operacional' | 'Inestable' | 'Revisar Puente' =
+    lastAttemptFailed || automationSuccessRate < 80
+      ? 'Revisar Puente'
+      : automationSuccessRate >= 95
+        ? 'Operacional'
+        : 'Inestable';
+  const bridgeColor = bridgeState === 'Operacional' ? '#10b981' : bridgeState === 'Inestable' ? '#f59e0b' : '#f43f5e';
+  const bridgeSub = lastTriggerTime ? `último trigger: hace ${lastTriggerTime}` : 'Sin triggers aún';
+
   const activityData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
     return messages.filter(m => new Date(m.received_at).toDateString() === d.toDateString()).length;
@@ -1073,12 +1112,11 @@ const WebDashboard: React.FC = () => {
           </span>
         </div>
 
-        {/* Plan badge */}
+        {/* Infraestructura IA */}
         <div className="px-3 pb-4">
-          <div className={`px-3 py-2 rounded-xl flex items-center gap-2 ${isDark ? 'bg-primary/10' : 'bg-blue-50'}`}>
-            <Zap size={13} className="text-primary" />
-            <span className="text-[11px] font-black text-primary uppercase tracking-wider">{planName}</span>
-            <span className="ml-auto text-[10px] font-semibold text-slate-400">{planCredits} créditos</span>
+          <div className={`px-3 py-2.5 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Infraestructura IA</p>
+            <p className="text-[13px] font-black text-slate-900 dark:text-white mt-0.5">{activeSlots.length} {activeSlots.length === 1 ? 'Línea operativa' : 'Líneas operativas'}</p>
           </div>
         </div>
 
@@ -1166,7 +1204,7 @@ const WebDashboard: React.FC = () => {
 
               {/* KPIs */}
               <div className="grid grid-cols-4 gap-4">
-                <KpiCard icon={<Zap size={18} />} label="Créditos disponibles" value={planCredits} sub={`Plan ${planName}`} color="#1152d4" />
+                <KpiCard icon={<Activity size={18} />} label="Estado del Puente API" value={bridgeState} sub={bridgeSub} color={bridgeColor} />
                 <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
                 <KpiCard icon={<Smartphone size={18} />} label="SIMs activas" value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
                 <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}%` : '—'} sub="Verificaciones OK" trend={3} color="#8b5cf6" />
