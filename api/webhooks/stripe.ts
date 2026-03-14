@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { logEvent } from '../../lib/logger';
+import { logEvent } from '../_helpers/logger';
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
 export const config = { api: { bodyParser: false } };
@@ -790,8 +790,26 @@ export default async function handler(req: any, res: any) {
 
   return res.status(200).json({ received: true });
   } catch (err: any) {
-    console.error('[WEBHOOK UNCAUGHT]', err?.message, err?.stack);
-    await logEvent('WEBHOOK_ERROR', 'critical', err?.message, undefined, { stack: err?.stack }, 'stripe');
-    return res.status(500).json({ received: false, error: err?.message });
+    const errMsg = err?.message ?? String(err);
+    const errStack = err?.stack ?? '';
+    console.error('[WEBHOOK UNCAUGHT]', errMsg, errStack);
+    try {
+      await logEvent('WEBHOOK_ERROR', 'critical', errMsg, undefined, { stack: errStack }, 'stripe');
+    } catch (logErr) {
+      try {
+        await supabaseAdmin.from('audit_logs').insert({
+          event_type: 'WEBHOOK_ERROR',
+          severity: 'critical',
+          message: errMsg,
+          user_email: null,
+          payload: { stack: errStack, source: 'stripe', fallback: true },
+          source: 'stripe',
+          created_at: new Date().toISOString(),
+        });
+      } catch (_) {
+        console.error('[WEBHOOK] No se pudo escribir en audit_logs:', (logErr as Error)?.message);
+      }
+    }
+    return res.status(500).json({ received: false, error: errMsg });
   }
 }
