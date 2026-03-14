@@ -458,13 +458,10 @@ const Landing: React.FC = () => {
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button
-              onClick={() => {
-                const el = document.getElementById('casos-de-uso');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
+              onClick={() => document.getElementById('usos')?.scrollIntoView({ behavior: 'smooth' })}
               className="hover:text-primary transition-colors"
             >
-              {t('landing.nav.benefits')}
+              Usos
             </button>
             <button
               onClick={() => {
@@ -484,7 +481,12 @@ const Landing: React.FC = () => {
             >
               Planes
             </button>
-            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
+            <button
+              onClick={() => document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-primary transition-colors"
+            >
+              Contacto
+            </button>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Language Switcher */}
@@ -693,7 +695,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CASOS DE USO — en el lugar de Beneficios, con animación staggered */}
-      <section id="casos-de-uso" className="bg-white py-16 md:py-28">
+      <section id="usos" className="bg-white py-16 md:py-28">
         <div className="max-w-5xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
