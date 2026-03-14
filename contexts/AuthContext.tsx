@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const failSafeTimer = setTimeout(() => {
       if (!cancelled) setLoading(false);
-    }, 3000);
+    }, 3500);
 
     const subscribeAuth = () => {
       subscriptionRef.current?.unsubscribe?.();
@@ -188,24 +188,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     subscribeAuth();
 
-    const onVisibilityChange = async () => {
-      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
       if (cancelled) return;
       try {
         const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
-        setSession(sess);
-        if (sess?.user) {
-          let profileData: ProfileData = null;
-          try {
-            profileData = await getProfileRef.current(sess.user.id);
-          } catch {
-            profileData = null;
+        if (sess) {
+          setSession(sess);
+          if (sess.user) {
+            const profile = await getProfileRef.current(sess.user.id);
+            if (profile) {
+              setUser(enrichUser(sess.user, profile));
+              setVersionRef.current((v: number) => v + 1);
+            } else {
+              setUser(enrichUser(sess.user, null));
+              setVersionRef.current((v: number) => v + 1);
+            }
           }
-          setUser(enrichUser(sess.user, profileData));
-          setVersionRef.current((v: number) => v + 1);
-        } else {
-          setUser(null);
         }
         subscriptionRef.current?.unsubscribe?.();
         subscribeAuth();
@@ -215,20 +215,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscribeAuth();
       }
     };
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     let swChannel: BroadcastChannel | null = null;
     try {
       swChannel = new BroadcastChannel('sw-messages');
       swChannel.onmessage = (e) => {
-        if (e.data?.type === 'AUTH_REFRESH' && !cancelled) onVisibilityChange();
+        if (e.data?.type === 'AUTH_REFRESH' && !cancelled) handleVisibilityChange();
       };
     } catch (_) {}
 
     return () => {
       cancelled = true;
       clearTimeout(failSafeTimer);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       try { swChannel?.close(); } catch (_) {}
       subscriptionRef.current?.unsubscribe?.();
     };
