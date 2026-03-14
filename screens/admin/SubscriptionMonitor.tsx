@@ -168,7 +168,7 @@ const SubscriptionMonitor: React.FC = () => {
                     {s.billing_type === 'annual' ? 'Anual' : s.billing_type === 'monthly' ? 'Mensual' : s.billing_type ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">
-                    {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
+                    {s.amount != null ? `$${(Number(s.amount) / 100).toFixed(2)}` : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                     {s.next_payment || '—'}

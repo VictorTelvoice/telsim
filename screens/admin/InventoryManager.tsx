@@ -214,7 +214,7 @@ const InventoryManager: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
             <input
               type="search"
-              placeholder="Buscar por slot_id, phone_number o UUID de usuario..."
+              placeholder="Slot ID (ej: 43A), Número (ej: 56953687365) o ID de usuario..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm shadow-sm"
@@ -230,33 +230,33 @@ const InventoryManager: React.FC = () => {
             Todos ({slots.length})
           </button>
           <button
+            onClick={() => setCeoFilter('free')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+              ceoFilter === 'free' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
+            }`}
+            title="assigned_to es NULL"
+          >
+            <CheckCircle2 size={14} />
+            Libres ({freeCount})
+          </button>
+          <button
             onClick={() => setCeoFilter('occupied')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
               ceoFilter === 'occupied' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
             }`}
-            title="Slots donde assigned_to NO es NULL"
+            title="assigned_to NO es NULL"
           >
-            SIMs Ocupadas ({occupiedCount})
+            Ocupados ({occupiedCount})
           </button>
           <button
             onClick={() => setCeoFilter('error')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
               ceoFilter === 'error' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600'
             }`}
-            title="Slots donde status === 'error'"
+            title="status === 'error'"
           >
             <AlertCircle size={14} />
-            SIMs con Error ({errorCount})
-          </button>
-          <button
-            onClick={() => setCeoFilter('free')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
-              ceoFilter === 'free' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
-            }`}
-            title="Slots donde assigned_to es NULL"
-          >
-            <CheckCircle2 size={14} />
-            SIMs Libres ({freeCount})
+            Error ({errorCount})
           </button>
         </div>
       </div>

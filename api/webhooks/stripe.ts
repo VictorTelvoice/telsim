@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+// Ruta relativa dentro de api/ para que el bundle de Vercel incluya el módulo (no usar ../../lib/logger)
 import { logEvent } from '../_helpers/logger';
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
@@ -178,7 +179,13 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
-    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = sessionMeta;
+    // Metadata del checkout.session: slot_id (ej: '43A'), userId, planName (aceptar camelCase y snake_case)
+    const slotId = (sessionMeta.slot_id ?? sessionMeta.slotId ?? '') as string;
+    const userId = (sessionMeta.userId ?? sessionMeta.user_id ?? '') as string;
+    const planName = (sessionMeta.planName ?? sessionMeta.plan_name ?? '') as string;
+    const limit = sessionMeta.limit;
+    const transactionType = sessionMeta.transactionType;
+    const isAnnual = sessionMeta.isAnnual;
     const phoneFromMeta = (sessionMeta.phoneNumber ?? sessionMeta.phone_number ?? '') as string;
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
@@ -337,6 +344,7 @@ export default async function handler(req: any, res: any) {
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
       }
 
+      // checkout.session.completed: actualizar slot (ej. 43A) con assigned_to = userId y status = 'ocupado'
       await supabaseAdmin.from('slots').update({
         status: 'ocupado',
         assigned_to: userId,
