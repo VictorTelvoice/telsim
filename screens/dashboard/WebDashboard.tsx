@@ -348,7 +348,8 @@ const WebDashboard: React.FC = () => {
   const [retryingAll, setRetryingAll] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [messagePulse, setMessagePulse] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
+  const audioRef = useRef<HTMLAudioElement>(new Audio(PING_URL));
   const isMutedRef = useRef(false);
   isMutedRef.current = isMuted;
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
@@ -402,6 +403,8 @@ const WebDashboard: React.FC = () => {
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
   const PLAN_CREDITS: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
   const planCredits = PLAN_CREDITS[savedPlanId] ?? 150;
+  const totalLimit = slots?.reduce((acc, s) => acc + (s.activeSub?.monthly_limit || 0), 0) || 0;
+  const totalUsed = slots?.reduce((acc, s) => acc + (s.activeSub?.credits_used || 0), 0) || 0;
 
   // ─── Data fetching ────────────────────────────────────────────────────────────
 
@@ -676,17 +679,11 @@ const WebDashboard: React.FC = () => {
     })();
   }, [settingsSection, user?.id]);
 
-  const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
-  useEffect(() => {
-    audioRef.current = new Audio(PING_URL);
-    return () => { audioRef.current = null; };
-  }, []);
-
   const playPing = useCallback(() => {
     if (isMutedRef.current) return;
     try {
-      audioRef.current?.play();
-    } catch {
+      if (audioRef.current) audioRef.current.play();
+    } catch (e) {
       // Autoplay bloqueado o error de reproducción
     }
   }, []);
@@ -831,7 +828,8 @@ const WebDashboard: React.FC = () => {
 
   const handleRetryAllFailed = async () => {
     if (!user?.id || retryingAll) return;
-    const toRetry = automationLogsOverview.filter(l => {
+    const overview = Array.isArray(automationLogsOverview) ? automationLogsOverview : [];
+    const toRetry = overview.filter(l => {
       const s = (l.status || '').toLowerCase();
       return s !== 'success' && s !== '200';
     });
@@ -846,7 +844,7 @@ const WebDashboard: React.FC = () => {
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && (data.status === 'success' || data.status === '200')) {
-          setAutomationLogsOverview(prev => prev.map(l => l.id === log.id ? { ...l, status: String(data.status ?? '') } : l));
+          setAutomationLogsOverview(prev => (Array.isArray(prev) ? prev : []).map(l => l.id === log.id ? { ...l, status: String(data.status ?? '') } : l));
         }
       }
       await fetchData();
@@ -1104,18 +1102,19 @@ const WebDashboard: React.FC = () => {
   const activeSlots = slots;
 
   // ─── API Bridge health (from automation_logs) ─────────────────────────────────
+  const logs = Array.isArray(automationLogsOverview) ? automationLogsOverview : [];
   const isLogSuccess = (status: string) => {
     const s = (status || '').toLowerCase();
     return s === 'success' || s === '200';
   };
-  const totalLogs = automationLogsOverview.length;
-  const successCount = automationLogsOverview.filter(l => isLogSuccess(l.status)).length;
+  const successCount = logs.filter((l: AutomationLogRow) => isLogSuccess(l?.status)).length;
+  const totalLogs = logs.length;
   const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 0;
-  const failedLogs = automationLogsOverview.filter(l => !isLogSuccess(l.status));
+  const failedLogs = logs.filter((l: AutomationLogRow) => !isLogSuccess(l?.status));
   const failedLogsCount = failedLogs.length;
   const now24h = Date.now() - 24 * 60 * 60 * 1000;
-  const totalTriggersToday = automationLogsOverview.filter(l => l.created_at && new Date(l.created_at).getTime() >= now24h).length;
-  const lastLog = automationLogsOverview[0];
+  const totalTriggersToday = logs.filter((l: AutomationLogRow) => l?.created_at && new Date(l.created_at).getTime() >= now24h).length;
+  const lastLog = logs[0];
   const lastTriggerTime = lastLog?.created_at
     ? (() => {
         const sec = Math.floor((Date.now() - new Date(lastLog.created_at).getTime()) / 1000);
@@ -1161,6 +1160,7 @@ const WebDashboard: React.FC = () => {
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────────
+  if (!user) return null;
 
   return (
     <div className={`flex h-screen font-display overflow-hidden ${isDark ? 'bg-slate-950 text-white' : 'bg-[#F0F4F8] text-slate-900'}`}>
