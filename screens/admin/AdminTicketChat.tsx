@@ -76,13 +76,13 @@ const AdminTicketChat: React.FC<AdminTicketChatProps> = ({ backTo = '/admin/tick
 
       // Notificar por Telegram al cliente si tiene bot configurado
       if (session?.access_token) {
-        fetch('/api/support/notify-ticket-reply', {
+        fetch('/api/admin', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ ticket_id: ticketId }),
+          body: JSON.stringify({ action: 'notify-ticket-reply', ticket_id: ticketId }),
         }).catch(() => {});
       }
     } finally {

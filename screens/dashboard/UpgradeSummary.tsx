@@ -36,10 +36,11 @@ export default function UpgradeSummary() {
   const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
     try {
-      const response = await fetch('/api/upgrade-subscription', {
+      const response = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'upgrade',
           userId: user.id,
           slotId: slot_id,
           newPriceId: stripePriceId,

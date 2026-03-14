@@ -11,8 +11,8 @@ I've enhanced the webhook system to diagnose and fix the data-saving issues:
 - Improved slot lookup error handling (now uses `.maybeSingle()` instead of `.single()`)
 
 ### 2. **Created Diagnostic Endpoints** ✅
-- **`GET /api/diagnostics/subscriptions`** - View the last 20 subscriptions in your database
-- **`POST /api/diagnostics/webhook-test`** - Simulate webhook processing to test if the system works
+- **`GET /api/diagnostics`** - View the last 20 subscriptions in your database
+- **`POST /api/diagnostics`** - Simulate webhook processing to test if the system works
 
 ### 3. **Updated Files**
 - `api/webhooks/stripe.ts` - Enhanced logging and error handling
@@ -34,7 +34,7 @@ Go to Vercel and verify deployment is complete. The code should now be live.
 ### Step 2: Test if data was already saved
 Visit this URL in your browser:
 ```
-https://telsim.io/api/diagnostics/subscriptions
+https://telsim.io/api/diagnostics
 ```
 
 **Look for:**
@@ -49,7 +49,7 @@ Test the webhook system with the diagnostic endpoint:
 
 Open Postman or use this cURL command:
 ```bash
-curl -X POST https://telsim.io/api/diagnostics/webhook-test \
+curl -X POST https://telsim.io/api/diagnostics \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "your-actual-user-id",
@@ -108,7 +108,7 @@ The error message will tell you exactly what's wrong. For example:
 ### Step 5: Verify the Full Flow
 Once you confirm the diagnostics work:
 1. Make a **new test purchase** with annual billing
-2. After successful payment, visit `/api/diagnostics/subscriptions`
+2. After successful payment, visit `GET /api/diagnostics`
 3. Your new subscription should appear with:
    - `"billing_type": "annual"`
    - `"amount": 990` (for Power)
@@ -118,7 +118,7 @@ Once you confirm the diagnostics work:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `/api/diagnostics/subscriptions` returns 404 | Code not deployed to Vercel | Run `git push origin main` and wait for deployment |
+| `GET /api/diagnostics` returns 404 | Code not deployed to Vercel | Run `git push origin main` and wait for deployment |
 | Webhook test returns "Slot not found" | Invalid slotId | Check existing slots in your database |
 | Webhook test returns database error | Permissions or schema issue | Check Supabase credentials and subscriptions table exists |
 | Subscription shows wrong amount | isAnnual flag not passed | Verify Payment.tsx passes `isAnnual: isAnnual` |
@@ -152,9 +152,9 @@ The enhanced logging will show us exactly where it's failing.
 ## Quick Summary
 
 1. ✅ Deploy: `git push origin main`
-2. ✅ Test: Visit `https://telsim.io/api/diagnostics/subscriptions`
+2. ✅ Test: Visit `https://telsim.io/api/diagnostics`
 3. ✅ Check: If your Power $990 subscription is there, webhook works!
-4. ✅ If not: POST to `/api/diagnostics/webhook-test` to identify the issue
+4. ✅ If not: POST to `/api/diagnostics` to identify the issue
 5. ✅ Log: Check Vercel logs for `[WEBHOOK]` messages to see what's happening
 
 The diagnostic tools will show us exactly where the problem is so we can fix it permanently.

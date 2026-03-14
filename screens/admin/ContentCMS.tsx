@@ -21,10 +21,10 @@ const ContentCMS: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const fetchSettings = useCallback(async () => {
-    const { data } = await supabase.from('admin_settings').select('key, value');
+    const { data } = await supabase.from('admin_settings').select('id, content');
     const map: Record<string, string> = {};
-    (data || []).forEach((r: { key: string; value: string | null }) => {
-      map[r.key] = r.value ?? '';
+    (data || []).forEach((r: { id: string; content: string | null }) => {
+      map[r.id] = r.content ?? '';
     });
     setSettings(map);
   }, []);
@@ -38,10 +38,10 @@ const ContentCMS: React.FC = () => {
     setSaving(true);
     try {
       for (const { key } of COMPRA_EXITOSA_KEYS) {
-        const value = settings[key] ?? '';
+        const content = settings[key] ?? '';
         await supabase.from('admin_settings').upsert(
-          { key, value, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
+          { id: key, content, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
         );
       }
     } finally {

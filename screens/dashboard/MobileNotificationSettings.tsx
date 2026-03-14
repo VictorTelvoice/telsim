@@ -81,10 +81,10 @@ const MobileNotificationSettings: React.FC = () => {
     if (!user) return;
     setTestNotifLoading(true);
     try {
-      const res = await fetch('/api/notifications/send-test', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ action: 'send-test', userId: user.id }),
       });
       const data = await res.json();
       if (!res.ok) {

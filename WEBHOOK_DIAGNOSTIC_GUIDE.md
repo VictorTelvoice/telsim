@@ -6,7 +6,7 @@ The Stripe webhook for `checkout.session.completed` is returning 404 errors on f
 ## New Diagnostic Endpoints
 
 ### 1. **View Recent Subscriptions**
-**Endpoint:** `GET /api/diagnostics/subscriptions`
+**Endpoint:** `GET /api/diagnostics`
 
 Shows the last 20 subscriptions created, including:
 - Plan name
@@ -22,7 +22,7 @@ Shows the last 20 subscriptions created, including:
 
 **Example URL:**
 ```
-https://telsim.io/api/diagnostics/subscriptions
+https://telsim.io/api/diagnostics
 ```
 
 **Expected Response:**
@@ -50,7 +50,7 @@ https://telsim.io/api/diagnostics/subscriptions
 ```
 
 ### 2. **Test Webhook Processing**
-**Endpoint:** `POST /api/diagnostics/webhook-test`
+**Endpoint:** `POST /api/diagnostics`
 
 Simulates the webhook payload processing without requiring Stripe. Useful for testing if the database insertion logic works.
 
@@ -78,7 +78,7 @@ Simulates the webhook payload processing without requiring Stripe. Useful for te
 
 **Example cURL:**
 ```bash
-curl -X POST https://telsim.io/api/diagnostics/webhook-test \
+curl -X POST https://telsim.io/api/diagnostics \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "00000000-0000-0000-0000-000000000000",
@@ -139,12 +139,12 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
 1. **Check if slot is available:**
    ```bash
    # Visit diagnostics endpoint - check the slot_id values
-   https://telsim.io/api/diagnostics/subscriptions
+   https://telsim.io/api/diagnostics
    ```
 
 2. **Test the webhook directly:**
    ```bash
-   curl -X POST https://telsim.io/api/diagnostics/webhook-test \
+   curl -X POST https://telsim.io/api/diagnostics \
      -H "Content-Type: application/json" \
      -d '{
        "userId": "your-user-id",
@@ -156,7 +156,7 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
 
 3. **Verify subscription was created:**
    ```bash
-   https://telsim.io/api/diagnostics/subscriptions
+   https://telsim.io/api/diagnostics
    ```
 
 4. **Check Vercel logs for any errors:**
@@ -172,10 +172,10 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
    ```
 
 2. **Run the diagnostics:**
-   - Visit `/api/diagnostics/subscriptions` to see if your purchase was saved
+   - Visit `GET /api/diagnostics` to see if your purchase was saved
 
 3. **Test webhook with simulation:**
-   - POST to `/api/diagnostics/webhook-test` to verify the system works
+   - POST to `/api/diagnostics` to verify the system works
 
 4. **Check Vercel logs:**
    - Look for `[WEBHOOK DEBUG]` and `[WEBHOOK INSERT SUCCESS]` messages
@@ -195,7 +195,7 @@ The data is being saved but the Dashboard isn't loading it correctly. Check:
 ## Support Info
 
 If you're still having issues after running these diagnostics:
-1. Visit `/api/diagnostics/subscriptions` and note the recent subscriptions (or lack thereof)
-2. POST a test to `/api/diagnostics/webhook-test` and note any error messages
+1. Visit `GET /api/diagnostics` and note the recent subscriptions (or lack thereof)
+2. POST a test to `/api/diagnostics` and note any error messages
 3. Check Vercel logs for `[WEBHOOK ERROR]` messages
 4. Share this information to help debug the issue

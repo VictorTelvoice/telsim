@@ -475,10 +475,10 @@ Deno.serve(async (req) => {
     let settingsOverrides: Record<string, string> = {};
     try {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-      const { data: rows } = await supabase.from('admin_settings').select('key, value');
+      const { data: rows } = await supabase.from('admin_settings').select('id, content');
       if (rows) {
-        rows.forEach((r: { key: string; value: string | null }) => {
-          if (r.key && r.value != null) settingsOverrides[r.key] = r.value;
+        rows.forEach((r: { id: string; content: string | null }) => {
+          if (r.id && r.content != null) settingsOverrides[r.id] = r.content;
         });
       }
     } catch (e) {

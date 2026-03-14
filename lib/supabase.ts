@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
+/** Cliente Supabase para el frontend (auth, RLS). Compatible con admin_settings (id, content). */
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 

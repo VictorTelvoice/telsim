@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Save, Loader2 } from 'lucide-react';
 
-export type AdminSettingRow = { key: string; value: string | null; updated_at: string | null };
+export type AdminSettingRow = { id: string; content: string | null; updated_at: string | null };
 
 const DEFAULT_KEYS: { key: string; label: string; placeholder: string }[] = [
   { key: 'email_purchase_success_title_es', label: 'Email: Título compra exitosa (ES)', placeholder: '¡Suscripción activada!' },
@@ -19,10 +19,10 @@ const AdminContent: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const fetchSettings = useCallback(async () => {
-    const { data } = await supabase.from('admin_settings').select('key, value');
+    const { data } = await supabase.from('admin_settings').select('id, content');
     const map: Record<string, string> = {};
-    (data || []).forEach((r: { key: string; value: string | null }) => {
-      map[r.key] = r.value ?? '';
+    (data || []).forEach((r: { id: string; content: string | null }) => {
+      map[r.id] = r.content ?? '';
     });
     setSettings(map);
   }, []);
@@ -36,10 +36,10 @@ const AdminContent: React.FC = () => {
     setSaving(true);
     try {
       for (const { key } of DEFAULT_KEYS) {
-        const value = settings[key] ?? '';
+        const content = settings[key] ?? '';
         await supabase.from('admin_settings').upsert(
-          { key, value, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
+          { id: key, content, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
         );
       }
     } finally {

@@ -1,7 +1,13 @@
+/**
+ * TELSIM · POST /api/checkout
+ *
+ * Una sola ruta con parámetro action (query o body): ?action=session | ?action=verify
+ * session: crea sesión Stripe Checkout (body: priceId, userId, planName, ...)
+ * verify: verifica sesión de pago (body: sessionId)
+ */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialización global robusta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
@@ -23,22 +29,53 @@ export default async function handler(req: any, res: any) {
     return res.status(405).end('Method Not Allowed');
   }
 
+  const action = (req.query?.action || req.body?.action) as string;
+  if (!action || !['session', 'verify'].includes(action)) {
+    return res.status(400).json({ error: 'Se requiere action: "session" o "verify".' });
+  }
+
   try {
-    let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body;
+    if (action === 'verify') {
+      const { sessionId } = req.body || {};
+      if (!sessionId) return res.status(400).json({ error: 'Session ID requerido' });
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status !== 'paid') {
+        return res.status(200).json({ status: 'unpaid', message: 'El pago aún no ha sido confirmado por Stripe.' });
+      }
+      const { data: subscription } = await supabaseAdmin
+        .from('subscriptions')
+        .select('phone_number, plan_name, amount, currency, monthly_limit')
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle();
+      if (subscription) {
+        return res.status(200).json({
+          status: 'completed',
+          phoneNumber: subscription.phone_number,
+          planName: subscription.plan_name,
+          amount: subscription.amount,
+          currency: subscription.currency,
+          monthlyLimit: subscription.monthly_limit,
+        });
+      }
+      return res.status(200).json({
+        status: 'pending_db',
+        message: 'Pago confirmado. La infraestructura está asignando tu número.',
+      });
+    }
+
+    // action === 'session'
+    let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body || {};
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
     }
 
-    // Normalizar isAnnual: puede llegar como boolean, string 'true'/'false', o undefined
     if (typeof isAnnual === 'string') {
       isAnnual = isAnnual === 'true';
     } else if (typeof isAnnual !== 'boolean') {
-      // Solo inferir de Stripe si realmente no vino ningún valor
       try {
         const priceObj = await stripe.prices.retrieve(priceId);
         const interval = (priceObj as any).recurring?.interval;
-        // Determinar por el priceId directamente contra las constantes conocidas
         const ANNUAL_PRICE_IDS = [
           'price_1T52jPEADSrtMyiayfSm4e8m',
           'price_1T52kUEADSrtMyiavL3rwWqH',
@@ -50,7 +87,6 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 1. RECUPERACIÓN DE PERSISTENCIA DESDE TABLA 'profiles'
     const { data: profileData } = await supabaseAdmin
       .from('profiles')
       .select('stripe_customer_id')
@@ -59,15 +95,12 @@ export default async function handler(req: any, res: any) {
 
     const customerId = profileData?.stripe_customer_id;
 
-    // --- FLUJO DE PAGO INSTANTÁNEO INTERNO (REINTENTO ONE-CLICK) ---
-    // Mantenemos esta lógica por si el usuario ya tiene un método predeterminado en Stripe
     if (customerId && !forceManual) {
       try {
         const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
         const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
 
         if (defaultPaymentMethod) {
-          // ESCENARIO A: UPGRADE (upgrade instantáneo vía Stripe; Supabase se actualiza por webhook)
           if (isUpgrade && slot_id) {
             let activeSub: Record<string, unknown> | null = null;
 
@@ -96,14 +129,6 @@ export default async function handler(req: any, res: any) {
               activeSub = byPhone as Record<string, unknown> | null;
             }
 
-            console.log('[UPGRADE] activeSub encontrado:', JSON.stringify({
-              id: activeSub?.id,
-              slot_id: activeSub?.slot_id,
-              status: activeSub?.status,
-              stripe_subscription_id: activeSub?.stripe_subscription_id,
-              stripe_session_id: activeSub?.stripe_session_id,
-            }));
-
             if (activeSub && (activeSub.stripe_subscription_id || activeSub.stripe_session_id)) {
               let stripeSubId = activeSub.stripe_subscription_id as string | undefined;
 
@@ -117,27 +142,25 @@ export default async function handler(req: any, res: any) {
                 }
               }
 
-              if (!stripeSubId) throw new Error('No se encontró la suscripción de Stripe para este slot.');
-
-              const subscription = await stripe.subscriptions.retrieve(stripeSubId);
-              await stripe.subscriptions.update(stripeSubId, {
-                items: [{ id: subscription.items.data[0].id, price: priceId }],
-                proration_behavior: 'always_invoice',
-                metadata: {
-                  userId,
-                  slot_id: activeSub.slot_id as string,
-                  planName,
-                  monthlyLimit: String(monthlyLimit),
-                  isAnnual: isAnnual ? 'true' : 'false',
-                  transactionType: 'UPGRADE',
-                },
-              });
-
-              return res.status(200).json({ instant: true, subscriptionId: activeSub.id });
+              if (stripeSubId) {
+                const subscription = await stripe.subscriptions.retrieve(stripeSubId);
+                await stripe.subscriptions.update(stripeSubId, {
+                  items: [{ id: subscription.items.data[0].id, price: priceId }],
+                  proration_behavior: 'always_invoice',
+                  metadata: {
+                    userId,
+                    slot_id: activeSub.slot_id as string,
+                    planName,
+                    monthlyLimit: String(monthlyLimit),
+                    isAnnual: isAnnual ? 'true' : 'false',
+                    transactionType: 'UPGRADE',
+                  },
+                });
+                return res.status(200).json({ instant: true, subscriptionId: activeSub.id });
+              }
             }
           }
 
-          // ESCENARIO B: COMPRA NUEVA (Asignación de hardware)
           if (!isUpgrade) {
             const { data: freeSlot } = await supabaseAdmin
               .from('slots')
@@ -147,40 +170,38 @@ export default async function handler(req: any, res: any) {
               .limit(1)
               .maybeSingle();
 
-            if (!freeSlot) throw new Error("Sin disponibilidad física.");
-            
-            await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
+            if (freeSlot) {
+              await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
 
-            const priceData = await stripe.prices.retrieve(priceId);
+              const priceData = await stripe.prices.retrieve(priceId);
+              const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
+              const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
 
-            // Plan catalogue for correct annual pricing
-            const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
-            const correctAmount = isAnnual ? planPrices.annual : planPrices.monthly;
+              const stripeSub = await stripe.subscriptions.create({
+                customer: customerId,
+                items: [{ price: priceId }],
+                default_payment_method: defaultPaymentMethod as string,
+                trial_period_days: 7,
+                metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
+              });
 
-            const stripeSub = await stripe.subscriptions.create({
-              customer: customerId,
-              items: [{ price: priceId }],
-              default_payment_method: defaultPaymentMethod as string,
-              trial_period_days: 7,
-              metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
-            });
+              const { data: newSub } = await supabaseAdmin
+                .from('subscriptions')
+                .insert({
+                  user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
+                  plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
+                  status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
+                  stripe_session_id: stripeSub.id,
+                  amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
+                  billing_type: isAnnual ? 'annual' : 'monthly',
+                  currency: priceData.currency || 'usd',
+                  created_at: new Date().toISOString()
+                })
+                .select('id')
+                .single();
 
-            const { data: newSub } = await supabaseAdmin
-              .from('subscriptions')
-              .insert({
-                user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
-                plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
-                status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
-                stripe_session_id: stripeSub.id,
-                amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
-                billing_type: isAnnual ? 'annual' : 'monthly',
-                currency: priceData.currency || 'usd',
-                created_at: new Date().toISOString()
-              })
-              .select('id')
-              .single();
-
-            return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
+              return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
+            }
           }
         }
       } catch (oneClickErr: any) {
@@ -188,10 +209,9 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // --- FLUJO ESTÁNDAR (STRIPE CHECKOUT CONFIGURADO SEGÚN INSTRUCCIONES) ---
     const host = req.headers.host;
     const origin = `${host?.includes('localhost') ? 'http' : 'https'}://${host}`;
-    
+
     let targetSlotId = slot_id;
     let targetPhoneNumber: string = typeof phoneNumber === 'string' ? phoneNumber : '';
 
@@ -205,7 +225,6 @@ export default async function handler(req: any, res: any) {
       targetPhoneNumber = (slotRow as { phone_number?: string } | null)?.phone_number ?? '';
     }
 
-    // Siempre incluir phoneNumber en metadata para que el webhook pueda referenciar la SIM en correos y Telegram
     const sessionConfig: any = {
       customer: customerId || undefined,
       payment_method_collection: 'always',
@@ -230,7 +249,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ url: session.url });
 
   } catch (err: any) {
-    console.error("[SESSION ERROR]", err.message);
-    return res.status(500).json({ error: err.message });
+    console.error('[CHECKOUT]', action, err?.message);
+    return res.status(500).json({ error: err?.message || 'Error interno.' });
   }
 }

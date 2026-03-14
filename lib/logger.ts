@@ -32,37 +32,42 @@ export type AuditSeverity = 'error' | 'warning' | 'info' | 'critical';
 /**
  * Envía alerta a Telegram en segundo plano (fire-and-forget).
  * Solo se ejecuta si severity es 'error' o 'critical' y el admin tiene telegram_token y telegram_chat_id.
+ * Usa try/catch con await para evitar problemas de tipo PromiseLike y mayor compatibilidad.
  */
-function sendTelegramAlertInBackground(
+async function sendTelegramAlertInBackground(
   eventType: string,
   severity: string,
   message: string,
   userEmail: string | null,
   payload: Record<string, unknown>,
   source: string
-): void {
-  const supabase = getAdminClient();
-  supabase
-    .from('users')
-    .select('telegram_token, telegram_chat_id')
-    .eq('id', ADMIN_UID)
-    .maybeSingle()
-    .then(({ data, error: selectError }) => {
-      if (selectError || !data?.telegram_token?.trim() || !data?.telegram_chat_id?.trim()) return;
-      const token = data.telegram_token.trim();
-      const chatId = data.telegram_chat_id.trim();
-      const payloadSnippet =
-        Object.keys(payload || {}).length > 0
-          ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>'
-          : '';
-      const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}${userEmail ? `\n👤 ${userEmail}` : ''}${source ? `\n📍 ${source}` : ''}${payloadSnippet}`;
-      return fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-      });
-    })
-    .catch(() => {});
+): Promise<void> {
+  try {
+    const supabase = getAdminClient();
+    const { data, error: selectError } = await supabase
+      .from('users')
+      .select('telegram_token, telegram_chat_id')
+      .eq('id', ADMIN_UID)
+      .maybeSingle();
+
+    if (selectError || !data?.telegram_token?.trim() || !data?.telegram_chat_id?.trim()) return;
+
+    const token = data.telegram_token.trim();
+    const chatId = data.telegram_chat_id.trim();
+    const payloadSnippet =
+      Object.keys(payload || {}).length > 0
+        ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>'
+        : '';
+    const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}${userEmail ? `\n👤 ${userEmail}` : ''}${source ? `\n📍 ${source}` : ''}${payloadSnippet}`;
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    });
+  } catch {
+    // Ignorar errores para no afectar el flujo principal
+  }
 }
 
 /**
@@ -93,7 +98,7 @@ export async function logEvent(
     });
 
     if (sev === 'error' || sev === 'critical') {
-      sendTelegramAlertInBackground(
+      void sendTelegramAlertInBackground(
         eventType,
         sev,
         message ?? '',

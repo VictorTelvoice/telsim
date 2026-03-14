@@ -49,10 +49,11 @@ const Payment: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const response = await fetch('/api/checkout/session', {
+      const response = await fetch('/api/checkout?action=session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'session',
           priceId: stripePriceId,
           userId: user.id,
           planName: planName,

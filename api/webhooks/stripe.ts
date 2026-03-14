@@ -89,10 +89,10 @@ async function sendTelegramNotification(message: string, userId: string): Promis
 /** Obtiene admin_settings para sobrescribir mensajes Telegram/email desde el CMS. */
 async function getAdminSettings(): Promise<Record<string, string>> {
   try {
-    const { data: rows } = await supabaseAdmin.from('admin_settings').select('key, value');
+    const { data: rows } = await supabaseAdmin.from('admin_settings').select('id, content');
     const out: Record<string, string> = {};
-    (rows || []).forEach((r: { key: string; value: string | null }) => {
-      if (r.key && r.value != null) out[r.key] = r.value;
+    (rows || []).forEach((r: { id: string; content: string | null }) => {
+      if (r.id && r.content != null) out[r.id] = r.content;
     });
     return out;
   } catch {

@@ -44,10 +44,10 @@ const TelegramConfig: React.FC = () => {
     }
     setBotStatus('idle');
     try {
-      const res = await fetch('/api/notifications/verify-bot', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_token: token, telegram_chat_id: chatId }),
+        body: JSON.stringify({ action: 'verify-bot', telegram_token: token, telegram_chat_id: chatId }),
       });
       const data = await res.json();
       const status = data.status === 'online' ? 'online' : 'error';
