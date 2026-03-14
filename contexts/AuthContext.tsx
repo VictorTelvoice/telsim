@@ -193,23 +193,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (cancelled) return;
       try {
         try {
-          (supabase.auth as any).stopAutoRefresh?.();
-          (supabase.auth as any).startAutoRefresh?.();
+          await (supabase.auth as any).stopAutoRefresh?.();
+          await (supabase.auth as any).startAutoRefresh?.();
         } catch (_) {}
-        const { data: { session: sess } } = await (supabase.auth as any).getSession();
+        const { data: { session: s } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
-        if (sess) {
-          setSession(sess);
-          if (sess.user) {
-            const profile = await getProfileRef.current(sess.user.id);
-            if (profile) {
-              setUser(enrichUser(sess.user, profile));
-              setVersionRef.current((v: number) => v + 1);
-            } else {
-              setUser(enrichUser(sess.user, null));
-              setVersionRef.current((v: number) => v + 1);
-            }
-          }
+        if (s) {
+          setSession(s);
+          await refreshProfileRef.current?.();
         }
         subscriptionRef.current?.unsubscribe?.();
         subscribeAuth();

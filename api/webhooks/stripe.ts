@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { logEvent } from '../../lib/logger';
 
 export const config = { api: { bodyParser: false } };
 
@@ -128,6 +129,7 @@ export default async function handler(req: any, res: any) {
     }
   } catch (err: any) {
     console.error('[WEBHOOK SIGNATURE ERROR]', err.message);
+    await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'signature' }, 'stripe');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -427,6 +429,11 @@ export default async function handler(req: any, res: any) {
         plan_type: planName,
       }).eq('slot_id', slotId);
 
+      await logEvent('SIM_ACTIVATED', 'info', 'SIM activada', undefined, {
+        phone_number: resolvedPhoneForNotifications || slot?.phone_number || '',
+        slot_id: slotId,
+      }, 'stripe');
+
       const trialMsg = trialEnd
         ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
         : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
@@ -435,6 +442,7 @@ export default async function handler(req: any, res: any) {
 
     } catch (err: any) {
       console.error('[WEBHOOK ERROR]:', err.message);
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'checkout.session.completed' }, 'stripe');
     }
 
     const dNext = new Date();
@@ -459,6 +467,9 @@ export default async function handler(req: any, res: any) {
     const amountTotalCents = session.amount_total ?? 0;
     const amountFormatted = `$${(amountTotalCents / 100).toFixed(2)} USD`;
 
+    const customerEmail = session.customer_details?.email ?? '';
+    await logEvent('PAYMENT_RECEIVED', 'info', `Pago recibido: ${amountFormatted}`, customerEmail, { amount: amountFormatted, user_id: userId, slot_id: slotId }, 'stripe');
+
     try {
       await triggerEmail('purchase_success', userId, {
         plan: planName ?? '',
@@ -466,7 +477,7 @@ export default async function handler(req: any, res: any) {
         billing_type: billingTypeForEmail,
         next_date: nextDateForEmail,
         amount: amountFormatted,
-        to: session.customer_details?.email ?? '',
+        to: customerEmail,
       });
     } catch (emailErr: any) {
       console.error('[WEBHOOK triggerEmail FAIL]', {
@@ -666,6 +677,7 @@ export default async function handler(req: any, res: any) {
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'customer.subscription.updated' }, 'stripe');
     }
   }
 
@@ -723,6 +735,7 @@ export default async function handler(req: any, res: any) {
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_failed:', err.message);
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'invoice.payment_failed' }, 'stripe');
     }
   }
 
@@ -786,6 +799,7 @@ export default async function handler(req: any, res: any) {
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', err.message);
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'invoice.payment_succeeded' }, 'stripe');
     }
   }
 
@@ -901,6 +915,7 @@ export default async function handler(req: any, res: any) {
       // ────────────────────────────────────────────────────────────
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'customer.subscription.deleted' }, 'stripe');
     }
   }
 

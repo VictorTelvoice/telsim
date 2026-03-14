@@ -39,6 +39,7 @@ import TelegramConfig from './screens/dashboard/TelegramConfig';
 import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
 import WebhookLogs from './screens/dashboard/WebhookLogs';
+import AdminLogs from './screens/dashboard/AdminLogs';
 import ApiDocs from './screens/ApiDocs';
 import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
@@ -334,6 +335,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/webhook-logs" 
                           element={<ProtectedRoute><DashboardLayout><WebhookLogs /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/admin/logs" 
+                          element={<ProtectedRoute><DashboardLayout><AdminLogs /></DashboardLayout></ProtectedRoute>} 
                         />
                         <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />

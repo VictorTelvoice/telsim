@@ -132,31 +132,38 @@ const Processing: React.FC = () => {
     }
   };
 
+  // AbortController + visibility: al ocultar la app (iOS) cancelamos peticiones de inmediato para no dejar zombies
   useEffect(() => {
     if (!user || (!sessionId && !subId && !slotId)) return;
-    const startPolling = () => {
-      if (pollIntervalRef.current) return;
-      abortControllerRef.current = new AbortController();
-      pollIntervalRef.current = setInterval(checkStatus, 1300);
-      checkStatus();
-    };
-    const stopPolling = () => {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = new AbortController();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const interval = setInterval(checkStatus, 1500);
+    pollIntervalRef.current = interval;
+    checkStatus();
+
+    msgIntervalRef.current = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
+
+    const handleHide = () => {
+      controller.abort();
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
     };
-    startPolling();
-    msgIntervalRef.current = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') stopPolling();
-      else startPolling();
+      if (document.visibilityState === 'hidden') handleHide();
+      else if (!pollIntervalRef.current) {
+        abortControllerRef.current = new AbortController();
+        pollIntervalRef.current = setInterval(checkStatus, 1500);
+        checkStatus();
+      }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
-      stopPolling();
+      controller.abort();
+      clearInterval(interval);
       if (msgIntervalRef.current) clearInterval(msgIntervalRef.current);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
