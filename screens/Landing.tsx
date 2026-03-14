@@ -507,13 +507,12 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO CENTRADO */}
-      <section className="tech-bg pt-16 md:pt-24 pb-16 md:pb-28">
+      <section className="tech-bg pt-10 md:pt-16 pb-16 md:pb-28">
         <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center fade-in">
           {/* Badge superior */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
-            <div className="signal-dot"></div>
-            Para Agentes Autónomos
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
+            Para Agentes Autónomos
           </div>
 
           {/* Título Principal */}
