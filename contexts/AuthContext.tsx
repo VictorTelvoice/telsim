@@ -79,21 +79,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let cancelled = false;
 
-    (supabase.auth as any).getSession().then(async ({ data: { session: sess } }: any) => {
+    const run = async () => {
       try {
+        const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
         setSession(sess);
         if (sess?.user) {
-          const profileData = await getProfileRef.current(sess.user.id);
+          let profileData: ProfileData = null;
+          try {
+            profileData = await getProfileRef.current(sess.user.id);
+          } catch {
+            profileData = null;
+          }
           setUser({ ...sess.user, ...(profileData || {}) });
-          await syncRef.current(sess.user);
+          try {
+            await syncRef.current(sess.user);
+          } catch (err) {
+            console.error('Auth sync error:', err);
+          }
         }
       } catch (err) {
         console.error('Auth getSession error:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
-    });
+    };
+    run();
 
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
       try {
@@ -101,14 +112,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(sess);
         const currentUser = sess?.user ?? null;
         if (currentUser) {
-          const profileData = await getProfileRef.current(currentUser.id);
+          let profileData: ProfileData = null;
+          try {
+            profileData = await getProfileRef.current(currentUser.id);
+          } catch {
+            profileData = null;
+          }
           setUser({ ...currentUser, ...(profileData || {}) });
         } else {
           setUser(null);
         }
 
         if (event === 'SIGNED_IN' && currentUser) {
-          await syncRef.current(currentUser);
+          try {
+            await syncRef.current(currentUser);
+          } catch (err) {
+            console.error('Auth sync on sign-in:', err);
+          }
           const redirect = localStorage.getItem('post_login_redirect');
           if (redirect) {
             localStorage.removeItem('post_login_redirect');

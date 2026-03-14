@@ -351,12 +351,19 @@ const WebDashboard: React.FC = () => {
   const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+    try {
       audioRef.current = new Audio(PING_URL);
+    } catch {
+      audioRef.current = null;
     }
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      } catch {
         audioRef.current = null;
       }
     };
@@ -402,6 +409,7 @@ const WebDashboard: React.FC = () => {
 
   // ─── Live Feed Auto-refresh state ──────────────────────────────────────────
   const [feedRefreshing, setFeedRefreshing] = useState(false);
+  const [sidebarAvatarError, setSidebarAvatarError] = useState(false);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
@@ -414,8 +422,8 @@ const WebDashboard: React.FC = () => {
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
   const PLAN_CREDITS: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
   const planCredits = PLAN_CREDITS[savedPlanId] ?? 150;
-  const totalLimit = slots?.reduce((acc, s) => acc + (s.activeSub?.monthly_limit || 0), 0) || 0;
-  const totalUsed = slots?.reduce((acc, s) => acc + (s.activeSub?.credits_used || 0), 0) || 0;
+  const totalLimit = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.monthly_limit || 0), 0) || 0) : 0;
+  const totalUsed = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.credits_used || 0), 0) || 0) : 0;
 
   // ─── Data fetching ────────────────────────────────────────────────────────────
 
@@ -692,12 +700,17 @@ const WebDashboard: React.FC = () => {
 
   const playPing = useCallback(() => {
     if (isMutedRef.current) return;
+    if (typeof window === 'undefined') return;
     try {
-      if (audioRef.current) audioRef.current.play();
-    } catch (e) {
+      if (audioRef.current) audioRef.current.play().catch(() => {});
+    } catch {
       // Autoplay bloqueado o error de reproducción
     }
   }, []);
+
+  useEffect(() => {
+    setSidebarAvatarError(false);
+  }, [user?.avatar_url]);
 
   useEffect(() => {
     if (!user) return;
@@ -978,11 +991,11 @@ const WebDashboard: React.FC = () => {
   const handleOpenInbox = async (slotId: string) => {
     setSelectedSlot(slotId);
     setActiveTab('messages');
-    const unread = messages.filter(m => m.slot_id === slotId && !m.is_read);
+    const unread = (messages || []).filter(m => m.slot_id === slotId && !m.is_read);
     if (unread.length > 0) {
       await supabase.from('sms_logs').update({ is_read: true })
         .eq('slot_id', slotId).eq('is_read', false);
-      setMessages(prev => prev.map(m => m.slot_id === slotId ? { ...m, is_read: true } : m));
+      setMessages(prev => (prev || []).map(m => m.slot_id === slotId ? { ...m, is_read: true } : m));
     }
   };
 
@@ -991,7 +1004,7 @@ const WebDashboard: React.FC = () => {
   const handleDownloadReport = () => {
     const rows = [
       ['Fecha', 'Número', 'Region', 'Remitente', 'Contenido', 'Código Extraído'].join(','),
-      ...messages.map(m => {
+      ...(messages || []).map(m => {
         const slot = slots.find(s => s.slot_id === m.slot_id);
         return [
           new Date(m.received_at).toLocaleDateString('es-CL'),
@@ -1108,7 +1121,7 @@ const WebDashboard: React.FC = () => {
   // ─── Derived ─────────────────────────────────────────────────────────────────
 
   const today = new Date().toDateString();
-  const todayMessages = messages.filter(m => new Date(m.received_at).toDateString() === today);
+  const todayMessages = (messages || []).filter(m => new Date(m.received_at).toDateString() === today);
   // slots ya viene filtrado con solo líneas activas/trialing (una por slot_id)
   const activeSlots = slots;
 
@@ -1118,9 +1131,9 @@ const WebDashboard: React.FC = () => {
     const s = (status || '').toLowerCase();
     return s === 'success' || s === '200';
   };
-  const successCount = logs.filter((l: AutomationLogRow) => isLogSuccess(l?.status)).length;
-  const totalLogs = logs.length;
-  const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 0;
+  const successCount = (logs?.length ?? 0) > 0 ? logs.filter((l: AutomationLogRow) => isLogSuccess(l?.status)).length : 0;
+  const totalLogs = logs?.length ?? 0;
+  const automationSuccessRate = totalLogs > 0 ? ((successCount ?? 0) / Math.max(totalLogs, 1)) * 100 : 0;
   const failedLogs = logs.filter((l: AutomationLogRow) => !isLogSuccess(l?.status));
   const failedLogsCount = failedLogs.length;
   const now24h = Date.now() - 24 * 60 * 60 * 1000;
@@ -1148,21 +1161,21 @@ const WebDashboard: React.FC = () => {
 
   const activityData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    return messages.filter(m => new Date(m.received_at).toDateString() === d.toDateString()).length;
+    return (messages || []).filter(m => new Date(m.received_at).toDateString() === d.toDateString()).length;
   });
   const activityLabels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
     return ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'][d.getDay()];
   });
 
-  const filteredMessages = messages.filter(m => {
+  const filteredMessages = (messages || []).filter(m => {
     const matchSlot = !selectedSlot || m.slot_id === selectedSlot;
     const q = searchQuery.toLowerCase();
-    const matchSearch = !q || m.content.toLowerCase().includes(q) || m.sender.toLowerCase().includes(q);
+    const matchSearch = !q || (m.content || '').toLowerCase().includes(q) || (m.sender || '').toLowerCase().includes(q);
     return matchSlot && matchSearch;
   });
 
-  const unreadCount = messages.filter(m => !m.is_read).length;
+  const unreadCount = (messages || []).filter(m => !m.is_read).length;
 
   // Header title map
   const TAB_TITLES: Partial<Record<TabId, string>> = {
@@ -1235,8 +1248,8 @@ const WebDashboard: React.FC = () => {
           <div className={`mt-1 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
           <div className="flex items-center gap-2.5 px-1 mt-1">
             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+              {user?.avatar_url && !sidebarAvatarError ? (
+                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" onError={() => setSidebarAvatarError(true)} />
               ) : (
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black">{userInitials}</div>
               )}
@@ -1329,10 +1342,10 @@ const WebDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className={`transition-transform duration-150 ${messagePulse ? 'scale-110' : 'scale-100'}`}>
-                  <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
+                  <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${(messages || []).length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
                 </div>
                 <KpiCard icon={<Smartphone size={18} />} label="SIMs activas" value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
-                <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}% OK` : '—'} sub={`Latencia media: ${AVG_LATENCY}`} color="#8b5cf6" />
+                <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={(messages || []).length > 0 ? `${Math.round((((messages || []).length - ((messages || []).filter(m => m.is_spam).length || 0)) / (messages || []).length) * 100)}% OK` : '—'} sub={`Latencia media: ${AVG_LATENCY}`} color="#8b5cf6" />
               </div>
 
               {/* Chart left + Feed right */}
@@ -1363,7 +1376,7 @@ const WebDashboard: React.FC = () => {
                       <div className="grid grid-cols-3 gap-2.5">
                         {slots.map(slot => {
                           const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
-                          const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id).length;
+                          const msgsCnt = (messages || []).filter(m => m.slot_id === slot.slot_id).length;
                           const isActive = slot.status !== 'expired';
                           const pc = PLAN_COLORS[slot.plan_type?.toLowerCase()] ?? PLAN_COLORS.starter;
                           return (
@@ -1410,13 +1423,13 @@ const WebDashboard: React.FC = () => {
 
                   {loading ? (
                     <div className="flex-1 flex items-center justify-center py-8"><RefreshCw size={20} className="text-slate-400 animate-spin" /></div>
-                  ) : messages.length === 0 ? (
+                  ) : (messages || []).length === 0 ? (
                     <div className={`flex-1 flex flex-col items-center justify-center gap-2 py-8 ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>
                       <MessageSquare size={28} /><p className="text-[12px] font-semibold">Sin mensajes aún</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[540px] pr-2">
-                      {messages.slice(0, 10).map((msg, idx) => {
+                      {(messages || []).slice(0, 10).map((msg, idx) => {
                         const svc = detectService(msg.sender, msg.content);
                         const code = msg.verification_code || extractCode(msg.content);
                         const slot = slots.find(s => s.slot_id === msg.slot_id);
@@ -1512,7 +1525,7 @@ const WebDashboard: React.FC = () => {
               <div className="flex items-center gap-3 flex-wrap">
                 <button onClick={() => setSelectedSlot(null)}
                   className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${!selectedSlot ? 'bg-primary text-white' : (isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-white text-slate-500 hover:bg-slate-100')}`}>
-                  Todos ({messages.length})
+                  Todos ({(messages || []).length})
                 </button>
                 {slots.map(slot => (
                   <button key={slot.slot_id} onClick={() => setSelectedSlot(slot.slot_id)}
@@ -1641,7 +1654,7 @@ const WebDashboard: React.FC = () => {
                       const plan = (sub?.plan_name || slot.plan_type || 'starter').toLowerCase();
                       const ps = getWebPlanStyle(plan);
                       const usagePct = Math.min(100, ((sub?.credits_used || 0) / (sub?.monthly_limit || 150)) * 100);
-                      const msgsCnt = messages.filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
+                      const msgsCnt = (messages || []).filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
 
                       return (
                         <div key={slot.slot_id} className="flex flex-col gap-2">
@@ -1732,7 +1745,7 @@ const WebDashboard: React.FC = () => {
                       {slots.map(slot => {
                         const plan = (slot.plan_type || 'starter').toLowerCase();
                         const pc = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
-                        const msgsCnt = messages.filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
+                        const msgsCnt = (messages || []).filter(m => m.slot_id === slot.slot_id && !m.is_read).length;
                         const isActive = slot.status !== 'expired';
                         const isForwarding = !!slot.forwarding_active;
                         const isTog = togglingSlot === slot.slot_id;
@@ -1909,8 +1922,8 @@ const WebDashboard: React.FC = () => {
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative flex-shrink-0">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center">
-                          {user?.avatar_url
-                            ? <img src={user?.avatar_url ?? ''} alt="avatar" className="w-full h-full object-cover" />
+                          {user?.avatar_url && !sidebarAvatarError
+                            ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" onError={() => setSidebarAvatarError(true)} />
                             : <span className="text-white text-[22px] font-black">{userInitials}</span>
                           }
                         </div>
@@ -2235,7 +2248,7 @@ const WebDashboard: React.FC = () => {
                         <div className="flex justify-center py-12">
                           <Loader2 size={24} className="animate-spin text-primary" />
                         </div>
-                      ) : apiLogs.length === 0 ? (
+                      ) : (apiLogs || []).length === 0 ? (
                         <p className={`py-8 text-center text-[13px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
                           {t('webhook_logs.no_logs_yet')}
                         </p>
@@ -2252,7 +2265,7 @@ const WebDashboard: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {apiLogs.map((log) => {
+                              {(apiLogs || []).map((log) => {
                                 const status = (log.status || '').toLowerCase();
                                 const statusDisplay = status === 'success' || status === '200' ? t('webhook_logs.status_ok') : status === 'error' || status === 'failed' || status === '400' ? t('webhook_logs.status_error') : t('webhook_logs.status_pending');
                                 const dest = (log.payload as Record<string, unknown>)?.chat_id ? t('webhook_logs.destination_telegram') : t('webhook_logs.destination_webhook');
@@ -2837,7 +2850,7 @@ const WebDashboard: React.FC = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { icon: <Smartphone size={15} />, label: 'SIMs activas', value: activeSlots.length.toString(), color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50' },
-                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: messages.length.toString(), color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50' },
+                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: (messages || []).length.toString(), color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50' },
                   { icon: <Receipt size={15} />, label: 'Próxima factura', value: billingLoading ? '...' : (() => { const active = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing'); const total = active.reduce((acc, s) => acc + (Number(s.amount) || 0), 0); return total > 0 ? `$${total.toFixed(2)}` : '$0.00'; })(), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
                   { icon: <Calendar size={15} />, label: 'Próximo cobro', value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
                 ].map(stat => (
@@ -2870,10 +2883,10 @@ const WebDashboard: React.FC = () => {
                     <div className={`rounded-xl p-3 text-[11px] ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
                       <div className="flex justify-between mb-1.5">
                         <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>SMS usados</span>
-                        <span className="font-bold">{messages.length} / {planCredits}</span>
+                        <span className="font-bold">{(messages || []).length} / {planCredits}</span>
                       </div>
                       <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (messages.length / Math.max(planCredits, 1)) * 100)}%` }} />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, ((messages || []).length / Math.max(planCredits, 1)) * 100)}%` }} />
                       </div>
                     </div>
                   </div>
