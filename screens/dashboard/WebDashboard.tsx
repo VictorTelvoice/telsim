@@ -284,7 +284,7 @@ type AutomationLogRow = {
 };
 
 const WebDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -309,7 +309,6 @@ const WebDashboard: React.FC = () => {
   const [confirmReleaseCheck, setConfirmReleaseCheck] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
@@ -481,6 +480,16 @@ const WebDashboard: React.FC = () => {
     if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
     setUploadingAvatar(true);
     try {
+      const oldUrl = user.avatar_url;
+      if (oldUrl && oldUrl.includes('avatars/')) {
+        try {
+          const oldPath = oldUrl.split('avatars/')[1].split('?')[0];
+          if (oldPath) await supabase.storage.from('avatars').remove([oldPath]);
+        } catch {
+          // Si el borrado falla (ej. archivo no existe), continuamos con la subida
+        }
+      }
+
       const ext = file.name.split('.').pop();
       const path = `${user.id}/avatar.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -490,7 +499,7 @@ const WebDashboard: React.FC = () => {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
-      setAvatarUrl(publicUrl);
+      await refreshProfile();
       await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
     } catch (err: any) {
       alert(err.message || 'Error al subir la imagen.');
@@ -521,25 +530,6 @@ const WebDashboard: React.FC = () => {
     setEditError('');
     setEditSuccess(false);
   }, [settingsSection, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const loadAvatar = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('avatar_url')
-        .eq('id', user.id)
-        .single();
-      if (data?.avatar_url) {
-        setAvatarUrl(data.avatar_url);
-      } else if (user.user_metadata?.avatar_url) {
-        setAvatarUrl(user.user_metadata.avatar_url);
-      } else {
-        setAvatarUrl(null);
-      }
-    };
-    loadAvatar();
-  }, [user]);
 
   useEffect(() => {
     if (settingsSection !== 'notifications' || !user) return;
@@ -1213,8 +1203,8 @@ const WebDashboard: React.FC = () => {
           <div className={`mt-1 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
           <div className="flex items-center gap-2.5 px-1 mt-1">
             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <span>{userInitials}</span>
               )}
@@ -1887,8 +1877,8 @@ const WebDashboard: React.FC = () => {
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative flex-shrink-0">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center">
-                          {avatarUrl
-                            ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                          {user?.avatar_url
+                            ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                             : <span className="text-white text-[22px] font-black">{userInitials}</span>
                           }
                         </div>
