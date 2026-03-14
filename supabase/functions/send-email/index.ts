@@ -71,20 +71,20 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: (d: Record<string, unknown>) => `⚡ Nueva Infraestructura IA: SIM ${d.phone_number ?? ''} activada.`,
-      title: 'Nueva Infraestructura IA activada',
+      subject: (d: Record<string, unknown>) => `Tu número SIM Telsim está activo`,
+      title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
-        `Has desplegado un nuevo nodo en tu infraestructura. Tus agentes ya pueden operar con el número asignado.`,
+        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
       cta: 'Ir al Dashboard',
-      infoLeftLabel: 'SIM',
+      infoLeftLabel: 'PLAN ACTIVO',
       infoRightLabel: 'ESTADO',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: () => 'Activo',
-      infoRow2Label: 'Número de teléfono',
+      infoRow2Label: 'NÚMERO DE TELÉFONO',
       infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
-      infoRow3Label: 'Tipo de plan',
+      infoRow3Label: 'TIPO DE PLAN',
       infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual'),
-      infoRow4Label: 'Próximo pago',
+      infoRow4Label: 'PRÓXIMO PAGO',
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_activated: {
@@ -97,33 +97,33 @@ const i18n = {
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Activo',
-      infoRow2Label: 'Número de teléfono',
+      infoRow2Label: 'NÚMERO DE TELÉFONO',
       infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
-      infoRow3Label: 'Tipo de plan',
+      infoRow3Label: 'TIPO DE PLAN',
       infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual'),
-      infoRow4Label: 'Próximo pago',
+      infoRow4Label: 'PRÓXIMO PAGO',
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
       subject: (d: Record<string, unknown>) => `[Telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
-      title: 'Aviso de baja',
+      title: 'Suscripción cancelada',
       body: (d: Record<string, unknown>) =>
-        `Hemos procesado la liberación del recurso. La SIM permanecerá operativa en tu flota hasta el <strong>${d.end_date ?? ''}</strong>.`,
+        `Tu suscripción al plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'Ver planes',
-      infoLeftLabel: 'SIM',
-      infoRightLabel: 'VIGENTE HASTA',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
+      infoLeftLabel: 'PLAN',
+      infoRightLabel: 'FECHA VENCIMIENTO',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: (d: Record<string, unknown>) => `[Telsim] Confirmación de suministro: SIM ${d.phone_number ?? ''}.`,
-      title: 'Confirmación de suministro',
+      subject: (d: Record<string, unknown>) => `[Telsim] Pago confirmado`,
+      title: 'Pago recibido',
       body: (d: Record<string, unknown>) =>
-        `Tu nodo de red ha sido recargado exitosamente. La infraestructura para tus agentes está operativa.<br><br><strong>SIM Identificada:</strong> ${d.phone_number ?? ''}`,
+        `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
       cta: 'Ver facturación',
-      infoLeftLabel: 'SIM IDENTIFICADA',
+      infoLeftLabel: 'MONTO',
       infoRightLabel: 'PRÓXIMO COBRO',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
@@ -162,20 +162,20 @@ const i18n = {
   },
   en: {
     purchase_success: {
-      subject: (d: Record<string, unknown>) => `⚡ New AI Infrastructure: SIM ${d.phone_number ?? ''} activated.`,
-      title: 'New AI Infrastructure activated',
+      subject: 'Your Telsim SIM number is active',
+      title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
-        `You have deployed a new node in your infrastructure. Your agents can now operate with the assigned number.`,
+        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
       cta: 'Go to Dashboard',
-      infoLeftLabel: 'SIM',
+      infoLeftLabel: 'ACTIVE PLAN',
       infoRightLabel: 'STATUS',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: () => 'Active',
-      infoRow2Label: 'Phone number',
+      infoRow2Label: 'PHONE NUMBER',
       infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
-      infoRow3Label: 'Plan type',
+      infoRow3Label: 'PLAN TYPE',
       infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly'),
-      infoRow4Label: 'Next payment',
+      infoRow4Label: 'NEXT PAYMENT',
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_activated: {
@@ -188,33 +188,33 @@ const i18n = {
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Active',
-      infoRow2Label: 'Phone number',
+      infoRow2Label: 'PHONE NUMBER',
       infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
-      infoRow3Label: 'Plan type',
+      infoRow3Label: 'PLAN TYPE',
       infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly'),
-      infoRow4Label: 'Next payment',
+      infoRow4Label: 'NEXT PAYMENT',
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
       subject: (d: Record<string, unknown>) => `[Telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
-      title: 'Cancellation notice',
+      title: 'Subscription cancelled',
       body: (d: Record<string, unknown>) =>
-        `We have processed the release of the resource. The SIM will remain operational in your fleet until <strong>${d.end_date ?? ''}</strong>.`,
+        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'View plans',
-      infoLeftLabel: 'SIM',
-      infoRightLabel: 'ACTIVE UNTIL',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
+      infoLeftLabel: 'PLAN',
+      infoRightLabel: 'END DATE',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: (d: Record<string, unknown>) => `[Telsim] Supply confirmation: SIM ${d.phone_number ?? ''}.`,
-      title: 'Supply confirmation',
+      subject: '[Telsim] Payment confirmed',
+      title: 'Payment received',
       body: (d: Record<string, unknown>) =>
-        `Your network node has been successfully recharged. The infrastructure for your agents is operational.<br><br><strong>SIM Identified:</strong> ${d.phone_number ?? ''}`,
+        `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
       cta: 'View billing',
-      infoLeftLabel: 'SIM IDENTIFIED',
+      infoLeftLabel: 'AMOUNT',
       infoRightLabel: 'NEXT CHARGE',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
@@ -279,11 +279,12 @@ function buildHtml(params: {
   const extraRow = (label: string, value: string) =>
     label ? `
                 <tr>
-                  <td style="font-size:13px;color:#6b7280;padding-bottom:4px;">${label}</td>
-                  <td style="font-size:13px;color:#6b7280;padding-bottom:4px;text-align:right;"></td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;">${label}</td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;"></td>
                 </tr>
                 <tr>
-                  <td style="font-size:15px;font-weight:600;color:${primaryBlue};" colspan="2">${value}</td>
+                  <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${value}</td>
+                  <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;"></td>
                 </tr>` : '';
   const extraRows =
     extraRow(params.infoRow2Label ?? '', params.infoRow2Value ?? '') +
