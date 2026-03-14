@@ -27,10 +27,29 @@ const InventoryManager: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<SlotRow | null>(null);
 
   const fetchSlots = useCallback(async () => {
-    const { data: slotsData } = await supabase
+    const { data: slotsData, error } = await supabase
       .from('slots')
-      .select('slot_id, phone_number, status, assigned_to, plan_type, users!assigned_to(email)')
+      .select('slot_id, phone_number, status, assigned_to, plan_type, users(email)')
       .order('slot_id', { ascending: true });
+
+    if (error) {
+      const { data: slotsOnly } = await supabase
+        .from('slots')
+        .select('slot_id, phone_number, status, assigned_to, plan_type')
+        .order('slot_id', { ascending: true });
+      const rows = (slotsOnly || []) as { slot_id: string; phone_number: string | null; status: string; assigned_to: string | null; plan_type: string | null }[];
+      setSlots(
+        rows.map((s) => ({
+          slot_id: s.slot_id,
+          phone_number: s.phone_number,
+          status: s.status ?? 'libre',
+          assigned_to: s.assigned_to,
+          plan_type: s.plan_type,
+          user_email: null,
+        }))
+      );
+      return;
+    }
 
     if (!slotsData?.length) {
       setSlots([]);
