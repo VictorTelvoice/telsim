@@ -1265,26 +1265,37 @@ const Landing: React.FC = () => {
       {/* FOOTER */}
       <footer className="border-t border-slate-100 bg-white py-14 md:py-28">
         <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
+          >
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <span className="material-symbols-rounded text-white text-[16px]">sim_card</span>
             </div>
             <span className="font-extrabold text-slate-900">Telsim</span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-400 text-xs font-medium">{t('landing.compatibility.tag')}</span>
-          </div>
+          </button>
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-400">
-            <a href="#" className="hover:text-primary transition-colors">{t('landing.nav.benefits')}</a>
             <button
-              onClick={() => {
-                const el = document.getElementById('precios');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
+              onClick={() => document.getElementById('usos')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-primary transition-colors"
+            >
+              Usos
+            </button>
+            <button
+              onClick={() => document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth' })}
               className="hover:text-primary transition-colors"
             >
               Planes
             </button>
-            <button onClick={() => navigate('/api-docs')} className="hover:text-primary transition-colors">{t('landing.nav.api_docs')}</button>
+            <button
+              onClick={() => document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-primary transition-colors"
+            >
+              Contacto
+            </button>
             <button onClick={() => navigate('/dashboard/help')} className="hover:text-primary transition-colors">{t('profile.help')}</button>
           </div>
           <p className="text-xs text-slate-400 font-medium">© 2026 Telsim by Telvoice</p>
