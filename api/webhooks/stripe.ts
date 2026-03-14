@@ -136,37 +136,33 @@ export default async function handler(req: any, res: any) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
+    let sessionMeta = session.metadata || {};
 
-    // Primero resolver metadata, que en upgrades puede venir desde la suscripción
-    let meta = session.metadata || {};
-
-    // Si no hay flag de upgrade en session.metadata, intentar leerla desde la suscripción
-    if (!meta.upgrade && session.subscription) {
+    if (!sessionMeta.upgrade && session.subscription) {
       try {
         const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string
         );
-        meta = subscription.metadata || meta;
+        sessionMeta = { ...sessionMeta, ...subscription.metadata } as Record<string, string>;
       } catch (e: any) {
         console.warn('[WEBHOOK] No se pudo leer metadata desde subscription:', e?.message);
       }
     }
 
-    // Flujo especial de UPGRADE via Checkout
-    if (meta.upgrade === 'true' && meta.slot_id && meta.user_id) {
+    if (sessionMeta.upgrade === 'true' && sessionMeta.slot_id && sessionMeta.user_id) {
+      const upgradeMeta = sessionMeta;
       console.log('[UPGRADE] Iniciando procesamiento upgrade:', JSON.stringify({
-        slot_id: meta.slot_id,
-        user_id: meta.user_id,
-        new_plan: meta.new_plan_name,
-        old_sub: meta.old_subscription_id,
+        slot_id: upgradeMeta.slot_id,
+        user_id: upgradeMeta.user_id,
+        new_plan: upgradeMeta.new_plan_name,
+        old_sub: upgradeMeta.old_subscription_id,
       }));
       const newSubId = session.subscription as string;
 
-      // Cancelar TODAS las subs active/trialing del slot, excepto la nueva
       const { data: oldSubs } = await supabaseAdmin
         .from('subscriptions')
         .select('stripe_subscription_id')
-        .eq('slot_id', meta.slot_id)
+        .eq('slot_id', upgradeMeta.slot_id)
         .in('status', ['active', 'trialing'])
         .neq('stripe_subscription_id', newSubId);
 
@@ -193,48 +189,44 @@ export default async function handler(req: any, res: any) {
       const amount = (firstPrice?.unit_amount ?? 0) / 100;
       const billingTypeFromStripe = firstPrice?.recurring?.interval === 'year' ? 'annual' : 'monthly';
 
-      // Insertar nueva sub en Supabase (con monthly_limit y amount correctos)
       await supabaseAdmin.from('subscriptions').insert({
-        user_id: meta.user_id,
-        slot_id: meta.slot_id,
+        user_id: upgradeMeta.user_id,
+        slot_id: upgradeMeta.slot_id,
         stripe_subscription_id: newSubId,
-        plan_name: meta.new_plan_name,
-        monthly_limit: PLAN_LIMITS[meta.new_plan_name as string] ?? 150,
+        plan_name: upgradeMeta.new_plan_name,
+        monthly_limit: PLAN_LIMITS[upgradeMeta.new_plan_name as string] ?? 150,
         billing_type: billingTypeFromStripe,
         amount,
         status: 'active',
       });
 
-      // Actualizar el slot (plan_type y sms_limit para que la UI muestre el límite correcto)
       await supabaseAdmin
         .from('slots')
         .update({
-          plan_type: meta.new_plan_name,
-          sms_limit: SMS_BY_PLAN[meta.new_plan_name as string] ?? 150,
+          plan_type: upgradeMeta.new_plan_name,
+          sms_limit: SMS_BY_PLAN[upgradeMeta.new_plan_name as string] ?? 150,
         })
-        .eq('slot_id', meta.slot_id);
+        .eq('slot_id', upgradeMeta.slot_id);
 
-      console.log('[WEBHOOK] Upgrade complete for slot', meta.slot_id);
+      console.log('[WEBHOOK] Upgrade complete for slot', upgradeMeta.slot_id);
 
-      // Email de upgrade
       const { data: userData } = await supabaseAdmin
         .from('users')
         .select('email, nombre')
-        .eq('id', meta.user_id)
+        .eq('id', upgradeMeta.user_id)
         .maybeSingle();
 
       if (userData?.email) {
-        await triggerEmail('subscription_activated', meta.user_id as string, {
-          plan_name: meta.new_plan_name,
-          billing_type: meta.is_annual === 'true' ? 'Anual' : 'Mensual',
-          slot_id: meta.slot_id,
+        await triggerEmail('subscription_activated', upgradeMeta.user_id as string, {
+          plan_name: upgradeMeta.new_plan_name,
+          billing_type: upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual',
+          slot_id: upgradeMeta.slot_id,
           email: userData.email,
         });
         console.log('[UPGRADE] Email enviado a:', userData.email);
       }
 
-      // Telegram — mismo patrón que compra nueva (inline fetch a api.telegram.org)
-      const phoneNumber = meta.phone_number || meta.slot_id;
+      const phoneNumber = upgradeMeta.phone_number || upgradeMeta.slot_id;
       const now = new Date().toLocaleDateString('es-CL', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
@@ -243,17 +235,17 @@ export default async function handler(req: any, res: any) {
         const { data: userRow } = await supabaseAdmin
           .from('users')
           .select('telegram_token, telegram_chat_id, notification_preferences')
-          .eq('id', meta.user_id)
+          .eq('id', upgradeMeta.user_id)
           .maybeSingle();
         const tgToken = userRow?.telegram_token;
         const tgChatId = userRow?.telegram_chat_id;
         const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
         const sendUpgrade = prefs?.sim_activated?.telegram === true;
         if (tgToken && tgChatId && sendUpgrade) {
-          const billingLabel = meta.is_annual === 'true' ? 'Anual' : 'Mensual';
+          const billingLabel = upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual';
           const telegramMessage = `⚡ *UPGRADE EXITOSO*
 📱 Número: +${phoneNumber}
-📦 Plan: ${meta.new_plan_name} · ${billingLabel}
+📦 Plan: ${upgradeMeta.new_plan_name} · ${billingLabel}
 📅 Activación: ${now}
 ✅ Estado: Activo`;
           await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
@@ -270,9 +262,8 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
-    const meta = session.metadata || {};
-    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = meta;
-    const phoneFromMeta = (meta.phoneNumber ?? meta.phone_number ?? '') as string;
+    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = sessionMeta;
+    const phoneFromMeta = (sessionMeta.phoneNumber ?? sessionMeta.phone_number ?? '') as string;
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
     console.log(
@@ -537,20 +528,19 @@ export default async function handler(req: any, res: any) {
       const planChanged = previousPriceId && newPriceId && previousPriceId !== newPriceId;
 
       if (planChanged) {
-        const meta = subscription.metadata || {};
-        const slotId = meta.slot_id;
-        const newPlanName = meta.planName;
-        const newMonthlyLimit = meta.monthlyLimit ? parseInt(meta.monthlyLimit) : undefined;
+        const subscriptionMeta = subscription.metadata || {};
+        const slotId = subscriptionMeta.slot_id;
+        const newPlanName = subscriptionMeta.planName;
+        const newMonthlyLimit = subscriptionMeta.monthlyLimit ? parseInt(subscriptionMeta.monthlyLimit) : undefined;
 
         if (slotId && newPlanName) {
-          // Actualizar subscriptions y slots en Supabase
           await supabaseAdmin
             .from('subscriptions')
             .update({
               plan_name: newPlanName,
               monthly_limit: newMonthlyLimit,
               status: subscription.status,
-              billing_type: meta.isAnnual === 'true' ? 'annual' : 'monthly',
+              billing_type: subscriptionMeta.isAnnual === 'true' ? 'annual' : 'monthly',
             })
             .eq('slot_id', slotId)
             .in('status', ['active', 'trialing']);
