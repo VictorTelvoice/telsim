@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-/** Cliente Supabase para el frontend (auth, RLS). Compatible con admin_settings (id, content). */
+/** Cliente Supabase para el frontend (auth, RLS). Una sola instancia para evitar LockManager timeout y doble inicialización. */
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -15,15 +15,28 @@ export const isDemoMode = !supabaseUrl && window.location.hostname === 'localhos
 const noStoreFetch: typeof fetch = (input, init) =>
   fetch(input, { ...init, cache: 'no-store' });
 
-export const supabase = createClient(finalUrl, finalKey, {
-  global: { fetch: noStoreFetch },
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'telsim-auth-session',
-    storage: window.localStorage,
-    // Evita timeout de 10s del lock de almacenamiento (navigator.locks) que puede colgar getSession/setSession
-    lockAcquireTimeout: 30_000,
-  },
-});
+const GLOBAL_SUPABASE_KEY = '__telsim_supabase_client';
+
+function getSupabase(): SupabaseClient {
+  if (typeof globalThis !== 'undefined' && (globalThis as any)[GLOBAL_SUPABASE_KEY]) {
+    return (globalThis as any)[GLOBAL_SUPABASE_KEY];
+  }
+  const client = createClient(finalUrl, finalKey, {
+    global: { fetch: noStoreFetch },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'telsim-auth-session',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      // Timeout alto para evitar Navigator LockManager timeout que expulsa la sesión tras errores del servidor
+      lockAcquireTimeout: 60_000,
+    },
+  });
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any)[GLOBAL_SUPABASE_KEY] = client;
+  }
+  return client;
+}
+
+export const supabase = getSupabase();

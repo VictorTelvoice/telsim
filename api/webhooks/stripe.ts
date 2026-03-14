@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { logEvent } from '../../lib/logger';
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
 export const config = { api: { bodyParser: false } };
@@ -12,30 +13,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
-
-/** Logger local para no depender de lib/logger en Vercel. No lanza; solo escribe en audit_logs o console. */
-async function logEvent(
-  eventType: string,
-  severity?: string,
-  message?: string,
-  userEmail?: string | null,
-  payload?: Record<string, unknown>,
-  source?: string
-): Promise<void> {
-  try {
-    await supabaseAdmin.from('audit_logs').insert({
-      event_type: eventType,
-      severity: severity ?? 'info',
-      message: message ?? '',
-      user_email: userEmail ?? null,
-      payload: payload ?? {},
-      source: source ?? 'stripe',
-      created_at: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.error('[WEBHOOK logEvent]', eventType, severity, message, (e as Error)?.message);
-  }
-}
 
 async function createNotification(
   userId: string,
@@ -815,6 +792,6 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('[WEBHOOK UNCAUGHT]', err?.message, err?.stack);
     await logEvent('WEBHOOK_ERROR', 'critical', err?.message, undefined, { stack: err?.stack }, 'stripe');
-    return res.status(200).json({ received: true, error: err?.message });
+    return res.status(500).json({ received: false, error: err?.message });
   }
 }
