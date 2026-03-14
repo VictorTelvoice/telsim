@@ -29,6 +29,7 @@ const PLAN_LABEL: Record<string, string> = {
 const SubscriptionMonitor: React.FC = () => {
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterMorosos, setFilterMorosos] = useState(false);
   const [filterAltas, setFilterAltas] = useState(false);
   const [fichaUserId, setFichaUserId] = useState<string | null>(null);
@@ -74,6 +75,12 @@ const SubscriptionMonitor: React.FC = () => {
   }, [fetchSubs]);
 
   const filtered = subs.filter((s) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const matchUser = (s.user_id || '').toLowerCase().includes(q);
+      const matchPlan = (s.plan_name || '').toLowerCase().includes(q);
+      if (!matchUser && !matchPlan) return false;
+    }
     const st = (s.subscription_status || '').toLowerCase();
     if (filterMorosos && st !== 'past_due') return false;
     if (filterAltas) {
@@ -99,6 +106,13 @@ const SubscriptionMonitor: React.FC = () => {
           <p className="text-sm text-slate-500 mb-4">
             amount, plan_name, subscription_status. MRR = suma de amount donde subscription_status = active.
           </p>
+          <input
+            type="search"
+            placeholder="Buscar por user_id o plan_name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm mb-4"
+          />
           <div className="flex flex-wrap items-center gap-3">
         <span className="flex items-center gap-2 text-sm text-slate-600">
           <Filter size={16} />

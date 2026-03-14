@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Users, Loader2, Send } from 'lucide-react';
+import { Users, Loader2, Send, ExternalLink } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
 
 export type UserRow = {
@@ -85,7 +86,7 @@ const UserManager: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     fetchUsers().finally(() => setLoading(false));
-  }, []);
+  }, [fetchUsers]);
 
   const filteredUsers = searchQuery.trim()
     ? users.filter(
@@ -94,11 +95,6 @@ const UserManager: React.FC = () => {
           (u.email || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
       )
     : users;
-
-  useEffect(() => {
-    setLoading(true);
-    fetchUsers().finally(() => setLoading(false));
-  }, [fetchUsers]);
 
   if (loading) {
     return (
@@ -129,7 +125,7 @@ const UserManager: React.FC = () => {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Nombre</th>
-                <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email</th>
+                <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email / Ver slots</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">País</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Telegram</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">SIMs</th>
@@ -140,14 +136,27 @@ const UserManager: React.FC = () => {
               {filteredUsers.map((u) => (
                 <tr
                   key={u.id}
-                  onClick={() => setFichaUserId(u.id)}
-                  className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
+                  className="border-b border-slate-100 hover:bg-slate-50/80"
                 >
                   <td className="px-4 py-3 text-sm font-medium text-slate-800 truncate max-w-[160px]" title={u.nombre ?? ''}>
                     {u.nombre || '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700 truncate max-w-[220px]" title={u.email ?? ''}>
-                    {u.email || '—'}
+                  <td className="px-4 py-3 text-sm text-slate-700 max-w-[220px]">
+                    <Link
+                      to={`/admin/inventory?user=${encodeURIComponent(u.id)}`}
+                      className="text-slate-700 hover:text-emerald-600 truncate block font-medium"
+                      title={`Ver slots de ${u.email || u.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {u.email || u.id}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setFichaUserId(u.id); }}
+                      className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700"
+                    >
+                      <ExternalLink size={10} /> Ficha 360
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
                     <span className="mr-1.5" title={u.pais ?? ''}>{countryToFlag(u.pais)}</span>

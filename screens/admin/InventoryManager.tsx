@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Loader2, Unlock, LayoutGrid, List, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Unlock, LayoutGrid, List, AlertCircle, CheckCircle2, Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 export type SlotRow = {
   slot_id: string;
@@ -12,18 +13,25 @@ export type SlotRow = {
 };
 
 type ViewMode = 'table' | 'mosaic';
-type CeoFilter = 'all' | 'error' | 'free';
+type CeoFilter = 'all' | 'error' | 'free' | 'occupied';
+type SortKey = 'slot_id' | 'status' | 'phone_number' | 'user';
 
 /**
  * Gestiona los slots: tabla y mosaico de inventario.
  * Filtros CEO: SIMs con Error (rojo, mantenimiento) y SIMs Libres (verde, inventario disponible).
  */
 const InventoryManager: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const userFilterId = searchParams.get('user')?.trim() || null;
+
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [freeing, setFreeing] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('mosaic');
   const [ceoFilter, setCeoFilter] = useState<CeoFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('slot_id');
+  const [sortAsc, setSortAsc] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<SlotRow | null>(null);
 
   const fetchSlots = useCallback(async () => {
@@ -74,11 +82,66 @@ const InventoryManager: React.FC = () => {
   }, [fetchSlots]);
 
   const filteredSlots = useMemo(() => {
-    if (ceoFilter === 'all') return slots;
-    if (ceoFilter === 'error') return slots.filter((s) => (s.status || '').toLowerCase() === 'error');
-    if (ceoFilter === 'free') return slots.filter((s) => !s.assigned_to);
-    return slots;
-  }, [slots, ceoFilter]);
+    let list = slots;
+    if (userFilterId) {
+      list = list.filter((s) => s.assigned_to === userFilterId);
+    }
+    if (ceoFilter === 'all') {
+      // no filter
+    } else if (ceoFilter === 'error') {
+      list = list.filter((s) => (s.status || '').toLowerCase() === 'error');
+    } else if (ceoFilter === 'free') {
+      list = list.filter((s) => !s.assigned_to);
+    } else if (ceoFilter === 'occupied') {
+      list = list.filter((s) => s.assigned_to != null || (s.status || '').toLowerCase() === 'ocupado');
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          (s.slot_id || '').toLowerCase().includes(q) ||
+          (s.phone_number || '').toLowerCase().includes(q) ||
+          (s.assigned_to || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [slots, ceoFilter, userFilterId, searchQuery]);
+
+  const sortedSlots = useMemo(() => {
+    const arr = [...filteredSlots];
+    const mult = sortAsc ? 1 : -1;
+    arr.sort((a, b) => {
+      let va: string, vb: string;
+      if (sortKey === 'slot_id') {
+        va = a.slot_id || '';
+        vb = b.slot_id || '';
+      } else if (sortKey === 'status') {
+        va = (a.status || '').toLowerCase();
+        vb = (b.status || '').toLowerCase();
+      } else if (sortKey === 'phone_number') {
+        va = a.phone_number || '';
+        vb = b.phone_number || '';
+      } else {
+        va = a.user_email || a.assigned_to || '';
+        vb = b.user_email || b.assigned_to || '';
+      }
+      return va.localeCompare(vb) * mult;
+    });
+    return arr;
+  }, [filteredSlots, sortKey, sortAsc]);
+
+  const occupiedCount = useMemo(
+    () => slots.filter((s) => s.assigned_to != null || (s.status || '').toLowerCase() === 'ocupado').length,
+    [slots]
+  );
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc((a) => !a);
+    else {
+      setSortKey(key);
+      setSortAsc(true);
+    }
+  };
 
   const liberarSlot = async (slotId: string) => {
     if (!confirm('¿Liberar este slot? Se pondrá estado libre y se quitará la asignación de usuario.')) return;
@@ -112,6 +175,13 @@ const InventoryManager: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
+      {userFilterId && (
+        <div className="mb-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+          Mostrando solo slots del usuario <code className="font-mono text-xs bg-blue-100 px-1.5 py-0.5 rounded">{userFilterId.slice(0, 8)}…</code>
+          {' · '}
+          <Link to="/admin/inventory" className="font-medium underline">Ver todos</Link>
+        </div>
+      )}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
@@ -139,21 +209,40 @@ const InventoryManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtros CEO */}
-        <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtros CEO</span>
+        {/* Buscador + Filtros CEO */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+            <input
+              type="search"
+              placeholder="Buscar por Slot ID, teléfono o user ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm shadow-sm"
+            />
+          </div>
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtros CEO</span>
           <button
             onClick={() => setCeoFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              ceoFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ceoFilter === 'all' ? 'bg-slate-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             Todos ({slots.length})
           </button>
           <button
+            onClick={() => setCeoFilter('occupied')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+              ceoFilter === 'occupied' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+            }`}
+            title="Slots asignados o estado Ocupado"
+          >
+            SIMs Ocupadas ({occupiedCount})
+          </button>
+          <button
             onClick={() => setCeoFilter('error')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
-              ceoFilter === 'error' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600'
+              ceoFilter === 'error' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600'
             }`}
             title="SIMs con error para enviar a mantenimiento"
           >
@@ -163,7 +252,7 @@ const InventoryManager: React.FC = () => {
           <button
             onClick={() => setCeoFilter('free')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
-              ceoFilter === 'free' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
+              ceoFilter === 'free' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
             }`}
             title="Inventario disponible para vender"
           >
@@ -177,7 +266,7 @@ const InventoryManager: React.FC = () => {
       {viewMode === 'mosaic' ? (
         <>
           <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
-            {filteredSlots.map((s) => {
+            {sortedSlots.map((s) => {
               const style = slotStatusStyle(s);
               return (
                 <button
@@ -199,9 +288,9 @@ const InventoryManager: React.FC = () => {
               );
             })}
           </div>
-          {filteredSlots.length === 0 && (
+          {sortedSlots.length === 0 && (
             <p className="text-sm text-slate-500 py-8 text-center">
-              {ceoFilter === 'all' ? 'No hay slots.' : ceoFilter === 'error' ? 'No hay SIMs con error.' : 'No hay SIMs libres.'}
+              {searchQuery.trim() ? 'No hay slots que coincidan con la búsqueda.' : ceoFilter === 'all' ? 'No hay slots.' : ceoFilter === 'error' ? 'No hay SIMs con error.' : ceoFilter === 'free' ? 'No hay SIMs libres.' : 'No hay SIMs ocupadas.'}
             </p>
           )}
         </>
@@ -210,15 +299,59 @@ const InventoryManager: React.FC = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">slot_id</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Estado</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">phone_number</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Usuario (assigned_to)</th>
+                  <th className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('slot_id')}
+                      className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-colors rounded-lg px-2 py-1.5 -ml-2 ${
+                        sortKey === 'slot_id' ? 'text-slate-800 bg-slate-200/80' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }`}
+                    >
+                      slot_id
+                      {sortKey === 'slot_id' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('status')}
+                      className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-colors rounded-lg px-2 py-1.5 -ml-2 ${
+                        sortKey === 'status' ? 'text-slate-800 bg-slate-200/80' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }`}
+                    >
+                      Estado
+                      {sortKey === 'status' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('phone_number')}
+                      className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-colors rounded-lg px-2 py-1.5 -ml-2 ${
+                        sortKey === 'phone_number' ? 'text-slate-800 bg-slate-200/80' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }`}
+                    >
+                      phone_number
+                      {sortKey === 'phone_number' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('user')}
+                      className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-colors rounded-lg px-2 py-1.5 -ml-2 ${
+                        sortKey === 'user' ? 'text-slate-800 bg-slate-200/80' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }`}
+                    >
+                      Usuario (assigned_to)
+                      {sortKey === 'user' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                    </button>
+                  </th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3 w-28">Acción</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSlots.map((s) => {
+                {sortedSlots.map((s) => {
                   const style = slotStatusStyle(s);
                   return (
                     <tr
@@ -232,8 +365,16 @@ const InventoryManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-700 font-mono">{s.phone_number || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px] font-mono" title={s.user_email || s.assigned_to || ''}>
-                        {s.user_email || s.assigned_to || '--'}
+                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title={s.user_email || s.assigned_to || ''}>
+                        {s.user_email ? (
+                          s.user_email
+                        ) : s.assigned_to ? (
+                          <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                            {s.assigned_to.slice(0, 8)}…
+                          </span>
+                        ) : (
+                          '--'
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {s.assigned_to && (
@@ -291,8 +432,16 @@ const InventoryManager: React.FC = () => {
               </div>
               <div>
                 <dt className="text-slate-500 text-xs uppercase font-bold">Usuario (assigned_to)</dt>
-                <dd className="text-slate-700 truncate font-mono" title={selectedSlot.user_email || selectedSlot.assigned_to || ''}>
-                  {selectedSlot.user_email || selectedSlot.assigned_to || '--'}
+                <dd className="text-slate-700 truncate" title={selectedSlot.user_email || selectedSlot.assigned_to || ''}>
+                  {selectedSlot.user_email ? (
+                    selectedSlot.user_email
+                  ) : selectedSlot.assigned_to ? (
+                    <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                      {selectedSlot.assigned_to.slice(0, 8)}…
+                    </span>
+                  ) : (
+                    '--'
+                  )}
                 </dd>
               </div>
             </dl>
