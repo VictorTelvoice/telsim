@@ -41,13 +41,20 @@ function countryToFlag(pais: string | null): string {
 const UserManager: React.FC = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [fichaUserId, setFichaUserId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    const { data: usersData } = await supabase
+    const { data: usersData, error } = await supabase
       .from('users')
       .select('id, nombre, email, pais, telegram_enabled, created_at')
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[UserManager] Error cargando usuarios:', error);
+      setUsers([]);
+      return;
+    }
 
     if (!usersData?.length) {
       setUsers([]);
@@ -78,6 +85,19 @@ const UserManager: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     fetchUsers().finally(() => setLoading(false));
+  }, []);
+
+  const filteredUsers = searchQuery.trim()
+    ? users.filter(
+        (u) =>
+          (u.nombre || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          (u.email || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : users;
+
+  useEffect(() => {
+    setLoading(true);
+    fetchUsers().finally(() => setLoading(false));
   }, [fetchUsers]);
 
   if (loading) {
@@ -93,9 +113,16 @@ const UserManager: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 mb-1">Usuarios</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 mb-4">
             nombre, email, pais, telegram_enabled. Bandera e indicador de Telegram.
           </p>
+          <input
+            type="search"
+            placeholder="Buscar por nombre o email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -110,7 +137,7 @@ const UserManager: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr
                   key={u.id}
                   onClick={() => setFichaUserId(u.id)}
@@ -145,10 +172,15 @@ const UserManager: React.FC = () => {
         </div>
       </div>
 
-      {users.length === 0 && (
+      {!loading && users.length === 0 && (
         <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 p-8 text-center">
           <Users size={40} className="mx-auto text-slate-400 mb-3" />
           <p className="text-slate-500">No hay usuarios registrados.</p>
+        </div>
+      )}
+      {!loading && users.length > 0 && filteredUsers.length === 0 && (
+        <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 p-6 text-center">
+          <p className="text-slate-500">Ningún usuario coincide con la búsqueda.</p>
         </div>
       )}
 

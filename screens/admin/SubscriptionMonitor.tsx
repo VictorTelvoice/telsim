@@ -34,21 +34,25 @@ const SubscriptionMonitor: React.FC = () => {
   const [fichaUserId, setFichaUserId] = useState<string | null>(null);
 
   const fetchSubs = useCallback(async () => {
-    const { data: subsData } = await supabase
+    const { data: subsData, error } = await supabase
       .from('subscriptions')
       .select('id, plan_name, amount, subscription_status, created_at, user_id')
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[SubscriptionMonitor] Error cargando suscripciones:', error);
+      setSubs([]);
+      return;
+    }
 
     if (!subsData?.length) {
       setSubs([]);
       return;
     }
 
-    const activeStatuses = ['active', 'trialing', 'past_due'];
     setSubs(
-      (subsData as { id: string; user_id: string; plan_name: string | null; amount: number | null; subscription_status: string | null; created_at: string }[])
-        .filter((s) => activeStatuses.includes((s.subscription_status || '').toLowerCase()))
-        .map((s) => ({
+      (subsData as { id: string; user_id: string; plan_name: string | null; amount: number | null; subscription_status: string | null; created_at: string }[]).map(
+        (s) => ({
           id: s.id,
           user_id: s.user_id,
           plan_name: s.plan_name,
@@ -59,7 +63,8 @@ const SubscriptionMonitor: React.FC = () => {
           trial_end: null,
           user_email: null,
           next_payment: null,
-        }))
+        })
+      )
     );
   }, []);
 
@@ -124,7 +129,7 @@ const SubscriptionMonitor: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Cliente</th>
+                <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">user_id</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Plan</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Ciclo</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Precio exacto</th>
@@ -140,7 +145,7 @@ const SubscriptionMonitor: React.FC = () => {
                   className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
                 >
                   <td className="px-4 py-3 text-sm text-slate-800 truncate max-w-[220px] font-mono text-xs" title={s.user_id}>
-                    {s.user_email || s.user_id || '—'}
+                    {s.user_id || '—'}
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-slate-900">
                     {s.plan_name ? PLAN_LABEL[s.plan_name] ?? s.plan_name : '—'}
@@ -178,7 +183,7 @@ const SubscriptionMonitor: React.FC = () => {
           <div className="p-8 text-center bg-slate-50/50">
             <CreditCard size={40} className="mx-auto text-slate-400 mb-3" />
             <p className="text-slate-500">
-              {filterMorosos || filterAltas ? 'No hay suscripciones que coincidan con los filtros.' : 'No hay suscripciones activas, en trial o morosas.'}
+              {filterMorosos || filterAltas ? 'No hay suscripciones que coincidan con los filtros.' : 'No hay suscripciones.'}
             </p>
           </div>
         )}

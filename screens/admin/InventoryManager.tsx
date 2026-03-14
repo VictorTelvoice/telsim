@@ -232,8 +232,8 @@ const InventoryManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-700 font-mono">{s.phone_number || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title={s.user_email ?? ''}>
-                        {s.user_email || '—'}
+                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px] font-mono" title={s.user_email || s.assigned_to || ''}>
+                        {s.user_email || s.assigned_to || '--'}
                       </td>
                       <td className="px-4 py-3">
                         {s.assigned_to && (
@@ -289,12 +289,12 @@ const InventoryManager: React.FC = () => {
                 <dt className="text-slate-500 text-xs uppercase font-bold">Estado</dt>
                 <dd><span className={slotStatusStyle(selectedSlot).text}>{slotStatusStyle(selectedSlot).label}</span></dd>
               </div>
-              {selectedSlot.user_email && (
-                <div>
-                  <dt className="text-slate-500 text-xs uppercase font-bold">Usuario (assigned_to)</dt>
-                  <dd className="text-slate-700 truncate" title={selectedSlot.user_email}>{selectedSlot.user_email}</dd>
-                </div>
-              )}
+              <div>
+                <dt className="text-slate-500 text-xs uppercase font-bold">Usuario (assigned_to)</dt>
+                <dd className="text-slate-700 truncate font-mono" title={selectedSlot.user_email || selectedSlot.assigned_to || ''}>
+                  {selectedSlot.user_email || selectedSlot.assigned_to || '--'}
+                </dd>
+              </div>
             </dl>
             {selectedSlot.assigned_to && (
               <div className="mt-4 pt-4 border-t border-slate-200">
