@@ -451,7 +451,7 @@ const WebDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -474,22 +474,30 @@ const WebDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [user, activeTab]);
 
+  const getAvatarStoragePathFromUrl = (url: string): string | null => {
+    if (!url || !url.includes('avatars/')) return null;
+    const path = url.split('avatars/')[1]?.split('?')[0];
+    return path && path.length > 0 ? path : null;
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
     setUploadingAvatar(true);
     try {
-      const oldUrl = user.avatar_url;
-      if (oldUrl && oldUrl.includes('avatars/')) {
+      // 1. Si ya tenía foto en Supabase Storage (URL contiene 'avatars/'), eliminarla antes de subir la nueva
+      const oldUrl = user?.avatar_url;
+      const oldPath = oldUrl ? getAvatarStoragePathFromUrl(oldUrl) : null;
+      if (oldPath) {
         try {
-          const oldPath = oldUrl.split('avatars/')[1].split('?')[0];
-          if (oldPath) await supabase.storage.from('avatars').remove([oldPath]);
+          await supabase.storage.from('avatars').remove([oldPath]);
         } catch {
           // Si el borrado falla (ej. archivo no existe), continuamos con la subida
         }
       }
 
+      // 2. Subir la nueva foto al Storage
       const ext = file.name.split('.').pop();
       const path = `${user.id}/avatar.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -498,7 +506,11 @@ const WebDashboard: React.FC = () => {
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+
+      // 3. Actualizar la tabla users con la nueva URL
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
+
+      // 4. refreshProfile() para que Sidebar y toda la interfaz se actualicen al instante
       await refreshProfile();
       await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
     } catch (err: any) {
@@ -1098,11 +1110,11 @@ const WebDashboard: React.FC = () => {
   };
   const totalLogs = automationLogsOverview.length;
   const successCount = automationLogsOverview.filter(l => isLogSuccess(l.status)).length;
-  const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 100;
+  const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 0;
   const failedLogs = automationLogsOverview.filter(l => !isLogSuccess(l.status));
   const failedLogsCount = failedLogs.length;
   const now24h = Date.now() - 24 * 60 * 60 * 1000;
-  const totalTriggersToday = automationLogsOverview.filter(l => new Date(l.created_at).getTime() >= now24h).length;
+  const totalTriggersToday = automationLogsOverview.filter(l => l.created_at && new Date(l.created_at).getTime() >= now24h).length;
   const lastLog = automationLogsOverview[0];
   const lastTriggerTime = lastLog?.created_at
     ? (() => {
@@ -1204,7 +1216,7 @@ const WebDashboard: React.FC = () => {
           <div className="flex items-center gap-2.5 px-1 mt-1">
             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
               {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                <img src={user?.avatar_url ?? ''} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <span>{userInitials}</span>
               )}
@@ -1878,7 +1890,7 @@ const WebDashboard: React.FC = () => {
                       <div className="relative flex-shrink-0">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center">
                           {user?.avatar_url
-                            ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                            ? <img src={user?.avatar_url ?? ''} alt="avatar" className="w-full h-full object-cover" />
                             : <span className="text-white text-[22px] font-black">{userInitials}</span>
                           }
                         </div>
