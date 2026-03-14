@@ -36,7 +36,7 @@ export default function UpgradeSummary() {
   const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
     try {
-      const response = await fetch('/api/admin', {
+      const response = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

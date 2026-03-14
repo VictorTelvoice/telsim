@@ -23,5 +23,7 @@ export const supabase = createClient(finalUrl, finalKey, {
     detectSessionInUrl: true,
     storageKey: 'telsim-auth-session',
     storage: window.localStorage,
+    // Evita timeout de 10s del lock de almacenamiento (navigator.locks) que puede colgar getSession/setSession
+    lockAcquireTimeout: 30_000,
   },
 });

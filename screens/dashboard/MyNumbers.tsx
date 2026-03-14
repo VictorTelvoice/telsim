@@ -248,7 +248,7 @@ const MyNumbers: React.FC = () => {
 
             // 2. Cancelar en Stripe (genera el webhook → correo + Telegram)
             if (subData?.stripe_subscription_id) {
-                const res = await fetch('/api/admin', {
+                const res = await fetch('/api/manage', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'cancel', subscriptionId: subData.stripe_subscription_id }),

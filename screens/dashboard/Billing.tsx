@@ -79,7 +79,7 @@ const Billing: React.FC = () => {
     if (!user) return;
     setLoadingPM(true);
     try {
-      const response = await fetch('/api/admin', {
+      const response = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'payment-method', userId: user.id }),
@@ -105,7 +105,7 @@ const Billing: React.FC = () => {
     setIsCreatingPortal(true);
 
     try {
-      const response = await fetch('/api/admin', {
+      const response = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'portal', userId: user.id }),

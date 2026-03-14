@@ -672,7 +672,7 @@ const WebDashboard: React.FC = () => {
     }
     setTgBotStatus('idle');
     try {
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify-bot', telegram_token: token, telegram_chat_id: chatId }),
@@ -946,7 +946,7 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setTestNotifLoading(true);
     try {
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'send-test', userId: user.id }),
@@ -1057,7 +1057,7 @@ const WebDashboard: React.FC = () => {
     const sub = subscriptions.find(s => s.stripe_customer_id);
     if (!sub?.stripe_customer_id) { alert('No se encontró información de tu suscripción en Stripe. Contacta soporte.'); return; }
     try {
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'portal', customerId: sub.stripe_customer_id, returnUrl: window.location.href }),
