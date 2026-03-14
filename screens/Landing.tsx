@@ -242,10 +242,10 @@ const Landing: React.FC = () => {
     { name: 'Carlos Mendoza', initials: 'CM', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'API sencilla y confiable', body: 'Integré el webhook en menos de una hora. Mi bot de Telegram ahora recibe los códigos al instante. Sin caídas en 3 meses de uso continuo.' },
     { name: 'Andrea López', initials: 'AL', color: '#fce7f3', textColor: '#db2777', stars: 5, title: 'Soporte excepcional', body: 'Tuve una duda técnica a las 2am y el equipo respondió en 20 minutos. El servicio es de primera y el número funciona perfecto con todas las apps.' },
     { name: 'Rodrigo Gómez', initials: 'RG', color: '#ecfdf5', textColor: '#059669', stars: 5, title: 'Automatización real', body: 'Probé soluciones VoIP antes y siempre me bloqueaban. Con Telsim tengo una SIM real que ningún servicio detecta como bot. Vale cada peso.' },
-    { name: 'Ana Martínez', initials: 'AM', color: '#dcfce7', textColor: '#16a34a', stars: 5, title: 'Escalado sin límites', body: 'Increíble para escalar. Mis bots de Amazon corren 24/7 sin bloqueos.' },
-    { name: 'Juan Pérez', initials: 'JP', color: '#fef3c7', textColor: '#d97706', stars: 5, title: 'Integración en minutos', body: 'Soporte técnico real. Me ayudaron a integrar el webhook en 5 minutos.' },
-    { name: 'Kevin Brown', initials: 'KB', color: '#dbeafe', textColor: '#1d4ed8', stars: 5, title: 'Game changer for my agency', body: 'Game changer for my agency. Finally, an API that works with real physical SIMs.' },
-    { name: 'Sam Taylor', initials: 'ST', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'Flawless execution', body: 'Flawless execution. Automated my entire 2FA workflow in Node.js easily.' },
+    { name: 'Andrés M.', initials: 'AM', color: '#dcfce7', textColor: '#16a34a', stars: 5, title: 'Escalabilidad pura', body: 'Increíble para mis bots de Amazon. Corren 24/7 sin bloqueos.' },
+    { name: 'Juan P.', initials: 'JP', color: '#fef3c7', textColor: '#d97706', stars: 5, title: 'Soporte de primera', body: 'Me ayudaron a integrar el webhook en 5 minutos. Soporte real.' },
+    { name: 'Kevin B.', initials: 'KB', color: '#dbeafe', textColor: '#1d4ed8', stars: 5, title: 'Game changer', body: 'Finally, an API that works with real physical SIMs. Perfect for my agency.' },
+    { name: 'Sarah T.', initials: 'ST', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'Flawless API', body: 'Automated my entire 2FA workflow in Node.js easily. Flawless execution.' },
   ];
 
   const starterCardColors = { phoneColor: 'text-slate-900', labelColor: 'text-slate-600' };
@@ -518,7 +518,7 @@ const Landing: React.FC = () => {
 
           {/* Título Principal */}
           <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
-            Tu Agente de IA no es autónomo si depende de que tú mires el celular.
+            Para Agentes Autónomos
           </h1>
 
           {/* Subtítulo / Descripción */}
@@ -604,7 +604,7 @@ const Landing: React.FC = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
-              La automatización se rompe cuando depende de OTP manual
+              La automatización se rompe cuando llega el OTP
             </h2>
             <p className="text-slate-300 text-lg font-medium max-w-2xl mx-auto">
               En un mundo globalizado, tu código no debería depender de tu celular físico.
