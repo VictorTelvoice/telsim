@@ -5,6 +5,7 @@ import { NotificationsProvider } from './contexts/NotificationsContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import AdminGuard from './components/AdminGuard';
@@ -242,7 +243,8 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AuthProvider>
+        <SettingsProvider>
+          <AuthProvider>
           <NotificationsProvider>
             <MessagesProvider>
               <HashRouter>
@@ -394,10 +396,11 @@ const App: React.FC = () => {
                     </div>
                   } />
                 </Routes>
-              </HashRouter>
-            </MessagesProvider>
-          </NotificationsProvider>
-        </AuthProvider>
+            </HashRouter>
+          </MessagesProvider>
+        </NotificationsProvider>
+      </AuthProvider>
+        </SettingsProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

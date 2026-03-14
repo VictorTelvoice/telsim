@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { getPostAuthRoute } from '../../lib/routing';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 import { useMessagesCount } from '../../contexts/MessagesContext';
@@ -192,10 +193,11 @@ const MyNumbers: React.FC = () => {
         }, 3500);
     };
 
+    const { getAppTemplate } = useSettings();
     const handleCopy = (num: string) => {
         const formatted = formatPhoneNumber(num);
         navigator.clipboard.writeText(formatted);
-        showToast(t('mynumbers.number_copied'));
+        showToast(getAppTemplate('number_copied', t('mynumbers.number_copied')));
     };
 
     const handleSaveLabel = async (slotId: string) => {
@@ -272,14 +274,14 @@ const MyNumbers: React.FC = () => {
             }
 
             refreshUnreadCount();
-            showToast('Suscripción cancelada · Número liberado exitosamente');
+            showToast(getAppTemplate('subscription_cancelled', 'Suscripción cancelada · Número liberado exitosamente'));
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
             setConfirmReleaseCheck(false);
             fetchSlots();
         } catch (err: any) {
             console.error("[RELEASE ERROR]", err);
-            showToast(err.message || t('common.error'), "error");
+            showToast(getAppTemplate('common_error', err.message || t('common.error')), "error");
         } finally {
             setReleasing(false);
         }
@@ -302,12 +304,12 @@ const MyNumbers: React.FC = () => {
 
             if (slotErr) throw slotErr;
 
-            showToast(t('mynumbers.automation_saved'));
+            showToast(getAppTemplate('automation_saved', t('mynumbers.automation_saved')));
             setIsFwdModalOpen(false);
             fetchSlots();
         } catch (err) {
             console.error(err);
-            showToast(t('common.error'), "error");
+            showToast(getAppTemplate('common_error', t('common.error')), "error");
         } finally {
             setSavingFwd(false);
         }
@@ -325,7 +327,7 @@ const MyNumbers: React.FC = () => {
 
             if (error) throw error;
             if (!data?.telegram_token || !data?.telegram_chat_id) {
-                showToast(t('tg.test_error'), "error");
+                showToast(getAppTemplate('telegram_test_error', t('tg.test_error')), "error");
                 return;
             }
 
@@ -339,10 +341,10 @@ const MyNumbers: React.FC = () => {
             });
 
             if (!response.ok) throw new Error('Telegram API error');
-            showToast(t('tg.test_success'));
+            showToast(getAppTemplate('telegram_test_success', t('tg.test_success')));
         } catch (err) {
             console.error(err);
-            showToast(t('tg.test_error'), "error");
+            showToast(getAppTemplate('telegram_test_error', t('tg.test_error')), "error");
         } finally {
             setTestingTg(false);
         }

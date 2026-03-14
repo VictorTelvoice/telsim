@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot, SMSLog } from '../../types';
@@ -281,6 +282,23 @@ type AutomationLogRow = {
   payload: Record<string, unknown> | null;
   response_body?: unknown;
   created_at: string;
+};
+
+const ReleaseSuccessToastMessage: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const { getAppTemplate } = useSettings();
+  const title = getAppTemplate('release_success', 'Suscripción cancelada exitosamente');
+  const sub = getAppTemplate('release_success_sub', 'El número ha sido liberado del sistema');
+  return (
+    <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+        <CheckCircle2 size={16} className="text-emerald-500" />
+      </div>
+      <div>
+        <p className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">{title}</p>
+        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{sub}</p>
+      </div>
+    </div>
+  );
 };
 
 const WebDashboard: React.FC = () => {
@@ -3350,15 +3368,7 @@ const WebDashboard: React.FC = () => {
 
       {releaseSuccessToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-              <CheckCircle2 size={16} className="text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">Suscripción cancelada exitosamente</p>
-              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>El número ha sido liberado del sistema</p>
-            </div>
-          </div>
+          <ReleaseSuccessToastMessage isDark={isDark} />
         </div>
       )}
     </div>

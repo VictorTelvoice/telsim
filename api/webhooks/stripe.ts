@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logEvent } from '../../lib/logger';
+import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
 export const config = { api: { bodyParser: false } };
 
@@ -12,101 +13,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
-
-async function triggerEmail(
-  event: string,
-  userId: string,
-  data: Record<string, unknown>
-): Promise<void> {
-  console.log('[triggerEmail] Llamando send-email:', event, 'userId:', userId);
-  try {
-    let email = (data?.to_email as string) ?? (data?.email as string) ?? undefined;
-    if (!email) {
-      const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
-      email = userData?.email;
-    }
-    if (!email) {
-      const msg = 'No email address resolved';
-      console.error('[triggerEmail]', msg);
-      throw new Error(msg);
-    }
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      const msg = 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY';
-      console.warn('[triggerEmail]', msg);
-      throw new Error(msg);
-    }
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({
-        event,
-        user_id: userId,
-        to_email: email,
-        data,
-      }),
-    });
-    const result = await res.json().catch(() => ({}));
-    console.log('[triggerEmail] resultado:', result);
-    if (!res.ok) {
-      const bodyText = await res.text().catch(() => '');
-      console.error('[triggerEmail] send-email failed:', res.status, bodyText);
-      throw new Error(`send-email failed: ${res.status} ${bodyText}`);
-    }
-  } catch (err) {
-    console.error('[triggerEmail] Failed:', err);
-    throw err;
-  }
-}
-
-async function sendTelegramNotification(message: string, userId: string): Promise<void> {
-  try {
-    const { data: userRow } = await supabaseAdmin
-      .from('users')
-      .select('telegram_token, telegram_chat_id, notification_preferences')
-      .eq('id', userId)
-      .maybeSingle();
-    const tgToken = userRow?.telegram_token;
-    const tgChatId = userRow?.telegram_chat_id;
-    const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean } } | null | undefined;
-    const sendTg = prefs?.sim_expired?.telegram === true;
-    if (tgToken && tgChatId && sendTg) {
-      await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: tgChatId, text: message, parse_mode: 'Markdown' }),
-      });
-    }
-  } catch (tgErr: any) {
-    console.warn('[sendTelegramNotification] skipped:', tgErr?.message);
-  }
-}
-
-/** Obtiene admin_settings para sobrescribir mensajes Telegram/email desde el CMS. */
-async function getAdminSettings(): Promise<Record<string, string>> {
-  try {
-    const { data: rows } = await supabaseAdmin.from('admin_settings').select('id, content');
-    const out: Record<string, string> = {};
-    (rows || []).forEach((r: { id: string; content: string | null }) => {
-      if (r.id && r.content != null) out[r.id] = r.content;
-    });
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-function renderTemplate(template: string, data: Record<string, string>): string {
-  let s = template;
-  for (const [k, v] of Object.entries(data)) {
-    s = s.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
-  }
-  return s;
-}
 
 async function createNotification(
   userId: string,
@@ -256,40 +162,16 @@ export default async function handler(req: any, res: any) {
         hour: '2-digit', minute: '2-digit',
       });
       try {
-        const { data: userRow } = await supabaseAdmin
-          .from('users')
-          .select('telegram_token, telegram_chat_id, notification_preferences')
-          .eq('id', upgradeMeta.user_id)
-          .maybeSingle();
-        const tgToken = userRow?.telegram_token;
-        const tgChatId = userRow?.telegram_chat_id;
-        const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
-        const sendUpgrade = prefs?.sim_activated?.telegram === true;
-        if (tgToken && tgChatId && sendUpgrade) {
-          const billingLabel = upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual';
-          const defaultUpgrade = `⚡ *UPGRADE EXITOSO*
-📱 Número: +${phoneNumber}
-📦 Plan: ${upgradeMeta.new_plan_name} · ${billingLabel}
-📅 Activación: ${now}
-✅ Estado: Activo`;
-          const settings = await getAdminSettings();
-          const telegramMessage = (settings.telegram_upgrade_success?.trim())
-            ? renderTemplate(settings.telegram_upgrade_success, {
-                phone: phoneNumber,
-                plan: upgradeMeta.new_plan_name || '',
-                billing: billingLabel,
-                now,
-                status: 'Activo',
-              })
-            : defaultUpgrade;
-          await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'Markdown' }),
-          });
-        }
-      } catch (tgErr: any) {
-        console.warn('[WEBHOOK] Telegram upgrade notification skipped:', tgErr?.message);
+        const billingLabel = upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual';
+        await sendTelegramNotification('upgrade_success', upgradeMeta.user_id as string, {
+          phone: phoneNumber,
+          plan: upgradeMeta.new_plan_name || '',
+          billing: billingLabel,
+          now,
+          status: 'Activo',
+        });
+      } catch (tgErr: unknown) {
+        console.warn('[WEBHOOK] Telegram upgrade notification skipped:', (tgErr as Error)?.message);
       }
       console.log('[UPGRADE] Telegram enviado OK');
 
@@ -522,53 +404,12 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // ── Telegram: usar phone_number de DB/metadata para mensaje tipo "NUEVA COMPRA: SIM +56 9 5319 4056 activada"
     try {
-      const { data: userRow } = await supabaseAdmin
-        .from('users')
-        .select('telegram_token, telegram_chat_id, notification_preferences')
-        .eq('id', userId)
-        .maybeSingle();
-
-      const tgToken = userRow?.telegram_token;
-      const tgChatId = userRow?.telegram_chat_id;
-      const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
-      const sendSimActivated = prefs?.sim_activated?.telegram === true;
-
       const telegramPhone = phoneForEmail || phoneFromMeta || '';
       const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
-
-      if (tgToken && tgChatId && sendSimActivated) {
-        const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const planNameEscaped = escapeHtml(planName || '');
-
-        const defaultNewPurchase = `<b>🚀 NUEVA COMPRA: SIM ${displayPhone} activada</b>
-━━━━━━━━━━━━━━━━━━
-📱 <b>Número:</b> <code>${escapeHtml(displayPhone)}</code>
-💎 <b>Plan:</b> ${planNameEscaped}
-✅ <b>Estado:</b> Operativo`;
-        const settings = await getAdminSettings();
-        const telegramMessage = (settings.telegram_new_purchase?.trim())
-          ? renderTemplate(settings.telegram_new_purchase, { phone: displayPhone, plan: planName || '' })
-          : defaultNewPurchase;
-
-        const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: tgChatId,
-            text: telegramMessage,
-            parse_mode: 'HTML',
-          }),
-        });
-
-        if (!tgRes.ok) {
-          const errBody = await tgRes.json().catch(() => ({}));
-          console.warn('[WEBHOOK] Telegram notification failed:', errBody?.description || tgRes.statusText);
-        }
-      }
-    } catch (tgErr: any) {
-      console.warn('[WEBHOOK] Telegram send skipped or failed:', tgErr?.message);
+      await sendTelegramNotification('new_purchase', userId, { phone: displayPhone, plan: planName || '' });
+    } catch (tgErr: unknown) {
+      console.warn('[WEBHOOK] Telegram send skipped or failed:', (tgErr as Error)?.message);
     }
   }
 
@@ -688,32 +529,10 @@ export default async function handler(req: any, res: any) {
         });
 
         try {
-          const { data: userRow } = await supabaseAdmin
-            .from('users')
-            .select('telegram_token, telegram_chat_id, notification_preferences')
-            .eq('id', sub.user_id)
-            .maybeSingle();
-
-          const tgToken = userRow?.telegram_token;
-          const tgChatId = userRow?.telegram_chat_id;
-          const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean } } | null | undefined;
-          const sendTg = prefs?.sim_expired?.telegram === true;
-
-          if (tgToken && tgChatId && sendTg) {
-            const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
-            const defaultCancelled = `<b>⚠️ SUSCRIPCIÓN CANCELADA</b>\n━━━━━━━━━━━━━━━━━━\n💎 <b>Plan:</b> ${sub.plan_name ?? ''}\n📅 <b>Activo hasta:</b> ${endDate}\n\nPuedes reactivar tu plan cuando quieras.`;
-            const settings = await getAdminSettings();
-            const telegramMessage = (settings.telegram_subscription_cancelled?.trim())
-              ? renderTemplate(settings.telegram_subscription_cancelled, { plan: sub.plan_name ?? '', end_date: endDate })
-              : defaultCancelled;
-            await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: tgChatId, text: telegramMessage, parse_mode: 'HTML' }),
-            });
-          }
-        } catch (tgErr: any) {
-          console.warn('[WEBHOOK] Telegram cancelación skipped:', tgErr?.message);
+          const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
+          await sendTelegramNotification('subscription_cancelled', sub.user_id, { plan: sub.plan_name ?? '', end_date: endDate });
+        } catch (tgErr: unknown) {
+          console.warn('[WEBHOOK] Telegram cancelación skipped:', (tgErr as Error)?.message);
         }
       }
     } catch (err: any) {
@@ -946,21 +765,12 @@ export default async function handler(req: any, res: any) {
         console.error('[CANCEL] No se encontró email para userId:', userId);
       }
 
-      const defaultCancellation = `❌ *CANCELACIÓN*
-📱 Número: +${slotData?.phone_number || slotId}
-📦 Plan: ${slotData?.plan_type ?? sub.plan_name ?? ''}
-📅 Cancelación: ${now}
-🔴 Estado: Cancelado`;
-      const settings = await getAdminSettings();
-      const telegramMessage = (settings.telegram_cancellation?.trim())
-        ? renderTemplate(settings.telegram_cancellation, {
-            phone: String(slotData?.phone_number || slotId),
-            plan: String(slotData?.plan_type ?? sub.plan_name ?? ''),
-            date: now,
-            status: 'Cancelado',
-          })
-        : defaultCancellation;
-      await sendTelegramNotification(telegramMessage, userId);
+      await sendTelegramNotification('cancellation', userId, {
+        phone: String(slotData?.phone_number || slotId),
+        plan: String(slotData?.plan_type ?? sub.plan_name ?? ''),
+        date: now,
+        status: 'Cancelado',
+      });
       console.log('[CANCEL] Telegram enviado OK');
       // ────────────────────────────────────────────────────────────
     } catch (err: any) {

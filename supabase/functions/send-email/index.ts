@@ -438,7 +438,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const { event, user_id, to_email, data = {} } = payload;
+    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent } = payload;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
@@ -473,6 +473,7 @@ Deno.serve(async (req) => {
 
     // Contenido editable desde admin_settings (CMS)
     let settingsOverrides: Record<string, string> = {};
+    let templateContentFromDb: string | null = null;
     try {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
       const { data: rows } = await supabase.from('admin_settings').select('id, content');
@@ -481,29 +482,14 @@ Deno.serve(async (req) => {
           if (r.id && r.content != null) settingsOverrides[r.id] = r.content;
         });
       }
+      if (payloadTemplateId && (!payloadContent || String(payloadContent).trim() === '')) {
+        const { data: templateRow } = await supabase.from('admin_settings').select('content').eq('id', payloadTemplateId).maybeSingle();
+        templateContentFromDb = (templateRow as { content?: string | null } | null)?.content ?? null;
+      }
     } catch (e) {
       console.warn('[send-email] admin_settings lookup failed:', e);
     }
 
-    // Construir email
-    const ev = event as EventType;
-    const t = i18n[lang][ev];
-    if (!t) {
-      return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
-    }
-
-    const titleKey = `email_${ev}_title_${lang}`;
-    const titleOverride = settingsOverrides[titleKey];
-    const subjectKey = `email_${ev}_subject_${lang}`;
-    const subjectOverride = settingsOverrides[subjectKey];
-
-    const subject = subjectOverride != null && subjectOverride !== ''
-      ? subjectOverride
-      : (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string));
-    const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
-
-    const bodyKey = `email_${ev}_body_${lang}`;
-    const bodyOverrideRaw = settingsOverrides[bodyKey];
     const renderBodyTemplate = (template: string, d: Record<string, unknown>): string => {
       let s = template;
       for (const [k, v] of Object.entries(d)) {
@@ -516,11 +502,38 @@ Deno.serve(async (req) => {
       s = s.replace(/\{\{billing_type\}\}/g, String(d.billing_type ?? ''));
       return s;
     };
-    const bodyStr = bodyOverrideRaw != null && bodyOverrideRaw !== ''
-      ? renderBodyTemplate(bodyOverrideRaw, data)
-      : t.body(data);
 
-    const tAny = t as Record<string, unknown>;
+    let bodyStr: string;
+    const contentProvided = payloadContent != null && String(payloadContent).trim() !== '';
+    if (contentProvided) {
+      bodyStr = renderBodyTemplate(String(payloadContent), data);
+    } else if (templateContentFromDb && templateContentFromDb.trim() !== '') {
+      bodyStr = renderBodyTemplate(templateContentFromDb, data);
+    } else {
+      const ev = event as EventType;
+      const t = i18n[lang][ev];
+      if (!t) {
+        return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
+      }
+      const bodyKey = `email_${ev}_body_${lang}`;
+      const bodyOverrideRaw = settingsOverrides[bodyKey];
+      bodyStr = bodyOverrideRaw != null && bodyOverrideRaw !== ''
+        ? renderBodyTemplate(bodyOverrideRaw, data)
+        : t.body(data);
+    }
+
+    const ev = event as EventType;
+    const t = i18n[lang]?.[ev];
+    const titleKey = t ? `email_${ev}_title_${lang}` : undefined;
+    const titleOverride = titleKey ? settingsOverrides[titleKey] : undefined;
+    const subjectKey = t ? `email_${ev}_subject_${lang}` : undefined;
+    const subjectOverride = subjectKey ? settingsOverrides[subjectKey] : undefined;
+    const subject = subjectOverride != null && subjectOverride !== ''
+      ? subjectOverride
+      : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || event;
+    const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
+
+    const tAny = (t || {}) as Record<string, unknown>;
     const rowVal = (key: string) => {
       const fn = tAny[key];
       return typeof fn === 'function' ? String((fn as (d: Record<string, unknown>) => string)(data)) : String(fn ?? '');
@@ -534,14 +547,14 @@ Deno.serve(async (req) => {
     }
 
     const html = buildHtml({
-      icon: eventIcons[ev],
-      title: titleOverride != null && titleOverride !== '' ? titleOverride : t.title,
+      icon: eventIcons[ev] ?? '📧',
+      title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? event,
       body: bodyStr,
       infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
-      infoLeftLabel: t.infoLeftLabel,
-      infoLeftValue: t.infoLeftValue(data),
-      infoRightLabel: t.infoRightLabel,
-      infoRightValue: t.infoRightValue(data),
+      infoLeftLabel: (t as { infoLeftLabel?: string })?.infoLeftLabel ?? '',
+      infoLeftValue: typeof t?.infoLeftValue === 'function' ? t.infoLeftValue(data) : String((t as { infoLeftValue?: string })?.infoLeftValue ?? ''),
+      infoRightLabel: (t as { infoRightLabel?: string })?.infoRightLabel ?? '',
+      infoRightValue: typeof t?.infoRightValue === 'function' ? t.infoRightValue(data) : String((t as { infoRightValue?: string })?.infoRightValue ?? ''),
       infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
       infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
       infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
@@ -549,8 +562,8 @@ Deno.serve(async (req) => {
       infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
       infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
       tableRows: tableRowsResolved,
-      ctaText: t.cta,
-      ctaUrl: ctaUrls[ev],
+      ctaText: (t as { cta?: string })?.cta ?? 'Ir al Dashboard',
+      ctaUrl: ctaUrls[ev] ?? 'https://www.telsim.io',
       footerText,
       year: new Date().getFullYear(),
     });
