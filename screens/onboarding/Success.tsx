@@ -1,13 +1,11 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle2, ArrowRight, RefreshCw, AlertTriangle, Zap } from 'lucide-react';
-import { getPostAuthRoute } from '../../lib/routing';
 
 const Success: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -84,9 +82,11 @@ const Success: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
-  const handleGoToDashboard = () => {
-    // Importante pasar el número a Dashboard para que lo seleccione automáticamente
-    navigate(assignedNumber ? `/dashboard?new_line=${encodeURIComponent(assignedNumber)}` : '/dashboard');
+  const goToDashboard = () => {
+    window.location.href = assignedNumber ? `/#/dashboard?new_line=${encodeURIComponent(assignedNumber)}` : '/#/dashboard';
+    if (window.navigator.standalone || /Safari/.test(navigator.userAgent)) {
+      window.location.reload();
+    }
   };
 
   if (!sessionId && !assignedNumber) {
@@ -108,7 +108,7 @@ const Success: React.FC = () => {
         <AlertTriangle className="size-12 text-amber-500 mb-6" />
         <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Línea Vinculada</h1>
         <p className="text-sm font-medium text-slate-500 mb-8">Tu pago fue exitoso. Si no ves tu número de inmediato, aparecerá en el panel en unos segundos.</p>
-        <button onClick={() => navigate(getPostAuthRoute())} className="px-8 h-14 bg-primary text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95">Ir al Dashboard</button>
+        <button onClick={goToDashboard} className="px-8 h-14 bg-primary text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95">Ir al Dashboard</button>
       </div>
     );
   }
@@ -155,7 +155,7 @@ const Success: React.FC = () => {
         </div>
 
         <button 
-          onClick={handleGoToDashboard}
+          onClick={goToDashboard}
           className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="size-12"></div>

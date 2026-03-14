@@ -6,6 +6,7 @@ interface AuthContextType {
   user: any | null;
   session: any | null;
   loading: boolean;
+  version: number;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);
   const { registerOrUpdateSession } = useDeviceSession();
 
   /** Siempre devuelve avatar_url (y resto) de la tabla users; en error retorna null. */
@@ -88,7 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
     const profile = await getProfile(user.id);
-    if (profile) setUser((prev: any) => (prev ? enrichUser(prev, profile) : null));
+    if (profile) {
+      setUser((prev: any) => (prev ? enrichUser(prev, profile) : null));
+      setVersion((v) => v + 1);
+    }
   }, [user?.id, getProfile]);
 
   const getProfileRef = useRef(getProfile);
@@ -119,14 +124,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (err) {
             console.error('Auth sync error:', err);
           }
+          if (!cancelled) setLoading(false);
+        } else {
+          if (!cancelled) setLoading(false);
         }
       } catch (err) {
         console.error('Auth getSession error:', err);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setTimeout(() => setLoading(false), 500);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
     run();
@@ -190,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider key={version} value={{ user, session, loading, version, signOut, refreshProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );
