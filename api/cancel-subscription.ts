@@ -58,11 +58,16 @@ export default async function handler(req: any, res: any) {
         minute: '2-digit',
       });
 
-      // Email — mismo triggerEmail del upgrade, con to_email directo
+      const phoneNumberCancelled = slotData?.phone_number ?? slotId ?? '';
+
+      // Email — mismo triggerEmail del webhook, con phone_number para plantilla
       if (userData?.email) {
         await triggerEmail('subscription_cancelled', userId, {
-          plan_name: slotData?.plan_type,
+          plan: sub.plan_name ?? '',
+          plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
+          end_date: new Date().toLocaleDateString('es-CL'),
           slot_id: slotId,
+          phone_number: phoneNumberCancelled,
           email: userData.email,
           to_email: userData.email,
         });

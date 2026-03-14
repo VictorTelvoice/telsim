@@ -71,14 +71,14 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: 'Tu número SIM Telsim está activo',
-      title: '¡Suscripción activada!',
+      subject: (d: Record<string, unknown>) => `⚡ Nueva Infraestructura IA: SIM ${d.phone_number ?? ''} activada.`,
+      title: 'Nueva Infraestructura IA activada',
       body: (d: Record<string, unknown>) =>
-        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
+        `Has desplegado un nuevo nodo en tu infraestructura. Tus agentes ya pueden operar con el número asignado.`,
       cta: 'Ir al Dashboard',
-      infoLeftLabel: 'PLAN ACTIVO',
+      infoLeftLabel: 'SIM',
       infoRightLabel: 'ESTADO',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: () => 'Activo',
     },
     subscription_activated: {
@@ -93,25 +93,25 @@ const i18n = {
       infoRightValue: () => 'Activo',
     },
     subscription_cancelled: {
-      subject: 'Tu suscripción Telsim ha sido cancelada',
-      title: 'Suscripción cancelada',
+      subject: (d: Record<string, unknown>) => `[Telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
+      title: 'Aviso de baja',
       body: (d: Record<string, unknown>) =>
-        `Tu suscripción al plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
+        `Hemos procesado la liberación del recurso. La SIM permanecerá operativa en tu flota hasta el <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'Ver planes',
-      infoLeftLabel: 'PLAN',
-      infoRightLabel: 'FECHA VENCIMIENTO',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoLeftLabel: 'SIM',
+      infoRightLabel: 'VIGENTE HASTA',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: 'Pago confirmado - Telsim',
-      title: 'Pago recibido',
+      subject: (d: Record<string, unknown>) => `[Telsim] Confirmación de suministro: SIM ${d.phone_number ?? ''}.`,
+      title: 'Confirmación de suministro',
       body: (d: Record<string, unknown>) =>
-        `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
+        `Tu nodo de red ha sido recargado exitosamente. La infraestructura para tus agentes está operativa.<br><br><strong>SIM Identificada:</strong> ${d.phone_number ?? ''}`,
       cta: 'Ver facturación',
-      infoLeftLabel: 'MONTO',
+      infoLeftLabel: 'SIM IDENTIFICADA',
       infoRightLabel: 'PRÓXIMO COBRO',
-      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
@@ -150,14 +150,14 @@ const i18n = {
   },
   en: {
     purchase_success: {
-      subject: 'Your Telsim SIM number is active',
-      title: 'Subscription activated!',
+      subject: (d: Record<string, unknown>) => `⚡ New AI Infrastructure: SIM ${d.phone_number ?? ''} activated.`,
+      title: 'New AI Infrastructure activated',
       body: (d: Record<string, unknown>) =>
-        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
+        `You have deployed a new node in your infrastructure. Your agents can now operate with the assigned number.`,
       cta: 'Go to Dashboard',
-      infoLeftLabel: 'ACTIVE PLAN',
+      infoLeftLabel: 'SIM',
       infoRightLabel: 'STATUS',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: () => 'Active',
     },
     subscription_activated: {
@@ -172,25 +172,25 @@ const i18n = {
       infoRightValue: () => 'Active',
     },
     subscription_cancelled: {
-      subject: 'Your Telsim subscription has been cancelled',
-      title: 'Subscription cancelled',
+      subject: (d: Record<string, unknown>) => `[Telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
+      title: 'Cancellation notice',
       body: (d: Record<string, unknown>) =>
-        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
+        `We have processed the release of the resource. The SIM will remain operational in your fleet until <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'View plans',
-      infoLeftLabel: 'PLAN',
-      infoRightLabel: 'END DATE',
-      infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
+      infoLeftLabel: 'SIM',
+      infoRightLabel: 'ACTIVE UNTIL',
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: 'Payment confirmed - Telsim',
-      title: 'Payment received',
+      subject: (d: Record<string, unknown>) => `[Telsim] Supply confirmation: SIM ${d.phone_number ?? ''}.`,
+      title: 'Supply confirmation',
       body: (d: Record<string, unknown>) =>
-        `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
+        `Your network node has been successfully recharged. The infrastructure for your agents is operational.<br><br><strong>SIM Identified:</strong> ${d.phone_number ?? ''}`,
       cta: 'View billing',
-      infoLeftLabel: 'AMOUNT',
+      infoLeftLabel: 'SIM IDENTIFIED',
       infoRightLabel: 'NEXT CHARGE',
-      infoLeftValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+      infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
@@ -245,6 +245,7 @@ function buildHtml(params: {
   footerText: string;
   year: number;
 }): string {
+  const primaryBlue = '#1152d4';
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -283,17 +284,17 @@ function buildHtml(params: {
                   <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;">${params.infoRightLabel}</td>
                 </tr>
                 <tr>
-                  <td style="font-size:18px;font-weight:700;color:#1d4ed8;">${params.infoLeftValue}</td>
+                  <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${params.infoLeftValue}</td>
                   <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;">${params.infoRightValue}</td>
                 </tr>
               </table>
             </td></tr>
           </table>
 
-          <!-- CTA BUTTON -->
-          <div style="text-align:center;">
+          <!-- CTA BUTTON (prominente) -->
+          <div style="text-align:center;margin-bottom:8px;">
             <a href="${params.ctaUrl}"
-               style="display:inline-block;background:#1d4ed8;color:#fff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(17,82,212,0.35);">
               ${params.ctaText} →
             </a>
           </div>
@@ -323,9 +324,7 @@ function buildHtml(params: {
             <tr>
               <td>
                 <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
-                  Recibes este email porque tienes una cuenta en Telsim.<br>
-                  Telsim · Donde la privacidad y la tecnología se encuentran<br>
-                  © 2026 Telsim. Todos los derechos reservados.
+                  ${params.footerText}
                 </p>
               </td>
             </tr>
@@ -405,10 +404,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
     }
 
-    const footerText =
-      lang === 'es'
-        ? 'Recibes este email porque tienes una cuenta en Telsim.'
-        : 'You receive this email because you have a Telsim account.';
+    const subject = typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string);
+    const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
 
     const html = buildHtml({
       icon: eventIcons[ev],
@@ -435,7 +432,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: RESEND_FROM,
         to: [email],
-        subject: t.subject,
+        subject,
         html,
         headers: {
           'List-Unsubscribe': '<mailto:unsubscribe@telsim.io?subject=unsubscribe>',

@@ -418,8 +418,10 @@ export default async function handler(req: any, res: any) {
     }
 
     // FUERA del try/catch — siempre se ejecuta:
+    const phoneForEmail = slot?.phone_number ?? '';
     await triggerEmail('purchase_success', userId, {
       plan: planName ?? '',
+      phone_number: phoneForEmail,
       to: session.customer_details?.email ?? '',
     });
 
@@ -691,11 +693,21 @@ export default async function handler(req: any, res: any) {
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, status')
+        .select('id, user_id, plan_name, status, slot_id, phone_number')
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
       if (!sub) return res.status(200).json({ received: true });
+
+      let phoneNumber = sub.phone_number ?? '';
+      if (!phoneNumber && sub.slot_id) {
+        const { data: slotRow } = await supabaseAdmin
+          .from('slots')
+          .select('phone_number')
+          .eq('slot_id', sub.slot_id)
+          .maybeSingle();
+        phoneNumber = slotRow?.phone_number ?? '';
+      }
 
       if (sub.status === 'past_due') {
         await supabaseAdmin
@@ -711,10 +723,15 @@ export default async function handler(req: any, res: any) {
         );
       }
 
+      const periodEndMs = (invoice.period_end ?? 0) * 1000;
+      const next_date = new Date(periodEndMs).toLocaleDateString('es-CL');
+
       await triggerEmail('invoice_paid', sub.user_id, {
         plan: sub.plan_name ?? '',
         amount: ((invoice.amount_paid ?? 0) / 100).toFixed(2),
-        next_date: new Date((invoice.period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
+        next_date,
+        phone_number: phoneNumber || sub.slot_id || '',
+        slot_id: sub.slot_id ?? '',
         to: invoice.customer_email ?? '',
       });
     } catch (err: any) {
@@ -807,12 +824,15 @@ export default async function handler(req: any, res: any) {
 
       console.log('[CANCEL] userData:', userData?.email, 'userId:', userId);
 
+      const phoneNumberCancelled = slotData?.phone_number ?? slotId ?? '';
+
       if (userData?.email && userId) {
         await triggerEmail('subscription_cancelled', userId, {
           plan: sub.plan_name ?? '',
           plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
           end_date: endDate,
           slot_id: slotId,
+          phone_number: phoneNumberCancelled,
           email: userData.email,
           to_email: userData.email,
         });
