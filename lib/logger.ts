@@ -1,6 +1,8 @@
 /**
  * Helper de servidor: inserta eventos en la tabla audit_logs.
  * Usa Supabase con service_role para evitar bloqueos de RLS.
+ * Para severity 'error' o 'critical', envía alerta a Telegram usando
+ * telegram_token y telegram_chat_id del usuario admin en la tabla users (en segundo plano).
  *
  * Esquema en Supabase (crear tabla si no existe):
  *   create table audit_logs (
@@ -17,6 +19,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
 const getAdminClient = () =>
   createClient(
     process.env.SUPABASE_URL || '',
@@ -26,8 +30,45 @@ const getAdminClient = () =>
 export type AuditSeverity = 'error' | 'warning' | 'info' | 'critical';
 
 /**
+ * Envía alerta a Telegram en segundo plano (fire-and-forget).
+ * Solo se ejecuta si severity es 'error' o 'critical' y el admin tiene telegram_token y telegram_chat_id.
+ */
+function sendTelegramAlertInBackground(
+  eventType: string,
+  severity: string,
+  message: string,
+  userEmail: string | null,
+  payload: Record<string, unknown>,
+  source: string
+): void {
+  const supabase = getAdminClient();
+  supabase
+    .from('users')
+    .select('telegram_token, telegram_chat_id')
+    .eq('id', ADMIN_UID)
+    .maybeSingle()
+    .then(({ data, error: selectError }) => {
+      if (selectError || !data?.telegram_token?.trim() || !data?.telegram_chat_id?.trim()) return;
+      const token = data.telegram_token.trim();
+      const chatId = data.telegram_chat_id.trim();
+      const payloadSnippet =
+        Object.keys(payload || {}).length > 0
+          ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>'
+          : '';
+      const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}${userEmail ? `\n👤 ${userEmail}` : ''}${source ? `\n📍 ${source}` : ''}${payloadSnippet}`;
+      return fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      });
+    })
+    .catch(() => {});
+}
+
+/**
  * Inserta un registro en audit_logs.
  * Solo guarda el payload completo cuando severity es 'error' o 'critical'; en 'info' o 'warning' se guarda solo el mensaje (payload vacío) para ahorrar espacio.
+ * Si la severidad es 'error' o 'critical', lanza en segundo plano el envío de alerta a Telegram con las credenciales del admin en users (sin bloquear).
  */
 export async function logEvent(
   eventType: string,
@@ -50,6 +91,17 @@ export async function logEvent(
       source: source ?? 'app',
       created_at: new Date().toISOString(),
     });
+
+    if (sev === 'error' || sev === 'critical') {
+      sendTelegramAlertInBackground(
+        eventType,
+        sev,
+        message ?? '',
+        userEmail ?? null,
+        storeFullPayload ? (payload ?? {}) : {},
+        source ?? 'app'
+      );
+    }
   } catch (err) {
     console.error('[logEvent] Error escribiendo en audit_logs:', err);
   }

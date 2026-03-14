@@ -6,6 +6,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
@@ -336,9 +337,17 @@ const App: React.FC = () => {
                           path="/dashboard/webhook-logs" 
                           element={<ProtectedRoute><DashboardLayout><WebhookLogs /></DashboardLayout></ProtectedRoute>} 
                         />
-                        <Route 
-                          path="/dashboard/admin/logs" 
-                          element={<ProtectedRoute><DashboardLayout><AdminLogs /></DashboardLayout></ProtectedRoute>} 
+                        <Route
+                          path="/dashboard/admin/logs"
+                          element={
+                            <ProtectedRoute>
+                              <AdminRoute>
+                                <DashboardLayout>
+                                  <AdminLogs />
+                                </DashboardLayout>
+                              </AdminRoute>
+                            </ProtectedRoute>
+                          }
                         />
                         <Route path="/use-case/anonymous" element={<ProtectedRoute><DashboardLayout><AnonymousRegistration /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/use-case/vault-2fa" element={<ProtectedRoute><DashboardLayout><Vault2FA /></DashboardLayout></ProtectedRoute>} />

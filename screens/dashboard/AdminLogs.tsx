@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ChevronLeft, RefreshCw, X, FileJson, Terminal } from 'lucide-react';
+import { ChevronLeft, RefreshCw, X, FileJson, Terminal, Wifi } from 'lucide-react';
 
 export type AuditLogRow = {
   id: string;
@@ -14,7 +14,15 @@ export type AuditLogRow = {
   created_at: string;
 };
 
+export type HttpResponseRow = {
+  id: string | number;
+  status_code: number;
+  created: string;
+  url: string | null;
+};
+
 type ViewFilter = 'all' | 'errors' | 'payments';
+type MainSection = 'audit' | 'network';
 
 function formatRelative(dateStr: string): string {
   try {
@@ -46,12 +54,27 @@ function badgeClass(severity: string): string {
   return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
 }
 
+function httpRowBgClass(statusCode: number): string {
+  if (statusCode >= 500) return 'bg-red-950/50 border-l-4 border-red-500 hover:bg-red-950/70';
+  if (statusCode >= 400) return 'bg-amber-950/40 border-l-4 border-amber-500 hover:bg-amber-950/60';
+  return 'bg-emerald-950/30 border-l-4 border-emerald-500 hover:bg-emerald-950/50';
+}
+
+function httpStatusBadgeClass(statusCode: number): string {
+  if (statusCode >= 500) return 'bg-red-500/20 text-red-400 border-red-500/50';
+  if (statusCode >= 400) return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
+  return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
+}
+
 const PAYMENT_EVENT_PREFIX = 'PAYMENT';
 
 const AdminLogs: React.FC = () => {
   const navigate = useNavigate();
+  const [mainSection, setMainSection] = useState<MainSection>('audit');
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [networkLogs, setNetworkLogs] = useState<HttpResponseRow[]>([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLogRow | null>(null);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
 
@@ -62,6 +85,16 @@ const AdminLogs: React.FC = () => {
       .order('created_at', { ascending: false })
       .limit(200);
     if (!error && data) setLogs((data as AuditLogRow[]) || []);
+  }, []);
+
+  const fetchNetworkLogs = useCallback(async () => {
+    const { data, error } = await supabase
+      .schema('net')
+      .from('_http_response')
+      .select('id, status_code, created, url')
+      .order('created', { ascending: false })
+      .limit(20);
+    if (!error && data) setNetworkLogs((data as HttpResponseRow[]) || []);
   }, []);
 
   useEffect(() => {
@@ -75,6 +108,18 @@ const AdminLogs: React.FC = () => {
     }, 30_000);
     return () => clearInterval(interval);
   }, [fetchLogs]);
+
+  useEffect(() => {
+    if (mainSection !== 'network') return;
+    setNetworkLoading(true);
+    fetchNetworkLogs().finally(() => setNetworkLoading(false));
+  }, [mainSection, fetchNetworkLogs]);
+
+  useEffect(() => {
+    if (mainSection !== 'network') return;
+    const interval = setInterval(() => fetchNetworkLogs(), 30_000);
+    return () => clearInterval(interval);
+  }, [mainSection, fetchNetworkLogs]);
 
   const filteredLogs = (() => {
     if (viewFilter === 'all') return logs;
@@ -95,84 +140,163 @@ const AdminLogs: React.FC = () => {
             <h1 className="text-lg font-black text-white">Logs de auditoría</h1>
           </div>
           <button
-            onClick={() => { setLoading(true); fetchLogs().finally(() => setLoading(false)); }}
-            disabled={loading}
+            onClick={() => {
+              if (mainSection === 'audit') {
+                setLoading(true);
+                fetchLogs().finally(() => setLoading(false));
+              } else {
+                setNetworkLoading(true);
+                fetchNetworkLogs().finally(() => setNetworkLoading(false));
+              }
+            }}
+            disabled={mainSection === 'audit' ? loading : networkLoading}
             className="ml-auto p-2 rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 text-slate-400 hover:text-white"
           >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={18} className={mainSection === 'audit' ? (loading ? 'animate-spin' : '') : (networkLoading ? 'animate-spin' : '')} />
           </button>
         </div>
 
-        <div className="flex gap-2 px-4 pb-3">
+        <div className="flex gap-2 px-4 pb-2">
           {[
-            { id: 'all' as ViewFilter, label: 'Todos' },
-            { id: 'errors' as ViewFilter, label: 'Errores' },
-            { id: 'payments' as ViewFilter, label: 'Pagos' },
-          ].map(({ id, label }) => (
+            { id: 'audit' as MainSection, label: 'Auditoría', icon: <FileJson size={14} /> },
+            { id: 'network' as MainSection, label: 'Logs de Red', icon: <Wifi size={14} /> },
+          ].map(({ id, label, icon }) => (
             <button
               key={id}
-              onClick={() => setViewFilter(id)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
-                viewFilter === id
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+              onClick={() => setMainSection(id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                mainSection === id ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
               }`}
             >
+              {icon}
               {label}
             </button>
           ))}
         </div>
+
+        {mainSection === 'audit' && (
+          <div className="flex gap-2 px-4 pb-3">
+            {[
+              { id: 'all' as ViewFilter, label: 'Todos' },
+              { id: 'errors' as ViewFilter, label: 'Errores' },
+              { id: 'payments' as ViewFilter, label: 'Pagos' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setViewFilter(id)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  viewFilter === id ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="p-4">
-        {loading && logs.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <RefreshCw size={28} className="text-slate-500 animate-spin" />
-          </div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="text-center py-16 rounded-xl bg-slate-900/80 border border-slate-800">
-            <FileJson size={40} className="mx-auto text-slate-500 mb-3" />
-            <p className="text-sm font-medium text-slate-400">No hay registros</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/50">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/80">
-                    <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Fecha</th>
-                    <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Evento</th>
-                    <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email</th>
-                    <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Mensaje</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.map((log) => (
-                    <tr
-                      key={log.id}
-                      onClick={() => setSelectedLog(log)}
-                      className={`border-b border-slate-800 cursor-pointer transition-colors ${rowBgClass(log.severity || 'info')}`}
-                    >
-                      <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
-                        {formatRelative(log.created_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded border text-[11px] font-bold ${badgeClass(log.severity || 'info')}`}>
-                          {log.event_type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-300 truncate max-w-[140px]">
-                        {log.user_email || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-300 truncate max-w-[200px]">
-                        {log.message || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {mainSection === 'audit' && (
+          <>
+            {loading && logs.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <RefreshCw size={28} className="text-slate-500 animate-spin" />
+              </div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="text-center py-16 rounded-xl bg-slate-900/80 border border-slate-800">
+                <FileJson size={40} className="mx-auto text-slate-500 mb-3" />
+                <p className="text-sm font-medium text-slate-400">No hay registros</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/50">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-900/80">
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Fecha</th>
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Evento</th>
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email</th>
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Mensaje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLogs.map((log) => (
+                        <tr
+                          key={log.id}
+                          onClick={() => setSelectedLog(log)}
+                          className={`border-b border-slate-800 cursor-pointer transition-colors ${rowBgClass(log.severity || 'info')}`}
+                        >
+                          <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
+                            {formatRelative(log.created_at)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2 py-0.5 rounded border text-[11px] font-bold ${badgeClass(log.severity || 'info')}`}>
+                              {log.event_type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-300 truncate max-w-[140px]">
+                            {log.user_email || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-300 truncate max-w-[200px]">
+                            {log.message || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {mainSection === 'network' && (
+          <>
+            {networkLoading && networkLogs.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <RefreshCw size={28} className="text-slate-500 animate-spin" />
+              </div>
+            ) : networkLogs.length === 0 ? (
+              <div className="text-center py-16 rounded-xl bg-slate-900/80 border border-slate-800">
+                <Wifi size={40} className="mx-auto text-slate-500 mb-3" />
+                <p className="text-sm font-medium text-slate-400">No hay respuestas HTTP registradas</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/50">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-900/80">
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Fecha</th>
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Status</th>
+                        <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">URL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {networkLogs.map((row) => (
+                        <tr
+                          key={String(row.id)}
+                          className={`border-b border-slate-800 transition-colors ${httpRowBgClass(row.status_code)}`}
+                        >
+                          <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
+                            {formatRelative(row.created)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2 py-0.5 rounded border text-[11px] font-bold ${httpStatusBadgeClass(row.status_code)}`}>
+                              {row.status_code}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-300 truncate max-w-[280px]" title={row.url || ''}>
+                            {row.url || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
