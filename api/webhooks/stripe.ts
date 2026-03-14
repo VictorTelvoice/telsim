@@ -25,14 +25,16 @@ async function triggerEmail(
       email = userData?.email;
     }
     if (!email) {
-      console.error('[triggerEmail] {"error":"No email address resolved"}');
-      return;
+      const msg = 'No email address resolved';
+      console.error('[triggerEmail]', msg);
+      throw new Error(msg);
     }
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceKey) {
-      console.warn('[triggerEmail] Missing env vars');
-      return;
+      const msg = 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY';
+      console.warn('[triggerEmail]', msg);
+      throw new Error(msg);
     }
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
@@ -49,9 +51,14 @@ async function triggerEmail(
     });
     const result = await res.json().catch(() => ({}));
     console.log('[triggerEmail] resultado:', result);
-    if (!res.ok) console.error('[triggerEmail]', await res.text());
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      console.error('[triggerEmail] send-email failed:', res.status, bodyText);
+      throw new Error(`send-email failed: ${res.status} ${bodyText}`);
+    }
   } catch (err) {
     console.error('[triggerEmail] Failed:', err);
+    throw err;
   }
 }
 
@@ -263,11 +270,13 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
-    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = session.metadata || {};
+    const meta = session.metadata || {};
+    const { userId, slot_id: slotId, planName, limit, transactionType, isAnnual } = meta;
+    const phoneFromMeta = (meta.phoneNumber ?? meta.phone_number ?? '') as string;
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
     console.log(
-      `[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual(meta): ${isAnnual}`
+      `[WEBHOOK INIT] sessionId: ${session.id}, userId: ${userId}, slotId: ${slotId}, planName: ${planName}, isAnnual(meta): ${isAnnual}, phoneFromMeta: ${phoneFromMeta || '(vacío)'}`
     );
 
     if (!userId || !slotId) {
@@ -360,6 +369,9 @@ export default async function handler(req: any, res: any) {
         console.warn(`[WEBHOOK SLOT MISSING] Slot ${slotId} not found in database`);
       }
 
+      // phone_number para correo y Telegram: metadata primero, luego tabla slots (vital si metadata no lo trajo)
+      const resolvedPhoneForNotifications = (phoneFromMeta && String(phoneFromMeta).trim()) || slot?.phone_number || '';
+
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
         .select('id')
@@ -376,7 +388,7 @@ export default async function handler(req: any, res: any) {
         const insertData = {
           user_id: userId,
           slot_id: slotId,
-          phone_number: slot?.phone_number,
+          phone_number: resolvedPhoneForNotifications || slot?.phone_number,
           plan_name: planName,
           monthly_limit: Number(limit),
           status: subscriptionStatus,
@@ -417,15 +429,35 @@ export default async function handler(req: any, res: any) {
       console.error('[WEBHOOK ERROR]:', err.message);
     }
 
-    // FUERA del try/catch — siempre se ejecuta:
-    const phoneForEmail = slot?.phone_number ?? '';
-    await triggerEmail('purchase_success', userId, {
-      plan: planName ?? '',
-      phone_number: phoneForEmail,
-      to: session.customer_details?.email ?? '',
-    });
+    // FUERA del try/catch — siempre correo y Telegram (incluso con amount_total 0 / trials / promos)
+    let phoneForEmail = phoneFromMeta || '';
+    if (!phoneForEmail && slotId) {
+      try {
+        const { data: slotRow } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).maybeSingle();
+        phoneForEmail = (slotRow as { phone_number?: string } | null)?.phone_number ?? '';
+      } catch (e: any) {
+        console.warn('[WEBHOOK] Fallback slot lookup for email failed:', e?.message);
+      }
+    }
 
-    // ── Telegram (independiente) ───────────────────────────────────
+    try {
+      await triggerEmail('purchase_success', userId, {
+        plan: planName ?? '',
+        phone_number: phoneForEmail,
+        to: session.customer_details?.email ?? '',
+      });
+    } catch (emailErr: any) {
+      console.error('[WEBHOOK triggerEmail FAIL]', {
+        event: 'purchase_success',
+        userId,
+        slotId,
+        phone_number: phoneForEmail,
+        error: emailErr?.message,
+        stack: emailErr?.stack,
+      });
+    }
+
+    // ── Telegram: usar phone_number de DB/metadata para mensaje tipo "NUEVA COMPRA: SIM +56 9 5319 4056 activada"
     try {
       const { data: userRow } = await supabaseAdmin
         .from('users')
@@ -438,19 +470,16 @@ export default async function handler(req: any, res: any) {
       const prefs = userRow?.notification_preferences as { sim_activated?: { telegram?: boolean } } | null | undefined;
       const sendSimActivated = prefs?.sim_activated?.telegram === true;
 
+      const telegramPhone = phoneForEmail || phoneFromMeta || '';
+      const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
+
       if (tgToken && tgChatId && sendSimActivated) {
-        const { data: slotForTg } = await supabaseAdmin
-          .from('slots')
-          .select('phone_number')
-          .eq('slot_id', slotId)
-          .maybeSingle();
         const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const phoneNumber = escapeHtml(slotForTg?.phone_number || '');
         const planNameEscaped = escapeHtml(planName || '');
 
-        const telegramMessage = `<b>🚀 ¡NUEVA LÍNEA ACTIVADA!</b>
+        const telegramMessage = `<b>🚀 NUEVA COMPRA: SIM ${displayPhone} activada</b>
 ━━━━━━━━━━━━━━━━━━
-📱 <b>Número:</b> <code>${phoneNumber}</code>
+📱 <b>Número:</b> <code>${escapeHtml(displayPhone)}</code>
 💎 <b>Plan:</b> ${planNameEscaped}
 ✅ <b>Estado:</b> Operativo`;
 

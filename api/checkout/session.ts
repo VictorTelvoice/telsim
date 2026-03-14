@@ -193,28 +193,34 @@ export default async function handler(req: any, res: any) {
     const origin = `${host?.includes('localhost') ? 'http' : 'https'}://${host}`;
     
     let targetSlotId = slot_id;
+    let targetPhoneNumber: string = typeof phoneNumber === 'string' ? phoneNumber : '';
 
     if (!isUpgrade) {
-      const { data: s } = await supabaseAdmin.from('slots').select('slot_id').eq('status', 'libre').limit(1).single();
+      const { data: s } = await supabaseAdmin.from('slots').select('slot_id, phone_number').eq('status', 'libre').limit(1).single();
       if (!s) throw new Error("Sin capacidad física disponible.");
       targetSlotId = s.slot_id;
+      targetPhoneNumber = (s as { phone_number?: string }).phone_number ?? targetPhoneNumber;
+    } else if (!targetPhoneNumber && targetSlotId) {
+      const { data: slotRow } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', targetSlotId).maybeSingle();
+      targetPhoneNumber = (slotRow as { phone_number?: string } | null)?.phone_number ?? '';
     }
 
-    // Creación de sesión corrigiendo el error de modo suscripción y añadiendo persistencia
+    // Siempre incluir phoneNumber en metadata para que el webhook pueda referenciar la SIM en correos y Telegram
     const sessionConfig: any = {
-      customer: customerId || undefined, // INYECCIÓN: Si existe, Stripe recupera tarjetas. Si no, crea cliente.
-      payment_method_collection: 'always', // Siempre muestra el formulario para permitir cambiar tarjeta
+      customer: customerId || undefined,
+      payment_method_collection: 'always',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription', // MODO SUBSCRIPTION: Requiere no usar customer_creation
+      mode: 'subscription',
       subscription_data: { trial_period_days: 7 },
       success_url: `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&slot_id=${targetSlotId}&isUpgrade=${isUpgrade}`,
       cancel_url: `${origin}/#/dashboard/numbers`,
       metadata: {
         userId,
         slot_id: targetSlotId,
+        phoneNumber: targetPhoneNumber,
         planName,
-        limit: monthlyLimit,
+        limit: String(monthlyLimit ?? ''),
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUB',
         isAnnual: isAnnual ? 'true' : 'false'
       }
