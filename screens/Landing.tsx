@@ -512,13 +512,13 @@ const Landing: React.FC = () => {
           {/* Badge superior */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
             <div className="signal-dot"></div>
-            Que tu bot no use tu número personal. Dale una identidad.
+            Para Agentes Autónomos
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
           {/* Título Principal */}
           <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
-            Para Agentes Autónomos
+            Tu Agente de IA no es autónomo si depende de que tú mires el celular.
           </h1>
 
           {/* Subtítulo / Descripción */}
@@ -529,7 +529,10 @@ const Landing: React.FC = () => {
           {/* Botones de Acción */}
           <div className="flex flex-col sm:flex-row gap-4 w-full justify-center mb-12">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => {
+                const el = document.getElementById('precios');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
               className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-10 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
             >
               Empezar gratis
