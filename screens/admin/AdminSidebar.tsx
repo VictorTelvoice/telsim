@@ -10,7 +10,7 @@ const nav = [
   { to: 'subscriptions', label: 'Suscripciones', icon: CreditCard },
   { to: 'content', label: 'CMS', icon: FileText },
   { to: 'support', label: 'Soporte', icon: MessageSquare },
-  { to: '/dashboard/admin/logs', label: 'Logs', icon: ScrollText, external: true },
+  { to: 'logs', label: 'Logs', icon: ScrollText },
 ];
 
 /**
@@ -19,7 +19,7 @@ const nav = [
 const AdminSidebar: React.FC = () => {
   const { user } = useAuth();
 
-  if (user?.id !== ADMIN_UID) {
+  if ((user?.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
     return null;
   }
 
@@ -27,38 +27,27 @@ const AdminSidebar: React.FC = () => {
     <>
       <aside className="w-56 border-r border-slate-800 bg-slate-900/50 flex-shrink-0 hidden sm:block">
         <nav className="p-3 space-y-1">
-          {nav.map(({ to, label, icon: Icon, external }) =>
-            external ? (
-              <a
-                key={to}
-                href={`#${to}`}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium"
-              >
-                <Icon size={18} />
-                {label}
-              </a>
-            ) : (
-              <NavLink
-                key={to}
-                to={to}
-                end={to !== 'support'}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                    isActive ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                  }`
-                }
-              >
-                <Icon size={18} />
-                {label}
-              </NavLink>
-            )
-          )}
+          {nav.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to !== 'support'}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  isActive ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`
+              }
+            >
+              <Icon size={18} />
+              {label}
+            </NavLink>
+          ))}
         </nav>
       </aside>
 
       {/* Mobile bottom nav */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-950/95 backdrop-blur flex justify-around py-2 px-2 safe-pb z-30">
-        {nav.filter((n) => !n.external).map(({ to, label, icon: Icon }) => (
+        {nav.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

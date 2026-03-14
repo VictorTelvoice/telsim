@@ -113,7 +113,7 @@ export default async function handler(req: any, res: any) {
         if (!anonKey) return res.status(500).json({ error: 'Configuración de auth faltante.' });
         const supabaseAuth = createClient(process.env.SUPABASE_URL!, anonKey, { global: { fetch } });
         const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-        if (authError || !user || user.id !== ADMIN_UID) {
+        if (authError || !user || (user.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
           return res.status(403).json({ error: 'Solo el administrador puede enviar esta notificación.' });
         }
         const { ticket_id: ticketId } = req.body;

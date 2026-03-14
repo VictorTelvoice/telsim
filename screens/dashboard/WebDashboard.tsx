@@ -1265,6 +1265,20 @@ const WebDashboard: React.FC = () => {
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
           <NavItem icon={<HelpCircle size={17} />} label="Centro de Ayuda" active={activeTab === 'help'} onClick={() => setActiveTab('help')} />
+
+          {(user?.id || '').toLowerCase() === '8e7bcada-3f7a-482f-93a7-9d0fd4828231'.toLowerCase() && (
+            <>
+              <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+              <button
+                type="button"
+                onClick={() => navigate('/admin/inventory')}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all bg-violet-600 hover:bg-violet-700 text-white shadow-sm border border-violet-500/30"
+              >
+                <ShieldCheck size={17} className="flex-shrink-0" />
+                <span className="flex-1 text-left">Panel Admin</span>
+              </button>
+            </>
+          )}
         </nav>
 
         {/* Bottom */}

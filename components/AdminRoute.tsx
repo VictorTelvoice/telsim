@@ -21,7 +21,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  if (!user || user.id !== ADMIN_UID) {
+  if (!user || (user.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
     return <Navigate to="/dashboard" replace />;
   }
 

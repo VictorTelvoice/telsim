@@ -42,7 +42,7 @@ import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
 import WebhookLogs from './screens/dashboard/WebhookLogs';
 import AdminLogs from './screens/dashboard/AdminLogs';
-import AdminShell from './screens/admin/AdminShell';
+import AdminLayout from './components/layouts/AdminLayout';
 import InventoryManager from './screens/admin/InventoryManager';
 import SubscriptionMonitor from './screens/admin/SubscriptionMonitor';
 import ContentCMS from './screens/admin/ContentCMS';
@@ -267,14 +267,26 @@ const App: React.FC = () => {
                   <Route path="/dashboard/upgrade-summary" element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} />
                   <Route path="/dashboard/upgrade-success" element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} />
 
-                  {/* Dashboard Admin Integral: solo admin UID 8e7bcada-3f7a-482f-93a7-9d0fd4828231 */}
-                  <Route path="/admin" element={<ProtectedRoute><AdminGuard><AdminShell /></AdminGuard></ProtectedRoute>}>
-                    <Route index element={<Navigate to="inventory" replace />} />
+                  {/* Admin: UID exacto 8e7bcada-3f7a-482f-93a7-9d0fd4828231. Rutas a pantalla completa (fuera del contenedor max-w-md móvil). */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <div className="w-full min-h-screen">
+                        <ProtectedRoute>
+                          <AdminGuard>
+                            <AdminLayout />
+                          </AdminGuard>
+                        </ProtectedRoute>
+                      </div>
+                    }
+                  >
+                    <Route index element={<Navigate to="/admin/inventory" replace />} />
                     <Route path="inventory" element={<InventoryManager />} />
                     <Route path="subscriptions" element={<SubscriptionMonitor />} />
                     <Route path="content" element={<ContentCMS />} />
                     <Route path="support" element={<SupportCenter />} />
                     <Route path="support/:ticketId" element={<AdminTicketChat backTo="/admin/support" />} />
+                    <Route path="logs" element={<AdminLogs />} />
                   </Route>
 
                   <Route path="*" element={
