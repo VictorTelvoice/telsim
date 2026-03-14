@@ -1,5 +1,4 @@
-
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useDeviceSession } from '../hooks/useDeviceSession';
 
@@ -13,24 +12,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+type ProfileData = { avatar_url?: string | null; nombre?: string | null; pais?: string | null; moneda?: string | null } | null;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const { registerOrUpdateSession } = useDeviceSession();
 
-  const getProfile = useCallback(async (userId: string) => {
+  const getProfile = useCallback(async (userId: string): Promise<ProfileData> => {
     try {
       const { data } = await supabase
         .from('users')
         .select('avatar_url, nombre, pais, moneda')
         .eq('id', userId)
         .single();
-      return data as { avatar_url?: string | null; nombre?: string | null; pais?: string | null; moneda?: string | null } | null;
+      return data as ProfileData;
     } catch {
       return null;
     }
   }, []);
+
+  const syncUserToPublicTable = useCallback(async (currentUser: any) => {
+    try {
+      const { data: existing } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      const existingAvatar = existing?.avatar_url && String(existing.avatar_url).trim() !== '';
+      const avatarUrl = existingAvatar
+        ? existing!.avatar_url
+        : (currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null);
+
+      await supabase
+        .from('users')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          nombre: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0],
+          avatar_url: avatarUrl,
+        }, { onConflict: 'id', ignoreDuplicates: false });
+
+      await registerOrUpdateSession(currentUser.id);
+
+      const profile = await getProfile(currentUser.id);
+      setUser((prev: any) => (prev ? { ...prev, ...profile } : { ...currentUser, ...profile }));
+    } catch (err) {
+      console.error('Error sincronización users:', err);
+    }
+  }, [getProfile, registerOrUpdateSession]);
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -38,64 +70,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (profile) setUser((prev: any) => (prev ? { ...prev, ...profile } : null));
   }, [user?.id, getProfile]);
 
-  const syncUserToPublicTable = useCallback(async (currentUser: any) => {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          nombre: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0],
-          avatar_url: currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null,
-        }, { onConflict: 'id', ignoreDuplicates: false });
-
-      if (error) {
-        console.error("Error sincronizando usuario en tabla pública:", error.message);
-      }
-
-      await registerOrUpdateSession(currentUser.id);
-
-      const profile = await getProfile(currentUser.id);
-      if (profile) {
-        setUser((prev: any) => (prev ? { ...prev, ...profile } : { ...currentUser, ...profile }));
-      }
-    } catch (err) {
-      console.error("Error crítico de sincronización:", err);
-    }
-  }, [getProfile, registerOrUpdateSession]);
+  const getProfileRef = useRef(getProfile);
+  const syncRef = useRef(syncUserToPublicTable);
+  getProfileRef.current = getProfile;
+  syncRef.current = syncUserToPublicTable;
 
   useEffect(() => {
-    (supabase.auth as any).getSession().then(async ({ data: { session } }: any) => {
+    let cancelled = false;
+
+    (supabase.auth as any).getSession().then(async ({ data: { session: sess } }: any) => {
       try {
-        setSession(session);
-        if (session?.user) {
-          const profile = await getProfile(session.user.id);
-          const enrichedUser = profile ? { ...session.user, ...profile } : session.user;
-          setUser(enrichedUser);
-          syncUserToPublicTable(session.user);
+        if (cancelled) return;
+        setSession(sess);
+        if (sess?.user) {
+          const profileData = await getProfileRef.current(sess.user.id);
+          setUser({ ...sess.user, ...(profileData || {}) });
+          await syncRef.current(sess.user);
         }
       } catch (err) {
         console.error('Auth getSession error:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     });
 
-    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
+    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
       try {
-        setSession(session);
-        const currentUser = session?.user ?? null;
+        if (cancelled) return;
+        setSession(sess);
+        const currentUser = sess?.user ?? null;
         if (currentUser) {
-          const profile = await getProfile(currentUser.id);
-          const enrichedUser = profile ? { ...currentUser, ...profile } : currentUser;
-          setUser(enrichedUser);
+          const profileData = await getProfileRef.current(currentUser.id);
+          setUser({ ...currentUser, ...(profileData || {}) });
         } else {
           setUser(null);
         }
 
         if (event === 'SIGNED_IN' && currentUser) {
-          syncUserToPublicTable(currentUser);
-
+          await syncRef.current(currentUser);
           const redirect = localStorage.getItem('post_login_redirect');
           if (redirect) {
             localStorage.removeItem('post_login_redirect');
@@ -110,17 +122,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.error('Auth onAuthStateChange error:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    // Limpiar ID de sesión local al cerrar sesión
     localStorage.removeItem('telsim_device_session_id');
-    // Cast supabase.auth to any to bypass SupabaseAuthClient type missing signOut
     await (supabase.auth as any).signOut();
     setUser(null);
     setSession(null);
