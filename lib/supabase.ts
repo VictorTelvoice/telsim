@@ -1,33 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * Almacenamiento híbrido: localStorage primero, fallback a sessionStorage.
- * En PWA en iOS Safari, localStorage puede limpiarse al cerrar la app;
- * sessionStorage permite recuperar la sesión cuando esté disponible.
- */
-const hybridStorage = {
-  getItem: (key: string): string | null => {
-    try {
-      return localStorage.getItem(key) ?? sessionStorage.getItem(key);
-    } catch {
-      return sessionStorage.getItem(key);
-    }
-  },
-  setItem: (key: string, value: string): void => {
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      sessionStorage.setItem(key, value);
-    }
-  },
-  removeItem: (key: string): void => {
-    try {
-      localStorage.removeItem(key);
-    } catch {}
-    sessionStorage.removeItem(key);
-  },
-};
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -46,9 +18,9 @@ export const supabase = createClient(finalUrl, finalKey, {
   global: { fetch: noStoreFetch },
   auth: {
     persistSession: true,
-    storageKey: 'telsim-auth',
-    storage: hybridStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    storageKey: 'telsim-auth-session',
+    storage: window.localStorage,
   },
 });

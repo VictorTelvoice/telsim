@@ -7,6 +7,7 @@ import { MessagesProvider, useMessagesCount } from './contexts/MessagesContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import AdminGuard from './components/AdminGuard';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
@@ -41,6 +42,12 @@ import Webhooks from './screens/dashboard/Webhooks';
 import WebhookGuide from './screens/dashboard/WebhookGuide';
 import WebhookLogs from './screens/dashboard/WebhookLogs';
 import AdminLogs from './screens/dashboard/AdminLogs';
+import AdminShell from './screens/admin/AdminShell';
+import InventoryManager from './screens/admin/InventoryManager';
+import SubscriptionMonitor from './screens/admin/SubscriptionMonitor';
+import ContentCMS from './screens/admin/ContentCMS';
+import SupportCenter from './screens/admin/SupportCenter';
+import AdminTicketChat from './screens/admin/AdminTicketChat';
 import ApiDocs from './screens/ApiDocs';
 import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
@@ -259,6 +266,16 @@ const App: React.FC = () => {
                   <Route path="/dashboard/upgrade-plan"   element={<ProtectedRoute><UpgradePlanSelector /></ProtectedRoute>} />
                   <Route path="/dashboard/upgrade-summary" element={<ProtectedRoute><UpgradeSummary /></ProtectedRoute>} />
                   <Route path="/dashboard/upgrade-success" element={<ProtectedRoute><UpgradeSuccess /></ProtectedRoute>} />
+
+                  {/* Dashboard Admin Integral: solo admin UID 8e7bcada-3f7a-482f-93a7-9d0fd4828231 */}
+                  <Route path="/admin" element={<ProtectedRoute><AdminGuard><AdminShell /></AdminGuard></ProtectedRoute>}>
+                    <Route index element={<Navigate to="inventory" replace />} />
+                    <Route path="inventory" element={<InventoryManager />} />
+                    <Route path="subscriptions" element={<SubscriptionMonitor />} />
+                    <Route path="content" element={<ContentCMS />} />
+                    <Route path="support" element={<SupportCenter />} />
+                    <Route path="support/:ticketId" element={<AdminTicketChat backTo="/admin/support" />} />
+                  </Route>
 
                   <Route path="*" element={
                     <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">

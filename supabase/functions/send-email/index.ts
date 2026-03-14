@@ -471,6 +471,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'No email address resolved' }), { status: 400 });
     }
 
+    // Contenido editable desde admin_settings (CMS)
+    let settingsOverrides: Record<string, string> = {};
+    try {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+      const { data: rows } = await supabase.from('admin_settings').select('key, value');
+      if (rows) {
+        rows.forEach((r: { key: string; value: string | null }) => {
+          if (r.key && r.value != null) settingsOverrides[r.key] = r.value;
+        });
+      }
+    } catch (e) {
+      console.warn('[send-email] admin_settings lookup failed:', e);
+    }
+
     // Construir email
     const ev = event as EventType;
     const t = i18n[lang][ev];
@@ -478,8 +492,33 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
     }
 
-    const subject = typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string);
+    const titleKey = `email_${ev}_title_${lang}`;
+    const titleOverride = settingsOverrides[titleKey];
+    const subjectKey = `email_${ev}_subject_${lang}`;
+    const subjectOverride = settingsOverrides[subjectKey];
+
+    const subject = subjectOverride != null && subjectOverride !== ''
+      ? subjectOverride
+      : (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string));
     const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
+
+    const bodyKey = `email_${ev}_body_${lang}`;
+    const bodyOverrideRaw = settingsOverrides[bodyKey];
+    const renderBodyTemplate = (template: string, d: Record<string, unknown>): string => {
+      let s = template;
+      for (const [k, v] of Object.entries(d)) {
+        s = s.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v ?? ''));
+      }
+      s = s.replace(/\{\{plan\}\}/g, String(d.plan ?? ''));
+      s = s.replace(/\{\{amount\}\}/g, String(d.amount ?? ''));
+      s = s.replace(/\{\{phone_number\}\}/g, String(d.phone_number ?? ''));
+      s = s.replace(/\{\{next_date\}\}/g, String(d.next_date ?? ''));
+      s = s.replace(/\{\{billing_type\}\}/g, String(d.billing_type ?? ''));
+      return s;
+    };
+    const bodyStr = bodyOverrideRaw != null && bodyOverrideRaw !== ''
+      ? renderBodyTemplate(bodyOverrideRaw, data)
+      : t.body(data);
 
     const tAny = t as Record<string, unknown>;
     const rowVal = (key: string) => {
@@ -496,8 +535,8 @@ Deno.serve(async (req) => {
 
     const html = buildHtml({
       icon: eventIcons[ev],
-      title: t.title,
-      body: t.body(data),
+      title: titleOverride != null && titleOverride !== '' ? titleOverride : t.title,
+      body: bodyStr,
       infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
       infoLeftLabel: t.infoLeftLabel,
       infoLeftValue: t.infoLeftValue(data),

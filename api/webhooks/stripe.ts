@@ -86,6 +86,28 @@ async function sendTelegramNotification(message: string, userId: string): Promis
   }
 }
 
+/** Obtiene admin_settings para sobrescribir mensajes Telegram/email desde el CMS. */
+async function getAdminSettings(): Promise<Record<string, string>> {
+  try {
+    const { data: rows } = await supabaseAdmin.from('admin_settings').select('key, value');
+    const out: Record<string, string> = {};
+    (rows || []).forEach((r: { key: string; value: string | null }) => {
+      if (r.key && r.value != null) out[r.key] = r.value;
+    });
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function renderTemplate(template: string, data: Record<string, string>): string {
+  let s = template;
+  for (const [k, v] of Object.entries(data)) {
+    s = s.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
+  }
+  return s;
+}
+
 async function createNotification(
   userId: string,
   title: string,
@@ -245,11 +267,21 @@ export default async function handler(req: any, res: any) {
         const sendUpgrade = prefs?.sim_activated?.telegram === true;
         if (tgToken && tgChatId && sendUpgrade) {
           const billingLabel = upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual';
-          const telegramMessage = `⚡ *UPGRADE EXITOSO*
+          const defaultUpgrade = `⚡ *UPGRADE EXITOSO*
 📱 Número: +${phoneNumber}
 📦 Plan: ${upgradeMeta.new_plan_name} · ${billingLabel}
 📅 Activación: ${now}
 ✅ Estado: Activo`;
+          const settings = await getAdminSettings();
+          const telegramMessage = (settings.telegram_upgrade_success?.trim())
+            ? renderTemplate(settings.telegram_upgrade_success, {
+                phone: phoneNumber,
+                plan: upgradeMeta.new_plan_name || '',
+                billing: billingLabel,
+                now,
+                status: 'Activo',
+              })
+            : defaultUpgrade;
           await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -510,11 +542,15 @@ export default async function handler(req: any, res: any) {
         const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const planNameEscaped = escapeHtml(planName || '');
 
-        const telegramMessage = `<b>🚀 NUEVA COMPRA: SIM ${displayPhone} activada</b>
+        const defaultNewPurchase = `<b>🚀 NUEVA COMPRA: SIM ${displayPhone} activada</b>
 ━━━━━━━━━━━━━━━━━━
 📱 <b>Número:</b> <code>${escapeHtml(displayPhone)}</code>
 💎 <b>Plan:</b> ${planNameEscaped}
 ✅ <b>Estado:</b> Operativo`;
+        const settings = await getAdminSettings();
+        const telegramMessage = (settings.telegram_new_purchase?.trim())
+          ? renderTemplate(settings.telegram_new_purchase, { phone: displayPhone, plan: planName || '' })
+          : defaultNewPurchase;
 
         const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
           method: 'POST',
@@ -664,7 +700,12 @@ export default async function handler(req: any, res: any) {
           const sendTg = prefs?.sim_expired?.telegram === true;
 
           if (tgToken && tgChatId && sendTg) {
-            const telegramMessage = `<b>⚠️ SUSCRIPCIÓN CANCELADA</b>\n━━━━━━━━━━━━━━━━━━\n💎 <b>Plan:</b> ${sub.plan_name ?? ''}\n📅 <b>Activo hasta:</b> ${new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL')}\n\nPuedes reactivar tu plan cuando quieras.`;
+            const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
+            const defaultCancelled = `<b>⚠️ SUSCRIPCIÓN CANCELADA</b>\n━━━━━━━━━━━━━━━━━━\n💎 <b>Plan:</b> ${sub.plan_name ?? ''}\n📅 <b>Activo hasta:</b> ${endDate}\n\nPuedes reactivar tu plan cuando quieras.`;
+            const settings = await getAdminSettings();
+            const telegramMessage = (settings.telegram_subscription_cancelled?.trim())
+              ? renderTemplate(settings.telegram_subscription_cancelled, { plan: sub.plan_name ?? '', end_date: endDate })
+              : defaultCancelled;
             await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -905,11 +946,20 @@ export default async function handler(req: any, res: any) {
         console.error('[CANCEL] No se encontró email para userId:', userId);
       }
 
-      const telegramMessage = `❌ *CANCELACIÓN*
+      const defaultCancellation = `❌ *CANCELACIÓN*
 📱 Número: +${slotData?.phone_number || slotId}
 📦 Plan: ${slotData?.plan_type ?? sub.plan_name ?? ''}
 📅 Cancelación: ${now}
 🔴 Estado: Cancelado`;
+      const settings = await getAdminSettings();
+      const telegramMessage = (settings.telegram_cancellation?.trim())
+        ? renderTemplate(settings.telegram_cancellation, {
+            phone: String(slotData?.phone_number || slotId),
+            plan: String(slotData?.plan_type ?? sub.plan_name ?? ''),
+            date: now,
+            status: 'Cancelado',
+          })
+        : defaultCancellation;
       await sendTelegramNotification(telegramMessage, userId);
       console.log('[CANCEL] Telegram enviado OK');
       // ────────────────────────────────────────────────────────────
