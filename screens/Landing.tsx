@@ -447,6 +447,19 @@ const Landing: React.FC = () => {
           40%  { transform: translateX(-28px); }
           100% { transform: translateX(0); }
         }
+
+        @keyframes whatsapp-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+          70% { box-shadow: 0 0 0 20px rgba(37, 211, 102, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+        }
+        .whatsapp-float-btn {
+          animation: whatsapp-pulse 2s infinite;
+          transition: all 0.3s ease;
+        }
+        .whatsapp-float-btn:hover {
+          transform: scale(1.1) translateY(-5px);
+        }
       `}</style>
 
       {/* NAV */}
@@ -1332,6 +1345,27 @@ const Landing: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* BOTÓN WHATSAPP FLOTANTE */}
+      <a
+        href="https://wa.me/56934449937?text=Hola!%20Vengo%20de%20la%20web%20y%20me%20interesa%20saber%20más%20sobre%20Telsim."
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-[100] whatsapp-float-btn bg-[#25D366] w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-2xl group"
+        title="¿Dudas? Escríbenos"
+      >
+        {/* Tooltip elegante */}
+        <span className="absolute right-full mr-4 bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">
+          ¿Dudas? Escríbenos 👋
+          <span className="absolute top-1/2 -right-1 -translate-y-1/2 border-8 border-transparent border-l-slate-900"></span>
+        </span>
+
+        <img
+          src="https://cdn.simpleicons.org/whatsapp/white"
+          className="w-7 h-7 md:w-8 md:h-8"
+          alt="WhatsApp"
+        />
+      </a>
     </div>
   );
 };
