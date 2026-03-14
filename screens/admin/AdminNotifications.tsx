@@ -111,7 +111,13 @@ const AdminNotifications: React.FC = () => {
       ) {
         map[r.id] = r.content ?? '';
       }
+      if (r.id === 'config_alert_telegram_admin_enabled') {
+        map[r.id] = (r.content ?? 'false').toLowerCase();
+      }
     });
+    if (!('config_alert_telegram_admin_enabled' in map)) {
+      map['config_alert_telegram_admin_enabled'] = 'false';
+    }
     setSettings(map);
   }, []);
 
@@ -200,9 +206,11 @@ const AdminNotifications: React.FC = () => {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      const ids = [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS];
+      const ids = [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS, 'config_alert_telegram_admin_enabled'];
       for (const id of ids) {
-        const content = settings[id] ?? '';
+        const content = id === 'config_alert_telegram_admin_enabled'
+          ? (settings[id] === 'true' ? 'true' : 'false')
+          : (settings[id] ?? '');
         await supabase.from('admin_settings').upsert(
           { id, content, updated_at: new Date().toISOString() },
           { onConflict: 'id' }
@@ -238,6 +246,40 @@ const AdminNotifications: React.FC = () => {
         <p className="text-slate-600 mb-6">
           Edita las plantillas de correo, Telegram y toasts de la app. Usa las variables dinámicas en el panel de la derecha.
         </p>
+
+        {/* Configuración de Alertas de Sistema */}
+        <section className="mb-6 p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-2">
+            Configuración de Alertas de Sistema
+          </h2>
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="alert-telegram-switch" className="text-sm text-slate-600">
+              Recibir alertas de fallos en mi Telegram
+            </label>
+            <button
+              id="alert-telegram-switch"
+              type="button"
+              role="switch"
+              aria-checked={settings['config_alert_telegram_admin_enabled'] === 'true'}
+              onClick={() => {
+                const next = settings['config_alert_telegram_admin_enabled'] === 'true' ? 'false' : 'true';
+                handleContentChange('config_alert_telegram_admin_enabled', next);
+              }}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                settings['config_alert_telegram_admin_enabled'] === 'true' ? 'bg-emerald-600' : 'bg-slate-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition ${
+                  settings['config_alert_telegram_admin_enabled'] === 'true' ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Cuando está activado, los errores críticos (p. ej. webhook Stripe) se envían al Telegram del CEO usando TELEGRAM_ADMIN_TOKEN. Guarda los cambios con «Guardar Todo».
+          </p>
+        </section>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-white rounded-xl border border-slate-200 shadow-sm mb-6 inline-flex">

@@ -29,10 +29,27 @@ const getAdminClient = () =>
 
 export type AuditSeverity = 'error' | 'warning' | 'info' | 'critical';
 
+const CONFIG_ALERT_KEY = 'config_alert_telegram_admin_enabled';
+
+/** Consulta si las alertas críticas al Telegram del CEO están habilitadas (admin_settings). */
+async function isAlertTelegramAdminEnabled(): Promise<boolean> {
+  try {
+    const supabase = getAdminClient();
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('content')
+      .eq('id', CONFIG_ALERT_KEY)
+      .maybeSingle();
+    return String((data as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Envía alerta a Telegram en segundo plano (fire-and-forget).
- * Solo se ejecuta si severity es 'error' o 'critical' y el admin tiene telegram_token y telegram_chat_id.
- * Usa try/catch con await para evitar problemas de tipo PromiseLike y mayor compatibilidad.
+ * Si config_alert_telegram_admin_enabled es 'true', usa TELEGRAM_ADMIN_TOKEN y TELEGRAM_ADMIN_CHAT_ID
+ * con detalle del error, ID de suscripción y email del cliente. Si no, usa telegram del usuario admin en users.
  */
 async function sendTelegramAlertInBackground(
   eventType: string,
@@ -43,6 +60,32 @@ async function sendTelegramAlertInBackground(
   source: string
 ): Promise<void> {
   try {
+    const clientEmail = userEmail ?? (payload?.customer_email as string) ?? (payload?.user_email as string) ?? null;
+    const subscriptionId = (payload?.subscription_id as string) ?? null;
+    const payloadSnippet =
+      Object.keys(payload || {}).length > 0
+        ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>'
+        : '';
+
+    const enabled = await isAlertTelegramAdminEnabled();
+    const adminToken = process.env.TELEGRAM_ADMIN_TOKEN?.trim();
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID?.trim();
+
+    if (enabled && adminToken && adminChatId) {
+      const text =
+        `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}` +
+        (clientEmail ? `\n👤 Email: <code>${String(clientEmail).replace(/</g, '&lt;')}</code>` : '') +
+        (subscriptionId ? `\n📋 Suscripción: <code>${String(subscriptionId)}</code>` : '') +
+        (source ? `\n📍 ${source}` : '') +
+        payloadSnippet;
+      await fetch(`https://api.telegram.org/bot${adminToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }),
+      });
+      return;
+    }
+
     const supabase = getAdminClient();
     const { data, error: selectError } = await supabase
       .from('users')
@@ -54,11 +97,7 @@ async function sendTelegramAlertInBackground(
 
     const token = data.telegram_token.trim();
     const chatId = data.telegram_chat_id.trim();
-    const payloadSnippet =
-      Object.keys(payload || {}).length > 0
-        ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>'
-        : '';
-    const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}${userEmail ? `\n👤 ${userEmail}` : ''}${source ? `\n📍 ${source}` : ''}${payloadSnippet}`;
+    const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}${clientEmail ? `\n👤 ${clientEmail}` : ''}${subscriptionId ? `\n📋 sub: ${subscriptionId}` : ''}${source ? `\n📍 ${source}` : ''}${payloadSnippet}`;
 
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',

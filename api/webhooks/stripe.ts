@@ -365,7 +365,13 @@ export default async function handler(req: any, res: any) {
 
     } catch (err: any) {
       console.error('[WEBHOOK ERROR]:', err.message);
-      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'checkout.session.completed' }, 'stripe');
+      const subIdStripe = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, session.customer_email ?? undefined, {
+        stack: err?.stack,
+        context: 'checkout.session.completed',
+        subscription_id: subIdStripe ?? undefined,
+        customer_email: session.customer_email ?? undefined,
+      }, 'stripe');
     }
 
     const dNext = new Date();
@@ -546,7 +552,11 @@ export default async function handler(req: any, res: any) {
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);
-      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'customer.subscription.updated' }, 'stripe');
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, {
+        stack: err?.stack,
+        context: 'customer.subscription.updated',
+        subscription_id: subscription?.id ?? undefined,
+      }, 'stripe');
     }
   }
 
@@ -604,7 +614,13 @@ export default async function handler(req: any, res: any) {
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_failed:', err.message);
-      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'invoice.payment_failed' }, 'stripe');
+      const stripeSubId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, invoice.customer_email ?? undefined, {
+        stack: err?.stack,
+        context: 'invoice.payment_failed',
+        subscription_id: stripeSubId ?? undefined,
+        customer_email: invoice.customer_email ?? undefined,
+      }, 'stripe');
     }
   }
 
@@ -668,7 +684,13 @@ export default async function handler(req: any, res: any) {
       });
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', err.message);
-      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'invoice.payment_succeeded' }, 'stripe');
+      const stripeSubId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, invoice.customer_email ?? undefined, {
+        stack: err?.stack,
+        context: 'invoice.payment_succeeded',
+        subscription_id: stripeSubId ?? undefined,
+        customer_email: invoice.customer_email ?? undefined,
+      }, 'stripe');
     }
   }
 
@@ -784,7 +806,11 @@ export default async function handler(req: any, res: any) {
       // ────────────────────────────────────────────────────────────
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
-      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, { stack: err?.stack, context: 'customer.subscription.deleted' }, 'stripe');
+      await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, {
+        stack: err?.stack,
+        context: 'customer.subscription.deleted',
+        subscription_id: subId ?? undefined,
+      }, 'stripe');
     }
   }
 
