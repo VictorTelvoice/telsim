@@ -931,59 +931,57 @@ const Landing: React.FC = () => {
 
       {/* FORMULARIO — Contacto + Visualización de plataforma (puente a Precios) */}
       <section id="captacion" className="py-20 md:py-32 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-[0.8fr_1.2fr] gap-16 items-start">
-            {/* Columna Izquierda: Formulario de contacto (compacto, alineado a la izquierda) */}
-            <div className="order-2 md:order-1 flex flex-col items-start">
-              <div className="w-full max-w-[400px]">
-                <h2 className="text-4xl font-black text-white leading-tight tracking-tight mb-3">CONTACTANOS</h2>
-                <p className="text-slate-400 text-sm mb-8 max-w-sm">
-                  Escala tu infraestructura de agentes autónomos con soporte técnico especializado.
-                </p>
-                <form
-                  onSubmit={(e) => e.preventDefault()}
-                  className="flex flex-col gap-3"
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20 items-start">
+            {/* Columna Izquierda: Formulario de contacto */}
+            <div className="order-2 md:order-1 flex flex-col w-full">
+              <h2 className="text-4xl font-black text-white leading-tight tracking-tight mb-3">CONTACTANOS</h2>
+              <p className="text-slate-400 text-sm mb-8">
+                Escala tu infraestructura de agentes autónomos con soporte técnico especializado.
+              </p>
+              <form
+                onSubmit={(e) => e.preventDefault()}
+                className="flex flex-col gap-5"
+              >
+                <input
+                  type="text"
+                  placeholder="Nombre"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+                <input
+                  type="text"
+                  placeholder="Empresa"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+                <input
+                  type="email"
+                  placeholder="Email Corporativo"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+                <textarea
+                  placeholder="Mensaje"
+                  rows={4}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
+                />
+                <button
+                  type="submit"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-4 px-8 rounded-2xl shadow-xl hover:bg-blue-50 transition-all mt-2"
                 >
-                  <input
-                    type="text"
-                    placeholder="Nombre"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-slate-400 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Empresa"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-slate-400 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email Corporativo"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-slate-400 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                  <textarea
-                    placeholder="Mensaje"
-                    rows={3}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-slate-400 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-3 px-6 rounded-2xl shadow-xl hover:bg-blue-50 transition-all mt-1 text-sm"
-                  >
-                    <span className="material-symbols-rounded text-[18px]">send</span>
-                    Enviar Mensaje
-                  </button>
-                </form>
-              </div>
+                  <span className="material-symbols-rounded text-[20px]">send</span>
+                  Enviar Mensaje
+                </button>
+              </form>
             </div>
 
-            {/* Columna Derecha: Textos + Imagen de plataforma (predominante) */}
+            {/* Columna Derecha: Textos + Imagen de plataforma */}
             <div className="order-1 md:order-2 flex flex-col w-full">
               <h2 className="text-4xl font-black text-white leading-tight tracking-tight mb-3">
                 Gestiona todo desde un solo lugar
               </h2>
-              <p className="text-slate-300 font-medium text-lg md:text-xl mb-8">
+              <p className="text-slate-300 font-medium text-lg mb-8">
                 Dashboard intuitivo para administrar todas tus líneas, consumos y facturación.
               </p>
-              <div className="w-full rounded-3xl border-8 border-slate-900/40 shadow-2xl overflow-hidden transition-transform duration-500 hover:scale-[1.02]">
+              <div className="w-full rounded-3xl border-[8px] border-slate-900/40 shadow-2xl overflow-hidden">
                 <img
                   src="/dashboard-captacion.png"
                   alt="Dashboard Telsim — Mensajes SMS"
