@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Users, Loader2 } from 'lucide-react';
+import AdminFicha360 from '../../components/admin/AdminFicha360';
 
 export type UserRow = {
   id: string;
@@ -16,9 +16,9 @@ export type UserRow = {
  * Gestión de usuarios: Email, Fecha de registro, SIMs activas, Gasto total (LTV), Última conexión.
  */
 const UserManager: React.FC = () => {
-  const navigate = useNavigate();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fichaUserId, setFichaUserId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const { data: usersData } = await supabase
@@ -84,7 +84,7 @@ const UserManager: React.FC = () => {
               {users.map((u) => (
                 <tr
                   key={u.id}
-                  onClick={() => navigate(`/admin/users/${u.id}`)}
+                  onClick={() => setFichaUserId(u.id)}
                   className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
                 >
                   <td className="px-4 py-3 text-sm font-medium text-slate-800 truncate max-w-[280px]" title={u.email ?? ''}>
@@ -113,6 +113,12 @@ const UserManager: React.FC = () => {
           <p className="text-slate-500">No hay usuarios registrados.</p>
         </div>
       )}
+
+      <AdminFicha360
+        open={fichaUserId !== null}
+        onClose={() => setFichaUserId(null)}
+        userId={fichaUserId}
+      />
     </div>
   );
 };

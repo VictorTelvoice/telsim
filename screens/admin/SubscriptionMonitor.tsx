@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CreditCard, Loader2, Filter } from 'lucide-react';
+import AdminFicha360 from '../../components/admin/AdminFicha360';
 
 export type SubRow = {
   id: string;
@@ -30,6 +31,7 @@ const SubscriptionMonitor: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filterMorosos, setFilterMorosos] = useState(false);
   const [filterAltas, setFilterAltas] = useState(false);
+  const [fichaUserId, setFichaUserId] = useState<string | null>(null);
 
   const fetchSubs = useCallback(async () => {
     const { data: subsData } = await supabase
@@ -137,7 +139,11 @@ const SubscriptionMonitor: React.FC = () => {
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/80">
+                <tr
+                  key={s.id}
+                  onClick={() => setFichaUserId(s.user_id)}
+                  className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
+                >
                   <td className="px-4 py-3 text-sm text-slate-800 truncate max-w-[220px]" title={s.user_email ?? ''}>
                     {s.user_email || '—'}
                   </td>
@@ -183,6 +189,12 @@ const SubscriptionMonitor: React.FC = () => {
           </p>
         </div>
       )}
+
+      <AdminFicha360
+        open={fichaUserId !== null}
+        onClose={() => setFichaUserId(null)}
+        userId={fichaUserId}
+      />
     </div>
   );
 };

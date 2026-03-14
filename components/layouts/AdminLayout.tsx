@@ -1,6 +1,8 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
+import AdminCEOMetrics from '../admin/AdminCEOMetrics';
+import AdminSalesChart from '../admin/AdminSalesChart';
 
 const nav = [
   { to: 'inventory', label: 'Inventario de SIMs', icon: Database },
@@ -51,8 +53,12 @@ const AdminLayout: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Área principal — fondo claro para tablas y contenido */}
+      {/* Área principal — métricas CEO + contenido */}
       <main className="flex-1 min-w-0 min-h-screen bg-slate-50 overflow-auto">
+        <AdminCEOMetrics />
+        <div className="px-6 pb-4 max-w-2xl">
+          <AdminSalesChart />
+        </div>
         <Outlet />
       </main>
     </div>
