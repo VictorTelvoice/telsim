@@ -69,6 +69,32 @@ const PostLoginRedirectHandler: React.FC = () => {
   return null;
 };
 
+/** Si la app queda en blanco/loading más de 2s tras volver a visible, refresca AuthContext (iOS PWA rutas congeladas). */
+const NavigationWatchdog: React.FC = () => {
+  const { loading, refreshProfile } = useAuth();
+  React.useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const onVisibilityChange = () => {
+      if (t) clearTimeout(t);
+      t = null;
+      if (document.visibilityState === 'visible') {
+        t = setTimeout(() => {
+          if (document.visibilityState === 'visible') refreshProfile();
+        }, 2000);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    if (document.visibilityState === 'visible' && loading) {
+      t = setTimeout(() => refreshProfile(), 2000);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loading, refreshProfile]);
+  return null;
+};
+
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -210,6 +236,7 @@ const App: React.FC = () => {
               <HashRouter>
                 <ScrollToTop />
                 <PostLoginRedirectHandler />
+                <NavigationWatchdog />
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />

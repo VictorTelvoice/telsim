@@ -14,6 +14,8 @@ import {
   TrendingUp
 } from 'lucide-react';
 
+// No usamos onAuthStateChange aquí: en iOS puede dejar de dispararse tras inactividad.
+// Solo usamos useAuth().user; el refresco al volver del segundo plano se hace en AuthContext (visibilitychange).
 const Processing: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -26,6 +28,8 @@ const Processing: React.FC = () => {
   
   const startTime = useRef(Date.now());
   const pollIntervalRef = useRef<any>(null);
+  const msgIntervalRef = useRef<any>(null);
+  const abortControllerRef = useRef(new AbortController());
 
   const sessionId = searchParams.get('session_id');
   const subId = searchParams.get('id'); 
@@ -53,6 +57,8 @@ const Processing: React.FC = () => {
     return num.startsWith('+') ? num : `+${num}`;
   };
 
+  const QUERY_TIMEOUT_MS = 5000;
+
   const checkStatus = async () => {
     if (Date.now() - startTime.current > 85000) {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -73,7 +79,13 @@ const Processing: React.FC = () => {
         return;
       }
 
-      const { data } = await query.maybeSingle();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('QUERY_TIMEOUT')), QUERY_TIMEOUT_MS)
+      );
+      const { data } = await Promise.race([
+        query.abortSignal(abortControllerRef.current.signal).maybeSingle(),
+        timeoutPromise
+      ]) as { data: any };
 
       if (data?.status === 'active' || data?.status === 'trialing') {
         // ✅ Payment confirmed — safe to clean up onboarding localStorage
@@ -109,17 +121,44 @@ const Processing: React.FC = () => {
           }
         });
       }
-    } catch (err) { console.debug("Polling retry...", err); }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      if (err?.message === 'QUERY_TIMEOUT') {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setError('QUERY_TIMEOUT');
+        return;
+      }
+      console.debug("Polling retry...", err);
+    }
   };
 
   useEffect(() => {
     if (!user || (!sessionId && !subId && !slotId)) return;
-    pollIntervalRef.current = setInterval(checkStatus, 1300);
-    checkStatus();
-    const msgInterval = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
+    const startPolling = () => {
+      if (pollIntervalRef.current) return;
+      abortControllerRef.current = new AbortController();
+      pollIntervalRef.current = setInterval(checkStatus, 1300);
+      checkStatus();
+    };
+    const stopPolling = () => {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+    startPolling();
+    msgIntervalRef.current = setInterval(() => { setStatusIndex((prev) => (prev + 1) % statusMessages.length); }, 2200);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') stopPolling();
+      else startPolling();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      clearInterval(msgInterval);
+      stopPolling();
+      if (msgIntervalRef.current) clearInterval(msgIntervalRef.current);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [user, sessionId, subId, slotId]);
 
@@ -152,13 +191,29 @@ const Processing: React.FC = () => {
     );
   }
 
-  if (error === "TIMEOUT") {
+  if (error === "QUERY_TIMEOUT" || error === "TIMEOUT") {
+    const isQueryTimeout = error === "QUERY_TIMEOUT";
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in">
         <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8"><AlertCircle className="size-10 text-amber-500" /></div>
-        <div className="space-y-4 mb-10"><h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Activación Demorada</h3><p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">Tu pago fue recibido, pero la activación de tu SIM está tardando más de lo habitual. Se completará automáticamente.</p></div>
+        <div className="space-y-4 mb-10">
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{isQueryTimeout ? 'Conexión lenta' : 'Activación Demorada'}</h3>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[30ch] mx-auto leading-relaxed">
+            {isQueryTimeout ? 'La consulta no respondió a tiempo. En iOS puede ocurrir al volver del segundo plano. Reintenta o entra al panel.' : 'Tu pago fue recibido, pero la activación de tu SIM está tardando más de lo habitual. Se completará automáticamente.'}
+          </p>
+        </div>
         <div className="w-full max-w-sm space-y-3">
-          <button onClick={() => { startTime.current = Date.now(); setError(null); checkStatus(); }} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"><RefreshCw className="size-4" /> Verificar nuevamente</button>
+          <button
+            onClick={() => {
+              startTime.current = Date.now();
+              setError(null);
+              pollIntervalRef.current = setInterval(checkStatus, 1300);
+              checkStatus();
+            }}
+            className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95"
+          >
+            <RefreshCw className="size-4" /> {isQueryTimeout ? 'Reintentar' : 'Verificar nuevamente'}
+          </button>
           <button onClick={() => navigate('/dashboard/numbers')} className="w-full h-14 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Ir a mis números de todas formas</button>
         </div>
       </div>

@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const failSafeTimer = setTimeout(() => {
       if (!cancelled) setLoading(false);
-    }, 3500);
+    }, 5000);
 
     const subscribeAuth = () => {
       subscriptionRef.current?.unsubscribe?.();
@@ -192,6 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (document.visibilityState !== 'visible') return;
       if (cancelled) return;
       try {
+        try {
+          (supabase.auth as any).stopAutoRefresh?.();
+          (supabase.auth as any).startAutoRefresh?.();
+        } catch (_) {}
         const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
         if (sess) {
@@ -243,7 +247,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider key={version} value={{ user, session, loading, version, signOut, refreshProfile }}>
-      {!loading && children}
+      {children}
+      {loading && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm text-slate-700 dark:text-slate-300 font-display">
+          <div className="animate-pulse text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">Sincronizando...</div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
+          >
+            Reintentar conexión
+          </button>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 };

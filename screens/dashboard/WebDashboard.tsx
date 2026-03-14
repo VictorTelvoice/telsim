@@ -425,7 +425,8 @@ const WebDashboard: React.FC = () => {
   const totalLimit = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.monthly_limit || 0), 0) || 0) : 0;
   const totalUsed = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.credits_used || 0), 0) || 0) : 0;
 
-  // ─── Data fetching ────────────────────────────────────────────────────────────
+  // ─── Data fetching (AbortController: al ir a segundo plano se abortan peticiones para no dejar zombies) ───
+  const fetchAbortRef = useRef(new AbortController());
 
   const fetchData = useCallback(async () => {
     if (!user?.id) {
@@ -433,24 +434,27 @@ const WebDashboard: React.FC = () => {
       return;
     }
     setLoading(true);
+    const signal = fetchAbortRef.current.signal;
     try {
       const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user?.id)
         .in('status', ['active', 'trialing'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .abortSignal(signal);
 
+      if (signal.aborted) return;
       if (!subsData || subsData.length === 0) {
         setSlots([]);
         setLoading(false);
         return;
       }
 
-      // Quedarse solo con la suscripción más reciente por cada slot_id
       const uniqueSubs = Array.from(new Map(subsData.map((s: { slot_id: string }) => [s.slot_id, s])).values());
 
-      const { data: slotsData } = await supabase.from('slots').select('*').in('slot_id', uniqueSubs.map(s => s.slot_id));
+      const { data: slotsData } = await supabase.from('slots').select('*').in('slot_id', uniqueSubs.map(s => s.slot_id)).abortSignal(signal);
+      if (signal.aborted) return;
 
       const finalData = uniqueSubs
         .map(sub => {
@@ -461,7 +465,8 @@ const WebDashboard: React.FC = () => {
 
       setSlots(finalData as Slot[]);
 
-      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user?.id).order('received_at', { ascending: false }).limit(60);
+      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user?.id).order('received_at', { ascending: false }).limit(60).abortSignal(signal);
+      if (signal.aborted) return;
       if (msgs) setMessages(msgs as SMSLog[]);
 
       const { data: logsData } = await supabase
@@ -469,20 +474,30 @@ const WebDashboard: React.FC = () => {
         .select('id, user_id, slot_id, status, payload, response_body, created_at')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(50)
+        .abortSignal(signal);
+      if (signal.aborted) return;
       if (logsData) setAutomationLogsOverview((logsData as AutomationLogRow[]) || []);
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { fetchData(); }, [fetchData, authVersion]);
+  // Primera carga en cuanto user.id esté disponible; no se espera a auth loading
+  useEffect(() => {
+    if (user?.id) fetchData();
+  }, [user?.id, fetchData, authVersion]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      if (typeof document === 'undefined') return;
+      if (document.visibilityState === 'hidden') {
+        fetchAbortRef.current.abort();
+        fetchAbortRef.current = new AbortController();
+      } else {
         fetchData();
       }
     };

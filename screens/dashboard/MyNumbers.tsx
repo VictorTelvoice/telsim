@@ -117,19 +117,19 @@ const MyNumbers: React.FC = () => {
     const [isAnnualUpgrade, setIsAnnualUpgrade] = useState(false);
 
     const fetchSlots = async () => {
-        if (!user) return;
+        if (!user?.id) return;
         setLoading(true);
         try {
             const { data: slotsData } = await supabase
                 .from('slots')
                 .select('*')
-                .eq('assigned_to', user.id)
+                .eq('assigned_to', user?.id)
                 .order('created_at', { ascending: false });
 
             const { data: subsData } = await supabase
                 .from('subscriptions')
                 .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type')
-                .eq('user_id', user.id)
+                .eq('user_id', user?.id)
                 .in('status', ['active', 'trialing']);
 
             const enrichedSlots = (slotsData || []).map(slot => {
@@ -152,9 +152,10 @@ const MyNumbers: React.FC = () => {
         }
     };
 
+    // Primera carga en cuanto user.id esté disponible; no se espera a auth loading
     useEffect(() => {
-        fetchSlots();
-    }, [user]);
+        if (user?.id) fetchSlots();
+    }, [user?.id]);
 
     // Lógica para detectar si volvemos desde el resumen de upgrade
     useEffect(() => {
