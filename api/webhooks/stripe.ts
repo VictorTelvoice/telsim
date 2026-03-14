@@ -1,7 +1,5 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-// Ruta relativa dentro de api/ para que el bundle de Vercel incluya el módulo (no usar ../../lib/logger)
-import { logEvent } from '../_helpers/logger';
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
 export const config = { api: { bodyParser: false } };
@@ -14,6 +12,30 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
+
+/** Logger local para no depender de lib/logger en Vercel. No lanza; solo escribe en audit_logs o console. */
+async function logEvent(
+  eventType: string,
+  severity?: string,
+  message?: string,
+  userEmail?: string | null,
+  payload?: Record<string, unknown>,
+  source?: string
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('audit_logs').insert({
+      event_type: eventType,
+      severity: severity ?? 'info',
+      message: message ?? '',
+      user_email: userEmail ?? null,
+      payload: payload ?? {},
+      source: source ?? 'stripe',
+      created_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[WEBHOOK logEvent]', eventType, severity, message, (e as Error)?.message);
+  }
+}
 
 async function createNotification(
   userId: string,
@@ -62,12 +84,14 @@ export default async function handler(req: any, res: any) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  try {
   console.log(`[WEBHOOK] Evento recibido: ${event.type}`);
   console.log('[WEBHOOK] Received event type:', event.type);
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    let sessionMeta = session.metadata || {};
+    // Usar siempre session.metadata (slot_id ej: '43A', userId, planName)
+    let sessionMeta: Record<string, string> = (session.metadata as Record<string, string>) || {};
 
     if (!sessionMeta.upgrade && session.subscription) {
       try {
@@ -179,10 +203,10 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
-    // Metadata del checkout.session: slot_id (ej: '43A'), userId, planName (aceptar camelCase y snake_case)
-    const slotId = (sessionMeta.slot_id ?? sessionMeta.slotId ?? '') as string;
-    const userId = (sessionMeta.userId ?? sessionMeta.user_id ?? '') as string;
-    const planName = (sessionMeta.planName ?? sessionMeta.plan_name ?? '') as string;
+    // session.metadata.slot_id (ej: '43A'), session.metadata.userId, session.metadata.planName
+    const slotId = sessionMeta.slot_id ?? sessionMeta.slotId ?? '';
+    const userId = sessionMeta.userId ?? sessionMeta.user_id ?? '';
+    const planName = sessionMeta.planName ?? sessionMeta.plan_name ?? '';
     const limit = sessionMeta.limit;
     const transactionType = sessionMeta.transactionType;
     const isAnnual = sessionMeta.isAnnual;
@@ -788,4 +812,9 @@ export default async function handler(req: any, res: any) {
   }
 
   return res.status(200).json({ received: true });
+  } catch (err: any) {
+    console.error('[WEBHOOK UNCAUGHT]', err?.message, err?.stack);
+    await logEvent('WEBHOOK_ERROR', 'critical', err?.message, undefined, { stack: err?.stack }, 'stripe');
+    return res.status(200).json({ received: true, error: err?.message });
+  }
 }
