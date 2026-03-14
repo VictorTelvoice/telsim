@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { TrendingUp, Loader2, ShoppingBag } from 'lucide-react';
 
 type DayRevenue = { date: string; label: string; revenue: number };
-type LastSale = { id: string; email: string | null; plan_name: string | null; amount: number | null; created_at: string; pais: string | null };
+type LastSale = { id: string; email: string | null; user_id: string | null; plan_name: string | null; amount: number | null; created_at: string; pais: string | null };
 
 const COUNTRY_TO_CODE: Record<string, string> = {
   Chile: 'CL',
@@ -72,29 +72,51 @@ const AdminSalesChart: React.FC = () => {
       }))
     );
 
-    const { data: lastSalesData } = await supabase
+    const { data: lastSalesData, error: lastSalesError } = await supabase
       .from('subscriptions')
-      .select('id, plan_name, amount, created_at, users!user_id(email, pais)')
+      .select('id, plan_name, amount, created_at, user_id, users(email, pais)')
       .order('created_at', { ascending: false })
       .limit(5);
 
-    const subsLast = (lastSalesData || []) as {
-      id: string;
-      plan_name: string | null;
-      amount: number | null;
-      created_at: string;
-      users?: { email: string | null; pais: string | null } | null;
-    }[];
-    setLastSales(
-      subsLast.map((s) => ({
-        id: s.id,
-        email: s.users?.email ?? null,
-        plan_name: s.plan_name,
-        amount: s.amount,
-        created_at: s.created_at,
-        pais: s.users?.pais ?? null,
-      }))
-    );
+    if (lastSalesError) {
+      const { data: fallbackData } = await supabase
+        .from('subscriptions')
+        .select('id, plan_name, amount, created_at, user_id')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      const fallback = (fallbackData || []) as { id: string; plan_name: string | null; amount: number | null; created_at: string; user_id: string }[];
+      setLastSales(
+        fallback.map((s) => ({
+          id: s.id,
+          email: null,
+          user_id: s.user_id,
+          plan_name: s.plan_name,
+          amount: s.amount,
+          created_at: s.created_at,
+          pais: null,
+        }))
+      );
+    } else {
+      const subsLast = (lastSalesData || []) as {
+        id: string;
+        plan_name: string | null;
+        amount: number | null;
+        created_at: string;
+        user_id?: string;
+        users?: { email: string | null; pais: string | null } | null;
+      }[];
+      setLastSales(
+        subsLast.map((s) => ({
+          id: s.id,
+          email: s.users?.email ?? null,
+          user_id: s.user_id ?? null,
+          plan_name: s.plan_name,
+          amount: s.amount,
+          created_at: s.created_at,
+          pais: s.users?.pais ?? null,
+        }))
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -192,7 +214,7 @@ const AdminSalesChart: React.FC = () => {
                   {countryToFlag(s.pais)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-800 truncate">{s.email || '—'}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{s.email || s.user_id || '—'}</p>
                   <p className="text-xs text-slate-500">
                     {s.plan_name || '—'} · {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
                   </p>

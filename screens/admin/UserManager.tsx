@@ -46,7 +46,7 @@ const UserManager: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     const { data: usersData } = await supabase
       .from('users')
-      .select('id, nombre, email, pais, telegram_enabled, created_at, subscriptions(amount, subscription_status, status)')
+      .select('id, nombre, email, pais, telegram_enabled, created_at')
       .order('created_at', { ascending: false });
 
     if (!usersData?.length) {
@@ -54,7 +54,6 @@ const UserManager: React.FC = () => {
       return;
     }
 
-    const statusOf = (s: { subscription_status?: string; status?: string }) => (s.subscription_status ?? s.status ?? '').toLowerCase();
     setUsers(
       (usersData as {
         id: string;
@@ -63,22 +62,16 @@ const UserManager: React.FC = () => {
         pais?: string | null;
         telegram_enabled?: boolean;
         created_at?: string | null;
-        subscriptions?: { amount: number | null; subscription_status?: string; status?: string }[];
-      }[]).map((u) => {
-        const subs = u.subscriptions ?? [];
-        const active_sims = subs.filter((s) => statusOf(s) === 'active' || statusOf(s) === 'trialing').length;
-        const ltv = subs.reduce((sum, s) => sum + (s.amount != null ? Number(s.amount) : 0), 0);
-        return {
-          id: u.id,
-          nombre: u.nombre ?? null,
-          email: u.email ?? null,
-          pais: u.pais ?? null,
-          telegram_enabled: Boolean(u.telegram_enabled),
-          created_at: u.created_at ?? null,
-          active_sims,
-          ltv,
-        };
-      })
+      }[]).map((u) => ({
+        id: u.id,
+        nombre: u.nombre ?? null,
+        email: u.email ?? null,
+        pais: u.pais ?? null,
+        telegram_enabled: Boolean(u.telegram_enabled),
+        created_at: u.created_at ?? null,
+        active_sims: 0,
+        ltv: 0,
+      }))
     );
   }, []);
 

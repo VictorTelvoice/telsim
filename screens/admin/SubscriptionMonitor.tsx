@@ -36,7 +36,7 @@ const SubscriptionMonitor: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData } = await supabase
       .from('subscriptions')
-      .select('id, user_id, plan_name, amount, billing_type, subscription_status, status, created_at, trial_end, users!user_id(email)')
+      .select('id, plan_name, amount, subscription_status, created_at, user_id')
       .order('created_at', { ascending: false });
 
     if (!subsData?.length) {
@@ -44,31 +44,22 @@ const SubscriptionMonitor: React.FC = () => {
       return;
     }
 
-    const statusCol = (s: Record<string, unknown>) => (s.subscription_status ?? s.status) as string | null;
     const activeStatuses = ['active', 'trialing', 'past_due'];
     setSubs(
-      (subsData as (SubRow & { users?: { email: string | null } | null })[])
-        .filter((s) => activeStatuses.includes((statusCol(s) || '').toLowerCase()))
-        .map((s) => {
-          const st = statusCol(s);
-          let nextPayment: string | null = null;
-          if (st === 'trialing' && s.trial_end) {
-            nextPayment = new Date(s.trial_end).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
-          }
-          const userEmail = s.users?.email ?? null;
-          return {
-            id: s.id,
-            user_id: s.user_id,
-            plan_name: s.plan_name,
-            amount: s.amount,
-            billing_type: s.billing_type,
-            subscription_status: st ?? null,
-            created_at: s.created_at,
-            trial_end: s.trial_end ?? null,
-            user_email: userEmail,
-            next_payment: nextPayment,
-          };
-        })
+      (subsData as { id: string; user_id: string; plan_name: string | null; amount: number | null; subscription_status: string | null; created_at: string }[])
+        .filter((s) => activeStatuses.includes((s.subscription_status || '').toLowerCase()))
+        .map((s) => ({
+          id: s.id,
+          user_id: s.user_id,
+          plan_name: s.plan_name,
+          amount: s.amount,
+          billing_type: null,
+          subscription_status: s.subscription_status ?? null,
+          created_at: s.created_at,
+          trial_end: null,
+          user_email: null,
+          next_payment: null,
+        }))
     );
   }, []);
 
@@ -148,8 +139,8 @@ const SubscriptionMonitor: React.FC = () => {
                   onClick={() => setFichaUserId(s.user_id)}
                   className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
                 >
-                  <td className="px-4 py-3 text-sm text-slate-800 truncate max-w-[220px]" title={s.user_email ?? ''}>
-                    {s.user_email || '—'}
+                  <td className="px-4 py-3 text-sm text-slate-800 truncate max-w-[220px] font-mono text-xs" title={s.user_id}>
+                    {s.user_email || s.user_id || '—'}
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-slate-900">
                     {s.plan_name ? PLAN_LABEL[s.plan_name] ?? s.plan_name : '—'}
