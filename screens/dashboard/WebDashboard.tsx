@@ -428,13 +428,16 @@ const WebDashboard: React.FC = () => {
   // ─── Data fetching ────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .in('status', ['active', 'trialing'])
         .order('created_at', { ascending: false });
 
@@ -458,13 +461,13 @@ const WebDashboard: React.FC = () => {
 
       setSlots(finalData as Slot[]);
 
-      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user.id).order('received_at', { ascending: false }).limit(60);
+      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user?.id).order('received_at', { ascending: false }).limit(60);
       if (msgs) setMessages(msgs as SMSLog[]);
 
       const { data: logsData } = await supabase
         .from('automation_logs')
         .select('id, user_id, slot_id, status, payload, response_body, created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
         .limit(50);
       if (logsData) setAutomationLogsOverview((logsData as AutomationLogRow[]) || []);

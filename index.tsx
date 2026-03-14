@@ -14,3 +14,21 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// PWA: actualizar Service Worker de inmediato cuando haya una versión nueva (skipWaiting)
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then((reg) => {
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      if (w) {
+        w.addEventListener('statechange', () => {
+          if (w.state === 'installed' && navigator.serviceWorker.controller) {
+            w.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      }
+    });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+}

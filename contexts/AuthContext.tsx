@@ -93,8 +93,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getProfileRef = useRef(getProfile);
   const syncRef = useRef(syncUserToPublicTable);
+  const refreshProfileRef = useRef(refreshProfile);
   getProfileRef.current = getProfile;
   syncRef.current = syncUserToPublicTable;
+  refreshProfileRef.current = refreshProfile;
 
   useEffect(() => {
     let cancelled = false;
@@ -121,10 +123,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.error('Auth getSession error:', err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setTimeout(() => setLoading(false), 500);
+        }
       }
     };
     run();
+
+    const onFocus = () => refreshProfileRef.current?.();
+    window.addEventListener('focus', onFocus);
 
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
       try {
@@ -169,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       cancelled = true;
+      window.removeEventListener('focus', onFocus);
       subscription.unsubscribe();
     };
   }, []);
