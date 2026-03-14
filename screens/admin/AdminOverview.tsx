@@ -3,14 +3,14 @@ import AdminCEOMetrics from '../../components/admin/AdminCEOMetrics';
 import AdminSalesChart from '../../components/admin/AdminSalesChart';
 
 /**
- * Página de inicio del panel admin: KPIs de CEO + gráfico de ventas.
+ * Pantalla principal del panel admin: KPIs (MRR, Usuarios, Ocupación) y gráficos de ventas.
  * Ruta: /admin/overview
  */
 const AdminOverview: React.FC = () => {
   return (
-    <div className="p-6">
+    <div className="min-h-full bg-slate-50 p-6">
       <AdminCEOMetrics />
-      <div className="max-w-2xl mt-4">
+      <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden max-w-2xl">
         <AdminSalesChart />
       </div>
     </div>

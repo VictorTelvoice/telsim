@@ -51,7 +51,7 @@ const AdminFicha360: React.FC<AdminFicha360Props> = ({ open, onClose, userId }) 
 
       const { data: subsData } = await supabase
         .from('subscriptions')
-        .select('id, plan_name, amount, slot_id, stripe_subscription_id, status')
+        .select('id, plan_name, amount, slot_id, stripe_subscription_id, subscription_status, status')
         .eq('user_id', uid)
         .order('created_at', { ascending: false });
 
@@ -60,9 +60,11 @@ const AdminFicha360: React.FC<AdminFicha360Props> = ({ open, onClose, userId }) 
         amount: number | null;
         slot_id: string | null;
         stripe_subscription_id: string | null;
-        status: string;
+        subscription_status?: string;
+        status?: string;
       }[];
-      const activeSub = subs.find((s) => s.status === 'active' || s.status === 'trialing');
+      const statusOf = (s: { subscription_status?: string; status?: string }) => (s.subscription_status ?? s.status ?? '').toLowerCase();
+      const activeSub = subs.find((s) => statusOf(s) === 'active' || statusOf(s) === 'trialing');
       const ltv = subs.reduce((sum, s) => sum + (s.amount != null ? Number(s.amount) : 0), 0);
 
       let slotId: string | null = activeSub?.slot_id ?? subs[0]?.slot_id ?? null;

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { BarChart3, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
 
 const nav = [
-  { to: 'overview', label: 'Overview', icon: BarChart3 },
+  { to: 'overview', label: 'Overview', icon: LayoutDashboard },
   { to: 'inventory', label: 'Inventario de SIMs', icon: Database },
   { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },

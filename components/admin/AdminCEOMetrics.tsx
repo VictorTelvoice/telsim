@@ -25,17 +25,18 @@ const AdminCEOMetrics: React.FC = () => {
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
     const [subsRes, usersRes, slotsRes] = await Promise.all([
-      supabase.from('subscriptions').select('user_id, amount, status, created_at'),
+      supabase.from('subscriptions').select('user_id, amount, subscription_status, status, created_at'),
       supabase.from('users').select('id'),
       supabase.from('slots').select('slot_id, status, assigned_to'),
     ]);
 
-    const subs = (subsRes.data || []) as { user_id: string; amount: number | null; status: string; created_at: string }[];
+    const subs = (subsRes.data || []) as { user_id: string; amount: number | null; subscription_status?: string; status?: string; created_at: string }[];
     const users = (usersRes.data || []) as { id: string }[];
     const slots = (slotsRes.data || []) as { slot_id: string; status: string; assigned_to: string | null }[];
 
-    const activeSubs = subs.filter((s) => s.status === 'active' || s.status === 'trialing');
-    const mrr = activeSubs.reduce((sum, s) => sum + (s.amount != null ? Number(s.amount) : 0), 0);
+    const statusOf = (s: { subscription_status?: string; status?: string }) => (s.subscription_status ?? s.status ?? '').toLowerCase();
+    const activeSubs = subs.filter((s) => statusOf(s) === 'active' || statusOf(s) === 'trialing');
+    const mrr = subs.filter((s) => statusOf(s) === 'active').reduce((sum, s) => sum + (s.amount != null ? Number(s.amount) : 0), 0);
     const activeUserIds = new Set(activeSubs.map((s) => s.user_id));
     const totalUsers = users.length;
     const activeUsers = activeUserIds.size;
@@ -79,7 +80,7 @@ const AdminCEOMetrics: React.FC = () => {
   const cards = [
     {
       label: 'MRR',
-      sublabel: 'Ingresos Mensuales Recurrentes',
+      sublabel: 'Ingresos Mensuales Recurrentes (subscription_status = active)',
       value: `$${metrics.mrr.toFixed(2)}`,
       icon: DollarSign,
       iconBg: 'bg-emerald-100',
@@ -95,12 +96,12 @@ const AdminCEOMetrics: React.FC = () => {
     },
     {
       label: 'SIMs en Uso',
-      sublabel: 'Ocupación de slots',
+      sublabel: 'Ocupación de slots (assigned_to)',
       value: `${metrics.slotsInUse} / ${metrics.totalSlots}`,
       subvalue: `(${metrics.occupancyPct}%)`,
       icon: Smartphone,
-      iconBg: 'bg-violet-100',
-      iconColor: 'text-violet-600',
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-600',
     },
     {
       label: 'Ventas 24h',
@@ -113,13 +114,13 @@ const AdminCEOMetrics: React.FC = () => {
   ];
 
   return (
-    <section className="px-6 pt-6 pb-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">Métricas de CEO</h2>
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">Overview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, sublabel, value, subvalue, icon: Icon, iconBg, iconColor }) => (
           <div
             key={label}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col"
+            className="rounded-xl border border-slate-100 bg-slate-50/50 p-5 flex flex-col"
           >
             <div className="flex items-start justify-between gap-3">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg} ${iconColor}`}>

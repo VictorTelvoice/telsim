@@ -60,7 +60,7 @@ const InventoryManager: React.FC = () => {
   const filteredSlots = useMemo(() => {
     if (ceoFilter === 'all') return slots;
     if (ceoFilter === 'error') return slots.filter((s) => (s.status || '').toLowerCase() === 'error');
-    if (ceoFilter === 'free') return slots.filter((s) => (s.status || '').toLowerCase() === 'libre');
+    if (ceoFilter === 'free') return slots.filter((s) => !s.assigned_to);
     return slots;
   }, [slots, ceoFilter]);
 
@@ -81,9 +81,9 @@ const InventoryManager: React.FC = () => {
 
   const slotStatusStyle = (s: SlotRow) => {
     const status = (s.status || '').toLowerCase();
-    if (status === 'error') return { bg: 'bg-red-500/20 border-red-500/40', text: 'text-red-300', label: 'Error' };
-    if (status === 'libre') return { bg: 'bg-emerald-500/20 border-emerald-500/40', text: 'text-emerald-300', label: 'Libre' };
-    return { bg: 'bg-amber-500/20 border-amber-500/40', text: 'text-amber-300', label: 'Ocupado' };
+    if (status === 'error') return { bg: 'bg-red-500/20 border-red-500/40', text: 'text-red-600', label: 'Error' };
+    if (!s.assigned_to) return { bg: 'bg-emerald-500/20 border-emerald-500/40', text: 'text-emerald-600', label: 'Libre' };
+    return { bg: 'bg-blue-500/20 border-blue-500/40', text: 'text-blue-600', label: 'Ocupado' };
   };
 
   const SignalIndicator: React.FC<{ signal?: string | null }> = ({ signal }) => {
@@ -105,69 +105,72 @@ const InventoryManager: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-1">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-black text-white mb-1">Gestión de inventario</h2>
-          <p className="text-sm text-slate-400">
-            Tabla o mosaico de slots. Filtros CEO: SIMs con error (mantenimiento) y SIMs libres (inventario).
-          </p>
+    <div className="max-w-5xl mx-auto p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-xl font-black text-slate-900 mb-1">Gestión de inventario</h2>
+            <p className="text-sm text-slate-500">
+              Slots por slot_id, phone_number, status y assigned_to (users). Verde = Libre, Azul = Ocupado.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vista</span>
+            <button
+              onClick={() => setViewMode('mosaic')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'mosaic' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              title="Mosaico"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              title="Tabla"
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vista</span>
-          <button
-            onClick={() => setViewMode('mosaic')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'mosaic' ? 'bg-slate-700 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'}`}
-            title="Mosaico"
-          >
-            <LayoutGrid size={18} />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-slate-700 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'}`}
-            title="Tabla"
-          >
-            <List size={18} />
-          </button>
-        </div>
-      </div>
 
-      {/* Filtros CEO */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Filtros CEO */}
+        <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtros CEO</span>
-        <button
-          onClick={() => setCeoFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-            ceoFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-          }`}
-        >
-          Todos ({slots.length})
-        </button>
-        <button
-          onClick={() => setCeoFilter('error')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
-            ceoFilter === 'error' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-red-500/20 hover:text-red-300'
-          }`}
-          title="SIMs con error para enviar a mantenimiento"
-        >
-          <AlertCircle size={14} />
-          SIMs con Error ({slots.filter((s) => (s.status || '').toLowerCase() === 'error').length})
-        </button>
-        <button
-          onClick={() => setCeoFilter('free')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
-            ceoFilter === 'free' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-300'
-          }`}
-          title="Inventario disponible para vender"
-        >
-          <CheckCircle2 size={14} />
-          SIMs Libres ({slots.filter((s) => (s.status || '').toLowerCase() === 'libre').length})
-        </button>
+          <button
+            onClick={() => setCeoFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              ceoFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Todos ({slots.length})
+          </button>
+          <button
+            onClick={() => setCeoFilter('error')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+              ceoFilter === 'error' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600'
+            }`}
+            title="SIMs con error para enviar a mantenimiento"
+          >
+            <AlertCircle size={14} />
+            SIMs con Error ({slots.filter((s) => (s.status || '').toLowerCase() === 'error').length})
+          </button>
+          <button
+            onClick={() => setCeoFilter('free')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+              ceoFilter === 'free' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
+            }`}
+            title="Inventario disponible para vender"
+          >
+            <CheckCircle2 size={14} />
+            SIMs Libres ({slots.filter((s) => !s.assigned_to).length})
+          </button>
+        </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       {viewMode === 'mosaic' ? (
         <>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+          <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
             {filteredSlots.map((s) => {
               const style = slotStatusStyle(s);
               return (
@@ -175,12 +178,12 @@ const InventoryManager: React.FC = () => {
                   key={s.slot_id}
                   type="button"
                   onClick={() => setSelectedSlot(s)}
-                  className={`${style.bg} border rounded-xl p-3 text-left transition-all hover:ring-2 hover:ring-white/20 focus:outline-none focus:ring-2 focus:ring-white/30`}
+                  className={`${style.bg} border rounded-xl p-3 text-left transition-all hover:ring-2 hover:ring-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-400`}
                 >
-                  <div className="font-mono text-sm font-bold text-white mb-1 truncate" title={s.slot_id}>
+                  <div className="font-mono text-sm font-bold text-slate-900 mb-1 truncate" title={s.slot_id}>
                     {s.slot_id}
                   </div>
-                  <div className="text-xs text-slate-300 font-mono truncate mb-1" title={s.phone_number || 'Sin número'}>
+                  <div className="text-xs text-slate-600 font-mono truncate mb-1" title={s.phone_number || 'Sin número'}>
                     {s.phone_number || '—'}
                   </div>
                   <div className="flex items-center justify-between">
@@ -198,16 +201,15 @@ const InventoryManager: React.FC = () => {
           )}
         </>
       ) : (
-        <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/50">
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80">
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">ID de Slot</th>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">slot_id</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Estado</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Número</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">phone_number</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Señal</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email del usuario</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Usuario (assigned_to)</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3 w-28">Acción</th>
                 </tr>
               </thead>
@@ -217,21 +219,21 @@ const InventoryManager: React.FC = () => {
                   return (
                     <tr
                       key={s.slot_id}
-                      className={`border-b border-slate-800 ${s.status === 'ocupado' ? 'bg-slate-800/30' : 'bg-slate-900/30'}`}
+                      className="border-b border-slate-100 hover:bg-slate-50/80"
                     >
-                      <td className="px-4 py-3 text-sm font-mono text-slate-300">{s.slot_id}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-slate-800">{s.slot_id}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold ${style.bg} ${style.text}`}>
                           {style.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-300 font-mono">{s.phone_number || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-700 font-mono">{s.phone_number || '—'}</td>
                       <td className="px-4 py-3"><SignalIndicator signal={s.signal} /></td>
-                      <td className="px-4 py-3 text-sm text-slate-300 truncate max-w-[200px]" title={s.user_email ?? ''}>
+                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title={s.user_email ?? ''}>
                         {s.user_email || '—'}
                       </td>
                       <td className="px-4 py-3">
-                        {s.status === 'ocupado' && (
+                        {s.assigned_to && (
                           <button
                             onClick={() => liberarSlot(s.slot_id)}
                             disabled={freeing === s.slot_id}
@@ -248,9 +250,9 @@ const InventoryManager: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
         </div>
       )}
+      </div>
 
       {/* Modal / panel detalle slot (mosaico) */}
       {selectedSlot && viewMode === 'mosaic' && (
@@ -262,14 +264,14 @@ const InventoryManager: React.FC = () => {
           aria-label="Detalle del slot"
         >
           <div
-            className={`rounded-2xl border p-5 max-w-sm w-full shadow-xl ${slotStatusStyle(selectedSlot).bg} border-slate-700`}
+            className={`rounded-2xl border p-5 max-w-sm w-full shadow-xl bg-white ${slotStatusStyle(selectedSlot).bg} border-slate-200`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-mono font-bold text-white">{selectedSlot.slot_id}</h3>
+              <h3 className="font-mono font-bold text-slate-900">{selectedSlot.slot_id}</h3>
               <button
                 onClick={() => setSelectedSlot(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700"
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                 aria-label="Cerrar"
               >
                 ×
@@ -277,8 +279,8 @@ const InventoryManager: React.FC = () => {
             </div>
             <dl className="space-y-2 text-sm">
               <div>
-                <dt className="text-slate-500 text-xs uppercase font-bold">Teléfono</dt>
-                <dd className="font-mono text-slate-200">{selectedSlot.phone_number || '—'}</dd>
+                <dt className="text-slate-500 text-xs uppercase font-bold">phone_number</dt>
+                <dd className="font-mono text-slate-800">{selectedSlot.phone_number || '—'}</dd>
               </div>
               <div>
                 <dt className="text-slate-500 text-xs uppercase font-bold">Señal</dt>
@@ -290,13 +292,13 @@ const InventoryManager: React.FC = () => {
               </div>
               {selectedSlot.user_email && (
                 <div>
-                  <dt className="text-slate-500 text-xs uppercase font-bold">Usuario</dt>
-                  <dd className="text-slate-300 truncate" title={selectedSlot.user_email}>{selectedSlot.user_email}</dd>
+                  <dt className="text-slate-500 text-xs uppercase font-bold">Usuario (assigned_to)</dt>
+                  <dd className="text-slate-700 truncate" title={selectedSlot.user_email}>{selectedSlot.user_email}</dd>
                 </div>
               )}
             </dl>
-            {(selectedSlot.status || '').toLowerCase() === 'ocupado' && (
-              <div className="mt-4 pt-4 border-t border-slate-700">
+            {selectedSlot.assigned_to && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
                 <button
                   onClick={() => liberarSlot(selectedSlot.slot_id)}
                   disabled={freeing === selectedSlot.slot_id}
