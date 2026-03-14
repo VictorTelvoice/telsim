@@ -1,10 +1,9 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
-import AdminCEOMetrics from '../admin/AdminCEOMetrics';
-import AdminSalesChart from '../admin/AdminSalesChart';
+import { BarChart3, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
 
 const nav = [
+  { to: 'overview', label: 'Overview', icon: BarChart3 },
   { to: 'inventory', label: 'Inventario de SIMs', icon: Database },
   { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },
@@ -37,7 +36,7 @@ const AdminLayout: React.FC = () => {
             <NavLink
               key={to}
               to={to}
-              end={to !== 'support'}
+              end={to === 'overview' ? true : to !== 'support'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${
                   isActive
@@ -53,12 +52,8 @@ const AdminLayout: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Área principal — métricas CEO + contenido */}
+      {/* Área principal — solo contenido de la ruta activa */}
       <main className="flex-1 min-w-0 min-h-screen bg-slate-50 overflow-auto">
-        <AdminCEOMetrics />
-        <div className="px-6 pb-4 max-w-2xl">
-          <AdminSalesChart />
-        </div>
         <Outlet />
       </main>
     </div>

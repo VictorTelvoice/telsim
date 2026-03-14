@@ -43,6 +43,7 @@ import WebhookGuide from './screens/dashboard/WebhookGuide';
 import WebhookLogs from './screens/dashboard/WebhookLogs';
 import AdminLogs from './screens/dashboard/AdminLogs';
 import AdminLayout from './components/layouts/AdminLayout';
+import AdminOverview from './screens/admin/AdminOverview';
 import InventoryManager from './screens/admin/InventoryManager';
 import SubscriptionMonitor from './screens/admin/SubscriptionMonitor';
 import UserManager from './screens/admin/UserManager';
@@ -282,7 +283,8 @@ const App: React.FC = () => {
                       </div>
                     }
                   >
-                    <Route index element={<Navigate to="/admin/inventory" replace />} />
+                    <Route index element={<Navigate to="/admin/overview" replace />} />
+                    <Route path="overview" element={<AdminOverview />} />
                     <Route path="inventory" element={<InventoryManager />} />
                     <Route path="users" element={<UserManager />} />
                     <Route path="users/:userId" element={<UserDetail />} />
