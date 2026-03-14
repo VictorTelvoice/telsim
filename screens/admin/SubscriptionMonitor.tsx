@@ -36,7 +36,7 @@ const SubscriptionMonitor: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData } = await supabase
       .from('subscriptions')
-      .select('*, users(*)')
+      .select('id, user_id, plan_name, amount, billing_type, subscription_status, status, created_at, trial_end, users!user_id(email)')
       .order('created_at', { ascending: false });
 
     if (!subsData?.length) {
@@ -47,7 +47,7 @@ const SubscriptionMonitor: React.FC = () => {
     const statusCol = (s: Record<string, unknown>) => (s.subscription_status ?? s.status) as string | null;
     const activeStatuses = ['active', 'trialing', 'past_due'];
     setSubs(
-      (subsData as (SubRow & { users?: { id: string; email: string | null } | null; status?: string | null })[])
+      (subsData as (SubRow & { users?: { email: string | null } | null })[])
         .filter((s) => activeStatuses.includes((statusCol(s) || '').toLowerCase()))
         .map((s) => {
           const st = statusCol(s);

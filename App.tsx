@@ -52,6 +52,7 @@ import UserDetail from './screens/admin/UserDetail';
 import ContentCMS from './screens/admin/ContentCMS';
 import SupportCenter from './screens/admin/SupportCenter';
 import AdminTicketChat from './screens/admin/AdminTicketChat';
+import AdminNotifications from './screens/admin/AdminNotifications';
 import ApiDocs from './screens/ApiDocs';
 import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
@@ -292,6 +293,7 @@ const App: React.FC = () => {
                     <Route path="users/:userId" element={<UserDetail />} />
                     <Route path="subscriptions" element={<SubscriptionMonitor />} />
                     <Route path="content" element={<ContentCMS />} />
+                    <Route path="notifications" element={<AdminNotifications />} />
                     <Route path="support" element={<SupportCenter />} />
                     <Route path="support/:ticketId" element={<AdminTicketChat backTo="/admin/support" />} />
                     <Route path="logs" element={<AdminLogs />} />

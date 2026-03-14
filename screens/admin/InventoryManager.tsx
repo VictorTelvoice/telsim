@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Loader2, Unlock, LayoutGrid, List, AlertCircle, CheckCircle2, Signal } from 'lucide-react';
+import { Loader2, Unlock, LayoutGrid, List, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export type SlotRow = {
   slot_id: string;
@@ -9,8 +9,6 @@ export type SlotRow = {
   assigned_to: string | null;
   plan_type: string | null;
   user_email?: string | null;
-  /** Opcional: 4G, 5G, LTE, etc. Si la tabla slots tiene columna signal */
-  signal?: string | null;
 };
 
 type ViewMode = 'table' | 'mosaic';
@@ -31,7 +29,7 @@ const InventoryManager: React.FC = () => {
   const fetchSlots = useCallback(async () => {
     const { data: slotsData } = await supabase
       .from('slots')
-      .select('*, users(*)')
+      .select('slot_id, phone_number, status, assigned_to, plan_type, users!assigned_to(email)')
       .order('slot_id', { ascending: true });
 
     if (!slotsData?.length) {
@@ -40,14 +38,13 @@ const InventoryManager: React.FC = () => {
     }
 
     setSlots(
-      (slotsData as (SlotRow & { users?: { id: string; email: string | null } | null; signal?: string | null })[]).map((s) => ({
+      (slotsData as (SlotRow & { users?: { email: string | null } | null })[]).map((s) => ({
         slot_id: s.slot_id,
         phone_number: s.phone_number,
         status: s.status ?? 'libre',
         assigned_to: s.assigned_to,
         plan_type: s.plan_type,
         user_email: s.users?.email ?? (s.assigned_to ? null : null),
-        signal: s.signal ?? null,
       }))
     );
   }, []);
@@ -84,16 +81,6 @@ const InventoryManager: React.FC = () => {
     if (status === 'error') return { bg: 'bg-red-500/20 border-red-500/40', text: 'text-red-600', label: 'Error' };
     if (!s.assigned_to) return { bg: 'bg-emerald-500/20 border-emerald-500/40', text: 'text-emerald-600', label: 'Libre' };
     return { bg: 'bg-blue-500/20 border-blue-500/40', text: 'text-blue-600', label: 'Ocupado' };
-  };
-
-  const SignalIndicator: React.FC<{ signal?: string | null }> = ({ signal }) => {
-    if (!signal) return <span className="text-slate-500 text-[10px]">—</span>;
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-        <Signal size={10} className="text-slate-500" />
-        {signal}
-      </span>
-    );
   };
 
   if (loading) {
@@ -186,8 +173,7 @@ const InventoryManager: React.FC = () => {
                   <div className="text-xs text-slate-600 font-mono truncate mb-1" title={s.phone_number || 'Sin número'}>
                     {s.phone_number || '—'}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <SignalIndicator signal={s.signal} />
+                  <div className="flex items-center justify-end">
                     <span className={`text-[10px] font-bold ${style.text}`}>{style.label}</span>
                   </div>
                 </button>
@@ -208,7 +194,6 @@ const InventoryManager: React.FC = () => {
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">slot_id</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Estado</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">phone_number</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Señal</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Usuario (assigned_to)</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3 w-28">Acción</th>
                 </tr>
@@ -228,7 +213,6 @@ const InventoryManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-700 font-mono">{s.phone_number || '—'}</td>
-                      <td className="px-4 py-3"><SignalIndicator signal={s.signal} /></td>
                       <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title={s.user_email ?? ''}>
                         {s.user_email || '—'}
                       </td>
@@ -281,10 +265,6 @@ const InventoryManager: React.FC = () => {
               <div>
                 <dt className="text-slate-500 text-xs uppercase font-bold">phone_number</dt>
                 <dd className="font-mono text-slate-800">{selectedSlot.phone_number || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500 text-xs uppercase font-bold">Señal</dt>
-                <dd><SignalIndicator signal={selectedSlot.signal} /></dd>
               </div>
               <div>
                 <dt className="text-slate-500 text-xs uppercase font-bold">Estado</dt>

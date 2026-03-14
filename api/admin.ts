@@ -311,9 +311,104 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ ok: true });
       }
 
+      case 'send-notification-test': {
+        const { channel, content, userId } = req.body;
+        if (!userId || !channel || typeof content !== 'string') {
+          return res.status(400).json({ error: 'Se requiere channel, content y userId.', code: 'MISSING_PARAMS' });
+        }
+        if (userId !== ADMIN_UID) {
+          return res.status(403).json({ error: 'Solo el administrador puede enviar tests de notificaciones.', code: 'FORBIDDEN' });
+        }
+        if (channel === 'telegram') {
+          const { data: userRow, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('telegram_token, telegram_chat_id')
+            .eq('id', userId)
+            .maybeSingle();
+          if (userError || !userRow) {
+            return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+          }
+          const token = (userRow as { telegram_token?: string }).telegram_token;
+          const chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id;
+          if (!token || !chatId) {
+            return res.status(400).json({
+              error: 'Configura tu Bot de Telegram (Ajustes → Telegram) para recibir el test.',
+              code: 'TELEGRAM_NOT_CONFIGURED',
+            });
+          }
+          const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: content, parse_mode: 'Markdown' }),
+          });
+          const result = await tgRes.json();
+          if (!tgRes.ok) {
+            return res.status(400).json({
+              error: result.description || 'Error al enviar a Telegram.',
+              code: 'TELEGRAM_ERROR',
+            });
+          }
+          return res.status(200).json({ ok: true });
+        }
+        if (channel === 'email') {
+          const { data: userRow, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('email')
+            .eq('id', userId)
+            .maybeSingle();
+          if (userError || !userRow) {
+            return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+          }
+          const toEmail = (userRow as { email?: string }).email;
+          if (!toEmail) {
+            return res.status(400).json({ error: 'No hay email asociado al administrador.', code: 'NO_EMAIL' });
+          }
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          if (!supabaseUrl || !serviceKey) {
+            return res.status(500).json({ error: 'Configuración del servidor incompleta.' });
+          }
+          const testData = {
+            nombre: 'Admin Test',
+            email: toEmail,
+            phone: '+340000000',
+            plan: 'Power Plan',
+            message: 'Mensaje de prueba',
+            slot_id: 'SLOT-TEST',
+            amount: '9.99',
+            next_date: '01/04/2026',
+            billing_type: 'Mensual',
+            phone_number: '+340000000',
+          };
+          const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              event: 'purchase_success',
+              user_id: userId,
+              to_email: toEmail,
+              data: testData,
+              content,
+            }),
+          });
+          const result = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            return res.status(400).json({
+              error: (result as { error?: string }).error || await res.text() || 'Error al enviar el correo.',
+              code: 'EMAIL_ERROR',
+            });
+          }
+          return res.status(200).json({ ok: true });
+        }
+        return res.status(400).json({ error: 'Canal no válido. Use: email o telegram.', code: 'INVALID_CHANNEL' });
+      }
+
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot.',
+          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test.',
         });
     }
   } catch (err: any) {

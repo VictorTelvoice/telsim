@@ -25,7 +25,7 @@ const AdminCEOMetrics: React.FC = () => {
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
     const [subsRes, usersRes, slotsRes] = await Promise.all([
-      supabase.from('subscriptions').select('user_id, amount, subscription_status, status, created_at'),
+      supabase.from('subscriptions').select('user_id, amount, plan_name, subscription_status, status, created_at'),
       supabase.from('users').select('id'),
       supabase.from('slots').select('slot_id, status, assigned_to'),
     ]);

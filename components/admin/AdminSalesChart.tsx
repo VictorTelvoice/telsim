@@ -74,7 +74,7 @@ const AdminSalesChart: React.FC = () => {
 
     const { data: lastSalesData } = await supabase
       .from('subscriptions')
-      .select('id, plan_name, amount, created_at, users(email, pais)')
+      .select('id, plan_name, amount, created_at, users!user_id(email, pais)')
       .order('created_at', { ascending: false })
       .limit(5);
 

@@ -8,7 +8,6 @@ export type UserRow = {
   nombre: string | null;
   email: string | null;
   pais: string | null;
-  moneda: string | null;
   telegram_enabled: boolean;
   created_at: string | null;
   active_sims: number;
@@ -47,7 +46,7 @@ const UserManager: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     const { data: usersData } = await supabase
       .from('users')
-      .select('id, nombre, email, pais, moneda, telegram_enabled, created_at, subscriptions(amount, subscription_status, status)')
+      .select('id, nombre, email, pais, telegram_enabled, created_at, subscriptions(amount, subscription_status, status)')
       .order('created_at', { ascending: false });
 
     if (!usersData?.length) {
@@ -62,7 +61,6 @@ const UserManager: React.FC = () => {
         nombre?: string | null;
         email?: string | null;
         pais?: string | null;
-        moneda?: string | null;
         telegram_enabled?: boolean;
         created_at?: string | null;
         subscriptions?: { amount: number | null; subscription_status?: string; status?: string }[];
@@ -75,7 +73,6 @@ const UserManager: React.FC = () => {
           nombre: u.nombre ?? null,
           email: u.email ?? null,
           pais: u.pais ?? null,
-          moneda: u.moneda ?? null,
           telegram_enabled: Boolean(u.telegram_enabled),
           created_at: u.created_at ?? null,
           active_sims,
@@ -104,7 +101,7 @@ const UserManager: React.FC = () => {
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 mb-1">Usuarios</h2>
           <p className="text-sm text-slate-500">
-            nombre, email, pais, moneda, telegram_enabled. Bandera e indicador de Telegram.
+            nombre, email, pais, telegram_enabled. Bandera e indicador de Telegram.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -114,7 +111,6 @@ const UserManager: React.FC = () => {
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Nombre</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Email</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">País</th>
-                <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Moneda</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Telegram</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">SIMs</th>
                 <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">LTV</th>
@@ -137,7 +133,6 @@ const UserManager: React.FC = () => {
                     <span className="mr-1.5" title={u.pais ?? ''}>{countryToFlag(u.pais)}</span>
                     {u.pais || '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 font-mono">{u.moneda || '—'}</td>
                   <td className="px-4 py-3">
                     {u.telegram_enabled ? (
                       <span className="inline-flex items-center gap-1 text-emerald-600" title="Bot de Telegram activo">

@@ -1,15 +1,16 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle, BellRing } from 'lucide-react';
 
 const nav = [
   { to: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { to: 'inventory', label: 'Inventario de SIMs', icon: Database },
+  { to: 'inventory', label: 'Inventario', icon: Database },
   { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },
   { to: 'logs', label: 'Logs de Sistema', icon: History },
   { to: 'support', label: 'Soporte / Tickets', icon: MessageSquare },
   { to: 'content', label: 'CMS de Contenidos', icon: Settings },
+  { to: 'notifications', label: 'Notificaciones', icon: BellRing },
 ];
 
 /**
