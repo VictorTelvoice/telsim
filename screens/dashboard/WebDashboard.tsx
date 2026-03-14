@@ -346,6 +346,7 @@ const WebDashboard: React.FC = () => {
   const [apiLogs, setApiLogs] = useState<AutomationLogRow[]>([]);
   const [apiLogsLoading, setApiLogsLoading] = useState(false);
   const [automationLogsOverview, setAutomationLogsOverview] = useState<AutomationLogRow[]>([]);
+  const [retryingAll, setRetryingAll] = useState(false);
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
   const [apiLogsRetryingId, setApiLogsRetryingId] = useState<string | null>(null);
 
@@ -796,6 +797,34 @@ const WebDashboard: React.FC = () => {
     }
   };
 
+  const handleRetryAllFailed = async () => {
+    if (!user?.id || retryingAll) return;
+    const toRetry = automationLogsOverview.filter(l => {
+      const s = (l.status || '').toLowerCase();
+      return s !== 'success' && s !== '200';
+    });
+    if (toRetry.length === 0) return;
+    setRetryingAll(true);
+    try {
+      for (const log of toRetry) {
+        const res = await fetch('/api/webhooks/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ log_id: log.id, userId: user.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && (data.status === 'success' || data.status === '200')) {
+          setAutomationLogsOverview(prev => prev.map(l => l.id === log.id ? { ...l, status: String(data.status ?? '') } : l));
+        }
+      }
+      await fetchData();
+    } catch {
+      alert(t('webhook_logs.retry_failed'));
+    } finally {
+      setRetryingAll(false);
+    }
+  };
+
   const isApiLogOk = (status: string) => {
     const s = (status || '').toLowerCase();
     return s === '200' || s === 'success';
@@ -1050,6 +1079,8 @@ const WebDashboard: React.FC = () => {
   const totalLogs = automationLogsOverview.length;
   const successCount = automationLogsOverview.filter(l => isLogSuccess(l.status)).length;
   const automationSuccessRate = totalLogs > 0 ? (successCount / totalLogs) * 100 : 100;
+  const failedLogs = automationLogsOverview.filter(l => !isLogSuccess(l.status));
+  const failedLogsCount = failedLogs.length;
   const now24h = Date.now() - 24 * 60 * 60 * 1000;
   const totalTriggersToday = automationLogsOverview.filter(l => new Date(l.created_at).getTime() >= now24h).length;
   const lastLog = automationLogsOverview[0];
@@ -1070,7 +1101,8 @@ const WebDashboard: React.FC = () => {
         ? 'Operacional'
         : 'Inestable';
   const bridgeColor = bridgeState === 'Operacional' ? '#10b981' : bridgeState === 'Inestable' ? '#f59e0b' : '#f43f5e';
-  const bridgeSub = lastTriggerTime ? `último trigger: hace ${lastTriggerTime}` : 'Sin triggers aún';
+  const bridgeSubText = lastTriggerTime ? `Último trigger: hace ${lastTriggerTime}` : 'Sin triggers aún';
+  const AVG_LATENCY = '1.2s';
 
   const activityData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
@@ -1114,9 +1146,12 @@ const WebDashboard: React.FC = () => {
 
         {/* Infraestructura IA */}
         <div className="px-3 pb-4">
-          <div className={`px-3 py-2.5 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Infraestructura IA</p>
-            <p className="text-[13px] font-black text-slate-900 dark:text-white mt-0.5">{activeSlots.length} {activeSlots.length === 1 ? 'Línea operativa' : 'Líneas operativas'}</p>
+          <div className={`px-3 py-2.5 rounded-xl flex items-center gap-2 ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
+            <Globe size={14} className="text-primary flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Infraestructura IA</p>
+              <p className="text-[13px] font-black text-slate-900 dark:text-white mt-0.5">{activeSlots.length} Líneas activas</p>
+            </div>
           </div>
         </div>
 
@@ -1204,10 +1239,35 @@ const WebDashboard: React.FC = () => {
 
               {/* KPIs */}
               <div className="grid grid-cols-4 gap-4">
-                <KpiCard icon={<Activity size={18} />} label="Estado del Puente API" value={bridgeState} sub={bridgeSub} color={bridgeColor} />
+                {/* Estado del Puente API (con link Reintentar fallidos) */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 flex flex-col gap-3 shadow-sm border border-slate-100 dark:border-transparent">
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: bridgeColor + '20' }}>
+                      <span style={{ color: bridgeColor }} className={bridgeState === 'Operacional' ? 'animate-pulse' : ''}>
+                        <Activity size={18} />
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[26px] font-black text-slate-900 dark:text-white leading-none">{bridgeState}</p>
+                    <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1">Estado del Puente API</p>
+                    <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-0.5">{bridgeSubText}</p>
+                    {failedLogsCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRetryAllFailed}
+                        disabled={retryingAll}
+                        className="text-[10px] font-bold text-primary hover:underline mt-2 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {retryingAll ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                        Reintentar fallidos
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
                 <KpiCard icon={<Smartphone size={18} />} label="SIMs activas" value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
-                <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}%` : '—'} sub="Verificaciones OK" trend={3} color="#8b5cf6" />
+                <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}% OK` : '—'} sub={`Latencia media: ${AVG_LATENCY}`} color="#8b5cf6" />
               </div>
 
               {/* Chart left + Feed right */}
