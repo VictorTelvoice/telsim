@@ -55,9 +55,11 @@ const Landing: React.FC = () => {
       if (!el) return;
       const interval = setInterval(() => {
         const maxScroll = el.scrollWidth - el.clientWidth;
-        if (el.scrollLeft >= maxScroll) el.scrollLeft = 0;
-        else el.scrollLeft += 316;
-      }, 3500);
+        const cardStep = el.scrollWidth / 10;
+        if (maxScroll <= 0) return;
+        if (el.scrollLeft >= maxScroll - 2) el.scrollLeft = 0;
+        else el.scrollLeft = Math.min(el.scrollLeft + cardStep, maxScroll);
+      }, 4000);
       return () => clearInterval(interval);
     };
 
@@ -77,7 +79,9 @@ const Landing: React.FC = () => {
     };
     const handleTestimonios = () => {
       if (!testimEl) return;
-      setTestimoniosPage(Math.round(testimEl.scrollLeft / (testimEl.scrollWidth / 6)));
+      const total = 10;
+      const page = Math.min(total - 1, Math.round(testimEl.scrollLeft / (testimEl.scrollWidth / total)));
+      setTestimoniosPage(page);
     };
 
     casosEl?.addEventListener('scroll', handleCasos, { passive: true });
@@ -238,18 +242,26 @@ const Landing: React.FC = () => {
     { name: 'Carlos Mendoza', initials: 'CM', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'API sencilla y confiable', body: 'Integré el webhook en menos de una hora. Mi bot de Telegram ahora recibe los códigos al instante. Sin caídas en 3 meses de uso continuo.' },
     { name: 'Andrea López', initials: 'AL', color: '#fce7f3', textColor: '#db2777', stars: 5, title: 'Soporte excepcional', body: 'Tuve una duda técnica a las 2am y el equipo respondió en 20 minutos. El servicio es de primera y el número funciona perfecto con todas las apps.' },
     { name: 'Rodrigo Gómez', initials: 'RG', color: '#ecfdf5', textColor: '#059669', stars: 5, title: 'Automatización real', body: 'Probé soluciones VoIP antes y siempre me bloqueaban. Con Telsim tengo una SIM real que ningún servicio detecta como bot. Vale cada peso.' },
+    { name: 'Ana Martínez', initials: 'AM', color: '#dcfce7', textColor: '#16a34a', stars: 5, title: 'Escalado sin límites', body: 'Increíble para escalar. Mis bots de Amazon corren 24/7 sin bloqueos.' },
+    { name: 'Juan Pérez', initials: 'JP', color: '#fef3c7', textColor: '#d97706', stars: 5, title: 'Integración en minutos', body: 'Soporte técnico real. Me ayudaron a integrar el webhook en 5 minutos.' },
+    { name: 'Kevin Brown', initials: 'KB', color: '#dbeafe', textColor: '#1d4ed8', stars: 5, title: 'Game changer for my agency', body: 'Game changer for my agency. Finally, an API that works with real physical SIMs.' },
+    { name: 'Sam Taylor', initials: 'ST', color: '#ede9fe', textColor: '#7c3aed', stars: 5, title: 'Flawless execution', body: 'Flawless execution. Automated my entire 2FA workflow in Node.js easily.' },
   ];
+
+  const starterCardColors = { phoneColor: 'text-slate-900', labelColor: 'text-slate-600' };
 
   const ScrollDots = ({
     total,
     current,
     scrollRef,
+    alwaysShow,
   }: {
     total: number;
     current: number;
     scrollRef: React.RefObject<HTMLDivElement | null>;
+    alwaysShow?: boolean;
   }) => (
-    <div className="flex items-center justify-center gap-1.5 mt-3 md:hidden">
+    <div className={`flex items-center justify-center gap-1.5 mt-3 ${alwaysShow ? '' : 'md:hidden'}`}>
       {Array.from({ length: total }).map((_, i) => {
         const diff = Math.abs(i - current);
         return (
@@ -500,7 +512,7 @@ const Landing: React.FC = () => {
           {/* Badge superior */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
             <div className="signal-dot"></div>
-            Que tu bot no use tu número personal. Dale una identidad propia.
+            Que tu bot no use tu número personal. Dale una identidad.
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
@@ -541,20 +553,19 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* TESTIMONIOS — sin título, flujo directo tras el Hero */}
+      {/* TESTIMONIOS — carrusel con autoscroll 4s, 4 visibles en desktop, Dots debajo */}
       <section className="bg-white pt-8 md:pt-14 pb-16 md:pb-24">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Mobile: carrusel */}
-          <div className="md:hidden relative">
+          <div className="relative">
             <div
               ref={testimonialsRef}
-              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6"
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
               style={{ scrollbarWidth: 'none' }}
             >
               {testimonials.map((tCard, i) => (
                 <div
                   key={i}
-                  className="flex-shrink-0 w-[300px] snap-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+                  className="flex-shrink-0 w-[300px] md:min-w-[280px] md:max-w-[300px] snap-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
                 >
                   <div className="flex gap-0.5">
                     {Array.from({ length: tCard.stars }).map((_, s) => (
@@ -578,122 +589,94 @@ const Landing: React.FC = () => {
                 </div>
               ))}
             </div>
-            <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
-          </div>
-
-          {/* Desktop: rejilla de 4 columnas — 4 testimonios visibles a la vez */}
-          <div className="hidden md:grid md:grid-cols-4 gap-5">
-            {testimonials.map((tCard, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
-              >
-                <div className="flex gap-0.5">
-                  {Array.from({ length: tCard.stars }).map((_, s) => (
-                    <span key={s} className="text-amber-400 text-sm">★</span>
-                  ))}
-                </div>
-                <p className="font-black text-slate-900 text-[15px] leading-tight tracking-tight">{tCard.title}</p>
-                <p className="text-slate-500 text-[13px] font-medium leading-relaxed flex-1">{tCard.body}</p>
-                <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={{ background: tCard.color, color: tCard.textColor }}
-                  >
-                    {tCard.initials}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-bold text-slate-900">{tCard.name}</p>
-                    <p className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">✓ Cliente verificado</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <ScrollDots total={10} current={testimoniosPage} scrollRef={testimonialsRef} alwaysShow />
           </div>
         </div>
       </section>
 
-      {/* TABLA COMPARATIVA — El eslabón perdido */}
+      {/* TABLA COMPARATIVA — La automatización se rompe... */}
       <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
             <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
-              El eslabón perdido de la automatización
+              La automatización se rompe cuando depende de OTP manual
             </h2>
             <p className="text-slate-300 text-lg font-medium max-w-2xl mx-auto">
-              Que tu bot no use tu número personal. Dale una identidad propia.
+              En un mundo globalizado, tu código no debería depender de tu celular físico.
             </p>
-          </div>
+          </motion.div>
 
           <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm">
-            {/* Desktop: tabla moderna */}
+            {/* Desktop: tabla con filas animadas (stagger + slide) */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-widest">Situación</th>
-                    <th className="py-4 px-6 text-xs font-bold text-red-400 uppercase tracking-widest">Antes (Manual)</th>
-                    <th className="py-4 px-6 text-xs font-bold text-emerald-400 uppercase tracking-widest">Con Telsim (Autónomo)</th>
+                    <th className="py-4 px-6 text-xs font-bold text-red-400 uppercase tracking-widest">Método Manual</th>
+                    <th className="py-4 px-6 text-xs font-bold text-emerald-400 uppercase tracking-widest">Con Telsim</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr className="border-b border-white/10">
-                    <td className="py-4 px-6 font-semibold text-slate-200">Flujo de Trabajo</td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
-                        <span className="text-slate-300 text-sm">El bot se detiene. Espera al humano.</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
-                        <span className="text-slate-100 text-sm font-medium">El bot detecta el SMS y sigue operando.</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-white/10">
-                    <td className="py-4 px-6 font-semibold text-slate-200">Disponibilidad</td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
-                        <span className="text-slate-300 text-sm">Solo si estás despierto.</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
-                        <span className="text-slate-100 text-sm font-medium">24/7. Sin pausas, sin humanos.</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 px-6 font-semibold text-slate-200">Escalabilidad</td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
-                        <span className="text-slate-300 text-sm">Limitado por tus manos.</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
-                        <span className="text-slate-100 text-sm font-medium">Ilimitado. 100 cuentas a la vez.</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+                <motion.tbody
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: '-40px' }}
+                  variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
+                >
+                  {[
+                    { label: 'Flujo de Trabajo', manual: 'El bot se detiene. Espera al humano.', telsim: 'El bot detecta el SMS y sigue operando.' },
+                    { label: 'Disponibilidad', manual: 'Solo si estás despierto.', telsim: '24/7. Sin pausas, sin humanos.' },
+                    { label: 'Escalabilidad', manual: 'Limitado por tus manos.', telsim: 'Ilimitado. 100 cuentas a la vez.' },
+                  ].map((row, i) => (
+                    <motion.tr
+                      key={i}
+                      className="border-b border-white/10 last:border-b-0"
+                      variants={{ hidden: { opacity: 0, x: -24 }, visible: { opacity: 1, x: 0 } }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    >
+                      <td className="py-4 px-6 font-semibold text-slate-200">{row.label}</td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-start gap-3">
+                          <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
+                          <span className="text-slate-300 text-sm">{row.manual}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-start gap-3">
+                          <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
+                          <span className="text-slate-100 text-sm font-medium">{row.telsim}</span>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </motion.tbody>
               </table>
             </div>
 
-            {/* Mobile: cards comparativas */}
-            <div className="md:hidden divide-y divide-white/10">
+            {/* Mobile: cards comparativas con stagger */}
+            <motion.div
+              className="md:hidden divide-y divide-white/10"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
+            >
               {[
                 { label: 'Flujo de Trabajo', manual: 'El bot se detiene. Espera al humano.', telsim: 'El bot detecta el SMS y sigue operando.' },
                 { label: 'Disponibilidad', manual: 'Solo si estás despierto.', telsim: '24/7. Sin pausas, sin humanos.' },
                 { label: 'Escalabilidad', manual: 'Limitado por tus manos.', telsim: 'Ilimitado. 100 cuentas a la vez.' },
               ].map((row, i) => (
-                <div key={i} className="p-5">
+                <motion.div
+                  key={i}
+                  className="p-5"
+                  variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                >
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{row.label}</p>
                   <div className="flex items-start gap-2 mb-2">
                     <span className="material-symbols-rounded text-red-400 flex-shrink-0" style={{ fontSize: 18 }}>close</span>
@@ -703,9 +686,9 @@ const Landing: React.FC = () => {
                     <span className="material-symbols-rounded text-emerald-400 flex-shrink-0" style={{ fontSize: 18 }}>check_circle</span>
                     <span className="text-slate-100 text-sm font-medium">Con Telsim: {row.telsim}</span>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -720,7 +703,7 @@ const Landing: React.FC = () => {
             className="text-center mb-10"
           >
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Casos de uso</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Que tu bot no use tu número personal. Dale una identidad propia.</h2>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Que tu bot no use tu número personal. Dale una identidad.</h2>
             <p className="text-slate-500 text-base mt-3 font-medium max-w-2xl mx-auto">Conecta tu IA, tus automatizaciones o tu equipo a números reales. Sin depender de tu celular.</p>
           </motion.div>
 
@@ -994,26 +977,26 @@ const Landing: React.FC = () => {
           </div>
 
           <div ref={preciosRef} className="flex md:grid md:grid-cols-3 gap-6 items-stretch overflow-x-auto md:overflow-x-visible pt-4 pb-12 md:pb-4 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
-            {/* STARTER */}
+            {/* STARTER — texto con contraste (phoneColor/labelColor) sobre blanco */}
             <button onClick={() => handlePlanSelect('starter')} className="group relative rounded-3xl p-6 border border-slate-200 bg-white flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-slate-400 hover:shadow-slate-200/80 min-w-[78vw] md:min-w-0 snap-center">
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-slate-100/60 group-hover:bg-slate-100 transition-colors duration-300"></div>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-slate-50 group-hover:bg-slate-100/80 transition-colors duration-300"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('landing.pricing.starter.name')}</span>
+                  <span className={`text-[11px] font-black uppercase tracking-widest ${starterCardColors.labelColor}`}>{t('landing.pricing.starter.name')}</span>
                   <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-slate-200 group-hover:scale-110 transition-all flex items-center justify-center">
-                    <span className="material-symbols-rounded text-slate-500 text-[18px]">sim_card</span>
+                    <span className={`material-symbols-rounded text-[18px] ${starterCardColors.labelColor}`}>sim_card</span>
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-slate-100 group-hover:bg-slate-200 transition-colors px-3 py-1.5 rounded-full mb-5">
-                  <span className="material-symbols-rounded text-slate-500 text-[13px]">sms</span>
-                  <span className="text-[11px] font-black text-slate-600">{t('landing.pricing.starter.credits')}</span>
+                  <span className={`material-symbols-rounded text-[13px] ${starterCardColors.labelColor}`}>sms</span>
+                  <span className={`text-[11px] font-black ${starterCardColors.phoneColor}`}>{t('landing.pricing.starter.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
+                  <span className={`text-5xl font-black group-hover:text-primary transition-colors duration-300 ${starterCardColors.phoneColor}`}>
                     {isAnnual ? '$199' : '$19.90'}
                   </span>
-                  <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
+                  <span className={`font-semibold ${starterCardColors.labelColor}`}>{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
                 {isAnnual && <p className="text-[11px] font-bold text-emerald-500 mt-1">Ahorras $39.80 vs plan mensual</p>}
               </div>
@@ -1022,16 +1005,16 @@ const Landing: React.FC = () => {
                 {(t('landing.pricing.features.starter') as any).map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="material-symbols-rounded text-emerald-500 text-[15px] mt-0.5 flex-shrink-0">check_circle</span>
-                    <span className="text-xs font-semibold text-slate-700">{f}</span>
+                    <span className={`text-xs font-semibold ${starterCardColors.phoneColor}`}>{f}</span>
                   </div>
                 ))}
               </div>
               <div className="relative bg-slate-50 group-hover:bg-slate-100 transition-colors rounded-2xl px-4 py-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">{t('common.learn_more')}</p>
-                <p className="text-xs font-bold text-slate-600">{t('landing.pricing.starter.desc')}</p>
+                <p className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${starterCardColors.labelColor}`}>{t('common.learn_more')}</p>
+                <p className={`text-xs font-bold ${starterCardColors.phoneColor}`}>{t('landing.pricing.starter.desc')}</p>
               </div>
-              <div className="relative flex items-center justify-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors pt-1">
-                <span className="text-sm font-black">{t('common.start_free')}</span>
+              <div className={`relative flex items-center justify-center gap-1.5 group-hover:text-primary transition-colors pt-1 ${starterCardColors.labelColor}`}>
+                <span className={`text-sm font-black ${starterCardColors.phoneColor}`}>{t('common.start_free')}</span>
                 <span className="material-symbols-rounded text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </div>
             </button>
