@@ -284,7 +284,7 @@ type AutomationLogRow = {
 };
 
 const WebDashboard: React.FC = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, version: authVersion } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -478,7 +478,17 @@ const WebDashboard: React.FC = () => {
     }
   }, [user?.id]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData, authVersion]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [fetchData]);
 
   // ─── Auto-refresh feed en vivo every 5 seconds ────────────────────────────────
   useEffect(() => {

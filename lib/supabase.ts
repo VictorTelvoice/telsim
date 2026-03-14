@@ -39,7 +39,11 @@ const finalKey = supabaseAnonKey || DEFAULT_KEY;
 
 export const isDemoMode = !supabaseUrl && window.location.hostname === 'localhost';
 
+const noStoreFetch: typeof fetch = (input, init) =>
+  fetch(input, { ...init, cache: 'no-store' });
+
 export const supabase = createClient(finalUrl, finalKey, {
+  global: { fetch: noStoreFetch },
   auth: {
     persistSession: true,
     storageKey: 'telsim-auth',

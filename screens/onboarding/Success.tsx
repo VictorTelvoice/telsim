@@ -83,7 +83,7 @@ const Success: React.FC = () => {
   };
 
   const goToDashboard = () => {
-    window.location.href = assignedNumber ? `/#/dashboard?new_line=${encodeURIComponent(assignedNumber)}` : '/#/dashboard';
+    window.location.hash = assignedNumber ? `#/dashboard?new_line=${encodeURIComponent(assignedNumber)}` : '#/dashboard';
     if (window.navigator.standalone || /Safari/.test(navigator.userAgent)) {
       window.location.reload();
     }

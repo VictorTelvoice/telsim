@@ -99,12 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getProfileRef = useRef(getProfile);
   const syncRef = useRef(syncUserToPublicTable);
   const refreshProfileRef = useRef(refreshProfile);
+  const setVersionRef = useRef(setVersion);
   getProfileRef.current = getProfile;
   syncRef.current = syncUserToPublicTable;
   refreshProfileRef.current = refreshProfile;
+  setVersionRef.current = setVersion;
 
   useEffect(() => {
     let cancelled = false;
+    const subscriptionRef = { current: null as { unsubscribe: () => void } | null };
 
     const run = async () => {
       try {
@@ -135,54 +138,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     run();
 
-    const onFocus = () => refreshProfileRef.current?.();
-    window.addEventListener('focus', onFocus);
+    const failSafeTimer = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 3000);
 
-    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
+    const subscribeAuth = () => {
+      subscriptionRef.current?.unsubscribe?.();
+      const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
+        try {
+          if (cancelled) return;
+          setSession(sess);
+          const currentUser = sess?.user ?? null;
+          if (currentUser) {
+            let profileData: ProfileData = null;
+            try {
+              profileData = await getProfileRef.current(currentUser.id);
+            } catch {
+              profileData = null;
+            }
+            setUser(enrichUser(currentUser, profileData));
+          } else {
+            setUser(null);
+          }
+
+          if (event === 'SIGNED_IN' && currentUser) {
+            try {
+              await syncRef.current(currentUser);
+            } catch (err) {
+              console.error('Auth sync on sign-in:', err);
+            }
+            const redirect = localStorage.getItem('post_login_redirect');
+            if (redirect) {
+              localStorage.removeItem('post_login_redirect');
+              const plan = localStorage.getItem('selected_plan') || 'pro';
+              const billing = localStorage.getItem('selected_billing') || 'monthly';
+              localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
+              setTimeout(() => {
+                window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
+              }, 100);
+            }
+          }
+        } catch (err) {
+          console.error('Auth onAuthStateChange error:', err);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      });
+      subscriptionRef.current = subscription;
+    };
+    subscribeAuth();
+
+    const onVisibilityChange = async () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+      if (cancelled) return;
       try {
+        const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
         setSession(sess);
-        const currentUser = sess?.user ?? null;
-        if (currentUser) {
+        if (sess?.user) {
           let profileData: ProfileData = null;
           try {
-            profileData = await getProfileRef.current(currentUser.id);
+            profileData = await getProfileRef.current(sess.user.id);
           } catch {
             profileData = null;
           }
-          setUser(enrichUser(currentUser, profileData));
+          setUser(enrichUser(sess.user, profileData));
+          setVersionRef.current((v: number) => v + 1);
         } else {
           setUser(null);
         }
-
-        if (event === 'SIGNED_IN' && currentUser) {
-          try {
-            await syncRef.current(currentUser);
-          } catch (err) {
-            console.error('Auth sync on sign-in:', err);
-          }
-          const redirect = localStorage.getItem('post_login_redirect');
-          if (redirect) {
-            localStorage.removeItem('post_login_redirect');
-            const plan = localStorage.getItem('selected_plan') || 'pro';
-            const billing = localStorage.getItem('selected_billing') || 'monthly';
-            localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
-            setTimeout(() => {
-              window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
-            }, 100);
-          }
-        }
+        subscriptionRef.current?.unsubscribe?.();
+        subscribeAuth();
       } catch (err) {
-        console.error('Auth onAuthStateChange error:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
+        console.error('Auth visibility wake error:', err);
+        subscriptionRef.current?.unsubscribe?.();
+        subscribeAuth();
       }
-    });
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    let swChannel: BroadcastChannel | null = null;
+    try {
+      swChannel = new BroadcastChannel('sw-messages');
+      swChannel.onmessage = (e) => {
+        if (e.data?.type === 'AUTH_REFRESH' && !cancelled) onVisibilityChange();
+      };
+    } catch (_) {}
 
     return () => {
       cancelled = true;
-      window.removeEventListener('focus', onFocus);
-      subscription.unsubscribe();
+      clearTimeout(failSafeTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      try { swChannel?.close(); } catch (_) {}
+      subscriptionRef.current?.unsubscribe?.();
     };
   }, []);
 
