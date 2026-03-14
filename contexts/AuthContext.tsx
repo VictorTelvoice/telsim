@@ -41,9 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      const existingAvatar = existing?.avatar_url && String(existing.avatar_url).trim() !== '';
-      const avatarUrl = existingAvatar
-        ? existing!.avatar_url
+      const raw = existing?.avatar_url != null ? String(existing.avatar_url).trim() : '';
+      const hasSupabaseAvatar = raw !== '' && raw.includes('supabase.co');
+      const avatarUrl = hasSupabaseAvatar
+        ? (existing!.avatar_url as string)
         : (currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null);
 
       await supabase

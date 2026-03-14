@@ -349,7 +349,18 @@ const WebDashboard: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [messagePulse, setMessagePulse] = useState(false);
   const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
-  const audioRef = useRef<HTMLAudioElement>(new Audio(PING_URL));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioRef.current = new Audio(PING_URL);
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
   const isMutedRef = useRef(false);
   isMutedRef.current = isMuted;
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
@@ -1160,7 +1171,16 @@ const WebDashboard: React.FC = () => {
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────────
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className={`flex h-screen items-center justify-center font-display ${isDark ? 'bg-slate-950 text-white' : 'bg-[#F0F4F8] text-slate-900'}`}>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm text-slate-500 dark:text-slate-400">Cargando sesión…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-screen font-display overflow-hidden ${isDark ? 'bg-slate-950 text-white' : 'bg-[#F0F4F8] text-slate-900'}`}>
