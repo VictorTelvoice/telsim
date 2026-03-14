@@ -14,12 +14,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 type ProfileData = { avatar_url?: string | null; nombre?: string | null; pais?: string | null; moneda?: string | null } | null;
 
+/** Construye el user enriquecido: avatar_url (y user_metadata.avatar_url) priorizan la tabla users. */
+function enrichUser(sessionUser: any, profile: ProfileData) {
+  const avatarFromDb = profile?.avatar_url ?? sessionUser?.user_metadata?.avatar_url;
+  return {
+    ...sessionUser,
+    ...profile,
+    user_metadata: {
+      ...sessionUser?.user_metadata,
+      avatar_url: avatarFromDb,
+    },
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const { registerOrUpdateSession } = useDeviceSession();
 
+  /** Siempre devuelve avatar_url (y resto) de la tabla users; en error retorna null. */
   const getProfile = useCallback(async (userId: string): Promise<ProfileData> => {
     try {
       const { data } = await supabase
@@ -43,9 +57,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const raw = existing?.avatar_url != null ? String(existing.avatar_url).trim() : '';
       const hasSupabaseAvatar = raw !== '' && raw.includes('supabase.co');
-      const avatarUrl = hasSupabaseAvatar
+      const metadataAvatar = currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null;
+      const isGoogleAvatar = typeof metadataAvatar === 'string' && (metadataAvatar.includes('google') || metadataAvatar.includes('googleusercontent'));
+
+      // REGLA: Si en la DB ya hay URL de supabase.co y el metadata trae URL de Google, no sobrescribir.
+      const avatarUrl = hasSupabaseAvatar && isGoogleAvatar
         ? (existing!.avatar_url as string)
-        : (currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null);
+        : hasSupabaseAvatar
+          ? (existing!.avatar_url as string)
+          : metadataAvatar;
 
       await supabase
         .from('users')
@@ -59,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await registerOrUpdateSession(currentUser.id);
 
       const profile = await getProfile(currentUser.id);
-      setUser((prev: any) => (prev ? { ...prev, ...profile } : { ...currentUser, ...profile }));
+      setUser((prev: any) => enrichUser(prev ?? currentUser, profile));
     } catch (err) {
       console.error('Error sincronización users:', err);
     }
@@ -68,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
     const profile = await getProfile(user.id);
-    if (profile) setUser((prev: any) => (prev ? { ...prev, ...profile } : null));
+    if (profile) setUser((prev: any) => (prev ? enrichUser(prev, profile) : null));
   }, [user?.id, getProfile]);
 
   const getProfileRef = useRef(getProfile);
@@ -91,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch {
             profileData = null;
           }
-          setUser({ ...sess.user, ...(profileData || {}) });
+          setUser(enrichUser(sess.user, profileData));
           try {
             await syncRef.current(sess.user);
           } catch (err) {
@@ -118,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch {
             profileData = null;
           }
-          setUser({ ...currentUser, ...(profileData || {}) });
+          setUser(enrichUser(currentUser, profileData));
         } else {
           setUser(null);
         }
