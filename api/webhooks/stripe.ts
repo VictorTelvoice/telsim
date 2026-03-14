@@ -276,6 +276,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const billingTypeForEmail = sessionMeta.isAnnual === 'true' ? 'Anual' : 'Mensual';
+    const isAnnualBilling = sessionMeta.isAnnual === 'true';
     let nextDateForEmail = '';
 
     try {
@@ -335,9 +336,13 @@ export default async function handler(req: any, res: any) {
         }
       }
       if (!nextDateForEmail) {
-        const now = new Date();
-        now.setMonth(now.getMonth() + 1);
-        nextDateForEmail = now.toLocaleDateString('es-CL');
+        const d = new Date();
+        if (isAnnualBilling) {
+          d.setFullYear(d.getFullYear() + 1);
+        } else {
+          d.setDate(d.getDate() + 30);
+        }
+        nextDateForEmail = d.toLocaleDateString('es-CL');
       }
 
       if (session.customer) {
@@ -432,6 +437,14 @@ export default async function handler(req: any, res: any) {
       console.error('[WEBHOOK ERROR]:', err.message);
     }
 
+    const dNext = new Date();
+    if (isAnnualBilling) {
+      dNext.setFullYear(dNext.getFullYear() + 1);
+    } else {
+      dNext.setDate(dNext.getDate() + 30);
+    }
+    nextDateForEmail = dNext.toLocaleDateString('es-CL');
+
     // FUERA del try/catch — siempre correo y Telegram (incluso con amount_total 0 / trials / promos)
     let phoneForEmail = phoneFromMeta || '';
     if (!phoneForEmail && slotId) {
@@ -443,12 +456,16 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    const amountTotalCents = session.amount_total ?? 0;
+    const amountFormatted = `$${(amountTotalCents / 100).toFixed(2)} USD`;
+
     try {
       await triggerEmail('purchase_success', userId, {
         plan: planName ?? '',
         phone_number: phoneForEmail,
         billing_type: billingTypeForEmail,
         next_date: nextDateForEmail,
+        amount: amountFormatted,
         to: session.customer_details?.email ?? '',
       });
     } catch (emailErr: any) {

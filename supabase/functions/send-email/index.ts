@@ -71,21 +71,23 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: (d: Record<string, unknown>) => `Tu número SIM Telsim está activo`,
+      subject: 'Tu número SIM Telsim está activo',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
       cta: 'Ir al Dashboard',
-      infoLeftLabel: 'PLAN ACTIVO',
+      useTableRows: true,
+      tableRows: [
+        { label: 'PLAN', value: (d: Record<string, unknown>) => String(d.plan ?? '') },
+        { label: 'MONTO PAGADO', value: (d: Record<string, unknown>) => String(d.amount ?? '') },
+        { label: 'NÚMERO SIM', value: (d: Record<string, unknown>) => String(d.phone_number ?? '') },
+        { label: 'TIPO DE PLAN', value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual') },
+        { label: 'PRÓXIMO COBRO', value: (d: Record<string, unknown>) => String(d.next_date ?? '') },
+      ],
+      infoLeftLabel: 'PLAN',
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: () => 'Activo',
-      infoRow2Label: 'NÚMERO DE TELÉFONO',
-      infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
-      infoRow3Label: 'TIPO DE PLAN',
-      infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual'),
-      infoRow4Label: 'PRÓXIMO PAGO',
-      infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_activated: {
       subject: 'Tu plan ha sido actualizado',
@@ -171,6 +173,14 @@ const i18n = {
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan ?? ''),
       infoRightValue: () => 'Active',
+      useTableRows: true,
+      tableRows: [
+        { label: 'PLAN', value: (d: Record<string, unknown>) => String(d.plan ?? '') },
+        { label: 'AMOUNT PAID', value: (d: Record<string, unknown>) => String(d.amount ?? '') },
+        { label: 'SIM NUMBER', value: (d: Record<string, unknown>) => String(d.phone_number ?? '') },
+        { label: 'PLAN TYPE', value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly') },
+        { label: 'NEXT CHARGE', value: (d: Record<string, unknown>) => String(d.next_date ?? '') },
+      ],
       infoRow2Label: 'PHONE NUMBER',
       infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
       infoRow3Label: 'PLAN TYPE',
@@ -270,14 +280,31 @@ function buildHtml(params: {
   infoRow3Value?: string;
   infoRow4Label?: string;
   infoRow4Value?: string;
+  tableRows?: { label: string; value: string }[];
   ctaText: string;
   ctaUrl: string;
   footerText: string;
   year: number;
 }): string {
   const primaryBlue = '#1152d4';
-  const extraRow = (label: string, value: string) =>
-    label ? `
+  const valueColor = '#111827';
+  const labelStyle = 'font-size:11px;color:#6b7280;font-weight:700;padding:12px 0 4px 0;vertical-align:top;';
+  const valueStyle = `font-size:14px;font-weight:700;color:${valueColor};padding:4px 0 12px 0;text-align:right;vertical-align:top;`;
+
+  const tableBody =
+    params.tableRows && params.tableRows.length > 0
+      ? params.tableRows
+          .map(
+            (row) => `
+                <tr>
+                  <td style="${labelStyle}">${row.label}</td>
+                  <td style="${valueStyle}">${row.value}</td>
+                </tr>`
+          )
+          .join('')
+      : (() => {
+          const extraRow = (label: string, value: string) =>
+            label ? `
                 <tr>
                   <td style="font-size:13px;color:#6b7280;padding-bottom:8px;">${label}</td>
                   <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;"></td>
@@ -286,10 +313,20 @@ function buildHtml(params: {
                   <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${value}</td>
                   <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;"></td>
                 </tr>` : '';
-  const extraRows =
-    extraRow(params.infoRow2Label ?? '', params.infoRow2Value ?? '') +
+          return `
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;">${params.infoLeftLabel}</td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;">${params.infoRightLabel}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${params.infoLeftValue}</td>
+                  <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;">${params.infoRightValue}</td>
+                </tr>
+                ${extraRow(params.infoRow2Label ?? '', params.infoRow2Value ?? '') +
     extraRow(params.infoRow3Label ?? '', params.infoRow3Value ?? '') +
-    extraRow(params.infoRow4Label ?? '', params.infoRow4Value ?? '');
+    extraRow(params.infoRow4Label ?? '', params.infoRow4Value ?? '')}`;
+        })();
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -319,19 +356,11 @@ function buildHtml(params: {
             ${params.body}
           </p>
 
-          <!-- INFO BOX -->
+          <!-- INFO BOX (2 columnas: labels gris 11px negrita | valores azul/negro 14px negrita) -->
           <table width="100%" cellpadding="0" cellspacing="0" style="background:${params.infoBoxBg};border-radius:10px;margin-bottom:28px;">
-            <tr><td style="padding:20px 24px;">
+            <tr><td style="padding:24px 28px;">
               <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;">${params.infoLeftLabel}</td>
-                  <td style="font-size:13px;color:#6b7280;padding-bottom:8px;text-align:right;">${params.infoRightLabel}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${params.infoLeftValue}</td>
-                  <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;">${params.infoRightValue}</td>
-                </tr>
-                ${extraRows}
+                ${tableBody}
               </table>
             </td></tr>
           </table>
@@ -457,6 +486,14 @@ Deno.serve(async (req) => {
       const fn = tAny[key];
       return typeof fn === 'function' ? String((fn as (d: Record<string, unknown>) => string)(data)) : String(fn ?? '');
     };
+
+    let tableRowsResolved: { label: string; value: string }[] | undefined;
+    if (tAny.useTableRows && Array.isArray(tAny.tableRows)) {
+      tableRowsResolved = (tAny.tableRows as Array<{ label: string; value: (d: Record<string, unknown>) => string }>).map(
+        (r) => ({ label: r.label, value: typeof r.value === 'function' ? r.value(data) : String(r.value ?? '') })
+      );
+    }
+
     const html = buildHtml({
       icon: eventIcons[ev],
       title: t.title,
@@ -472,6 +509,7 @@ Deno.serve(async (req) => {
       infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
       infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
       infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
+      tableRows: tableRowsResolved,
       ctaText: t.cta,
       ctaUrl: ctaUrls[ev],
       footerText,
