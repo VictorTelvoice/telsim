@@ -1,9 +1,10 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Database, Users, History, MessageSquare, Settings, ChevronLeft } from 'lucide-react';
+import { Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle } from 'lucide-react';
 
 const nav = [
   { to: 'inventory', label: 'Inventario de SIMs', icon: Database },
+  { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },
   { to: 'logs', label: 'Logs de Sistema', icon: History },
   { to: 'support', label: 'Soporte / Tickets', icon: MessageSquare },

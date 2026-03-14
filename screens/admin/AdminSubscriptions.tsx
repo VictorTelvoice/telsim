@@ -24,7 +24,7 @@ const AdminSubscriptions: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData } = await supabase
       .from('subscriptions')
-      .select('id, user_id, slot_id, phone_number, plan_name, amount, billing_type, status, created_at')
+      .select('*, users(*)')
       .order('created_at', { ascending: false });
 
     if (!subsData?.length) {
@@ -33,16 +33,17 @@ const AdminSubscriptions: React.FC = () => {
       return;
     }
 
-    const userIds = [...new Set((subsData as SubRow[]).map((s) => s.user_id))];
-    const { data: usersData } = await supabase.from('users').select('id, email').in('id', userIds);
-    const emailByUserId = (usersData || []).reduce((acc: Record<string, string>, u: { id: string; email: string | null }) => {
-      acc[u.id] = u.email ?? '';
-      return acc;
-    }, {});
-
-    const withEmail = (subsData as SubRow[]).map((s) => ({
-      ...s,
-      user_email: emailByUserId[s.user_id] ?? null,
+    const withEmail = (subsData as (SubRow & { users?: { id: string; email: string | null } | null })[]).map((s) => ({
+      id: s.id,
+      user_id: s.user_id,
+      slot_id: s.slot_id,
+      phone_number: s.phone_number,
+      plan_name: s.plan_name,
+      amount: s.amount,
+      billing_type: s.billing_type,
+      status: s.status,
+      created_at: s.created_at,
+      user_email: s.users?.email ?? null,
     }));
     setSubs(withEmail);
     setFiltered(withEmail);

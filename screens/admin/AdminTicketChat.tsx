@@ -31,13 +31,13 @@ const AdminTicketChat: React.FC<AdminTicketChatProps> = ({ backTo = '/admin/tick
     (async () => {
       const { data: ticket } = await supabase
         .from('support_tickets')
-        .select('subject, user_id')
+        .select('*, users(*)')
         .eq('id', ticketId)
         .single();
       if (ticket) {
-        setSubject((ticket as { subject: string }).subject ?? '');
-        const { data: user } = await supabase.from('users').select('email').eq('id', (ticket as { user_id: string }).user_id).single();
-        setUserEmail((user as { email: string | null } | null)?.email ?? null);
+        const t = ticket as { subject: string; user_id: string; users?: { email: string | null } | null };
+        setSubject(t.subject ?? '');
+        setUserEmail(t.users?.email ?? null);
       }
     })();
   }, [ticketId]);

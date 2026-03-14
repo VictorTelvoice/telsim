@@ -25,7 +25,7 @@ const SupportCenter: React.FC = () => {
   const fetchTickets = useCallback(async () => {
     const { data: ticketsData, error: ticketsError } = await supabase
       .from('support_tickets')
-      .select('id, user_id, subject, status, created_at, updated_at')
+      .select('*, users(*)')
       .in('status', ['open', 'pending'])
       .order('updated_at', { ascending: false });
 
@@ -34,17 +34,15 @@ const SupportCenter: React.FC = () => {
       return;
     }
 
-    const userIds = [...new Set((ticketsData as SupportTicket[]).map((t) => t.user_id))];
-    const { data: usersData } = await supabase.from('users').select('id, email').in('id', userIds);
-    const emailByUserId = (usersData || []).reduce((acc: Record<string, string>, u: { id: string; email: string | null }) => {
-      acc[u.id] = u.email ?? '';
-      return acc;
-    }, {});
-
     setTickets(
-      (ticketsData as SupportTicket[]).map((t) => ({
-        ...t,
-        user_email: emailByUserId[t.user_id] ?? null,
+      (ticketsData as (SupportTicket & { users?: { id: string; email: string | null } | null })[]).map((t) => ({
+        id: t.id,
+        user_id: t.user_id,
+        subject: t.subject,
+        status: t.status,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        user_email: t.users?.email ?? null,
       }))
     );
   }, []);

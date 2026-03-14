@@ -45,6 +45,8 @@ import AdminLogs from './screens/dashboard/AdminLogs';
 import AdminLayout from './components/layouts/AdminLayout';
 import InventoryManager from './screens/admin/InventoryManager';
 import SubscriptionMonitor from './screens/admin/SubscriptionMonitor';
+import UserManager from './screens/admin/UserManager';
+import UserDetail from './screens/admin/UserDetail';
 import ContentCMS from './screens/admin/ContentCMS';
 import SupportCenter from './screens/admin/SupportCenter';
 import AdminTicketChat from './screens/admin/AdminTicketChat';
@@ -282,6 +284,8 @@ const App: React.FC = () => {
                   >
                     <Route index element={<Navigate to="/admin/inventory" replace />} />
                     <Route path="inventory" element={<InventoryManager />} />
+                    <Route path="users" element={<UserManager />} />
+                    <Route path="users/:userId" element={<UserDetail />} />
                     <Route path="subscriptions" element={<SubscriptionMonitor />} />
                     <Route path="content" element={<ContentCMS />} />
                     <Route path="support" element={<SupportCenter />} />

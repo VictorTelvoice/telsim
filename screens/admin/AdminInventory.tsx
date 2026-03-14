@@ -19,7 +19,7 @@ const AdminInventory: React.FC = () => {
   const fetchSlots = useCallback(async () => {
     const { data: slotsData } = await supabase
       .from('slots')
-      .select('slot_id, phone_number, status, assigned_to, plan_type')
+      .select('*, users(*)')
       .order('slot_id', { ascending: true });
 
     if (!slotsData?.length) {
@@ -27,17 +27,14 @@ const AdminInventory: React.FC = () => {
       return;
     }
 
-    const userIds = [...new Set((slotsData as SlotRow[]).map((s) => s.assigned_to).filter(Boolean))] as string[];
-    const { data: usersData } = await supabase.from('users').select('id, email').in('id', userIds);
-    const emailByUserId = (usersData || []).reduce((acc: Record<string, string>, u: { id: string; email: string | null }) => {
-      acc[u.id] = u.email ?? '';
-      return acc;
-    }, {});
-
     setSlots(
-      (slotsData as SlotRow[]).map((s) => ({
-        ...s,
-        user_email: s.assigned_to ? emailByUserId[s.assigned_to] ?? null : null,
+      (slotsData as (SlotRow & { users?: { id: string; email: string | null } | null })[]).map((s) => ({
+        slot_id: s.slot_id,
+        phone_number: s.phone_number,
+        status: s.status,
+        assigned_to: s.assigned_to,
+        plan_type: s.plan_type,
+        user_email: s.users?.email ?? null,
       }))
     );
   }, []);
