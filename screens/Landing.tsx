@@ -951,67 +951,63 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* CAPTACIÓN — Formulario + Visualización de plataforma (puente a Precios) */}
-      <section id="captacion" className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      {/* FORMULARIO — Contacto + Visualización de plataforma (puente a Precios) */}
+      <section id="captacion" className="py-20 md:py-32 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            {/* Columna Izquierda: Texto + Formulario */}
-            <div className="flex flex-col gap-8">
-              <div>
-                <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-                  Gestiona todo desde un solo lugar
-                </h2>
-                <p className="text-slate-300 font-medium text-base md:text-lg">
-                  Dashboard intuitivo para administrar todas tus líneas, consumos y facturación.
-                </p>
-              </div>
-
+            {/* Columna Izquierda: Formulario de contacto (en móvil aparece después de la plataforma) */}
+            <div className="order-2 md:order-1 flex flex-col">
+              <h2 className="text-white font-black text-xs tracking-[0.3em] mb-3">CONTACTANOS</h2>
+              <p className="text-slate-400 text-sm mb-10 max-w-sm">
+                Escala tu infraestructura de agentes autónomos con soporte técnico especializado.
+              </p>
               <form
                 onSubmit={(e) => e.preventDefault()}
                 className="flex flex-col gap-4"
               >
                 <input
                   type="text"
-                  placeholder="Tu nombre"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/30"
+                  placeholder="Nombre"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <input
                   type="text"
                   placeholder="Empresa"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/30"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <input
                   type="email"
-                  placeholder="Correo"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/30"
-                />
-                <input
-                  type="tel"
-                  placeholder="Teléfono / WhatsApp"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/30"
+                  placeholder="Email Corporativo"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <textarea
                   placeholder="Mensaje"
                   rows={4}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
                 />
                 <button
                   type="submit"
                   className="inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-4 px-8 rounded-2xl shadow-xl hover:bg-blue-50 transition-all mt-2"
                 >
                   <span className="material-symbols-rounded text-[20px]">send</span>
-                  Solicitar Demostración
+                  Enviar Mensaje
                 </button>
               </form>
             </div>
 
-            {/* Columna Derecha: Visualización de plataforma (Bezel effect) */}
-            <div className="flex justify-center">
-              <div className="rounded-3xl p-1.5 bg-[#212121] shadow-2xl md:rotate-2 w-full max-w-lg">
+            {/* Columna Derecha: Textos + Imagen de plataforma (en móvil aparece primero) */}
+            <div className="order-1 md:order-2 flex flex-col">
+              <h2 className="text-white text-4xl md:text-5xl font-black mb-4 leading-tight">
+                Gestiona todo desde un solo lugar
+              </h2>
+              <p className="text-slate-300 font-medium text-lg mb-10">
+                Dashboard intuitivo para administrar todas tus líneas, consumos y facturación.
+              </p>
+              <div className="rounded-[2rem] border-[8px] border-slate-900/40 shadow-2xl overflow-hidden w-full max-w-lg">
                 <img
                   src="/dashboard-captacion.png"
                   alt="Dashboard Telsim — Mensajes SMS"
-                  className="w-full h-auto rounded-2xl block"
+                  className="w-full h-auto block"
                 />
               </div>
             </div>
