@@ -500,7 +500,7 @@ const Landing: React.FC = () => {
           {/* Badge superior */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
             <div className="signal-dot"></div>
-            Bóveda de SIMs — Infraestructura para Agentes Autónomos
+            Que tu bot no use tu número personal. Dale una identidad propia.
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
@@ -543,11 +543,12 @@ const Landing: React.FC = () => {
 
       {/* TESTIMONIOS — sin título, flujo directo tras el Hero */}
       <section className="bg-white pt-8 md:pt-14 pb-16 md:pb-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="relative">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Mobile: carrusel */}
+          <div className="md:hidden relative">
             <div
               ref={testimonialsRef}
-              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6"
               style={{ scrollbarWidth: 'none' }}
             >
               {testimonials.map((tCard, i) => (
@@ -577,8 +578,133 @@ const Landing: React.FC = () => {
                 </div>
               ))}
             </div>
-            <div className="md:hidden">
-              <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
+            <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
+          </div>
+
+          {/* Desktop: rejilla de 4 columnas — 4 testimonios visibles a la vez */}
+          <div className="hidden md:grid md:grid-cols-4 gap-5">
+            {testimonials.map((tCard, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+              >
+                <div className="flex gap-0.5">
+                  {Array.from({ length: tCard.stars }).map((_, s) => (
+                    <span key={s} className="text-amber-400 text-sm">★</span>
+                  ))}
+                </div>
+                <p className="font-black text-slate-900 text-[15px] leading-tight tracking-tight">{tCard.title}</p>
+                <p className="text-slate-500 text-[13px] font-medium leading-relaxed flex-1">{tCard.body}</p>
+                <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                    style={{ background: tCard.color, color: tCard.textColor }}
+                  >
+                    {tCard.initials}
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-slate-900">{tCard.name}</p>
+                    <p className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">✓ Cliente verificado</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TABLA COMPARATIVA — El eslabón perdido */}
+      <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
+              El eslabón perdido de la automatización
+            </h2>
+            <p className="text-slate-300 text-lg font-medium max-w-2xl mx-auto">
+              Que tu bot no use tu número personal. Dale una identidad propia.
+            </p>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm">
+            {/* Desktop: tabla moderna */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-widest">Situación</th>
+                    <th className="py-4 px-6 text-xs font-bold text-red-400 uppercase tracking-widest">Antes (Manual)</th>
+                    <th className="py-4 px-6 text-xs font-bold text-emerald-400 uppercase tracking-widest">Con Telsim (Autónomo)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-white/10">
+                    <td className="py-4 px-6 font-semibold text-slate-200">Flujo de Trabajo</td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
+                        <span className="text-slate-300 text-sm">El bot se detiene. Espera al humano.</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
+                        <span className="text-slate-100 text-sm font-medium">El bot detecta el SMS y sigue operando.</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-white/10">
+                    <td className="py-4 px-6 font-semibold text-slate-200">Disponibilidad</td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
+                        <span className="text-slate-300 text-sm">Solo si estás despierto.</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
+                        <span className="text-slate-100 text-sm font-medium">24/7. Sin pausas, sin humanos.</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-6 font-semibold text-slate-200">Escalabilidad</td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
+                        <span className="text-slate-300 text-sm">Limitado por tus manos.</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
+                        <span className="text-slate-100 text-sm font-medium">Ilimitado. 100 cuentas a la vez.</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: cards comparativas */}
+            <div className="md:hidden divide-y divide-white/10">
+              {[
+                { label: 'Flujo de Trabajo', manual: 'El bot se detiene. Espera al humano.', telsim: 'El bot detecta el SMS y sigue operando.' },
+                { label: 'Disponibilidad', manual: 'Solo si estás despierto.', telsim: '24/7. Sin pausas, sin humanos.' },
+                { label: 'Escalabilidad', manual: 'Limitado por tus manos.', telsim: 'Ilimitado. 100 cuentas a la vez.' },
+              ].map((row, i) => (
+                <div key={i} className="p-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{row.label}</p>
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="material-symbols-rounded text-red-400 flex-shrink-0" style={{ fontSize: 18 }}>close</span>
+                    <span className="text-slate-400 text-sm">Antes: {row.manual}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-rounded text-emerald-400 flex-shrink-0" style={{ fontSize: 18 }}>check_circle</span>
+                    <span className="text-slate-100 text-sm font-medium">Con Telsim: {row.telsim}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -594,7 +720,7 @@ const Landing: React.FC = () => {
             className="text-center mb-10"
           >
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Casos de uso</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Bóveda de SIMs para cada flujo</h2>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Que tu bot no use tu número personal. Dale una identidad propia.</h2>
             <p className="text-slate-500 text-base mt-3 font-medium max-w-2xl mx-auto">Conecta tu IA, tus automatizaciones o tu equipo a números reales. Sin depender de tu celular.</p>
           </motion.div>
 
