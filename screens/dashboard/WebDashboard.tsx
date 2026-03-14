@@ -15,7 +15,7 @@ import {
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
   Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
   HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2,
-  AlertCircle, AlertTriangle, Activity
+  AlertCircle, AlertTriangle, Activity, Volume2, VolumeX
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
 
@@ -347,6 +347,11 @@ const WebDashboard: React.FC = () => {
   const [apiLogsLoading, setApiLogsLoading] = useState(false);
   const [automationLogsOverview, setAutomationLogsOverview] = useState<AutomationLogRow[]>([]);
   const [retryingAll, setRetryingAll] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [messagePulse, setMessagePulse] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isMutedRef = useRef(false);
+  isMutedRef.current = isMuted;
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
   const [apiLogsRetryingId, setApiLogsRetryingId] = useState<string | null>(null);
 
@@ -485,8 +490,8 @@ const WebDashboard: React.FC = () => {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
-      await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
       setAvatarUrl(publicUrl);
+      await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
     } catch (err: any) {
       alert(err.message || 'Error al subir la imagen.');
     } finally {
@@ -525,8 +530,13 @@ const WebDashboard: React.FC = () => {
         .select('avatar_url')
         .eq('id', user.id)
         .single();
-      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
-      else if (user.user_metadata?.avatar_url) setAvatarUrl(user.user_metadata.avatar_url);
+      if (data?.avatar_url) {
+        setAvatarUrl(data.avatar_url);
+      } else if (user.user_metadata?.avatar_url) {
+        setAvatarUrl(user.user_metadata.avatar_url);
+      } else {
+        setAvatarUrl(null);
+      }
     };
     loadAvatar();
   }, [user]);
@@ -664,14 +674,34 @@ const WebDashboard: React.FC = () => {
     })();
   }, [settingsSection, user?.id]);
 
+  const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
+  useEffect(() => {
+    audioRef.current = new Audio(PING_URL);
+    return () => { audioRef.current = null; };
+  }, []);
+
+  const playPing = useCallback(() => {
+    if (isMutedRef.current) return;
+    try {
+      audioRef.current?.play();
+    } catch {
+      // Autoplay bloqueado o error de reproducción
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     const ch = supabase.channel('web-sms-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sms_logs', filter: `user_id=eq.${user.id}` },
-        (p) => setMessages(prev => [p.new as SMSLog, ...prev.slice(0, 59)]))
+        (p) => {
+          setMessages(prev => [p.new as SMSLog, ...prev.slice(0, 59)]);
+          playPing();
+          setMessagePulse(true);
+          setTimeout(() => setMessagePulse(false), 400);
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, playPing]);
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -1182,8 +1212,12 @@ const WebDashboard: React.FC = () => {
           </button>
           <div className={`mt-1 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
           <div className="flex items-center gap-2.5 px-1 mt-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black flex-shrink-0">
-              {userInitials}
+            <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <span>{userInitials}</span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-bold truncate">{userName}</p>
@@ -1215,6 +1249,13 @@ const WebDashboard: React.FC = () => {
               className={`bg-transparent text-[12px] outline-none flex-1 ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`} />
           </div>
           <button onClick={fetchData} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
+          <button
+            onClick={() => setIsMuted(m => !m)}
+            className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}
+            title={isMuted ? 'Activar sonido de nuevos SMS' : 'Silenciar notificaciones sonoras'}
+          >
+            {isMuted ? <VolumeX size={15} className="text-slate-400" /> : <Volume2 size={15} className="text-slate-400" />}
+          </button>
           <button onClick={toggleTheme} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>{isDark ? <Sun size={15} className="text-slate-400" /> : <Moon size={15} className="text-slate-400" />}</button>
           <button
             onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }}
@@ -1265,7 +1306,9 @@ const WebDashboard: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
+                <div className={`transition-transform duration-150 ${messagePulse ? 'scale-110' : 'scale-100'}`}>
+                  <KpiCard icon={<MessageSquare size={18} />} label="Mensajes hoy" value={todayMessages.length} sub={`${messages.length} en total`} trend={todayMessages.length > 0 ? 12 : undefined} color="#10b981" />
+                </div>
                 <KpiCard icon={<Smartphone size={18} />} label="SIMs activas" value={activeSlots.length} sub={`${slots.length} asignadas`} color="#f59e0b" />
                 <KpiCard icon={<Shield size={18} />} label="Tasa de éxito" value={messages.length > 0 ? `${Math.round(((messages.length - (messages.filter(m => m.is_spam).length || 0)) / messages.length) * 100)}% OK` : '—'} sub={`Latencia media: ${AVG_LATENCY}`} color="#8b5cf6" />
               </div>
