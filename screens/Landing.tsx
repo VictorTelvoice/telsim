@@ -498,7 +498,7 @@ const Landing: React.FC = () => {
             </button>
 
             <button onClick={() => navigate('/login')} className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">{t('landing.nav.login')}</button>
-            <button onClick={() => navigate('/login')} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">
+            <button onClick={() => document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth' })} className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl shadow-button hover:bg-primary-dark transition-colors">
               <span className="hidden sm:inline">{t('landing.nav.start')}</span>
               <span className="sm:hidden">{t('landing.nav.start_mobile')}</span>
             </button>
@@ -535,7 +535,7 @@ const Landing: React.FC = () => {
               <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
             </button>
             <button
-              onClick={() => window.location.href = 'mailto:info@telsim.io'}
+              onClick={() => document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' })}
               className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-10 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all shadow-sm"
             >
               <span className="material-symbols-rounded text-[20px]">calendar_today</span>
@@ -930,7 +930,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* FORMULARIO — Contacto + Visualización de plataforma (puente a Precios) */}
-      <section id="captacion" className="py-20 md:py-32 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      <section id="contacto" className="py-20 md:py-32 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20 items-start">
             {/* Columna Izquierda: Formulario de contacto */}
