@@ -1216,9 +1216,9 @@ const WebDashboard: React.FC = () => {
           <div className="flex items-center gap-2.5 px-1 mt-1">
             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
               {user?.avatar_url ? (
-                <img src={user?.avatar_url ?? ''} alt="" className="w-8 h-8 rounded-full object-cover" />
+                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
-                <span>{userInitials}</span>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black">{userInitials}</div>
               )}
             </div>
             <div className="flex-1 min-w-0">
