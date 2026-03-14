@@ -275,6 +275,9 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
+    const billingTypeForEmail = sessionMeta.isAnnual === 'true' ? 'Anual' : 'Mensual';
+    let nextDateForEmail = '';
+
     try {
       // Siempre tomamos el precio contratado desde Stripe (unit_amount del Price),
       // no el monto cobrado hoy. Esto asegura que `amount` refleje el valor total
@@ -323,9 +326,18 @@ export default async function handler(req: any, res: any) {
             trialEnd = new Date(stripeSub.trial_end * 1000).toISOString();
             subscriptionStatus = 'trialing';
           }
+          const periodEnd = stripeSub.trial_end ?? stripeSub.current_period_end;
+          if (periodEnd) {
+            nextDateForEmail = new Date(periodEnd * 1000).toLocaleDateString('es-CL');
+          }
         } catch (subErr) {
           console.warn('[WEBHOOK] No se pudo recuperar suscripción Stripe:', subErr);
         }
+      }
+      if (!nextDateForEmail) {
+        const now = new Date();
+        now.setMonth(now.getMonth() + 1);
+        nextDateForEmail = now.toLocaleDateString('es-CL');
       }
 
       if (session.customer) {
@@ -435,6 +447,8 @@ export default async function handler(req: any, res: any) {
       await triggerEmail('purchase_success', userId, {
         plan: planName ?? '',
         phone_number: phoneForEmail,
+        billing_type: billingTypeForEmail,
+        next_date: nextDateForEmail,
         to: session.customer_details?.email ?? '',
       });
     } catch (emailErr: any) {

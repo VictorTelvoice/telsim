@@ -80,6 +80,12 @@ const i18n = {
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: () => 'Activo',
+      infoRow2Label: 'Número de teléfono',
+      infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoRow3Label: 'Tipo de plan',
+      infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual'),
+      infoRow4Label: 'Próximo pago',
+      infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_activated: {
       subject: 'Tu plan ha sido actualizado',
@@ -91,6 +97,12 @@ const i18n = {
       infoRightLabel: 'ESTADO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Activo',
+      infoRow2Label: 'Número de teléfono',
+      infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoRow3Label: 'Tipo de plan',
+      infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual'),
+      infoRow4Label: 'Próximo pago',
+      infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
       subject: (d: Record<string, unknown>) => `[Telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
@@ -159,6 +171,12 @@ const i18n = {
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.phone_number ?? d.plan ?? ''),
       infoRightValue: () => 'Active',
+      infoRow2Label: 'Phone number',
+      infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoRow3Label: 'Plan type',
+      infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly'),
+      infoRow4Label: 'Next payment',
+      infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_activated: {
       subject: 'Your plan has been updated',
@@ -170,6 +188,12 @@ const i18n = {
       infoRightLabel: 'STATUS',
       infoLeftValue: (d: Record<string, unknown>) => String(d.plan_name ?? d.plan ?? ''),
       infoRightValue: () => 'Active',
+      infoRow2Label: 'Phone number',
+      infoRow2Value: (d: Record<string, unknown>) => String(d.phone_number ?? ''),
+      infoRow3Label: 'Plan type',
+      infoRow3Value: (d: Record<string, unknown>) => (d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly'),
+      infoRow4Label: 'Next payment',
+      infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
       subject: (d: Record<string, unknown>) => `[Telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
@@ -240,12 +264,31 @@ function buildHtml(params: {
   infoLeftValue: string;
   infoRightLabel: string;
   infoRightValue: string;
+  infoRow2Label?: string;
+  infoRow2Value?: string;
+  infoRow3Label?: string;
+  infoRow3Value?: string;
+  infoRow4Label?: string;
+  infoRow4Value?: string;
   ctaText: string;
   ctaUrl: string;
   footerText: string;
   year: number;
 }): string {
   const primaryBlue = '#1152d4';
+  const extraRow = (label: string, value: string) =>
+    label ? `
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:4px;">${label}</td>
+                  <td style="font-size:13px;color:#6b7280;padding-bottom:4px;text-align:right;"></td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px;font-weight:600;color:${primaryBlue};" colspan="2">${value}</td>
+                </tr>` : '';
+  const extraRows =
+    extraRow(params.infoRow2Label ?? '', params.infoRow2Value ?? '') +
+    extraRow(params.infoRow3Label ?? '', params.infoRow3Value ?? '') +
+    extraRow(params.infoRow4Label ?? '', params.infoRow4Value ?? '');
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -287,6 +330,7 @@ function buildHtml(params: {
                   <td style="font-size:18px;font-weight:700;color:${primaryBlue};">${params.infoLeftValue}</td>
                   <td style="font-size:14px;font-weight:600;color:#16a34a;text-align:right;">${params.infoRightValue}</td>
                 </tr>
+                ${extraRows}
               </table>
             </td></tr>
           </table>
@@ -305,16 +349,16 @@ function buildHtml(params: {
           <hr style="border:none;border-top:1px solid #f3f4f6;margin:0;">
         </td></tr>
 
-        <!-- FOOTER -->
-        <tr><td style="background:#f9fafb;border-radius:0 0 12px 12px;padding:32px 40px;border-top:1px solid #e5e7eb;">
-          <table width="100%" cellpadding="0" cellspacing="0">
+        <!-- FOOTER (centrado) -->
+        <tr><td style="background:#f9fafb;border-radius:0 0 12px 12px;padding:32px 40px;border-top:1px solid #e5e7eb;text-align:center !important;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="text-align:center !important;">
             <tr>
-              <td style="padding-bottom:16px;">
-                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="20" style="display:block;height:auto;opacity:0.6;">
+              <td style="padding-bottom:16px;text-align:center !important;">
+                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="20" style="display:inline-block;height:auto;opacity:0.6;">
               </td>
             </tr>
             <tr>
-              <td style="padding-bottom:12px;">
+              <td style="padding-bottom:12px;text-align:center !important;">
                 <a href="https://www.telsim.io" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">telsim.io</a>
                 <a href="https://www.telsim.io/privacy" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Privacidad</a>
                 <a href="https://www.telsim.io/terms" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Términos</a>
@@ -322,8 +366,8 @@ function buildHtml(params: {
               </td>
             </tr>
             <tr>
-              <td>
-                <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              <td style="text-align:center !important;">
+                <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;text-align:center !important;">
                   ${params.footerText}
                 </p>
               </td>
@@ -407,6 +451,11 @@ Deno.serve(async (req) => {
     const subject = typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string);
     const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
 
+    const tAny = t as Record<string, unknown>;
+    const rowVal = (key: string) => {
+      const fn = tAny[key];
+      return typeof fn === 'function' ? String((fn as (d: Record<string, unknown>) => string)(data)) : String(fn ?? '');
+    };
     const html = buildHtml({
       icon: eventIcons[ev],
       title: t.title,
@@ -416,6 +465,12 @@ Deno.serve(async (req) => {
       infoLeftValue: t.infoLeftValue(data),
       infoRightLabel: t.infoRightLabel,
       infoRightValue: t.infoRightValue(data),
+      infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
+      infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
+      infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
+      infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
+      infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
+      infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
       ctaText: t.cta,
       ctaUrl: ctaUrls[ev],
       footerText,
