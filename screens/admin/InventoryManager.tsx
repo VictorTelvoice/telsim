@@ -93,7 +93,7 @@ const InventoryManager: React.FC = () => {
     } else if (ceoFilter === 'free') {
       list = list.filter((s) => !s.assigned_to);
     } else if (ceoFilter === 'occupied') {
-      list = list.filter((s) => s.assigned_to != null || (s.status || '').toLowerCase() === 'ocupado');
+      list = list.filter((s) => s.assigned_to != null);
     }
     const q = searchQuery.trim().toLowerCase();
     if (q) {
@@ -130,10 +130,9 @@ const InventoryManager: React.FC = () => {
     return arr;
   }, [filteredSlots, sortKey, sortAsc]);
 
-  const occupiedCount = useMemo(
-    () => slots.filter((s) => s.assigned_to != null || (s.status || '').toLowerCase() === 'ocupado').length,
-    [slots]
-  );
+  const errorCount = useMemo(() => slots.filter((s) => (s.status || '').toLowerCase() === 'error').length, [slots]);
+  const freeCount = useMemo(() => slots.filter((s) => !s.assigned_to).length, [slots]);
+  const occupiedCount = useMemo(() => slots.filter((s) => s.assigned_to != null).length, [slots]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc((a) => !a);
@@ -215,7 +214,7 @@ const InventoryManager: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
             <input
               type="search"
-              placeholder="Buscar por Slot ID, teléfono o user ID..."
+              placeholder="Buscar por slot_id, phone_number o UUID de usuario..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm shadow-sm"
@@ -235,7 +234,7 @@ const InventoryManager: React.FC = () => {
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
               ceoFilter === 'occupied' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
             }`}
-            title="Slots asignados o estado Ocupado"
+            title="Slots donde assigned_to NO es NULL"
           >
             SIMs Ocupadas ({occupiedCount})
           </button>
@@ -244,20 +243,20 @@ const InventoryManager: React.FC = () => {
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
               ceoFilter === 'error' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600'
             }`}
-            title="SIMs con error para enviar a mantenimiento"
+            title="Slots donde status === 'error'"
           >
             <AlertCircle size={14} />
-            SIMs con Error ({slots.filter((s) => (s.status || '').toLowerCase() === 'error').length})
+            SIMs con Error ({errorCount})
           </button>
           <button
             onClick={() => setCeoFilter('free')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
               ceoFilter === 'free' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600'
             }`}
-            title="Inventario disponible para vender"
+            title="Slots donde assigned_to es NULL"
           >
             <CheckCircle2 size={14} />
-            SIMs Libres ({slots.filter((s) => !s.assigned_to).length})
+            SIMs Libres ({freeCount})
           </button>
         </div>
       </div>
@@ -295,8 +294,8 @@ const InventoryManager: React.FC = () => {
           )}
         </>
       ) : (
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
+        <div className="overflow-x-auto -mx-px">
+            <table className="w-full text-left min-w-[640px]" role="grid" aria-label="Inventario de slots">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-4 py-3">
