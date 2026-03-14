@@ -10,14 +10,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
-  const beneficiosRef = useRef<HTMLDivElement>(null);
   const casosUsoRef = useRef<HTMLDivElement>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
   const preciosRef = useRef<HTMLDivElement>(null);
   const pricingSectionRef = useRef<HTMLDivElement>(null);
   const pricingAnimatedRef = useRef(false);
   const [isAnnual, setIsAnnual] = useState(false);
-  const [beneficiosPage, setBeneficiosPage] = useState(0);
   const [casosPage, setCasosPage] = useState(0);
   const [planesPage, setPlanesPage] = useState(0);
   const [testimoniosPage, setTestimoniosPage] = useState(0);
@@ -65,15 +63,10 @@ const Landing: React.FC = () => {
 
     const cleanupTestimonials = autoScroll(testimonialsRef);
 
-    const benefEl = beneficiosRef.current;
     const casosEl = casosUsoRef.current;
     const planesEl = preciosRef.current;
     const testimEl = testimonialsRef.current;
 
-    const handleBeneficios = () => {
-      if (!benefEl) return;
-      setBeneficiosPage(Math.round(benefEl.scrollLeft / (benefEl.scrollWidth / 6)));
-    };
     const handleCasos = () => {
       if (!casosEl) return;
       setCasosPage(Math.round(casosEl.scrollLeft / (casosEl.scrollWidth / casosUso.length)));
@@ -87,12 +80,10 @@ const Landing: React.FC = () => {
       setTestimoniosPage(Math.round(testimEl.scrollLeft / (testimEl.scrollWidth / 6)));
     };
 
-    benefEl?.addEventListener('scroll', handleBeneficios, { passive: true });
     casosEl?.addEventListener('scroll', handleCasos, { passive: true });
     planesEl?.addEventListener('scroll', handlePlanes, { passive: true });
     testimEl?.addEventListener('scroll', handleTestimonios, { passive: true });
 
-    // Hint scroll — desliza y vuelve para indicar que hay más cards
     const hintScroll = (el: HTMLDivElement | null, delay = 900) => {
       if (!el) return;
       setTimeout(() => {
@@ -100,14 +91,12 @@ const Landing: React.FC = () => {
         setTimeout(() => el.scrollTo({ left: 0, behavior: 'smooth' }), 520);
       }, delay);
     };
-    hintScroll(benefEl, 900);
     hintScroll(casosEl, 1100);
     hintScroll(testimEl, 1500);
 
     return () => {
       observer.disconnect();
       cleanupTestimonials?.();
-      benefEl?.removeEventListener('scroll', handleBeneficios);
       casosEl?.removeEventListener('scroll', handleCasos);
       planesEl?.removeEventListener('scroll', handlePlanes);
       testimEl?.removeEventListener('scroll', handleTestimonios);
@@ -458,7 +447,7 @@ const Landing: React.FC = () => {
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button
               onClick={() => {
-                const el = document.getElementById('beneficios');
+                const el = document.getElementById('casos-de-uso');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
               className="hover:text-primary transition-colors"
@@ -511,21 +500,18 @@ const Landing: React.FC = () => {
           {/* Badge superior */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
             <div className="signal-dot"></div>
-            Infraestructura Global para Agentes Autónomos
+            Bóveda de SIMs — Infraestructura para Agentes Autónomos
             <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
           </div>
 
           {/* Título Principal */}
           <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
-            Que tu bot no use tu número personal. <br />
-            <span className="text-primary">Dale una identidad propia.</span>
+            Tu Agente de IA no es autónomo si depende de que tú mires el celular.
           </h1>
 
           {/* Subtítulo / Descripción */}
           <p className="text-slate-500 text-lg md:text-xl leading-relaxed font-medium max-w-[70ch] mb-10">
-            En un mundo globalizado, tu código no debe depender de un celular físico.
-            Accede a nuestra <strong>Bóveda de SIMs reales</strong> y escala tus agentes de IA
-            y automatizaciones sin límites.
+            Elimina el cuello de botella del OTP. Deja que tus bots reciban, procesen y validen SMS en tiempo real sin que tú muevas un dedo.
           </p>
 
           {/* Botones de Acción */}
@@ -555,32 +541,117 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* BENEFICIOS */}
-      <section id="beneficios" className="bg-white py-16 md:py-28">
+      {/* TESTIMONIOS — sin título, flujo directo tras el Hero */}
+      <section className="bg-white pt-8 md:pt-14 pb-16 md:pb-24">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.benefits.tag')}</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.benefits.title').replace('<br/>', '<br/>') }}></h2>
-          </div>
-          <div ref={beneficiosRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible pt-2 pb-8 md:pb-0 snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
-            {[
-              { icon: 'sim_card', title: t('landing.benefits.item1.title'), desc: t('landing.benefits.item1.desc') },
-              { icon: 'bolt', title: t('landing.benefits.item2.title'), desc: t('landing.benefits.item2.desc') },
-              { icon: 'verified_user', title: t('landing.benefits.item3.title'), desc: t('landing.benefits.item3.desc') },
-              { icon: 'shield', title: t('landing.benefits.item4.title'), desc: t('landing.benefits.item4.desc'), color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { icon: 'trending_up', title: t('landing.benefits.item5.title'), desc: t('landing.benefits.item5.desc') },
-              { icon: 'api', title: t('landing.benefits.item6.title'), desc: t('landing.benefits.item6.desc') }
-            ].map((b, i) => (
-              <div key={i} className="bg-slate-50 rounded-3xl p-5 hover-lift border border-slate-100 min-w-[calc(50%-0.5rem)] md:min-w-0 snap-center">
-                <div className={`w-10 h-10 ${b.bg || 'bg-blue-50'} rounded-xl flex items-center justify-center ${b.color || 'text-primary'} mb-4`}>
-                  <span className="material-symbols-rounded text-[22px]">{b.icon}</span>
+          <div className="relative">
+            <div
+              ref={testimonialsRef}
+              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {testimonials.map((tCard, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-[300px] snap-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+                >
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: tCard.stars }).map((_, s) => (
+                      <span key={s} className="text-amber-400 text-sm">★</span>
+                    ))}
+                  </div>
+                  <p className="font-black text-slate-900 text-[15px] leading-tight tracking-tight">{tCard.title}</p>
+                  <p className="text-slate-500 text-[13px] font-medium leading-relaxed flex-1">{tCard.body}</p>
+                  <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                      style={{ background: tCard.color, color: tCard.textColor }}
+                    >
+                      {tCard.initials}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-slate-900">{tCard.name}</p>
+                      <p className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">✓ Cliente verificado</p>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1">{b.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">{b.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="md:hidden">
+              <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
+            </div>
           </div>
-          <ScrollDots total={6} current={beneficiosPage} scrollRef={beneficiosRef} />
+        </div>
+      </section>
+
+      {/* CASOS DE USO — en el lugar de Beneficios, con animación staggered */}
+      <section id="casos-de-uso" className="bg-white py-16 md:py-28">
+        <div className="max-w-5xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Casos de uso</span>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Bóveda de SIMs para cada flujo</h2>
+            <p className="text-slate-500 text-base mt-3 font-medium max-w-2xl mx-auto">Conecta tu IA, tus automatizaciones o tu equipo a números reales. Sin depender de tu celular.</p>
+          </motion.div>
+
+          {/* Mobile: carousel */}
+          <div className="md:hidden relative">
+            <div
+              ref={casosUsoRef}
+              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-2 pb-4 -mx-6 px-6"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {casosUso.map((c, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="flex-shrink-0 w-[82vw] snap-start bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3 hover-lift"
+                >
+                  <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
+                    <p className="text-[11.5px] font-medium text-slate-600 leading-relaxed">{c.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+            <ScrollDots total={casosUso.length} current={casosPage} scrollRef={casosUsoRef} />
+          </div>
+
+          {/* Desktop: grid con staggered fade-in up */}
+          <div className="hidden md:block">
+            <motion.div
+              className="grid md:grid-cols-2 gap-4"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+            >
+              {casosUso.map((c, i) => (
+                <motion.div
+                  key={i}
+                  variants={{ hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0 } }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="group bg-white rounded-2xl border border-slate-100 p-5 flex items-start gap-4 hover-lift transition-all duration-300 hover:shadow-lg hover:border-slate-200 cursor-pointer"
+                >
+                  <div className="w-[52px] h-[52px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-black text-slate-900 mb-1.5 leading-tight">{c.title}</p>
+                    <p className="text-[13px] font-medium text-slate-600 leading-relaxed">{c.desc}</p>
+                  </div>
+                  <span className="text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-sm flex-shrink-0 mt-1">→</span>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -672,60 +743,6 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* CASOS DE USO */}
-      <section className="bg-white py-16 md:py-28">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.use_cases.tag')}</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight" dangerouslySetInnerHTML={{ __html: t('landing.use_cases.title').replace('<br/>', '<br/>') }}></h2>
-            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.use_cases.subtitle')}</p>
-          </div>
-
-          {/* Mobile: carousel con peek animation */}
-          <div className="md:hidden relative">
-            <div
-              ref={casosUsoRef}
-              className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-2 pb-4 -mx-6 px-6"
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {casosUso.map((c, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0 w-[82vw] snap-start bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3"
-                  style={{ animation: i === 0 ? 'peekHint 1.2s ease-out 0.8s both' : 'none' }}
-                >
-                  <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
-                    <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Fade right edge hint */}
-            <div className="absolute top-0 right-0 bottom-4 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none" />
-            <ScrollDots total={casosUso.length} current={casosPage} scrollRef={casosUsoRef} />
-          </div>
-
-          {/* Desktop: grid 2 columnas */}
-          <div className="hidden md:grid md:grid-cols-2 gap-2.5">
-            {casosUso.map((c, i) => (
-              <div
-                key={i}
-                className="group bg-white rounded-2xl border border-slate-100 p-4 flex items-start gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-blue-100 cursor-pointer"
-              >
-                <div className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-black text-slate-900 mb-1 leading-tight">{c.title}</p>
-                  <p className="text-[11.5px] font-medium text-slate-500 leading-relaxed">{c.desc}</p>
-                </div>
-                <span className="text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-sm flex-shrink-0 mt-1">→</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CÓMO FUNCIONA */}
       <section id="como-funciona" className="tech-bg py-16 md:py-28 overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
@@ -799,66 +816,6 @@ const Landing: React.FC = () => {
                   <p className="text-xs text-slate-500 leading-relaxed font-medium">{item.desc}</p>
                 </motion.div>
               ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIOS */}
-      <section className="bg-white pt-14 md:pt-28 pb-16 md:pb-28">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-6">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
-              Testimonios
-            </span>
-          </div>
-
-          {/* Carrusel — mismo patrón que las otras secciones */}
-          <div className="relative">
-            <div
-              ref={testimonialsRef}
-              className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pt-2 pb-4 no-scrollbar -mx-6 px-6 md:mx-0 md:px-0"
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {testimonials.map((t, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0 w-[300px] snap-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
-                >
-                  {/* Estrellas */}
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: t.stars }).map((_, s) => (
-                      <span key={s} className="text-amber-400 text-sm">★</span>
-                    ))}
-                  </div>
-                  {/* Título */}
-                  <p className="font-black text-slate-900 text-[15px] leading-tight tracking-tight">
-                    {t.title}
-                  </p>
-                  {/* Cuerpo */}
-                  <p className="text-slate-500 text-[13px] font-medium leading-relaxed flex-1">
-                    {t.body}
-                  </p>
-                  {/* Footer */}
-                  <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                      style={{ background: t.color, color: t.textColor }}
-                    >
-                      {t.initials}
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-bold text-slate-900">{t.name}</p>
-                      <p className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
-                        ✓ Cliente verificado
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="md:hidden">
-              <ScrollDots total={6} current={testimoniosPage} scrollRef={testimonialsRef} />
             </div>
           </div>
         </div>
