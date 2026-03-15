@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEffectiveUser } from '../../contexts/ImpersonationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -302,7 +303,10 @@ const ReleaseSuccessToastMessage: React.FC<{ isDark: boolean }> = ({ isDark }) =
 };
 
 const WebDashboard: React.FC = () => {
-  const { user, refreshProfile, version: authVersion } = useAuth();
+  const auth = useAuth();
+  const effectiveUser = useEffectiveUser(auth.user);
+  const user = effectiveUser ?? auth.user;
+  const { refreshProfile, version: authVersion } = auth;
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();

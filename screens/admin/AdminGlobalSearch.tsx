@@ -88,7 +88,7 @@ const AdminGlobalSearch: React.FC = () => {
       <button
         type="button"
         onClick={() => { setOpen(true); setQuery(''); }}
-        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        className="p-2 rounded text-slate-400 hover:text-slate-600 transition-colors border-0 bg-transparent"
         title="Buscar (⌘K)"
       >
         <Search size={20} />
@@ -105,29 +105,29 @@ const AdminGlobalSearch: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-              <Search size={20} className="text-slate-400 flex-shrink-0" />
+              <Search size={20} className="text-slate-600 flex-shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Nombre, email o UUID..."
-                className="flex-1 py-2 bg-transparent border-none text-slate-900 placeholder-slate-400 outline-none text-base"
+                className="flex-1 py-2 bg-transparent border-none text-black placeholder-slate-500 outline-none text-base font-medium"
                 autoComplete="off"
               />
-              <kbd className="hidden sm:inline text-[10px] text-slate-400 font-mono">ESC</kbd>
+              <kbd className="hidden sm:inline text-[10px] text-slate-600 font-mono">ESC</kbd>
             </div>
             <div className="max-h-[50vh] overflow-y-auto">
               {loading && (
-                <div className="flex items-center justify-center py-12 text-slate-400">
+                <div className="flex items-center justify-center py-12 text-slate-600">
                   <Loader2 size={28} className="animate-spin" />
                 </div>
               )}
               {!loading && query.trim().length < 2 && (
-                <p className="px-4 py-8 text-center text-slate-500 text-sm">Escribe al menos 2 caracteres para buscar</p>
+                <p className="px-4 py-8 text-center text-slate-800 text-sm font-medium">Escribe al menos 2 caracteres para buscar</p>
               )}
               {!loading && query.trim().length >= 2 && hits.length === 0 && (
-                <p className="px-4 py-8 text-center text-slate-500 text-sm">Sin resultados</p>
+                <p className="px-4 py-8 text-center text-slate-800 text-sm font-medium">Sin resultados</p>
               )}
               {!loading && hits.length > 0 && (
                 <ul className="py-2">
@@ -135,8 +135,8 @@ const AdminGlobalSearch: React.FC = () => {
                     <li key={hit.id} className="border-b border-slate-100 last:border-0">
                       <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900 text-sm truncate">{hit.nombre || '—'}</p>
-                          <p className="text-xs text-slate-500 truncate">{hit.email || hit.id}</p>
+                          <p className="font-bold text-black text-sm truncate">{hit.nombre || '—'}</p>
+                          <p className="text-xs text-slate-950 truncate">{hit.email || hit.id}</p>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button

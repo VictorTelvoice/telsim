@@ -44,6 +44,8 @@ import WebhookGuide from './screens/dashboard/WebhookGuide';
 import WebhookLogs from './screens/dashboard/WebhookLogs';
 import AdminLogs from './screens/dashboard/AdminLogs';
 import AdminLayout from './components/layouts/AdminLayout';
+import { ImpersonationProvider } from './contexts/ImpersonationContext';
+import ImpersonationBanner, { ImpersonationBannerSpacer } from './components/ImpersonationBanner';
 import AdminOverview from './screens/admin/AdminOverview';
 import InventoryManager from './screens/admin/InventoryManager';
 import SubscriptionMonitor from './screens/admin/SubscriptionMonitor';
@@ -250,9 +252,12 @@ const App: React.FC = () => {
           <NotificationsProvider>
             <MessagesProvider>
               <HashRouter>
-                <ScrollToTop />
-                <PostLoginRedirectHandler />
-                <NavigationWatchdog />
+                <ImpersonationProvider>
+                  <ScrollToTop />
+                  <ImpersonationBanner />
+                  <ImpersonationBannerSpacer />
+                  <PostLoginRedirectHandler />
+                  <NavigationWatchdog />
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
@@ -400,6 +405,7 @@ const App: React.FC = () => {
                     </div>
                   } />
                 </Routes>
+                </ImpersonationProvider>
             </HashRouter>
           </MessagesProvider>
         </NotificationsProvider>
