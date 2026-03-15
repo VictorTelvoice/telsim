@@ -270,11 +270,10 @@ const AdminTemplates: React.FC = () => {
       }
 
       if (!user?.id) {
-        showLocalToast('Inicia sesión para enviar el test.', 'error');
+        showLocalToast('Sesión expirada. Recarga la página.', 'error');
         return;
       }
 
-      const channel = activeTab === 'email' ? 'email' : 'telegram';
       setSendingTestId(id);
       setSuccessTestId(null);
       try {
@@ -283,36 +282,30 @@ const AdminTemplates: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'send-notification-test',
-            channel,
+            channel: activeTab === 'email' ? 'email' : 'telegram',
             content,
             userId: user.id,
             isTest: true,
           }),
         });
-        let res: { error?: string; message?: string } = {};
-        try {
-          res = await response.json();
-        } catch {
-          showLocalToast('Error al procesar la respuesta del servidor.', 'error');
-          return;
-        }
+
+        // LEER JSON UNA SOLA VEZ
+        const data = await response.json();
+
         if (!response.ok) {
-          showLocalToast((res && res.error) || 'Error al enviar el test.', 'error');
-          return;
+          showLocalToast(data.error || 'Error al enviar el test.', 'error');
+        } else {
+          setSuccessTestId(id);
+          showLocalToast(data.message || '✅ Test enviado con éxito.', 'success');
+          setTimeout(() => setSuccessTestId(null), 3000);
         }
-        setSuccessTestId(id);
-        const target = channel === 'email' ? 'Email' : 'Telegram';
-        const message = (res && res.message) || `✅ Mensaje de prueba enviado a ${target}`;
-        showLocalToast(message, 'success');
-        setTimeout(() => setSuccessTestId(null), 3000);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Error de conexión al enviar el test.';
-        showLocalToast(msg, 'error');
+        showLocalToast('No se pudo conectar con el servidor de Telsim.', 'error');
       } finally {
         setSendingTestId(null);
       }
     },
-    [activeTab, settings, user?.id, showLocalToast]
+    [activeTab, settings, user, showLocalToast]
   );
 
   const handleSaveAll = async () => {
