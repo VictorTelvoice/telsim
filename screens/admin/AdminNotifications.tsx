@@ -29,7 +29,8 @@ const AdminNotifications: React.FC = () => {
       .eq('id', CONFIG_ALERT_KEY)
       .maybeSingle();
     const content = (data as { content: string | null } | null)?.content ?? '';
-    setEnabled(String(content).toLowerCase() === 'true');
+    const isEnabled = String(content).toLowerCase() === 'true';
+    setEnabled(isEnabled);
   }, []);
 
   useEffect(() => {
@@ -57,7 +58,14 @@ const AdminNotifications: React.FC = () => {
   const handleSimulate = useCallback(async () => {
     setSimulatingAlert(true);
     try {
-      // La API lee siempre el valor real de admin_settings en la DB; no enviamos estado local
+      // Refresco: leer el valor más reciente de la DB antes de simular
+      const { data: fresh } = await supabase
+        .from('admin_settings')
+        .select('content')
+        .eq('id', CONFIG_ALERT_KEY)
+        .maybeSingle();
+      const content = (fresh as { content: string | null } | null)?.content ?? '';
+      const isEnabled = String(content).toLowerCase() === 'true';
       const res = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

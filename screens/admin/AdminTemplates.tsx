@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Link, Palette, Underline } from 'lucide-react';
 
 const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
@@ -11,6 +11,9 @@ const KNOWN_EMAIL_IDS = [
   'template_email_subscription_activated',
   'template_email_subscription_cancelled',
   'template_email_welcome_email',
+  'template_email_upgrade_success',
+  'template_email_payment_reminder',
+  'template_email_payment_failed',
 ];
 const KNOWN_TELEGRAM_IDS = [
   'template_telegram_new_purchase',
@@ -20,6 +23,8 @@ const KNOWN_TELEGRAM_IDS = [
   'template_telegram_new_sms_forward',
   'template_telegram_ceo_daily_report',
   'template_telegram_sim_error_alert',
+  'template_telegram_payment_reminder',
+  'template_telegram_payment_failed',
 ];
 const KNOWN_APP_IDS = [
   'template_app_release_success',
@@ -30,7 +35,13 @@ const KNOWN_APP_IDS = [
   'template_app_automation_saved',
   'template_app_telegram_test_success',
   'template_app_telegram_test_error',
+  'template_app_upgrade_success',
+  'template_app_reminder',
+  'template_app_error_alert',
 ];
+
+const QUICK_EMOJIS = ['📱', '🚀', '⚠️', '✅', '⏰', '💳', '🛰️', '💬'];
+const QUICK_VARIABLES = ['{{nombre}}', '{{phone}}', '{{plan}}', '{{limit}}', '{{monto}}'];
 
 function idToLabel(id: string, prefix: string): string {
   const withoutPrefix = id.slice(prefix.length);
@@ -86,6 +97,29 @@ const AdminTemplates: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [successTestId, setSuccessTestId] = useState<string | null>(null);
+  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
+  const insertAtCursor = useCallback((id: string, before: string, after?: string) => {
+    const ta = textareaRefs.current[id];
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const val = settings[id] ?? '';
+    const newVal = after != null
+      ? val.slice(0, start) + before + val.slice(start, end) + after + val.slice(end)
+      : val.slice(0, start) + before + val.slice(end);
+    handleContentChange(id, newVal);
+    setTimeout(() => {
+      ta.focus();
+      const newStart = start + before.length;
+      const newEnd = after != null ? newStart + (end - start) : newStart;
+      ta.setSelectionRange(newStart, newEnd);
+    }, 0);
+  }, [settings]);
+
+  const handleContentChange = (id: string, value: string) => {
+    setSettings((s) => ({ ...s, [id]: value }));
+  };
 
   const showLocalToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const toast = document.createElement('div');
@@ -110,6 +144,9 @@ const AdminTemplates: React.FC = () => {
         map[r.id] = r.content ?? '';
       }
     });
+    [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS].forEach((id) => {
+      if (!(id in map)) map[id] = '';
+    });
     setSettings(map);
   }, []);
 
@@ -128,10 +165,6 @@ const AdminTemplates: React.FC = () => {
     if (tab === 'email') return PREFIX_EMAIL;
     if (tab === 'telegram') return PREFIX_TELEGRAM;
     return PREFIX_APP;
-  };
-
-  const handleContentChange = (id: string, value: string) => {
-    setSettings((s) => ({ ...s, [id]: value }));
   };
 
   const handleResetOne = useCallback(
@@ -316,7 +349,30 @@ const AdminTemplates: React.FC = () => {
                   </div>
                 )}
                 <div className="p-5">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Formato:</span>
+                    <button type="button" onClick={() => insertAtCursor(id, '**', '**')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Negrita (**texto**)"><Bold size={16} /></button>
+                    <button type="button" onClick={() => insertAtCursor(id, '_', '_')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Cursiva (_texto_)"><Italic size={16} /></button>
+                    <button type="button" onClick={() => insertAtCursor(id, '<u>', '</u>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Subrayado"><Underline size={16} /></button>
+                    <button type="button" onClick={() => insertAtCursor(id, '[texto](url)')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Link [texto](url)"><Link size={16} /></button>
+                    {activeTab === 'email' && (
+                      <button type="button" onClick={() => insertAtCursor(id, '<span style="color:#c00">texto</span>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Color HTML (emails)"><Palette size={16} /></button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Emojis:</span>
+                    {QUICK_EMOJIS.map((emoji) => (
+                      <button key={emoji} type="button" onClick={() => insertAtCursor(id, emoji)} className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-lg leading-none" title={`Insertar ${emoji}`}>{emoji}</button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Variables:</span>
+                    {QUICK_VARIABLES.map((v) => (
+                      <button key={v} type="button" onClick={() => insertAtCursor(id, v)} className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-mono" title={`Insertar ${v}`}>{v}</button>
+                    ))}
+                  </div>
                   <textarea
+                    ref={(el) => { textareaRefs.current[id] = el; }}
                     value={settings[id] ?? ''}
                     onChange={(e) => handleContentChange(id, e.target.value)}
                     placeholder={`Contenido para ${idToLabel(id, prefix)}. Usa variables como {{phone}}, {{plan}}...`}

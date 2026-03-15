@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-// Rutas relativas con .js para ESM en Vercel (evitar ERR_MODULE_NOT_FOUND)
+// Rutas relativas únicamente; carpeta _helpers (minúsculas); extensión .js para ESM en Vercel
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications.js';
 import { logEvent } from '../_helpers/logger.js';
 
@@ -824,6 +824,7 @@ export default async function handler(req: any, res: any) {
     try {
       await logEvent('WEBHOOK_ERROR', 'critical', errMsg, undefined, { stack: errStack }, 'stripe');
     } catch (logErr) {
+      console.error('[WEBHOOK] logEvent falló (DB/logger):', (logErr as Error)?.message);
       try {
         await supabaseAdmin.from('audit_logs').insert({
           event_type: 'WEBHOOK_ERROR',
@@ -834,8 +835,8 @@ export default async function handler(req: any, res: any) {
           source: 'stripe',
           created_at: new Date().toISOString(),
         });
-      } catch (_) {
-        console.error('[WEBHOOK] No se pudo escribir en audit_logs:', (logErr as Error)?.message);
+      } catch (dbErr) {
+        console.error('[WEBHOOK] audit_logs insert falló:', (dbErr as Error)?.message);
       }
     }
     return res.status(500).json({ received: false, error: errMsg });
