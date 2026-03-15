@@ -26,6 +26,40 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 // service_role — bypasea RLS, puede leer public.users
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// Plantilla maestra: marco corporativo para todos los correos. El contenido de cada
+// plantilla (bienvenida, pago exitoso, etc.) se inyecta en {{content}}.
+const MASTER_TEMPLATE = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .header { background-color: #0074d4; padding: 30px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: bold; }
+        .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
+        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        .button { display: inline-block; padding: 12px 25px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        .highlight { color: #0074d4; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TELSIM</h1>
+        </div>
+        <div class="content">
+            {{content}}
+        </div>
+        <div class="footer">
+            <p>© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
+            <p>Has recibido este correo porque eres cliente de Telsim.io</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Language = 'es' | 'en';
@@ -263,9 +297,9 @@ const i18n = {
   },
 };
 
-// ─── Template HTML (diseño profesional unificado) ──────────────────────────────
-
-function buildHtml(params: {
+// ─── Contenido interno (se inyecta en MASTER_TEMPLATE {{content}}) ─────────────
+// Azul corporativo #0074d4 para botones y destacados; compatible con HTML del editor.
+function buildInnerContent(params: {
   icon: string;
   title: string;
   body: string;
@@ -286,7 +320,7 @@ function buildHtml(params: {
   footerText: string;
   year: number;
 }): string {
-  const primaryBlue = '#1152d4';
+  const primaryBlue = '#0074d4';
   const valueColor = '#111827';
   const labelStyle = 'font-size:11px;color:#6b7280;font-weight:700;padding:12px 0 4px 0;vertical-align:top;';
   const valueStyle = `font-size:14px;font-weight:700;color:${valueColor};padding:4px 0 12px 0;text-align:right;vertical-align:top;`;
@@ -327,27 +361,7 @@ function buildHtml(params: {
     extraRow(params.infoRow4Label ?? '', params.infoRow4Value ?? '')}`;
         })();
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
-        <!-- HEADER -->
-        <tr><td style="background:#ffffff;border-radius:12px 12px 0 0;padding:24px 40px;border-bottom:1px solid #e5e7eb;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="42" style="display:block;height:auto;">
-            <span style="font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.5px;">Telsim</span>
-          </div>
-        </td></tr>
-
-        <!-- BODY -->
-        <tr><td style="background:#ffffff;padding:40px 40px 32px;">
+  return `
           ${params.icon ? `<div style="text-align:center;margin-bottom:24px;"><span style="font-size:48px;">${params.icon}</span></div>` : ''}
           <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#111827;text-align:center;">
             ${params.title}
@@ -356,7 +370,6 @@ function buildHtml(params: {
             ${params.body}
           </p>
 
-          <!-- INFO BOX (2 columnas: labels gris 11px negrita | valores azul/negro 14px negrita) -->
           <table width="100%" cellpadding="0" cellspacing="0" style="background:${params.infoBoxBg};border-radius:10px;margin-bottom:28px;">
             <tr><td style="padding:24px 28px;">
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -365,51 +378,12 @@ function buildHtml(params: {
             </td></tr>
           </table>
 
-          <!-- CTA BUTTON (prominente) -->
           <div style="text-align:center;margin-bottom:8px;">
-            <a href="${params.ctaUrl}"
-               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(17,82,212,0.35);">
+            <a href="${params.ctaUrl}" class="button"
+               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(0,116,212,0.35);">
               ${params.ctaText} →
             </a>
-          </div>
-        </td></tr>
-
-        <!-- DIVIDER -->
-        <tr><td style="background:#ffffff;padding:0 40px;">
-          <hr style="border:none;border-top:1px solid #f3f4f6;margin:0;">
-        </td></tr>
-
-        <!-- FOOTER (centrado) -->
-        <tr><td style="background:#f9fafb;border-radius:0 0 12px 12px;padding:32px 40px;border-top:1px solid #e5e7eb;text-align:center !important;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="text-align:center !important;">
-            <tr>
-              <td style="padding-bottom:16px;text-align:center !important;">
-                <img src="https://www.telsim.io/logo-512.png" alt="Telsim" width="20" style="display:inline-block;height:auto;opacity:0.6;">
-              </td>
-            </tr>
-            <tr>
-              <td style="padding-bottom:12px;text-align:center !important;">
-                <a href="https://www.telsim.io" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">telsim.io</a>
-                <a href="https://www.telsim.io/privacy" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Privacidad</a>
-                <a href="https://www.telsim.io/terms" style="color:#6b7280;font-size:13px;text-decoration:none;margin-right:16px;">Términos</a>
-                <a href="mailto:unsubscribe@telsim.io?subject=unsubscribe" style="color:#6b7280;font-size:13px;text-decoration:none;">Cancelar suscripción</a>
-              </td>
-            </tr>
-            <tr>
-              <td style="text-align:center !important;">
-                <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;text-align:center !important;">
-                  ${params.footerText}
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+          </div>`;
 }
 
 // ─── CTA URLs por evento ───────────────────────────────────────────────────────
@@ -546,7 +520,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const html = buildHtml({
+    const innerContent = buildInnerContent({
       icon: eventIcons[ev] ?? '📧',
       title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? event,
       body: bodyStr,
@@ -567,6 +541,7 @@ Deno.serve(async (req) => {
       footerText,
       year: new Date().getFullYear(),
     });
+    const html = MASTER_TEMPLATE.replace('{{content}}', innerContent);
 
     // Enviar via Resend
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -588,8 +563,26 @@ Deno.serve(async (req) => {
     });
 
     const resendData = await resendRes.json();
+    const ok = resendRes.ok;
 
-    if (!resendRes.ok) {
+    // Historial: registrar envío (éxito o error)
+    try {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+      const contentPreview = (bodyStr?.slice(0, 500) ?? subject ?? '') || null;
+      await supabase.from('notification_history').insert({
+        user_id: user_id ?? null,
+        recipient: email,
+        channel: 'email',
+        event: payload.is_test === true ? 'test' : event,
+        status: ok ? 'sent' : 'error',
+        error_message: ok ? null : (resendData?.message ?? JSON.stringify(resendData)),
+        content_preview: contentPreview,
+      });
+    } catch (histErr) {
+      console.warn('[send-email] notification_history insert failed:', histErr);
+    }
+
+    if (!ok) {
       console.error('Resend error:', resendData);
       return new Response(JSON.stringify({ error: 'Failed to send email', detail: resendData }), {
         status: 500,

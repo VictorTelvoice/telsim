@@ -321,19 +321,29 @@ export default async function handler(req: any, res: any) {
           return res.status(403).json({ error: 'Solo el administrador puede enviar tests de notificaciones.', code: 'FORBIDDEN' });
         }
         if (channel === 'telegram') {
-          const { data: userRow, error: userError } = await supabaseAdmin
-            .from('users')
-            .select('telegram_token, telegram_chat_id')
-            .eq('id', userId)
-            .maybeSingle();
-          if (userError || !userRow) {
-            return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+          // Preferir TELEGRAM_ADMIN_TOKEN para enviar el test al bot/admin (tu móvil)
+          const adminToken = (process.env.TELEGRAM_ADMIN_TOKEN || '').trim();
+          const adminChatId = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+          let token: string;
+          let chatId: string;
+          if (adminToken && adminChatId) {
+            token = adminToken;
+            chatId = adminChatId;
+          } else {
+            const { data: userRow, error: userError } = await supabaseAdmin
+              .from('users')
+              .select('telegram_token, telegram_chat_id')
+              .eq('id', userId)
+              .maybeSingle();
+            if (userError || !userRow) {
+              return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+            }
+            token = (userRow as { telegram_token?: string }).telegram_token || '';
+            chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id || '';
           }
-          const token = (userRow as { telegram_token?: string }).telegram_token;
-          const chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id;
           if (!token || !chatId) {
             return res.status(400).json({
-              error: 'Configura tu Bot de Telegram (Ajustes → Telegram) para recibir el test.',
+              error: 'Configura TELEGRAM_ADMIN_TOKEN y TELEGRAM_ADMIN_CHAT_ID en Vercel, o vincula tu Bot en Ajustes → Telegram.',
               code: 'TELEGRAM_NOT_CONFIGURED',
             });
           }
@@ -343,7 +353,21 @@ export default async function handler(req: any, res: any) {
             body: JSON.stringify({ chat_id: chatId, text: content, parse_mode: 'Markdown' }),
           });
           const result = await tgRes.json();
-          if (!tgRes.ok) {
+          const tgOk = tgRes.ok;
+          try {
+            await supabaseAdmin.from('notification_history').insert({
+              user_id: userId,
+              recipient: `Telegram:${chatId}`,
+              channel: 'telegram',
+              event: 'test',
+              status: tgOk ? 'sent' : 'error',
+              error_message: tgOk ? null : (result?.description || null),
+              content_preview: (content || '').slice(0, 500) || null,
+            });
+          } catch (histErr) {
+            console.warn('[ADMIN] notification_history insert failed:', (histErr as Error)?.message);
+          }
+          if (!tgOk) {
             return res.status(400).json({
               error: result.description || 'Error al enviar a Telegram.',
               code: 'TELEGRAM_ERROR',
@@ -393,6 +417,7 @@ export default async function handler(req: any, res: any) {
               to_email: toEmail,
               data: testData,
               content,
+              is_test: true,
             }),
           });
           const result = await res.json().catch(() => ({}));
@@ -405,6 +430,77 @@ export default async function handler(req: any, res: any) {
           return res.status(200).json({ ok: true });
         }
         return res.status(400).json({ error: 'Canal no válido. Use: email o telegram.', code: 'INVALID_CHANNEL' });
+      }
+
+      case 'list-notification-history': {
+        const { userId: reqUserId, emailSearch, eventSearch, filterUserId, limit: limitParam } = req.body || {};
+        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+          return res.status(403).json({ error: 'Solo el administrador puede consultar el historial.', code: 'FORBIDDEN' });
+        }
+        const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
+        let query = supabaseAdmin
+          .from('notification_history')
+          .select('id, created_at, user_id, recipient, channel, event, status, error_message, content_preview')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (filterUserId && String(filterUserId).trim()) {
+          query = query.eq('user_id', String(filterUserId).trim());
+        }
+        if (emailSearch && String(emailSearch).trim()) {
+          const term = String(emailSearch).trim();
+          query = query.ilike('recipient', `%${term}%`);
+        }
+        if (eventSearch && String(eventSearch).trim()) {
+          query = query.ilike('event', `%${String(eventSearch).trim()}%`);
+        }
+        const { data: rows, error } = await query;
+        if (error) {
+          return res.status(500).json({ error: error.message, code: 'DB_ERROR' });
+        }
+        const withUserEmail = (rows || []).map((r: { user_id?: string; recipient: string }) => ({ ...r }));
+        if (withUserEmail.length > 0) {
+          const userIds = [...new Set((withUserEmail as { user_id?: string }[]).map((r) => r.user_id).filter(Boolean))] as string[];
+          const { data: users } = await supabaseAdmin.from('users').select('id, email').in('id', userIds);
+          const emailBy = (users || []).reduce((acc: Record<string, string>, u: { id: string; email?: string }) => {
+            if (u.email) acc[u.id] = u.email;
+            return acc;
+          }, {});
+          withUserEmail.forEach((r: { user_id?: string; user_email?: string }) => {
+            r.user_email = r.user_id ? emailBy[r.user_id] : undefined;
+          });
+        }
+        return res.status(200).json({ list: withUserEmail });
+      }
+
+      case 'get-notification-stats': {
+        const { userId: reqUserId } = req.body || {};
+        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+          return res.status(403).json({ error: 'Solo el administrador.', code: 'FORBIDDEN' });
+        }
+        const now = new Date();
+        const start = new Date(now);
+        start.setDate(start.getDate() - 6);
+        start.setUTCHours(0, 0, 0, 0);
+        const { data: rows, error } = await supabaseAdmin
+          .from('notification_history')
+          .select('created_at')
+          .gte('created_at', start.toISOString());
+        if (error) return res.status(500).json({ error: error.message });
+        const dayCount: Record<string, number> = {};
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(now);
+          d.setDate(d.getDate() - (6 - i));
+          const key = d.toISOString().slice(0, 10);
+          dayCount[key] = 0;
+        }
+        (rows || []).forEach((r: { created_at: string }) => {
+          const key = r.created_at.slice(0, 10);
+          if (dayCount[key] != null) dayCount[key]++;
+        });
+        const last7Days = Object.entries(dayCount)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, count]) => ({ date, count }));
+        return res.status(200).json({ last7Days });
       }
 
       case 'simulate-critical-alert': {

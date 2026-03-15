@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Loader2, ChevronLeft, User, CreditCard, MessageSquare, Calendar } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Loader2, ChevronLeft, User, CreditCard, MessageSquare, Calendar, Mail, Bot } from 'lucide-react';
 
 type TimelineItem = {
   id: string;
@@ -14,12 +15,17 @@ type TimelineItem = {
 /**
  * Detalle de usuario en panel admin: datos básicos + Timeline de Actividad (audit_logs + último SMS).
  */
+const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
 const UserDetail: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ id: string; email: string | null; created_at: string | null } | null>(null);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; created_at: string; channel: string; event: string; status: string; error_message?: string | null }>>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const fetchDetail = useCallback(async () => {
     if (!userId) return;
@@ -102,6 +108,34 @@ const UserDetail: React.FC = () => {
     fetchDetail().finally(() => setLoading(false));
   }, [fetchDetail]);
 
+  const fetchNotifications = useCallback(async () => {
+    if (!userId || !currentUser?.id || (currentUser.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) return;
+    setNotificationsLoading(true);
+    try {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'list-notification-history',
+          userId: currentUser.id,
+          filterUserId: userId,
+          limit: 50,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.list)) setNotifications(data.list);
+      else setNotifications([]);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [userId, currentUser?.id]);
+
+  useEffect(() => {
+    if (user?.id) fetchNotifications();
+  }, [user?.id, fetchNotifications]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -177,6 +211,43 @@ const UserDetail: React.FC = () => {
                 <div className="flex-shrink-0 flex items-center gap-1 text-xs text-slate-500">
                   <Calendar size={12} />
                   {formatDate(item.date)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 mt-6">
+        <h3 className="text-base font-black text-slate-900 mb-4">Notificaciones Recientes</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Historial de correos y mensajes de Telegram enviados a este usuario.
+        </p>
+        {notificationsLoading ? (
+          <p className="text-slate-500 text-sm py-4 flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Cargando…</p>
+        ) : notifications.length === 0 ? (
+          <p className="text-slate-500 text-sm py-4">No hay notificaciones registradas para este usuario.</p>
+        ) : (
+          <ul className="space-y-0">
+            {notifications.map((row) => (
+              <li key={row.id} className="flex gap-4 py-3 border-b border-slate-100 last:border-0 items-center">
+                <div className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-slate-100">
+                  {row.channel === 'email' ? <Mail size={16} className="text-slate-600" /> : <Bot size={16} className="text-sky-600" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800">{row.channel === 'email' ? 'Email' : 'Telegram'} · {row.event}</p>
+                  {row.status === 'error' && row.error_message && (
+                    <p className="text-xs text-red-600 mt-0.5" title={row.error_message}>{row.error_message.slice(0, 80)}{row.error_message.length > 80 ? '…' : ''}</p>
+                  )}
+                </div>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <span
+                    title={row.status === 'error' && row.error_message ? row.error_message : undefined}
+                    className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${row.status === 'sent' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}
+                  >
+                    {row.status === 'sent' ? 'Enviado' : 'Error'}
+                  </span>
+                  <span className="text-xs text-slate-500">{formatDate(row.created_at)}</span>
                 </div>
               </li>
             ))}

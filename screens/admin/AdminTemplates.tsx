@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Link, Palette, Underline } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Link, Palette, Underline, Eye, X, History } from 'lucide-react';
 
 const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
@@ -14,6 +14,8 @@ const KNOWN_EMAIL_IDS = [
   'template_email_upgrade_success',
   'template_email_payment_reminder',
   'template_email_payment_failed',
+  'template_email_invoice_failed',   // Pago fallido (webhook Stripe)
+  'template_email_scheduled_event', // Recordatorio de renovación
 ];
 const KNOWN_TELEGRAM_IDS = [
   'template_telegram_new_purchase',
@@ -25,6 +27,8 @@ const KNOWN_TELEGRAM_IDS = [
   'template_telegram_sim_error_alert',
   'template_telegram_payment_reminder',
   'template_telegram_payment_failed',
+  'template_telegram_invoice_failed',   // Pago fallido
+  'template_telegram_scheduled_event', // Recordatorio
 ];
 const KNOWN_APP_IDS = [
   'template_app_release_success',
@@ -41,7 +45,41 @@ const KNOWN_APP_IDS = [
 ];
 
 const QUICK_EMOJIS = ['📱', '🚀', '⚠️', '✅', '⏰', '💳', '🛰️', '💬'];
-const QUICK_VARIABLES = ['{{nombre}}', '{{phone}}', '{{plan}}', '{{limit}}', '{{monto}}'];
+// Variables rápidas para insertar en el cursor (orden: nombre, phone, monto, plan + extras)
+const QUICK_VARIABLES = ['{{nombre}}', '{{phone}}', '{{monto}}', '{{plan}}', '{{limit}}'];
+
+// Plantilla maestra de correo (misma que send-email): marco TELSIM para previsualización.
+const MASTER_TEMPLATE = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .header { background-color: #0074d4; padding: 30px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: bold; }
+        .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
+        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        .button { display: inline-block; padding: 12px 25px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        .highlight { color: #0074d4; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TELSIM</h1>
+        </div>
+        <div class="content">
+            {{content}}
+        </div>
+        <div class="footer">
+            <p>© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
+            <p>Has recibido este correo porque eres cliente de Telsim.io</p>
+        </div>
+    </div>
+</body>
+</html>`;
 
 function idToLabel(id: string, prefix: string): string {
   const withoutPrefix = id.slice(prefix.length);
@@ -66,8 +104,9 @@ const VARIABLES_EMAIL_EXTRA = [
   { var: '{{phone_number}}', desc: 'Número de teléfono' },
 ];
 
+// Valores de reemplazo para tests (ej. {{nombre}} → CEO Test); se envían al backend y en preview.
 const TEST_VARS: Record<string, string> = {
-  nombre: 'Admin Test',
+  nombre: 'CEO Test',
   email: 'admin@telsim.io',
   phone: '+340000000',
   plan: 'Power Plan',
@@ -87,7 +126,7 @@ function replaceVariablesForTest(text: string): string {
   return out;
 }
 
-type TabKey = 'email' | 'telegram' | 'app';
+type TabKey = 'email' | 'telegram' | 'app' | 'history';
 
 const AdminTemplates: React.FC = () => {
   const { user } = useAuth();
@@ -97,6 +136,11 @@ const AdminTemplates: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [successTestId, setSuccessTestId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [historyList, setHistoryList] = useState<Array<{ id: string; created_at: string; recipient: string; channel: string; event: string; status: string; error_message?: string | null; user_email?: string }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyEmailSearch, setHistoryEmailSearch] = useState('');
+  const [historyEventSearch, setHistoryEventSearch] = useState('');
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   const insertAtCursor = useCallback((id: string, before: string, after?: string) => {
@@ -155,15 +199,46 @@ const AdminTemplates: React.FC = () => {
     fetchSettings().finally(() => setLoading(false));
   }, [fetchSettings]);
 
+  const fetchHistory = useCallback(async () => {
+    if (!user?.id) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'list-notification-history',
+          userId: user.id,
+          emailSearch: historyEmailSearch.trim() || undefined,
+          eventSearch: historyEventSearch.trim() || undefined,
+          limit: 200,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.list)) setHistoryList(data.list);
+      else setHistoryList([]);
+    } catch {
+      setHistoryList([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [user?.id, historyEmailSearch, historyEventSearch]);
+
+  useEffect(() => {
+    if (activeTab === 'history') fetchHistory();
+  }, [activeTab, fetchHistory]);
+
   const getIdsForTab = (tab: TabKey): string[] => {
     if (tab === 'email') return KNOWN_EMAIL_IDS;
     if (tab === 'telegram') return KNOWN_TELEGRAM_IDS;
+    if (tab === 'history') return [];
     return KNOWN_APP_IDS;
   };
 
   const getPrefixForTab = (tab: TabKey): string => {
     if (tab === 'email') return PREFIX_EMAIL;
     if (tab === 'telegram') return PREFIX_TELEGRAM;
+    if (tab === 'history') return '';
     return PREFIX_APP;
   };
 
@@ -211,7 +286,14 @@ const AdminTemplates: React.FC = () => {
             userId: user.id,
           }),
         });
-        const data = await res.json();
+        let data: { error?: string; code?: string } = {};
+        try {
+          data = await res.json();
+        } catch {
+          const text = await res.text();
+          showLocalToast(text || `Error ${res.status}`, 'error');
+          return;
+        }
         if (!res.ok) {
           showLocalToast(data.error || 'Error al enviar el test.', 'error');
           return;
@@ -220,7 +302,8 @@ const AdminTemplates: React.FC = () => {
         showLocalToast('¡Test enviado con éxito!');
         setTimeout(() => setSuccessTestId(null), 3000);
       } catch (e) {
-        showLocalToast('Error de conexión al enviar el test.', 'error');
+        const msg = e instanceof Error ? e.message : 'Error de conexión al enviar el test.';
+        showLocalToast(msg, 'error');
       } finally {
         setSendingTestId(null);
       }
@@ -276,6 +359,7 @@ const AdminTemplates: React.FC = () => {
               { key: 'email' as TabKey, label: 'Emails', icon: Mail },
               { key: 'telegram' as TabKey, label: 'Telegram', icon: Bot },
               { key: 'app' as TabKey, label: 'App Toasts', icon: Smartphone },
+              { key: 'history' as TabKey, label: 'Historial de Envíos', icon: History },
             ] as const
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -294,18 +378,93 @@ const AdminTemplates: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button
-            type="button"
-            onClick={handleSaveAll}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            Guardar Todo
-          </button>
-        </div>
+        {activeTab !== 'history' && (
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              Guardar Todo
+            </button>
+          </div>
+        )}
 
+        {activeTab === 'history' ? (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Filtrar por email o destinatario..."
+                value={historyEmailSearch}
+                onChange={(e) => setHistoryEmailSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchHistory()}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm w-48 max-w-full"
+              />
+              <input
+                type="text"
+                placeholder="Filtrar por evento..."
+                value={historyEventSearch}
+                onChange={(e) => setHistoryEventSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchHistory()}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm w-40 max-w-full"
+              />
+              <button
+                type="button"
+                onClick={() => fetchHistory()}
+                disabled={historyLoading}
+                className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 disabled:opacity-50"
+              >
+                {historyLoading ? <Loader2 size={16} className="animate-spin inline" /> : 'Buscar'}
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600 font-semibold">
+                    <th className="px-5 py-3">Fecha</th>
+                    <th className="px-5 py-3">Usuario / Destinatario</th>
+                    <th className="px-5 py-3">Tipo</th>
+                    <th className="px-5 py-3">Evento</th>
+                    <th className="px-5 py-3">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyLoading ? (
+                    <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500"><Loader2 size={24} className="animate-spin mx-auto" /></td></tr>
+                  ) : historyList.length === 0 ? (
+                    <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">No hay registros.</td></tr>
+                  ) : (
+                    historyList.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
+                          {new Date(row.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}
+                        </td>
+                        <td className="px-5 py-3 text-slate-800">
+                          {(row as { user_email?: string }).user_email || row.recipient}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600">{row.channel}</td>
+                        <td className="px-5 py-3 text-slate-700">{row.event}</td>
+                        <td className="px-5 py-3">
+                          <span
+                            title={row.status === 'error' && row.error_message ? row.error_message : undefined}
+                            className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                              row.status === 'sent' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {row.status === 'sent' ? 'Enviado' : 'Error'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
           <div className="space-y-6">
             {ids.map((id) => (
@@ -318,6 +477,17 @@ const AdminTemplates: React.FC = () => {
                     {idToLabel(id, prefix)}
                   </h2>
                   <div className="flex items-center gap-2">
+                    {(activeTab === 'email' || activeTab === 'telegram') && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewId(id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-colors"
+                        title={activeTab === 'email' ? 'Ver correo con plantilla TELSIM' : 'Ver mensaje con variables reemplazadas'}
+                      >
+                        <Eye size={14} />
+                        Previsualizar
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleSendTest(id)}
@@ -349,14 +519,25 @@ const AdminTemplates: React.FC = () => {
                   </div>
                 )}
                 <div className="p-5">
+                  {/* Barra de formato: HTML para email (compatible con plantilla maestra), Markdown para resto */}
                   <div className="flex flex-wrap gap-1 mb-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Formato:</span>
-                    <button type="button" onClick={() => insertAtCursor(id, '**', '**')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Negrita (**texto**)"><Bold size={16} /></button>
-                    <button type="button" onClick={() => insertAtCursor(id, '_', '_')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Cursiva (_texto_)"><Italic size={16} /></button>
-                    <button type="button" onClick={() => insertAtCursor(id, '<u>', '</u>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Subrayado"><Underline size={16} /></button>
-                    <button type="button" onClick={() => insertAtCursor(id, '[texto](url)')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Link [texto](url)"><Link size={16} /></button>
-                    {activeTab === 'email' && (
-                      <button type="button" onClick={() => insertAtCursor(id, '<span style="color:#c00">texto</span>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Color HTML (emails)"><Palette size={16} /></button>
+                    {activeTab === 'email' ? (
+                      <>
+                        <button type="button" onClick={() => insertAtCursor(id, '<strong>', '</strong>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Negrita (HTML)"><Bold size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<em>', '</em>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Cursiva (HTML)"><Italic size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<u>', '</u>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Subrayado"><Underline size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<a href="url">', '</a>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Enlace (reemplaza url por la URL real)"><Link size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<span style="color:#0074d4">', '</span>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Color azul TELSIM"><Palette size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<span style="color:#dc2626">', '</span>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Color rojo"><Palette size={16} className="opacity-70" /></button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => insertAtCursor(id, '**', '**')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Negrita"><Bold size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '_', '_')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Cursiva"><Italic size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '<u>', '</u>')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Subrayado"><Underline size={16} /></button>
+                        <button type="button" onClick={() => insertAtCursor(id, '[texto](url)')} className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" title="Link"><Link size={16} /></button>
+                      </>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -365,10 +546,11 @@ const AdminTemplates: React.FC = () => {
                       <button key={emoji} type="button" onClick={() => insertAtCursor(id, emoji)} className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-lg leading-none" title={`Insertar ${emoji}`}>{emoji}</button>
                     ))}
                   </div>
+                  {/* Caja de variables rápidas: {{nombre}}, {{phone}}, {{monto}}, {{plan}} + más */}
                   <div className="flex flex-wrap gap-1 mb-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Variables:</span>
                     {QUICK_VARIABLES.map((v) => (
-                      <button key={v} type="button" onClick={() => insertAtCursor(id, v)} className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-mono" title={`Insertar ${v}`}>{v}</button>
+                      <button key={v} type="button" onClick={() => insertAtCursor(id, v)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-mono font-medium" title={`Insertar ${v} en el cursor`}>{v}</button>
                     ))}
                   </div>
                   <textarea
@@ -405,6 +587,66 @@ const AdminTemplates: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Modal de previsualización: correo (plantilla maestra TELSIM) o Telegram (texto) */}
+        {previewId != null && (
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setPreviewId(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Previsualizar"
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800">
+                  Previsualización: {previewId.startsWith(PREFIX_EMAIL) ? idToLabel(previewId, PREFIX_EMAIL) : idToLabel(previewId, PREFIX_TELEGRAM)}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setPreviewId(null)}
+                  className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 p-4 bg-slate-100 rounded-b-2xl">
+                {previewId.startsWith(PREFIX_EMAIL) ? (
+                  <>
+                    <p className="text-xs text-slate-500 mb-2">
+                      Vista previa con la plantilla maestra TELSIM. Se actualiza al editar.
+                    </p>
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-[60vh] min-h-[400px]">
+                      <iframe
+                        key={previewId}
+                        title="Vista previa del correo"
+                        srcDoc={MASTER_TEMPLATE.replace('{{content}}', settings[previewId] ?? '')}
+                        className="w-full h-full border-0"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-slate-500 mb-2">
+                      Mensaje con variables reemplazadas (ej. {'{{nombre}}'} → CEO Test). Se actualiza al editar.
+                    </p>
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-auto p-4 h-[60vh] min-h-[400px]">
+                      <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
+                        {replaceVariablesForTest(settings[previewId] ?? '') || '(vacío)'}
+                      </pre>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

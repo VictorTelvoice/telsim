@@ -121,11 +121,25 @@ export async function sendTelegramNotification(
     const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean }; sim_activated?: { telegram?: boolean } } | null | undefined;
     const sendTg = prefs?.sim_expired?.telegram === true || prefs?.sim_activated?.telegram === true;
     if (tgToken && tgChatId && sendTg) {
-      await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+      const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tgChatId, text: message, parse_mode: 'Markdown' }),
       });
+      const tgData = await tgRes.json().catch(() => ({}));
+      try {
+        await supabaseAdmin.from('notification_history').insert({
+          user_id: userId,
+          recipient: `Telegram:${tgChatId}`,
+          channel: 'telegram',
+          event: typeof data !== 'undefined' ? messageOrEvent : 'notification',
+          status: tgRes.ok ? 'sent' : 'error',
+          error_message: tgRes.ok ? null : (tgData?.description ?? null),
+          content_preview: (message || '').slice(0, 500) || null,
+        });
+      } catch {
+        // no bloquear por fallo de historial
+      }
     }
   } catch (tgErr: unknown) {
     console.warn('[sendTelegramNotification] skipped:', (tgErr as Error)?.message);
