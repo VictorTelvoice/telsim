@@ -88,6 +88,7 @@ const AdminNotifications: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [successTestId, setSuccessTestId] = useState<string | null>(null);
+  const [simulatingAlert, setSimulatingAlert] = useState(false);
 
   const showLocalToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const toast = document.createElement('div');
@@ -279,6 +280,40 @@ const AdminNotifications: React.FC = () => {
           <p className="text-xs text-slate-500 mt-2">
             Cuando está activado, los errores críticos (p. ej. webhook Stripe) se envían al Telegram del CEO usando TELEGRAM_ADMIN_TOKEN. Guarda los cambios con «Guardar Todo».
           </p>
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              disabled={simulatingAlert}
+              onClick={async () => {
+                setSimulatingAlert(true);
+                try {
+                  const res = await fetch('/api/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'simulate-critical-alert' }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (data.sent) {
+                    showLocalToast(data.message ?? 'Alerta enviada. Revisa tu Telegram.');
+                  } else {
+                    console.log('Alerta bloqueada: El interruptor está apagado.');
+                    showLocalToast(data.message ?? 'Alerta bloqueada: El interruptor está apagado.', 'error');
+                  }
+                } catch (e) {
+                  console.error('Simular error crítico:', e);
+                  showLocalToast('Error al simular la alerta.', 'error');
+                } finally {
+                  setSimulatingAlert(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 text-sm font-semibold hover:bg-amber-200 disabled:opacity-50 transition-colors"
+            >
+              {simulatingAlert ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : null}
+              Simular Error Crítico
+            </button>
+          </div>
         </section>
 
         {/* Tabs */}

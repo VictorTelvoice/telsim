@@ -7,6 +7,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { triggerEmail, sendTelegramNotification } from './_helpers/notifications';
+import { logEvent } from './_helpers/logger';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
@@ -406,9 +407,31 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'Canal no válido. Use: email o telegram.', code: 'INVALID_CHANNEL' });
       }
 
+      case 'simulate-critical-alert': {
+        const { data: row } = await supabaseAdmin
+          .from('admin_settings')
+          .select('content')
+          .eq('id', 'config_alert_telegram_admin_enabled')
+          .maybeSingle();
+        const enabled = String((row as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
+        if (!enabled) {
+          await logEvent('TEST_CRITICAL_ALERT', 'info', 'Simulación de error crítico (interruptor apagado, no enviado a Telegram).', null, { source: 'admin-panel' }, 'stripe');
+          return res.status(200).json({ sent: false, message: 'Alerta bloqueada: El interruptor está apagado.' });
+        }
+        await logEvent(
+          'TEST_CRITICAL_ALERT',
+          'critical',
+          '🧪 TEST: Esto es una simulación de error crítico. Si ves esto, el sistema de alertas funciona.',
+          null,
+          { source: 'admin-panel' },
+          'stripe'
+        );
+        return res.status(200).json({ sent: true, message: 'Alerta de prueba enviada a tu Telegram.' });
+      }
+
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test.',
+          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, simulate-critical-alert.',
         });
     }
   } catch (err: any) {
