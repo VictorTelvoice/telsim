@@ -314,6 +314,8 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'send-notification-test': {
+        // Email: Edge Function send-email requiere SENDGRID_API_KEY (Supabase secrets).
+        // Telegram: requiere TELEGRAM_ADMIN_TOKEN y TELEGRAM_ADMIN_CHAT_ID (Vercel env o Supabase secrets).
         const { channel, content, userId } = req.body;
         if (!userId || !channel || typeof content !== 'string') {
           return res.status(400).json({ error: 'Se requiere channel, content y userId.', code: 'MISSING_PARAMS' });
@@ -322,7 +324,7 @@ export default async function handler(req: any, res: any) {
           return res.status(403).json({ error: 'Solo el administrador puede enviar tests de notificaciones.', code: 'FORBIDDEN' });
         }
         if (channel === 'telegram') {
-          // Preferir TELEGRAM_ADMIN_TOKEN para enviar el test al bot/admin (tu móvil)
+          // Preferir TELEGRAM_ADMIN_TOKEN / TELEGRAM_ADMIN_CHAT_ID para enviar el test al bot del CEO
           const adminToken = (process.env.TELEGRAM_ADMIN_TOKEN || '').trim();
           const adminChatId = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
           let token: string;
@@ -421,10 +423,17 @@ export default async function handler(req: any, res: any) {
               is_test: true,
             }),
           });
-          const result = await res.json().catch(() => ({}));
+          const responseText = await res.text();
+          const result: { error?: string } = (() => {
+            try {
+              return responseText ? JSON.parse(responseText) : {};
+            } catch {
+              return {};
+            }
+          })();
           if (!res.ok) {
             return res.status(400).json({
-              error: (result as { error?: string }).error || await res.text() || 'Error al enviar el correo.',
+              error: result.error || responseText || 'Error al enviar el correo.',
               code: 'EMAIL_ERROR',
             });
           }

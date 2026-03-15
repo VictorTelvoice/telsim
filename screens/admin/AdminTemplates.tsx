@@ -99,23 +99,25 @@ const VARIABLES_COMMON = [
 ];
 const VARIABLES_EMAIL_EXTRA = [
   { var: '{{amount}}', desc: 'Monto' },
+  { var: '{{monto}}', desc: 'Monto (alias)' },
   { var: '{{next_date}}', desc: 'Próxima fecha de cobro' },
   { var: '{{billing_type}}', desc: 'Tipo de facturación' },
   { var: '{{phone_number}}', desc: 'Número de teléfono' },
 ];
 
-// Valores de reemplazo para tests (ej. {{nombre}} → CEO Test); se envían al backend y en preview.
+// Inyección de datos de prueba: reemplazo de variables antes de enviar al API (misma lógica que producción).
 const TEST_VARS: Record<string, string> = {
   nombre: 'CEO Test',
   email: 'admin@telsim.io',
-  phone: '+340000000',
-  plan: 'Power Plan',
+  phone: '+56900000000',
+  plan: 'Plan Pro',
   message: 'Mensaje de prueba',
   slot_id: 'SLOT-TEST',
-  amount: '9.99',
+  amount: '$39.90',
+  monto: '$39.90',
   next_date: '01/04/2026',
   billing_type: 'Mensual',
-  phone_number: '+340000000',
+  phone_number: '+56900000000',
 };
 
 function replaceVariablesForTest(text: string): string {
@@ -167,7 +169,7 @@ const AdminTemplates: React.FC = () => {
 
   const showLocalToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const toast = document.createElement('div');
-    toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10 max-w-[90vw]`;
+    toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10 max-w-[90vw]`;
     toast.innerHTML = `<span class="text-[11px] font-bold">${message}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -276,7 +278,7 @@ const AdminTemplates: React.FC = () => {
       setSendingTestId(id);
       setSuccessTestId(null);
       try {
-        const res = await fetch('/api/manage', {
+        const response = await fetch('/api/manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -288,18 +290,18 @@ const AdminTemplates: React.FC = () => {
         });
         let data: { error?: string; code?: string } = {};
         try {
-          data = await res.json();
+          data = await response.json();
         } catch {
-          const text = await res.text();
-          showLocalToast(text || `Error ${res.status}`, 'error');
+          showLocalToast('Error al procesar la respuesta del servidor.', 'error');
           return;
         }
-        if (!res.ok) {
+        if (!response.ok) {
           showLocalToast(data.error || 'Error al enviar el test.', 'error');
           return;
         }
         setSuccessTestId(id);
-        showLocalToast('¡Test enviado con éxito!');
+        const target = channel === 'email' ? 'Email' : 'Telegram';
+        showLocalToast(`✅ Mensaje de prueba enviado a ${target}`, 'success');
         setTimeout(() => setSuccessTestId(null), 3000);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Error de conexión al enviar el test.';
@@ -515,7 +517,7 @@ const AdminTemplates: React.FC = () => {
                 </div>
                 {successTestId === id && (
                   <div className="px-5 py-2 bg-emerald-50 border-b border-emerald-100 text-emerald-800 text-sm font-medium">
-                    ¡Test enviado con éxito!
+                    ✅ Mensaje de prueba enviado a {activeTab === 'email' ? 'Email' : 'Telegram'}
                   </div>
                 )}
                 <div className="p-5">
