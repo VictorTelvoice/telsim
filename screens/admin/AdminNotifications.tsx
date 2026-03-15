@@ -1,93 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
-import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
-const PREFIX_EMAIL = 'template_email_';
-const PREFIX_TELEGRAM = 'template_telegram_';
-const PREFIX_APP = 'template_app_';
-
-/** Plantillas conocidas por canal (si no existen en DB, se muestran vacías y se crean al guardar). */
-const KNOWN_EMAIL_IDS = [
-  'template_email_subscription_activated',
-  'template_email_subscription_cancelled',
-  'template_email_welcome_email',
-];
-const KNOWN_TELEGRAM_IDS = [
-  'template_telegram_new_purchase',
-  'template_telegram_upgrade_success',
-  'template_telegram_subscription_cancelled',
-  'template_telegram_cancellation',
-  'template_telegram_new_sms_forward',
-  'template_telegram_ceo_daily_report',
-  'template_telegram_sim_error_alert',
-];
-const KNOWN_APP_IDS = [
-  'template_app_release_success',
-  'template_app_release_success_sub',
-  'template_app_number_copied',
-  'template_app_subscription_cancelled',
-  'template_app_common_error',
-  'template_app_automation_saved',
-  'template_app_telegram_test_success',
-  'template_app_telegram_test_error',
-];
-
-function idToLabel(id: string, prefix: string): string {
-  const withoutPrefix = id.slice(prefix.length);
-  return withoutPrefix
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-const VARIABLES_COMMON = [
-  { var: '{{nombre}}', desc: 'Nombre del usuario' },
-  { var: '{{email}}', desc: 'Correo del destinatario' },
-  { var: '{{phone}}', desc: 'Número de la SIM' },
-  { var: '{{plan}}', desc: 'Plan activo' },
-  { var: '{{message}}', desc: 'Contenido del SMS' },
-  { var: '{{slot_id}}', desc: 'ID del slot físico' },
-];
-const VARIABLES_EMAIL_EXTRA = [
-  { var: '{{amount}}', desc: 'Monto' },
-  { var: '{{next_date}}', desc: 'Próxima fecha de cobro' },
-  { var: '{{billing_type}}', desc: 'Tipo de facturación' },
-  { var: '{{phone_number}}', desc: 'Número de teléfono' },
-];
-
-/** Valores con los que se reemplazan las variables al enviar un test. */
-const TEST_VARS: Record<string, string> = {
-  nombre: 'Admin Test',
-  email: 'admin@telsim.io',
-  phone: '+340000000',
-  plan: 'Power Plan',
-  message: 'Mensaje de prueba',
-  slot_id: 'SLOT-TEST',
-  amount: '9.99',
-  next_date: '01/04/2026',
-  billing_type: 'Mensual',
-  phone_number: '+340000000',
-};
-
-function replaceVariablesForTest(text: string): string {
-  let out = text;
-  for (const [key, value] of Object.entries(TEST_VARS)) {
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-  }
-  return out;
-}
-
-type TabKey = 'email' | 'telegram' | 'app';
+const CONFIG_ALERT_KEY = 'config_alert_telegram_admin_enabled';
 
 const AdminNotifications: React.FC = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>('email');
-  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [enabled, setEnabled] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [sendingTestId, setSendingTestId] = useState<string | null>(null);
-  const [successTestId, setSuccessTestId] = useState<string | null>(null);
+  const [savingSwitch, setSavingSwitch] = useState(false);
   const [simulatingAlert, setSimulatingAlert] = useState(false);
 
   const showLocalToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -101,131 +21,71 @@ const AdminNotifications: React.FC = () => {
     }, 2500);
   }, []);
 
-  const fetchSettings = useCallback(async () => {
-    const { data } = await supabase.from('admin_settings').select('id, content');
-    const map: Record<string, string> = {};
-    (data || []).forEach((r: { id: string; content: string | null }) => {
-      if (
-        r.id.startsWith(PREFIX_EMAIL) ||
-        r.id.startsWith(PREFIX_TELEGRAM) ||
-        r.id.startsWith(PREFIX_APP)
-      ) {
-        map[r.id] = r.content ?? '';
-      }
-      if (r.id === 'config_alert_telegram_admin_enabled') {
-        map[r.id] = (r.content ?? 'false').toLowerCase();
-      }
-    });
-    if (!('config_alert_telegram_admin_enabled' in map)) {
-      map['config_alert_telegram_admin_enabled'] = 'false';
-    }
-    setSettings(map);
+  /** Carga solo config_alert_telegram_admin_enabled desde admin_settings. */
+  const fetchAlertConfig = useCallback(async () => {
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('content')
+      .eq('id', CONFIG_ALERT_KEY)
+      .maybeSingle();
+    const content = (data as { content: string | null } | null)?.content ?? '';
+    setEnabled(String(content).toLowerCase() === 'true');
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    fetchSettings().finally(() => setLoading(false));
-  }, [fetchSettings]);
+    fetchAlertConfig().finally(() => setLoading(false));
+  }, [fetchAlertConfig]);
 
-  const getIdsForTab = (tab: TabKey): string[] => {
-    if (tab === 'email') return KNOWN_EMAIL_IDS;
-    if (tab === 'telegram') return KNOWN_TELEGRAM_IDS;
-    return KNOWN_APP_IDS;
-  };
+  const handleToggle = useCallback(async () => {
+    const next = !enabled;
+    setSavingSwitch(true);
+    try {
+      await supabase.from('admin_settings').upsert(
+        { id: CONFIG_ALERT_KEY, content: next ? 'true' : 'false', updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      );
+      setEnabled(next);
+    } catch (e) {
+      console.error('Error guardando interruptor:', e);
+      showLocalToast('Error al guardar. Reintenta.', 'error');
+    } finally {
+      setSavingSwitch(false);
+    }
+  }, [enabled, showLocalToast]);
 
-  const getPrefixForTab = (tab: TabKey): string => {
-    if (tab === 'email') return PREFIX_EMAIL;
-    if (tab === 'telegram') return PREFIX_TELEGRAM;
-    return PREFIX_APP;
-  };
-
-  const handleContentChange = (id: string, value: string) => {
-    setSettings((s) => ({ ...s, [id]: value }));
-  };
-
-  const handleResetOne = useCallback(
-    async (id: string) => {
-      const { data } = await supabase
+  const handleSimulate = useCallback(async () => {
+    setSimulatingAlert(true);
+    try {
+      const { data: fresh } = await supabase
         .from('admin_settings')
         .select('content')
-        .eq('id', id)
+        .eq('id', CONFIG_ALERT_KEY)
         .maybeSingle();
-      const content = (data as { content: string | null } | null)?.content ?? '';
-      setSettings((s) => ({ ...s, [id]: content }));
-    },
-    []
-  );
+      const enabledInDb = String((fresh as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
 
-  const handleSendTest = useCallback(
-    async (id: string) => {
-      const raw = settings[id] ?? '';
-      const content = replaceVariablesForTest(raw);
-
-      if (activeTab === 'app') {
-        showLocalToast(content || '— (vacío)');
-        setSuccessTestId(id);
-        setTimeout(() => setSuccessTestId(null), 3000);
-        return;
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'simulate-critical-alert',
+          enabled: enabledInDb,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.sent) {
+        showLocalToast(data.message ?? 'Alerta enviada. Revisa tu Telegram.');
+      } else {
+        console.log('Alerta bloqueada: El interruptor está apagado.');
+        showLocalToast(data.message ?? 'Alerta bloqueada: El interruptor está apagado.', 'error');
       }
-
-      if (!user?.id) {
-        showLocalToast('Inicia sesión para enviar el test.', 'error');
-        return;
-      }
-
-      const channel = activeTab === 'email' ? 'email' : 'telegram';
-      setSendingTestId(id);
-      setSuccessTestId(null);
-      try {
-        const res = await fetch('/api/manage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'send-notification-test',
-            channel,
-            content,
-            userId: user.id,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          showLocalToast(data.error || 'Error al enviar el test.', 'error');
-          return;
-        }
-        setSuccessTestId(id);
-        showLocalToast('¡Test enviado con éxito!');
-        setTimeout(() => setSuccessTestId(null), 3000);
-      } catch (e) {
-        showLocalToast('Error de conexión al enviar el test.', 'error');
-      } finally {
-        setSendingTestId(null);
-      }
-    },
-    [activeTab, settings, user?.id, showLocalToast]
-  );
-
-  const handleSaveAll = async () => {
-    setSaving(true);
-    try {
-      const ids = [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS, 'config_alert_telegram_admin_enabled'];
-      for (const id of ids) {
-        const content = id === 'config_alert_telegram_admin_enabled'
-          ? (settings[id] === 'true' ? 'true' : 'false')
-          : (settings[id] ?? '');
-        await supabase.from('admin_settings').upsert(
-          { id, content, updated_at: new Date().toISOString() },
-          { onConflict: 'id' }
-        );
-      }
-      await fetchSettings();
+    } catch (e) {
+      console.error('Simular error crítico:', e);
+      showLocalToast('Error al simular la alerta.', 'error');
     } finally {
-      setSaving(false);
+      setSimulatingAlert(false);
     }
-  };
-
-  const variablesForTab = activeTab === 'email'
-    ? [...VARIABLES_COMMON, ...VARIABLES_EMAIL_EXTRA]
-    : VARIABLES_COMMON;
+  }, [showLocalToast]);
 
   if (loading) {
     return (
@@ -235,21 +95,17 @@ const AdminNotifications: React.FC = () => {
     );
   }
 
-  const prefix = getPrefixForTab(activeTab);
-  const ids = getIdsForTab(activeTab);
-
   return (
     <div className="w-full min-h-screen bg-slate-50 p-6">
-      <div className="max-w-[1600px] mx-auto w-full">
+      <div className="max-w-[640px] mx-auto">
         <h1 className="text-2xl font-bold text-slate-800 mb-2">
-          Gestión de Notificaciones
+          Notificaciones
         </h1>
         <p className="text-slate-600 mb-6">
-          Edita las plantillas de correo, Telegram y toasts de la app. Usa las variables dinámicas en el panel de la derecha.
+          Configuración de alertas críticas para el CEO.
         </p>
 
-        {/* Configuración de Alertas de Sistema */}
-        <section className="mb-6 p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <section className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-2">
             Configuración de Alertas de Sistema
           </h2>
@@ -261,51 +117,28 @@ const AdminNotifications: React.FC = () => {
               id="alert-telegram-switch"
               type="button"
               role="switch"
-              aria-checked={settings['config_alert_telegram_admin_enabled'] === 'true'}
-              onClick={() => {
-                const next = settings['config_alert_telegram_admin_enabled'] === 'true' ? 'false' : 'true';
-                handleContentChange('config_alert_telegram_admin_enabled', next);
-              }}
-              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-                settings['config_alert_telegram_admin_enabled'] === 'true' ? 'bg-emerald-600' : 'bg-slate-200'
+              aria-checked={enabled}
+              disabled={savingSwitch}
+              onClick={handleToggle}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-70 ${
+                enabled ? 'bg-emerald-600' : 'bg-slate-200'
               }`}
             >
               <span
                 className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition ${
-                  settings['config_alert_telegram_admin_enabled'] === 'true' ? 'translate-x-5' : 'translate-x-1'
+                  enabled ? 'translate-x-5' : 'translate-x-1'
                 }`}
               />
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Cuando está activado, los errores críticos (p. ej. webhook Stripe) se envían al Telegram del CEO usando TELEGRAM_ADMIN_TOKEN. Guarda los cambios con «Guardar Todo».
+            Cuando está activado, los errores críticos (p. ej. webhook Stripe) se envían al Telegram del CEO usando TELEGRAM_ADMIN_TOKEN. El cambio se guarda al instante.
           </p>
           <div className="mt-4 pt-4 border-t border-slate-100">
             <button
               type="button"
               disabled={simulatingAlert}
-              onClick={async () => {
-                setSimulatingAlert(true);
-                try {
-                  const res = await fetch('/api/manage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'simulate-critical-alert' }),
-                  });
-                  const data = await res.json().catch(() => ({}));
-                  if (data.sent) {
-                    showLocalToast(data.message ?? 'Alerta enviada. Revisa tu Telegram.');
-                  } else {
-                    console.log('Alerta bloqueada: El interruptor está apagado.');
-                    showLocalToast(data.message ?? 'Alerta bloqueada: El interruptor está apagado.', 'error');
-                  }
-                } catch (e) {
-                  console.error('Simular error crítico:', e);
-                  showLocalToast('Error al simular la alerta.', 'error');
-                } finally {
-                  setSimulatingAlert(false);
-                }
-              }}
+              onClick={handleSimulate}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 text-sm font-semibold hover:bg-amber-200 disabled:opacity-50 transition-colors"
             >
               {simulatingAlert ? (
@@ -315,123 +148,6 @@ const AdminNotifications: React.FC = () => {
             </button>
           </div>
         </section>
-
-        {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-white rounded-xl border border-slate-200 shadow-sm mb-6 inline-flex">
-          {(
-            [
-              { key: 'email' as TabKey, label: 'Emails', icon: Mail },
-              { key: 'telegram' as TabKey, label: 'Telegram', icon: Bot },
-              { key: 'app' as TabKey, label: 'App Toasts', icon: Smartphone },
-            ] as const
-          ).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === key
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button
-            type="button"
-            onClick={handleSaveAll}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            Guardar Todo
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
-          {/* Cards */}
-          <div className="space-y-6">
-            {ids.map((id) => (
-              <div
-                key={id}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
-              >
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-lg font-semibold text-slate-800">
-                    {idToLabel(id, prefix)}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSendTest(id)}
-                      disabled={!!sendingTestId}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50"
-                      title="Enviar test con variables de prueba"
-                    >
-                      {sendingTestId === id ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Send size={14} />
-                      )}
-                      Enviar Test
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleResetOne(id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                      title="Recuperar valor actual de la base de datos"
-                    >
-                      <RotateCcw size={14} />
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                {successTestId === id && (
-                  <div className="px-5 py-2 bg-emerald-50 border-b border-emerald-100 text-emerald-800 text-sm font-medium">
-                    ¡Test enviado con éxito!
-                  </div>
-                )}
-                <div className="p-5">
-                  <textarea
-                    value={settings[id] ?? ''}
-                    onChange={(e) => handleContentChange(id, e.target.value)}
-                    placeholder={`Contenido para ${idToLabel(id, prefix)}. Usa variables como {{phone}}, {{plan}}...`}
-                    rows={10}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-y text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Panel Variables Dinámicas */}
-          <div className="xl:sticky xl:top-6 h-fit">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">
-                Variables dinámicas
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Inserta estas claves en el contenido; se reemplazarán por los datos reales al enviar.
-              </p>
-              <ul className="space-y-2">
-                {variablesForTab.map(({ var: v, desc }) => (
-                  <li key={v} className="flex flex-col gap-0.5">
-                    <code className="text-xs font-mono bg-slate-100 text-slate-800 px-2 py-1 rounded">
-                      {v}
-                    </code>
-                    <span className="text-xs text-slate-500">{desc}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

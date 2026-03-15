@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { FileText, MessageSquare, Package, CreditCard, ScrollText, BellRing } from 'lucide-react';
+import { FileText, MessageSquare, Package, CreditCard, ScrollText, BellRing, LayoutTemplate } from 'lucide-react';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
@@ -10,6 +10,7 @@ const nav = [
   { to: 'subscriptions', label: 'Suscripciones', icon: CreditCard },
   { to: 'content', label: 'CMS', icon: FileText },
   { to: 'notifications', label: 'Notificaciones', icon: BellRing },
+  { to: 'templates', label: 'Plantillas', icon: LayoutTemplate },
   { to: 'support', label: 'Soporte', icon: MessageSquare },
   { to: 'logs', label: 'Logs', icon: ScrollText },
 ];
