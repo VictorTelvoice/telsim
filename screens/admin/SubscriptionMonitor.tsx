@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, XCircle, ArrowUpCircle } from 'lucide-react';
+import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, XCircle, ArrowUpCircle, Trash2, Fingerprint, Zap } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 
@@ -102,14 +102,14 @@ function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
+const PERSIST_KEY = 'SubscriptionMonitor_ceo';
+
 /** Fila de tabla con fallback si algo falla al renderizar */
 function SubscriptionTableRow({
   s,
   idx,
   page,
   pageSize,
-  tooltipRowId,
-  setTooltipRowId,
   setFichaUserId,
   copyToClipboard,
   onCancel,
@@ -119,8 +119,6 @@ function SubscriptionTableRow({
   idx: number;
   page: number;
   pageSize: number;
-  tooltipRowId: string | null;
-  setTooltipRowId: (id: string | null) => void;
   setFichaUserId: (id: string | null) => void;
   copyToClipboard: (text: string, e: React.MouseEvent) => void;
   onCancel: (row: SubRow) => void;
@@ -145,56 +143,25 @@ function SubscriptionTableRow({
         onClick={() => setFichaUserId(userId || null)}
         className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
       >
-        <td className="w-12 text-center text-slate-400 text-xs font-medium px-2 py-3">
+        <td className="w-12 text-center text-slate-400 text-xs font-medium px-2 py-2">
           {(page - 1) * pageSize + idx + 1}
         </td>
-        <td
-          className="px-4 py-3 max-w-[220px] relative"
-          onMouseEnter={() => setTooltipRowId(rowId)}
-          onMouseLeave={() => setTooltipRowId(null)}
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            {userId ? (
-              <>
-                <Link
-                  to={`/admin/users?search=${encodeURIComponent(userId)}`}
-                  className="text-[10px] font-mono text-slate-400 hover:text-slate-600 truncate min-w-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {userId}
-                </Link>
-                <button
-                  type="button"
-                  onClick={(e) => copyToClipboard(userId, e)}
-                  className="flex-shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                  title="Copiar UUID"
-                >
-                  <Copy size={12} />
-                </button>
-              </>
-            ) : (
-              <span className="text-[10px] text-slate-400">—</span>
-            )}
+        <td className="px-4 py-2 max-w-[200px] min-w-0">
+          <div className="flex flex-col min-w-0">
+            <p className="font-semibold text-slate-900 text-sm truncate" title={nombre}>{nombre}</p>
+            <p className="text-xs text-slate-500 truncate" title={email}>{email}</p>
           </div>
-          {tooltipRowId === rowId && (
-            <div className="absolute left-4 top-full z-20 mt-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-xs shadow-lg border border-slate-700 min-w-[180px]">
-              <p className="font-semibold text-slate-200">Nombre:</p>
-              <p className="text-white truncate">{nombre}</p>
-              <p className="font-semibold text-slate-200 mt-1">Email:</p>
-              <p className="text-white truncate">{email}</p>
-            </div>
-          )}
         </td>
-        <td className="px-4 py-3 text-sm font-semibold text-slate-900">
+        <td className="px-4 py-2 text-sm font-semibold text-slate-900">
           {s?.plan_name ? (PLAN_LABEL[s.plan_name] ?? s.plan_name) : '—'}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+        <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
           {limit > 0 ? limit : '—'}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-2">
           {limit > 0 ? (
             <div className="flex flex-col gap-0.5 min-w-[80px]">
-              <span className={`text-xs font-semibold ${isOverLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-slate-700'}`}>
+              <span className={`text-xs font-semibold ${usagePct > 90 ? 'text-red-600' : isOverLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-slate-700'}`}>
                 {used} / {limit}
               </span>
               <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
@@ -208,15 +175,15 @@ function SubscriptionTableRow({
             <span className="text-sm text-slate-400">—</span>
           )}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-600">
+        <td className="px-4 py-2 text-sm text-slate-600">
           {s?.billing_type === 'annual' ? 'Anual' : s?.billing_type === 'monthly' ? 'Mensual' : (s?.billing_type ?? '—')}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-2">
           <span className="text-sm font-semibold text-slate-900">
             {s?.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
           </span>
         </td>
-        <td className="px-4 py-3 relative group">
+        <td className="px-4 py-2 relative group">
           {ltv > 0 ? (
             <span
               className={`text-sm font-semibold ${ltv >= 500 ? 'text-emerald-600 font-bold' : 'text-slate-700'}`}
@@ -233,45 +200,53 @@ function SubscriptionTableRow({
             </div>
           )}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+        <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
           {formatDDMMYYYY(s?.created_at)}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+        <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
           {s?.next_payment || '—'}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-2">
           <StatusBadge status={s?.status ?? null} />
         </td>
-        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-2 flex-wrap">
+        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            {userId && (
+              <button
+                type="button"
+                onClick={(e) => copyToClipboard(userId, e)}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                title="Copiar user_id"
+              >
+                <Fingerprint size={12} />
+              </button>
+            )}
             {stripeId && (
               <button
                 type="button"
                 onClick={(e) => copyToClipboard(stripeId, e)}
-                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                title="Copiar ID de suscripción (Stripe)"
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                title="Copiar ID suscripción (Stripe)"
               >
-                <Copy size={14} />
+                <Copy size={12} />
               </button>
             )}
             <button
               type="button"
-              onClick={() => onCancel(s)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
-              title="Cancelar suscripción"
+              onClick={() => onUpgrade(s)}
+              disabled={!s?.slot_id || !userId || ((s?.status || '').toLowerCase() !== 'active' && (s?.status || '').toLowerCase() !== 'trialing')}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Upgrade"
             >
-              <XCircle size={14} />
-              Cancelar
+              <Zap size={12} />
             </button>
             <button
               type="button"
-              onClick={() => onUpgrade(s)}
-              disabled={!s?.slot_id || !userId || ((s?.status || '').toLowerCase() !== 'active' && (s?.status || '').toLowerCase() !== 'trialing')}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="Cambiar a plan superior"
+              onClick={() => onCancel(s)}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+              title="Cancelar suscripción"
             >
-              <ArrowUpCircle size={14} />
-              Upgrade
+              <Trash2 size={12} />
             </button>
           </div>
         </td>
@@ -298,25 +273,97 @@ type SortDir = 'asc' | 'desc';
  */
 const SubscriptionMonitor: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('search')?.trim() ?? '';
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'canceled' | 'trialing'>('all');
   const [fichaUserId, setFichaUserId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>('created_at');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  useEffect(() => {
+    if (searchFromUrl) setSearchQuery(searchFromUrl);
+  }, [searchFromUrl]);
   const [last7Days, setLast7Days] = useState<Array<{ date: string; count: number }>>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [tooltipRowId, setTooltipRowId] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (typeof p.pageSize === 'number' && [10, 20, 50, 100].includes(p.pageSize)) return p.pageSize;
+      }
+    } catch {}
+    return 20;
+  });
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortKey>(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (p.sortBy && ['user_id', 'created_at', 'next_payment', 'status'].includes(p.sortBy)) return p.sortBy as SortKey;
+      }
+    } catch {}
+    return 'created_at';
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (p.sortDir === 'asc' || p.sortDir === 'desc') return p.sortDir;
+      }
+    } catch {}
+    return 'desc';
+  });
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'canceled' | 'trialing'>(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (p.statusFilter && ['all', 'active', 'canceled', 'trialing'].includes(p.statusFilter)) return p.statusFilter;
+      }
+    } catch {}
+    return 'all';
+  });
+  const [dateFrom, setDateFrom] = useState(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (typeof p.dateFrom === 'string') return p.dateFrom;
+      }
+    } catch {}
+    return '';
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    try {
+      const j = localStorage.getItem(PERSIST_KEY);
+      if (j) {
+        const p = JSON.parse(j);
+        if (typeof p.dateTo === 'string') return p.dateTo;
+      }
+    } catch {}
+    return '';
+  });
   const [cancelConfirmRow, setCancelConfirmRow] = useState<SubRow | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [upgradeRow, setUpgradeRow] = useState<SubRow | null>(null);
   const [upgradeIsAnnual, setUpgradeIsAnnual] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PERSIST_KEY, JSON.stringify({
+        sortBy,
+        sortDir,
+        statusFilter,
+        dateFrom,
+        dateTo,
+        pageSize,
+      }));
+    } catch {}
+  }, [sortBy, sortDir, statusFilter, dateFrom, dateTo, pageSize]);
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message);
@@ -355,7 +402,9 @@ const SubscriptionMonitor: React.FC = () => {
           const matchId = (s?.id || '').toLowerCase().includes(q);
           const matchUser = (s?.user_id || '').toLowerCase().includes(q);
           const matchPlan = (s?.plan_name || '').toLowerCase().includes(q);
-          if (!matchId && !matchUser && !matchPlan) return false;
+          const matchNombre = (s?.user_nombre || '').toLowerCase().includes(q);
+          const matchEmail = (s?.user_email || '').toLowerCase().includes(q);
+          if (!matchId && !matchUser && !matchPlan && !matchNombre && !matchEmail) return false;
         }
         return true;
       }),
@@ -727,7 +776,7 @@ const SubscriptionMonitor: React.FC = () => {
           <div className="flex flex-wrap items-center gap-4 mb-4">
             <input
               type="search"
-              placeholder="Buscar por ID, user_id o plan..."
+              placeholder="Buscar por cliente, plan o ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 min-w-[200px] max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
@@ -847,7 +896,7 @@ const SubscriptionMonitor: React.FC = () => {
                       onClick={() => toggleSort('user_id')}
                       className="flex items-center gap-1 hover:text-slate-700"
                     >
-                      USER_ID
+                      Cliente
                       {sortBy === 'user_id' ? (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : null}
                     </button>
                   </th>
@@ -898,8 +947,6 @@ const SubscriptionMonitor: React.FC = () => {
                     idx={idx}
                     page={page}
                     pageSize={pageSize}
-                    tooltipRowId={tooltipRowId}
-                    setTooltipRowId={setTooltipRowId}
                     setFichaUserId={setFichaUserId}
                     copyToClipboard={copyToClipboard}
                     onCancel={(row) => setCancelConfirmRow(row)}

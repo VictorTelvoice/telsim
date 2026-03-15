@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle, BellRing, LayoutTemplate } from 'lucide-react';
+import AdminGlobalSearch from '../../screens/admin/AdminGlobalSearch';
 
 const nav = [
   { to: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -54,9 +55,14 @@ const AdminLayout: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Área principal — solo contenido de la ruta activa */}
-      <main className="flex-1 min-w-0 min-h-screen bg-slate-50 overflow-auto">
-        <Outlet />
+      {/* Área principal — barra de búsqueda global + contenido */}
+      <main className="flex-1 min-w-0 min-h-screen bg-slate-50 flex flex-col overflow-hidden">
+        <header className="flex-shrink-0 flex items-center gap-4 px-4 py-2 bg-white border-b border-slate-200 shadow-sm">
+          <AdminGlobalSearch />
+        </header>
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
