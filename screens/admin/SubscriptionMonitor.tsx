@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { CreditCard, Loader2, Filter } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
@@ -9,7 +10,7 @@ export type SubRow = {
   plan_name: string | null;
   amount: number | null;
   billing_type: string | null;
-  subscription_status: string | null;
+  status: string | null;
   created_at: string;
   trial_end: string | null;
   user_email?: string | null;
@@ -21,6 +22,27 @@ const PLAN_LABEL: Record<string, string> = {
   Pro: 'Pro',
   Power: 'Power',
 };
+
+/** Badge de colores por status: verde active, gris trialing, rojo canceled, ámbar past_due. */
+function StatusBadge({ status }: { status: string | null }) {
+  const s = (status || '').toLowerCase();
+  const label = s === 'past_due' ? 'Past due' : (status || '—');
+  const classes =
+    s === 'active'
+      ? 'bg-emerald-100 text-emerald-700'
+      : s === 'trialing'
+        ? 'bg-slate-100 text-slate-600'
+        : s === 'canceled' || s === 'cancelled'
+          ? 'bg-red-100 text-red-700'
+          : s === 'past_due'
+            ? 'bg-amber-100 text-amber-700'
+            : 'bg-slate-100 text-slate-600';
+  return (
+    <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[11px] font-bold uppercase tracking-wide ${classes}`}>
+      {label}
+    </span>
+  );
+}
 
 /**
  * Monitor de suscripciones: Cliente, Plan, Ciclo, Precio, Próximo cobro, Estado.
@@ -37,7 +59,7 @@ const SubscriptionMonitor: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData, error } = await supabase
       .from('subscriptions')
-      .select('id, plan_name, amount, subscription_status, created_at, user_id')
+      .select('id, plan_name, amount, billing_type, status, subscription_status, created_at, user_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -51,21 +73,20 @@ const SubscriptionMonitor: React.FC = () => {
       return;
     }
 
+    type Row = { id: string; user_id: string; plan_name: string | null; amount: number | null; billing_type: string | null; status?: string | null; subscription_status?: string | null; created_at: string };
     setSubs(
-      (subsData as { id: string; user_id: string; plan_name: string | null; amount: number | null; subscription_status: string | null; created_at: string }[]).map(
-        (s) => ({
-          id: s.id,
-          user_id: s.user_id,
-          plan_name: s.plan_name,
-          amount: s.amount,
-          billing_type: null,
-          subscription_status: s.subscription_status ?? null,
-          created_at: s.created_at,
-          trial_end: null,
-          user_email: null,
-          next_payment: null,
-        })
-      )
+      (subsData as Row[]).map((s) => ({
+        id: s.id,
+        user_id: s.user_id,
+        plan_name: s.plan_name,
+        amount: s.amount,
+        billing_type: s.billing_type ?? null,
+        status: (s.status ?? s.subscription_status ?? null) as string | null,
+        created_at: s.created_at,
+        trial_end: null,
+        user_email: null,
+        next_payment: null,
+      }))
     );
   }, []);
 
@@ -77,11 +98,12 @@ const SubscriptionMonitor: React.FC = () => {
   const filtered = subs.filter((s) => {
     const q = searchQuery.trim().toLowerCase();
     if (q) {
+      const matchId = (s.id || '').toLowerCase().includes(q);
       const matchUser = (s.user_id || '').toLowerCase().includes(q);
       const matchPlan = (s.plan_name || '').toLowerCase().includes(q);
-      if (!matchUser && !matchPlan) return false;
+      if (!matchId && !matchUser && !matchPlan) return false;
     }
-    const st = (s.subscription_status || '').toLowerCase();
+    const st = (s.status || '').toLowerCase();
     if (filterMorosos && st !== 'past_due') return false;
     if (filterAltas) {
       const isHigh = s.plan_name === 'Power' || (s.amount != null && s.amount >= 99);
@@ -104,11 +126,11 @@ const SubscriptionMonitor: React.FC = () => {
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 mb-1">Suscripciones (Ventas)</h2>
           <p className="text-sm text-slate-500 mb-4">
-            amount, plan_name, subscription_status. MRR = suma de amount donde subscription_status = active.
+            Monto tal cual en BD · Ciclo (billing_type) · Estado real (status). Buscador por ID, user_id o plan.
           </p>
           <input
             type="search"
-            placeholder="Buscar por user_id o plan_name..."
+            placeholder="Buscar por ID, user_id o plan..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm mb-4"
@@ -159,7 +181,17 @@ const SubscriptionMonitor: React.FC = () => {
                   className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
                 >
                   <td className="px-4 py-3 text-sm text-slate-800 truncate max-w-[220px] font-mono text-xs" title={s.user_id}>
-                    {s.user_id || '—'}
+                    {s.user_id ? (
+                      <Link
+                        to={`/admin/users?search=${encodeURIComponent(s.user_id)}`}
+                        className="text-emerald-600 hover:text-emerald-700 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {s.user_id}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-slate-900">
                     {s.plan_name ? PLAN_LABEL[s.plan_name] ?? s.plan_name : '—'}
@@ -168,25 +200,13 @@ const SubscriptionMonitor: React.FC = () => {
                     {s.billing_type === 'annual' ? 'Anual' : s.billing_type === 'monthly' ? 'Mensual' : s.billing_type ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">
-                    {s.amount != null ? `$${(Number(s.amount) / 100).toFixed(2)}` : '—'}
+                    {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                     {s.next_payment || '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2.5 py-0.5 rounded-lg text-[11px] font-bold uppercase tracking-wide ${
-                        (s.subscription_status || '').toLowerCase() === 'active'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : (s.subscription_status || '').toLowerCase() === 'trialing'
-                            ? 'bg-blue-100 text-blue-700'
-                            : (s.subscription_status || '').toLowerCase() === 'past_due'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {(s.subscription_status || '').toLowerCase() === 'past_due' ? 'Past_due' : s.subscription_status || '—'}
-                    </span>
+                    <StatusBadge status={s.status} />
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Users, Loader2, Send, ExternalLink } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
@@ -40,10 +40,16 @@ function countryToFlag(pais: string | null): string {
  * Gestión de usuarios: nombre, email, pais, moneda, telegram_enabled. Bandera e indicador Telegram.
  */
 const UserManager: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [fichaUserId, setFichaUserId] = useState<string | null>(null);
+
+  const searchFromUrl = searchParams.get('search') ?? searchParams.get('id') ?? '';
+  useEffect(() => {
+    if (searchFromUrl.trim()) setSearchQuery(searchFromUrl.trim());
+  }, [searchFromUrl]);
 
   const fetchUsers = useCallback(async () => {
     const { data: usersData, error } = await supabase
@@ -88,11 +94,13 @@ const UserManager: React.FC = () => {
     fetchUsers().finally(() => setLoading(false));
   }, [fetchUsers]);
 
-  const filteredUsers = searchQuery.trim()
+  const q = searchQuery.trim().toLowerCase();
+  const filteredUsers = q
     ? users.filter(
         (u) =>
-          (u.nombre || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-          (u.email || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+          (u.id || '').toLowerCase().includes(q) ||
+          (u.nombre || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q)
       )
     : users;
 
@@ -114,7 +122,7 @@ const UserManager: React.FC = () => {
           </p>
           <input
             type="search"
-            placeholder="Buscar por nombre o email..."
+            placeholder="Buscar por ID, nombre o email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"

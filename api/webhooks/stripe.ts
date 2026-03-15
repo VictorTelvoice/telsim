@@ -1,6 +1,8 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
+// Rutas relativas con .js para ESM en Vercel (evitar ERR_MODULE_NOT_FOUND)
+import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications.js';
+import { logEvent } from '../_helpers/logger.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -12,30 +14,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
-
-/** Logger local: no depende de módulos externos (evita ERR_MODULE_NOT_FOUND en Vercel). Solo escribe en audit_logs; no lanza. */
-async function logEvent(
-  eventType: string,
-  severity?: string,
-  message?: string,
-  userEmail?: string | null,
-  payload?: Record<string, unknown>,
-  source?: string
-): Promise<void> {
-  try {
-    await supabaseAdmin.from('audit_logs').insert({
-      event_type: eventType,
-      severity: severity ?? 'info',
-      message: message ?? '',
-      user_email: userEmail ?? null,
-      payload: payload ?? {},
-      source: source ?? 'stripe',
-      created_at: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.error('[WEBHOOK logEvent]', eventType, (e as Error)?.message);
-  }
-}
 
 async function createNotification(
   userId: string,
