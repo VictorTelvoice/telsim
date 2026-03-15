@@ -277,20 +277,28 @@ const AdminTemplates: React.FC = () => {
       setSendingTestId(id);
       setSuccessTestId(null);
       try {
+        const body = {
+          action: 'send-notification-test',
+          channel: activeTab === 'email' ? 'email' : 'telegram',
+          content,
+          userId: user.id, // user.id real del usuario autenticado
+          isTest: true,
+        };
         const response = await fetch('/api/manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'send-notification-test',
-            channel: activeTab === 'email' ? 'email' : 'telegram',
-            content,
-            userId: user.id,
-            isTest: true,
-          }),
+          body: JSON.stringify(body),
         });
 
         // LEER JSON UNA SOLA VEZ
         const data = await response.json();
+
+        // Respuesta completa del servidor para diagnosticar 403, 404, 500, etc.
+        console.log('[AdminTemplates send-test]', {
+          status: response.status,
+          ok: response.ok,
+          data,
+        });
 
         if (!response.ok) {
           showLocalToast(data.error || 'Error al enviar el test.', 'error');

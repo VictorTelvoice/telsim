@@ -320,22 +320,27 @@ export default async function handler(req: any, res: any) {
           if (!userId || !channel || typeof content !== 'string') {
             return res.status(400).json({ error: 'Faltan parámetros (channel, content, userId).', code: 'MISSING_PARAMS' });
           }
-          if (userId !== ADMIN_UID) {
-            return res.status(403).json({ error: 'Solo el administrador puede enviar tests.', code: 'FORBIDDEN' });
-          }
 
-          // 1. Validar que eres tú (El Admin) y traer tus credenciales de la DB
+          // 1. Buscar usuario en la DB (mismos tokens que usa el sistema real)
           const { data: userRow, error: userError } = await supabaseAdmin
             .from('users')
             .select('email, telegram_token, telegram_chat_id')
             .eq('id', userId)
             .maybeSingle();
 
+          console.log('[DEBUG TEST]', {
+            channel,
+            userId,
+            hasToken: !!(userRow as { telegram_token?: string })?.telegram_token,
+            hasChatId: !!(userRow as { telegram_chat_id?: string })?.telegram_chat_id,
+            hasEmail: !!(userRow as { email?: string })?.email,
+          });
+
           if (userError || !userRow) {
             return res.status(400).json({ error: 'Usuario no encontrado en la base de datos.', code: 'USER_NOT_FOUND' });
           }
 
-          // --- LÓGICA TELEGRAM ---
+          // --- LÓGICA TELEGRAM (usa telegram_token y telegram_chat_id de la fila del usuario, sin env vars) ---
           if (channel === 'telegram') {
             const token = (userRow as { telegram_token?: string }).telegram_token?.trim();
             const chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id?.trim();
@@ -347,7 +352,6 @@ export default async function handler(req: any, res: any) {
               });
             }
 
-            // Enviamos el 'content' tal cual viene del editor (ya procesado con variables)
             const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -359,18 +363,25 @@ export default async function handler(req: any, res: any) {
             });
 
             const tgResult = await tgRes.json();
-            if (!tgRes.ok) throw new Error((tgResult && tgResult.description) || 'Error de Telegram');
+            if (!tgRes.ok) {
+              const errMsg = (tgResult && tgResult.description) || 'Error de Telegram';
+              console.error('[ADMIN TEST ERROR] Telegram:', errMsg, tgResult);
+              return res.status(400).json({
+                error: errMsg,
+                code: 'TELEGRAM_ERROR',
+              });
+            }
 
             return res.status(200).json({ success: true, message: '✅ Test de Telegram enviado.' });
           }
 
-          // --- LÓGICA EMAIL ---
+          // --- LÓGICA EMAIL (email del usuario + triggerEmail con content en data.message) ---
           if (channel === 'email') {
             const toEmail = (userRow as { email?: string }).email;
-            if (!toEmail) return res.status(400).json({ error: 'Tu usuario admin no tiene email.', code: 'NO_EMAIL' });
+            if (!toEmail) {
+              return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
+            }
 
-            // Inyectamos el contenido del editor dentro del objeto 'data'
-            // para que la plantilla maestra lo reconozca como {{message}} o {{content}}
             const testData = {
               nombre: 'CEO Test',
               email: toEmail,
@@ -389,10 +400,10 @@ export default async function handler(req: any, res: any) {
 
           return res.status(400).json({ error: 'Canal no soportado.' });
         } catch (err: unknown) {
-          console.error('[ADMIN TEST ERROR]', err);
           const message = err instanceof Error ? err.message : 'Error en el servidor';
+          console.error('[ADMIN TEST ERROR]', err);
           return res.status(500).json({
-            error: `Error en el servidor: ${message}`,
+            error: message,
             code: 'SERVER_ERROR',
           });
         }
