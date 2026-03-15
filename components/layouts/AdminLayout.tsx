@@ -57,7 +57,7 @@ const AdminLayout: React.FC = () => {
 
       {/* Área principal — barra de búsqueda global + contenido */}
       <main className="flex-1 min-w-0 min-h-screen bg-slate-50 flex flex-col overflow-hidden">
-        <header className="flex-shrink-0 flex items-center gap-4 px-4 py-2 bg-white border-b border-slate-200 shadow-sm">
+        <header className="flex-shrink-0 flex items-center justify-end px-4 py-2 bg-white border-b border-slate-200 shadow-sm">
           <AdminGlobalSearch />
         </header>
         <div className="flex-1 overflow-auto">

@@ -16,7 +16,7 @@ const AdminGlobalSearch: React.FC = () => {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const searchUsers = useCallback(async (q: string) => {
     const term = q.trim().toLowerCase();
@@ -56,7 +56,7 @@ const AdminGlobalSearch: React.FC = () => {
         e.preventDefault();
         setOpen(true);
         setQuery('');
-        setTimeout(() => inputRef.current?.focus(), 50);
+        setTimeout(() => inputRef.current?.focus(), 80);
       }
       if (e.key === 'Escape') {
         setOpen(false);
@@ -68,13 +68,7 @@ const AdminGlobalSearch: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    if (open) document.addEventListener('click', onClickOutside);
-    return () => document.removeEventListener('click', onClickOutside);
+    if (open) setTimeout(() => inputRef.current?.focus(), 80);
   }, [open]);
 
   const goToUser = (hit: SearchHit) => {
@@ -90,79 +84,88 @@ const AdminGlobalSearch: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="relative flex-1 max-w-xl">
+    <>
       <button
         type="button"
-        onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300 transition-colors text-left text-sm"
+        onClick={() => { setOpen(true); setQuery(''); }}
+        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        title="Buscar (⌘K)"
       >
-        <Search size={16} className="flex-shrink-0" />
-        <span className="flex-1 truncate">Buscar por nombre, email o UUID…</span>
-        <kbd className="hidden sm:inline-flex px-1.5 py-0.5 rounded bg-slate-700 text-[10px] font-mono text-slate-400">⌘K</kbd>
+        <Search size={20} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl z-50 overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700">
-            <Search size={16} className="text-slate-500 flex-shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Nombre, email o UUID..."
-              className="flex-1 bg-transparent border-none text-white placeholder-slate-500 outline-none text-sm"
-              autoComplete="off"
-            />
-          </div>
-          <div className="max-h-72 overflow-y-auto">
-            {loading && (
-              <div className="flex items-center justify-center py-8 text-slate-400">
-                <Loader2 size={24} className="animate-spin" />
-              </div>
-            )}
-            {!loading && query.trim().length < 2 && (
-              <p className="px-4 py-3 text-slate-500 text-sm">Escribe al menos 2 caracteres</p>
-            )}
-            {!loading && query.trim().length >= 2 && hits.length === 0 && (
-              <p className="px-4 py-3 text-slate-500 text-sm">Sin resultados</p>
-            )}
-            {!loading && hits.length > 0 && (
-              <ul className="py-1">
-                {hits.map((hit) => (
-                  <li key={hit.id} className="border-b border-slate-800 last:border-0">
-                    <div className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800/80">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm truncate">{hit.nombre || '—'}</p>
-                        <p className="text-xs text-slate-400 truncate">{hit.email || hit.id}</p>
+        <div
+          className="fixed inset-0 z-[400] flex items-start justify-center pt-[15vh] px-4 bg-black/40 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
+        >
+          <div
+            ref={modalRef}
+            className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+              <Search size={20} className="text-slate-400 flex-shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Nombre, email o UUID..."
+                className="flex-1 py-2 bg-transparent border-none text-slate-900 placeholder-slate-400 outline-none text-base"
+                autoComplete="off"
+              />
+              <kbd className="hidden sm:inline text-[10px] text-slate-400 font-mono">ESC</kbd>
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto">
+              {loading && (
+                <div className="flex items-center justify-center py-12 text-slate-400">
+                  <Loader2 size={28} className="animate-spin" />
+                </div>
+              )}
+              {!loading && query.trim().length < 2 && (
+                <p className="px-4 py-8 text-center text-slate-500 text-sm">Escribe al menos 2 caracteres para buscar</p>
+              )}
+              {!loading && query.trim().length >= 2 && hits.length === 0 && (
+                <p className="px-4 py-8 text-center text-slate-500 text-sm">Sin resultados</p>
+              )}
+              {!loading && hits.length > 0 && (
+                <ul className="py-2">
+                  {hits.map((hit) => (
+                    <li key={hit.id} className="border-b border-slate-100 last:border-0">
+                      <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 text-sm truncate">{hit.nombre || '—'}</p>
+                          <p className="text-xs text-slate-500 truncate">{hit.email || hit.id}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => goToUser(hit)}
+                            className="p-2 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                            title="Ver en Usuarios"
+                          >
+                            <User size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => goToSubscriptions(hit)}
+                            className="p-2 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                            title="Ver en Suscripciones"
+                          >
+                            <CreditCard size={18} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => goToUser(hit)}
-                          className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                          title="Ver en Usuarios"
-                        >
-                          <User size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => goToSubscriptions(hit)}
-                          className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                          title="Ver en Suscripciones"
-                        >
-                          <CreditCard size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

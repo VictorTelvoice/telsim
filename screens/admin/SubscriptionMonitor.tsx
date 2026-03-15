@@ -349,7 +349,7 @@ const SubscriptionMonitor: React.FC = () => {
   const [cancelConfirmRow, setCancelConfirmRow] = useState<SubRow | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [upgradeRow, setUpgradeRow] = useState<SubRow | null>(null);
-  const [upgradeIsAnnual, setUpgradeIsAnnual] = useState(false);
+  const [upgradePlanSelected, setUpgradePlanSelected] = useState<{ planName: string; isAnnual: boolean } | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   useEffect(() => {
@@ -613,15 +613,16 @@ const SubscriptionMonitor: React.FC = () => {
 
   const handleUpgradeSubmit = useCallback(async () => {
     const row = upgradeRow;
-    const currentPlan = (row?.plan_name ?? 'Starter').toString();
-    const suggestedPlanName = currentPlan === 'Starter' ? 'Pro' : currentPlan === 'Pro' ? 'Power' : null;
-    if (!row?.user_id || !row?.slot_id || !suggestedPlanName) {
-      showToast(suggestedPlanName ? 'Faltan datos' : 'No hay plan superior disponible');
+    const selected = upgradePlanSelected;
+    if (!row?.user_id || !row?.slot_id || !selected) {
+      showToast(selected ? 'Faltan datos' : 'Elige un plan');
       return;
     }
-    const priceId = suggestedPlanName === 'Pro'
-      ? (upgradeIsAnnual ? STRIPE_PRICES.PRO.ANNUAL : STRIPE_PRICES.PRO.MONTHLY)
-      : (upgradeIsAnnual ? STRIPE_PRICES.POWER.ANNUAL : STRIPE_PRICES.POWER.MONTHLY);
+    const priceId = selected.planName === 'Starter'
+      ? (selected.isAnnual ? STRIPE_PRICES.STARTER.ANNUAL : STRIPE_PRICES.STARTER.MONTHLY)
+      : selected.planName === 'Pro'
+        ? (selected.isAnnual ? STRIPE_PRICES.PRO.ANNUAL : STRIPE_PRICES.PRO.MONTHLY)
+        : (selected.isAnnual ? STRIPE_PRICES.POWER.ANNUAL : STRIPE_PRICES.POWER.MONTHLY);
     setUpgradeLoading(true);
     try {
       const res = await fetch('/api/manage', {
@@ -632,8 +633,8 @@ const SubscriptionMonitor: React.FC = () => {
           userId: row.user_id,
           slotId: row.slot_id,
           newPriceId: priceId,
-          newPlanName: suggestedPlanName,
-          isAnnual: upgradeIsAnnual,
+          newPlanName: selected.planName,
+          isAnnual: selected.isAnnual,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -648,7 +649,7 @@ const SubscriptionMonitor: React.FC = () => {
     } finally {
       setUpgradeLoading(false);
     }
-  }, [upgradeRow, upgradeIsAnnual, showToast]);
+  }, [upgradeRow, upgradePlanSelected, showToast]);
 
   const fetchNotificationStats = useCallback(async () => {
     if (!user?.id) return;
@@ -950,7 +951,7 @@ const SubscriptionMonitor: React.FC = () => {
                     setFichaUserId={setFichaUserId}
                     copyToClipboard={copyToClipboard}
                     onCancel={(row) => setCancelConfirmRow(row)}
-                    onUpgrade={(row) => { setUpgradeRow(row); setUpgradeIsAnnual(false); }}
+                    onUpgrade={(row) => { setUpgradeRow(row); setUpgradePlanSelected(null); }}
                   />
                 ))}
               </tbody>
@@ -1004,68 +1005,64 @@ const SubscriptionMonitor: React.FC = () => {
         </div>
       )}
 
-      {/* Modal upgrade: sugiere un solo plan (Starter→Pro, Pro→Power/Enterprise) */}
+      {/* Modal upgrade: todos los planes (Mensual/Anual) excepto la combinación actual */}
       {upgradeRow && (() => {
         const currentPlan = (upgradeRow.plan_name ?? 'Starter').toString();
-        const suggestedPlanName = currentPlan === 'Starter' ? 'Pro' : currentPlan === 'Pro' ? 'Power' : null;
-        const suggestedLabel = suggestedPlanName === 'Pro' ? 'Pro' : suggestedPlanName === 'Power' ? 'Power (Enterprise)' : null;
-        const prices = suggestedPlanName === 'Pro' ? { m: 39.90, a: 399 } : suggestedPlanName === 'Power' ? { m: 99, a: 990 } : null;
-        const displayPrice = prices ? (upgradeIsAnnual ? prices.a : prices.m) : 0;
+        const currentIsAnnual = (upgradeRow.billing_type || '').toLowerCase() === 'annual';
+        const PLAN_OPTIONS: { planName: string; isAnnual: boolean; price: number; label: string }[] = [
+          { planName: 'Starter', isAnnual: false, price: 19.90, label: 'Starter Mensual' },
+          { planName: 'Starter', isAnnual: true, price: 199, label: 'Starter Anual' },
+          { planName: 'Pro', isAnnual: false, price: 39.90, label: 'Pro Mensual' },
+          { planName: 'Pro', isAnnual: true, price: 399, label: 'Pro Anual' },
+          { planName: 'Power', isAnnual: false, price: 99, label: 'Power Mensual' },
+          { planName: 'Power', isAnnual: true, price: 990, label: 'Power Anual' },
+        ];
+        const available = PLAN_OPTIONS.filter(
+          (o) => !(o.planName === currentPlan && o.isAnnual === currentIsAnnual)
+        );
         return (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50" onClick={() => { if (!upgradeLoading) setUpgradeRow(null); }}>
-            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Upgrade de plan</h3>
-              <p className="text-sm text-slate-500 mb-4">
-                Plan actual: <strong>{PLAN_LABEL[upgradeRow.plan_name ?? ''] ?? upgradeRow.plan_name ?? '—'}</strong>.
-                {suggestedLabel ? <> Sugerido: <strong>{suggestedLabel}</strong>.</> : ' No hay plan superior disponible.'}
-              </p>
-              {suggestedPlanName && (
-                <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-sm font-medium text-slate-600">¿Nuevo plan será Mensual o Anual?</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <button
-                      type="button"
-                      onClick={() => setUpgradeIsAnnual(false)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      Mensual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUpgradeIsAnnual(true)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      Anual
-                    </button>
-                  </div>
-                  <div className="mb-6 px-4 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50">
-                    <p className="text-sm font-semibold text-slate-800">{suggestedLabel}</p>
-                    <p className="text-lg font-bold text-slate-900">${displayPrice} {upgradeIsAnnual ? '/año' : '/mes'}</p>
-                  </div>
-                </>
-              )}
-              <div className="flex gap-3 justify-end">
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!upgradeLoading) { setUpgradeRow(null); setUpgradePlanSelected(null); } }}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Cambio de plan</h3>
+                <p className="text-sm text-slate-500">Plan actual: <strong>{PLAN_LABEL[upgradeRow.plan_name ?? ''] ?? upgradeRow.plan_name ?? '—'}</strong> {currentIsAnnual ? 'Anual' : 'Mensual'}. Elige el nuevo plan (se cobrará hoy el ciclo completo, sin reembolsos).</p>
+              </div>
+              <div className="p-4 overflow-y-auto flex-1">
+                <div className="space-y-2">
+                  {available.map((opt) => {
+                    const selected = upgradePlanSelected?.planName === opt.planName && upgradePlanSelected?.isAnnual === opt.isAnnual;
+                    return (
+                      <button
+                        key={`${opt.planName}-${opt.isAnnual}`}
+                        type="button"
+                        onClick={() => setUpgradePlanSelected({ planName: opt.planName, isAnnual: opt.isAnnual })}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                      >
+                        <span className="font-semibold text-slate-900">{opt.label}</span>
+                        <span className="text-sm font-bold text-slate-700">${opt.price} {opt.isAnnual ? '/año' : '/mes'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="p-4 border-t border-slate-100 flex gap-3 justify-end">
                 <button
                   type="button"
                   disabled={upgradeLoading}
-                  onClick={() => setUpgradeRow(null)}
+                  onClick={() => { setUpgradeRow(null); setUpgradePlanSelected(null); }}
                   className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium"
                 >
                   Cerrar
                 </button>
-                {suggestedPlanName && (
-                  <button
-                    type="button"
-                    disabled={upgradeLoading}
-                    onClick={handleUpgradeSubmit}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
-                  >
-                    {upgradeLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpCircle size={16} />}
-                    Continuar a pago
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={!upgradePlanSelected || upgradeLoading}
+                  onClick={handleUpgradeSubmit}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {upgradeLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                  Continuar a pago
+                </button>
               </div>
             </div>
           </div>
