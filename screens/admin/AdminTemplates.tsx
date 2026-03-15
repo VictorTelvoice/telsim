@@ -286,22 +286,24 @@ const AdminTemplates: React.FC = () => {
             channel,
             content,
             userId: user.id,
+            isTest: true,
           }),
         });
-        let data: { error?: string; code?: string } = {};
+        let res: { error?: string; message?: string } = {};
         try {
-          data = await response.json();
+          res = await response.json();
         } catch {
           showLocalToast('Error al procesar la respuesta del servidor.', 'error');
           return;
         }
         if (!response.ok) {
-          showLocalToast(data.error || 'Error al enviar el test.', 'error');
+          showLocalToast((res && res.error) || 'Error al enviar el test.', 'error');
           return;
         }
         setSuccessTestId(id);
         const target = channel === 'email' ? 'Email' : 'Telegram';
-        showLocalToast(`✅ Mensaje de prueba enviado a ${target}`, 'success');
+        const message = (res && res.message) || `✅ Mensaje de prueba enviado a ${target}`;
+        showLocalToast(message, 'success');
         setTimeout(() => setSuccessTestId(null), 3000);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Error de conexión al enviar el test.';

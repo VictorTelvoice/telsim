@@ -314,9 +314,8 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'send-notification-test': {
-        // Email: Edge Function send-email requiere SENDGRID_API_KEY (Supabase secrets).
-        // Telegram: requiere TELEGRAM_ADMIN_TOKEN y TELEGRAM_ADMIN_CHAT_ID (Vercel env o Supabase secrets).
-        const { channel, content, userId } = req.body;
+        // isTest: true → no buscar usuario en DB. Telegram: solo TELEGRAM_ADMIN_TOKEN + TELEGRAM_ADMIN_CHAT_ID. Email: ADMIN_EMAIL o lookup.
+        const { channel, content, userId, isTest } = req.body;
         if (!userId || !channel || typeof content !== 'string') {
           return res.status(400).json({ error: 'Se requiere channel, content y userId.', code: 'MISSING_PARAMS' });
         }
@@ -324,25 +323,35 @@ export default async function handler(req: any, res: any) {
           return res.status(403).json({ error: 'Solo el administrador puede enviar tests de notificaciones.', code: 'FORBIDDEN' });
         }
         if (channel === 'telegram') {
-          // Preferir TELEGRAM_ADMIN_TOKEN / TELEGRAM_ADMIN_CHAT_ID para enviar el test al bot del CEO
           const adminToken = (process.env.TELEGRAM_ADMIN_TOKEN || '').trim();
-          const adminChatId = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+          const adminChatId = (process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.TELEGRAM_CHAT_ID || '').trim();
           let token: string;
           let chatId: string;
-          if (adminToken && adminChatId) {
+          if (isTest) {
+            if (!adminToken || !adminChatId) {
+              return res.status(400).json({
+                error: 'Para tests configura TELEGRAM_ADMIN_TOKEN y TELEGRAM_ADMIN_CHAT_ID (o TELEGRAM_CHAT_ID) en las variables de entorno.',
+                code: 'TELEGRAM_NOT_CONFIGURED',
+              });
+            }
             token = adminToken;
             chatId = adminChatId;
           } else {
-            const { data: userRow, error: userError } = await supabaseAdmin
-              .from('users')
-              .select('telegram_token, telegram_chat_id')
-              .eq('id', userId)
-              .maybeSingle();
-            if (userError || !userRow) {
-              return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+            if (adminToken && adminChatId) {
+              token = adminToken;
+              chatId = adminChatId;
+            } else {
+              const { data: userRow, error: userError } = await supabaseAdmin
+                .from('users')
+                .select('telegram_token, telegram_chat_id')
+                .eq('id', userId)
+                .maybeSingle();
+              if (userError || !userRow) {
+                return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+              }
+              token = (userRow as { telegram_token?: string }).telegram_token || '';
+              chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id || '';
             }
-            token = (userRow as { telegram_token?: string }).telegram_token || '';
-            chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id || '';
           }
           if (!token || !chatId) {
             return res.status(400).json({
@@ -357,18 +366,20 @@ export default async function handler(req: any, res: any) {
           });
           const result = await tgRes.json();
           const tgOk = tgRes.ok;
-          try {
-            await supabaseAdmin.from('notification_history').insert({
-              user_id: userId,
-              recipient: `Telegram:${chatId}`,
-              channel: 'telegram',
-              event: 'test',
-              status: tgOk ? 'sent' : 'error',
-              error_message: tgOk ? null : (result?.description || null),
-              content_preview: (content || '').slice(0, 500) || null,
-            });
-          } catch (histErr) {
-            console.warn('[ADMIN] notification_history insert failed:', (histErr as Error)?.message);
+          if (!isTest) {
+            try {
+              await supabaseAdmin.from('notification_history').insert({
+                user_id: userId,
+                recipient: `Telegram:${chatId}`,
+                channel: 'telegram',
+                event: 'test',
+                status: tgOk ? 'sent' : 'error',
+                error_message: tgOk ? null : (result?.description || null),
+                content_preview: (content || '').slice(0, 500) || null,
+              });
+            } catch (histErr) {
+              console.warn('[ADMIN] notification_history insert failed:', (histErr as Error)?.message);
+            }
           }
           if (!tgOk) {
             return res.status(400).json({
@@ -376,20 +387,28 @@ export default async function handler(req: any, res: any) {
               code: 'TELEGRAM_ERROR',
             });
           }
-          return res.status(200).json({ ok: true });
+          return res.status(200).json({ success: true, message: 'Test enviado correctamente' });
         }
         if (channel === 'email') {
-          const { data: userRow, error: userError } = await supabaseAdmin
-            .from('users')
-            .select('email')
-            .eq('id', userId)
-            .maybeSingle();
-          if (userError || !userRow) {
-            return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+          let toEmail: string;
+          if (isTest && (process.env.ADMIN_EMAIL || '').trim()) {
+            toEmail = process.env.ADMIN_EMAIL!.trim();
+          } else {
+            const { data: userRow, error: userError } = await supabaseAdmin
+              .from('users')
+              .select('email')
+              .eq('id', userId)
+              .maybeSingle();
+            if (userError || !userRow) {
+              return res.status(400).json({ error: 'Usuario no encontrado.', code: 'USER_NOT_FOUND' });
+            }
+            toEmail = (userRow as { email?: string }).email || '';
+            if (!toEmail) {
+              return res.status(400).json({ error: 'No hay email asociado al administrador.', code: 'NO_EMAIL' });
+            }
           }
-          const toEmail = (userRow as { email?: string }).email;
           if (!toEmail) {
-            return res.status(400).json({ error: 'No hay email asociado al administrador.', code: 'NO_EMAIL' });
+            return res.status(400).json({ error: 'Configura ADMIN_EMAIL en variables de entorno para tests de email.', code: 'NO_EMAIL' });
           }
           const supabaseUrl = process.env.SUPABASE_URL;
           const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -397,18 +416,19 @@ export default async function handler(req: any, res: any) {
             return res.status(500).json({ error: 'Configuración del servidor incompleta.' });
           }
           const testData = {
-            nombre: 'Admin Test',
+            nombre: 'CEO Test',
             email: toEmail,
-            phone: '+340000000',
-            plan: 'Power Plan',
+            phone: '+56900000000',
+            plan: 'Plan Pro',
             message: 'Mensaje de prueba',
             slot_id: 'SLOT-TEST',
-            amount: '9.99',
+            amount: '$39.90',
+            monto: '$39.90',
             next_date: '01/04/2026',
             billing_type: 'Mensual',
-            phone_number: '+340000000',
+            phone_number: '+56900000000',
           };
-          const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/functions/v1/send-email`, {
+          const efRes = await fetch(`${supabaseUrl.replace(/\/$/, '')}/functions/v1/send-email`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -423,7 +443,7 @@ export default async function handler(req: any, res: any) {
               is_test: true,
             }),
           });
-          const responseText = await res.text();
+          const responseText = await efRes.text();
           const result: { error?: string } = (() => {
             try {
               return responseText ? JSON.parse(responseText) : {};
@@ -431,13 +451,13 @@ export default async function handler(req: any, res: any) {
               return {};
             }
           })();
-          if (!res.ok) {
+          if (!efRes.ok) {
             return res.status(400).json({
               error: result.error || responseText || 'Error al enviar el correo.',
               code: 'EMAIL_ERROR',
             });
           }
-          return res.status(200).json({ ok: true });
+          return res.status(200).json({ success: true, message: 'Test enviado correctamente' });
         }
         return res.status(400).json({ error: 'Canal no válido. Use: email o telegram.', code: 'INVALID_CHANNEL' });
       }
