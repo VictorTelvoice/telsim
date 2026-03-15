@@ -113,19 +113,16 @@ const UserManager: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="w-full min-w-0 py-6 px-2 sm:px-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
-          <h2 className="text-xl font-black text-slate-900 mb-1">Usuarios</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            nombre, email, pais, telegram_enabled. Bandera e indicador de Telegram.
-          </p>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Usuarios</h2>
           <input
             type="search"
             placeholder="Buscar por ID, nombre o email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-md px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
+            className="w-full max-w-xl px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
           />
         </div>
         <div className="overflow-x-auto">

@@ -216,6 +216,7 @@ export default async function handler(req: any, res: any) {
           customer: customerId,
           line_items: [{ price: newPriceId, quantity: 1 }],
           subscription_data: {
+            billing_cycle_anchor: Math.floor(Date.now() / 1000),
             metadata: {
               upgrade: 'true',
               slot_id: slotId,

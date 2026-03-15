@@ -173,7 +173,7 @@ const InventoryManager: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="w-full min-w-0 py-6 px-2 sm:px-4">
       {userFilterId && (
         <div className="mb-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
           Mostrando solo slots del usuario <code className="font-mono text-xs bg-blue-100 px-1.5 py-0.5 rounded">{userFilterId.slice(0, 8)}…</code>
@@ -185,9 +185,6 @@ const InventoryManager: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 mb-1">Gestión de inventario</h2>
-            <p className="text-sm text-slate-500">
-              Slots por slot_id, phone_number, status y assigned_to (users). Verde = Libre, Azul = Ocupado.
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vista</span>

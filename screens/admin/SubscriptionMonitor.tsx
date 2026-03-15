@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, ExternalLink, XCircle, ArrowUpCircle } from 'lucide-react';
+import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, XCircle, ArrowUpCircle } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 
@@ -30,14 +30,6 @@ const PLAN_LABEL: Record<string, string> = {
   Pro: 'Pro',
   Power: 'Power',
 };
-
-const STRIPE_LIVEMODE = (import.meta as unknown as { env?: { VITE_STRIPE_LIVEMODE?: string } }).env?.VITE_STRIPE_LIVEMODE !== 'false';
-function stripeSubscriptionUrl(subscriptionId: string | null | undefined): string {
-  const id = subscriptionId?.trim?.();
-  if (!id || id.length < 3) return '#';
-  const base = STRIPE_LIVEMODE ? 'https://dashboard.stripe.com' : 'https://dashboard.stripe.com/test';
-  return `${base}/subscriptions/${encodeURIComponent(id)}`;
-}
 
 /** Formato YYYY-MM-DD para Excel/CSV */
 function formatYYYYMMDD(isoOrDDMMYYYY: string | null | undefined): string {
@@ -216,29 +208,6 @@ function SubscriptionTableRow({
             <span className="text-sm text-slate-400">—</span>
           )}
         </td>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {stripeId ? (
-              <>
-                <span className="text-[10px] font-mono text-slate-500 truncate max-w-[140px]" title={stripeId}>
-                  {stripeId}
-                </span>
-                <a
-                  href={stripeSubscriptionUrl(stripeId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex-shrink-0 p-0.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-slate-100"
-                  title="Abrir en Stripe Dashboard"
-                >
-                  <ExternalLink size={12} />
-                </a>
-              </>
-            ) : (
-              <span className="text-[10px] text-slate-400">—</span>
-            )}
-          </div>
-        </td>
         <td className="px-4 py-3 text-sm text-slate-600">
           {s?.billing_type === 'annual' ? 'Anual' : s?.billing_type === 'monthly' ? 'Mensual' : (s?.billing_type ?? '—')}
         </td>
@@ -275,6 +244,16 @@ function SubscriptionTableRow({
         </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-2 flex-wrap">
+            {stripeId && (
+              <button
+                type="button"
+                onClick={(e) => copyToClipboard(stripeId, e)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                title="Copiar ID de suscripción (Stripe)"
+              >
+                <Copy size={14} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onCancel(s)}
@@ -302,7 +281,7 @@ function SubscriptionTableRow({
     console.error('[SubscriptionMonitor] Error renderizando fila:', s, err);
     return (
       <tr key={s?.id ?? idx} className="border-b border-slate-100 bg-red-50/50">
-        <td colSpan={13} className="px-4 py-3 text-sm text-red-600">
+        <td colSpan={12} className="px-4 py-3 text-sm text-red-600">
           Error al cargar esta fila. Revisa la consola.
         </td>
       </tr>
@@ -336,7 +315,6 @@ const SubscriptionMonitor: React.FC = () => {
   const [cancelConfirmRow, setCancelConfirmRow] = useState<SubRow | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [upgradeRow, setUpgradeRow] = useState<SubRow | null>(null);
-  const [upgradePlanSelected, setUpgradePlanSelected] = useState<{ planName: string; priceId: string } | null>(null);
   const [upgradeIsAnnual, setUpgradeIsAnnual] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
@@ -434,9 +412,8 @@ const SubscriptionMonitor: React.FC = () => {
       'UUID Usuario',
       'Email Usuario',
       'Plan',
-      'Límite Mensual',
-      'Créditos Usados',
-      'Suscripción (Stripe)',
+      'Límite',
+      'Consumo',
       'Monto',
       'LTV',
       'Ciclo',
@@ -456,7 +433,6 @@ const SubscriptionMonitor: React.FC = () => {
           escapeCsv(s?.plan_name ?? ''),
           s?.monthly_limit != null ? String(s.monthly_limit) : '',
           s?.credits_used != null ? String(s.credits_used) : '',
-          escapeCsv(s?.stripe_subscription_id ?? ''),
           s?.amount != null ? String(s.amount) : '',
           (s?.ltv != null && s.ltv !== 0) ? String(s.ltv) : '',
           s?.billing_type === 'annual' ? 'Anual' : s?.billing_type === 'monthly' ? 'Mensual' : escapeCsv(s?.billing_type ?? ''),
@@ -588,11 +564,15 @@ const SubscriptionMonitor: React.FC = () => {
 
   const handleUpgradeSubmit = useCallback(async () => {
     const row = upgradeRow;
-    const plan = upgradePlanSelected;
-    if (!row?.user_id || !row?.slot_id || !plan) {
-      showToast('Selecciona un plan para continuar');
+    const currentPlan = (row?.plan_name ?? 'Starter').toString();
+    const suggestedPlanName = currentPlan === 'Starter' ? 'Pro' : currentPlan === 'Pro' ? 'Power' : null;
+    if (!row?.user_id || !row?.slot_id || !suggestedPlanName) {
+      showToast(suggestedPlanName ? 'Faltan datos' : 'No hay plan superior disponible');
       return;
     }
+    const priceId = suggestedPlanName === 'Pro'
+      ? (upgradeIsAnnual ? STRIPE_PRICES.PRO.ANNUAL : STRIPE_PRICES.PRO.MONTHLY)
+      : (upgradeIsAnnual ? STRIPE_PRICES.POWER.ANNUAL : STRIPE_PRICES.POWER.MONTHLY);
     setUpgradeLoading(true);
     try {
       const res = await fetch('/api/manage', {
@@ -602,8 +582,8 @@ const SubscriptionMonitor: React.FC = () => {
           action: 'upgrade',
           userId: row.user_id,
           slotId: row.slot_id,
-          newPriceId: plan.priceId,
-          newPlanName: plan.planName,
+          newPriceId: priceId,
+          newPlanName: suggestedPlanName,
           isAnnual: upgradeIsAnnual,
         }),
       });
@@ -619,7 +599,7 @@ const SubscriptionMonitor: React.FC = () => {
     } finally {
       setUpgradeLoading(false);
     }
-  }, [upgradeRow, upgradePlanSelected, upgradeIsAnnual, showToast]);
+  }, [upgradeRow, upgradeIsAnnual, showToast]);
 
   const fetchNotificationStats = useCallback(async () => {
     if (!user?.id) return;
@@ -684,7 +664,7 @@ const SubscriptionMonitor: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 py-6">
+    <div className="w-full min-w-0 py-6 px-2 sm:px-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 mb-4">Suscripciones (Ventas)</h2>
@@ -872,9 +852,8 @@ const SubscriptionMonitor: React.FC = () => {
                     </button>
                   </th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Plan</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Límite Mensual</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Créditos Usados</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Suscripción</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Límite</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Consumo</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Ciclo</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Precio exacto</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">LTV</th>
@@ -924,7 +903,7 @@ const SubscriptionMonitor: React.FC = () => {
                     setFichaUserId={setFichaUserId}
                     copyToClipboard={copyToClipboard}
                     onCancel={(row) => setCancelConfirmRow(row)}
-                    onUpgrade={(row) => { setUpgradeRow(row); setUpgradePlanSelected(null); setUpgradeIsAnnual(false); }}
+                    onUpgrade={(row) => { setUpgradeRow(row); setUpgradeIsAnnual(false); }}
                   />
                 ))}
               </tbody>
@@ -978,75 +957,73 @@ const SubscriptionMonitor: React.FC = () => {
         </div>
       )}
 
-      {/* Modal upgrade */}
-      {upgradeRow && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50" onClick={() => { if (!upgradeLoading) { setUpgradeRow(null); setUpgradePlanSelected(null); } }}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Upgrade de plan</h3>
-            <p className="text-sm text-slate-500 mb-4">Plan actual: <strong>{PLAN_LABEL[upgradeRow.plan_name ?? ''] ?? upgradeRow.plan_name ?? '—'}</strong>. Elige un plan superior.</p>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium text-slate-600">Facturación:</span>
-              <button
-                type="button"
-                onClick={() => setUpgradeIsAnnual(false)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                Mensual
-              </button>
-              <button
-                type="button"
-                onClick={() => setUpgradeIsAnnual(true)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                Anual
-              </button>
-            </div>
-            <div className="space-y-2 mb-6">
-              {(['Starter', 'Pro', 'Power'] as const).map((planName) => {
-                const currentOrder = { Starter: 1, Pro: 2, Power: 3 }[upgradeRow.plan_name ?? 'Starter'] ?? 1;
-                const planOrder = { Starter: 1, Pro: 2, Power: 3 }[planName];
-                if (planOrder <= currentOrder) return null;
-                const priceId = planName === 'Starter' ? (upgradeIsAnnual ? STRIPE_PRICES.STARTER.ANNUAL : STRIPE_PRICES.STARTER.MONTHLY)
-                  : planName === 'Pro' ? (upgradeIsAnnual ? STRIPE_PRICES.PRO.ANNUAL : STRIPE_PRICES.PRO.MONTHLY)
-                  : (upgradeIsAnnual ? STRIPE_PRICES.POWER.ANNUAL : STRIPE_PRICES.POWER.MONTHLY);
-                const prices = { Starter: { m: 19.90, a: 199 }, Pro: { m: 39.90, a: 399 }, Power: { m: 99, a: 990 } }[planName];
-                const price = upgradeIsAnnual ? prices.a : prices.m;
-                const selected = upgradePlanSelected?.planName === planName;
-                return (
+      {/* Modal upgrade: sugiere un solo plan (Starter→Pro, Pro→Power/Enterprise) */}
+      {upgradeRow && (() => {
+        const currentPlan = (upgradeRow.plan_name ?? 'Starter').toString();
+        const suggestedPlanName = currentPlan === 'Starter' ? 'Pro' : currentPlan === 'Pro' ? 'Power' : null;
+        const suggestedLabel = suggestedPlanName === 'Pro' ? 'Pro' : suggestedPlanName === 'Power' ? 'Power (Enterprise)' : null;
+        const prices = suggestedPlanName === 'Pro' ? { m: 39.90, a: 399 } : suggestedPlanName === 'Power' ? { m: 99, a: 990 } : null;
+        const displayPrice = prices ? (upgradeIsAnnual ? prices.a : prices.m) : 0;
+        return (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50" onClick={() => { if (!upgradeLoading) setUpgradeRow(null); }}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Upgrade de plan</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Plan actual: <strong>{PLAN_LABEL[upgradeRow.plan_name ?? ''] ?? upgradeRow.plan_name ?? '—'}</strong>.
+                {suggestedLabel ? <> Sugerido: <strong>{suggestedLabel}</strong>.</> : ' No hay plan superior disponible.'}
+              </p>
+              {suggestedPlanName && (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-sm font-medium text-slate-600">¿Nuevo plan será Mensual o Anual?</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setUpgradeIsAnnual(false)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      Mensual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUpgradeIsAnnual(true)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      Anual
+                    </button>
+                  </div>
+                  <div className="mb-6 px-4 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50">
+                    <p className="text-sm font-semibold text-slate-800">{suggestedLabel}</p>
+                    <p className="text-lg font-bold text-slate-900">${displayPrice} {upgradeIsAnnual ? '/año' : '/mes'}</p>
+                  </div>
+                </>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  disabled={upgradeLoading}
+                  onClick={() => setUpgradeRow(null)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium"
+                >
+                  Cerrar
+                </button>
+                {suggestedPlanName && (
                   <button
-                    key={planName}
                     type="button"
-                    onClick={() => setUpgradePlanSelected({ planName, priceId })}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                    disabled={upgradeLoading}
+                    onClick={handleUpgradeSubmit}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
                   >
-                    <span className="font-semibold text-slate-900">{planName}</span>
-                    <span className="text-sm font-bold text-slate-700">${price} {upgradeIsAnnual ? '/año' : '/mes'}</span>
+                    {upgradeLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpCircle size={16} />}
+                    Continuar a pago
                   </button>
-                );
-              })}
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                disabled={upgradeLoading}
-                onClick={() => { setUpgradeRow(null); setUpgradePlanSelected(null); }}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium"
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                disabled={!upgradePlanSelected || upgradeLoading}
-                onClick={handleUpgradeSubmit}
-                className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
-              >
-                {upgradeLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpCircle size={16} />}
-                Continuar a pago
-              </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {toastMessage && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium shadow-lg animate-in fade-in duration-200">
