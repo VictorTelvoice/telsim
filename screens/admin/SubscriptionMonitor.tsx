@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, ExternalLink } from 'lucide-react';
+import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, ExternalLink, XCircle, ArrowUpCircle } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
+import { STRIPE_PRICES } from '../../constants/stripePrices';
 
 export type SubRow = {
   id: string;
@@ -19,6 +20,9 @@ export type SubRow = {
   next_payment?: string | null;
   stripe_subscription_id?: string | null;
   ltv?: number;
+  monthly_limit?: number | null;
+  credits_used?: number | null;
+  slot_id?: string | null;
 };
 
 const PLAN_LABEL: Record<string, string> = {
@@ -116,6 +120,8 @@ function SubscriptionTableRow({
   setTooltipRowId,
   setFichaUserId,
   copyToClipboard,
+  onCancel,
+  onUpgrade,
 }: {
   s: SubRow;
   idx: number;
@@ -125,6 +131,8 @@ function SubscriptionTableRow({
   setTooltipRowId: (id: string | null) => void;
   setFichaUserId: (id: string | null) => void;
   copyToClipboard: (text: string, e: React.MouseEvent) => void;
+  onCancel: (row: SubRow) => void;
+  onUpgrade: (row: SubRow) => void;
 }) {
   try {
     const rowId = s?.id ?? '';
@@ -133,6 +141,11 @@ function SubscriptionTableRow({
     const stripeId = s?.stripe_subscription_id ?? null;
     const nombre = (s?.user_nombre ?? s?.user_email) ? (s?.user_nombre ?? '—') : 'Desconocido';
     const email = s?.user_email ?? 'Desconocido';
+    const limit = s?.monthly_limit ?? 0;
+    const used = s?.credits_used ?? 0;
+    const usagePct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+    const isNearLimit = usagePct >= 80 && limit > 0;
+    const isOverLimit = used > limit && limit > 0;
 
     return (
       <tr
@@ -182,6 +195,26 @@ function SubscriptionTableRow({
         </td>
         <td className="px-4 py-3 text-sm font-semibold text-slate-900">
           {s?.plan_name ? (PLAN_LABEL[s.plan_name] ?? s.plan_name) : '—'}
+        </td>
+        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+          {limit > 0 ? limit : '—'}
+        </td>
+        <td className="px-4 py-3">
+          {limit > 0 ? (
+            <div className="flex flex-col gap-0.5 min-w-[80px]">
+              <span className={`text-xs font-semibold ${isOverLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-slate-700'}`}>
+                {used} / {limit}
+              </span>
+              <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(100, usagePct)}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <span className="text-sm text-slate-400">—</span>
+          )}
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -240,13 +273,36 @@ function SubscriptionTableRow({
         <td className="px-4 py-3">
           <StatusBadge status={s?.status ?? null} />
         </td>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onCancel(s)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+              title="Cancelar suscripción"
+            >
+              <XCircle size={14} />
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpgrade(s)}
+              disabled={!s?.slot_id || !userId || ((s?.status || '').toLowerCase() !== 'active' && (s?.status || '').toLowerCase() !== 'trialing')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Cambiar a plan superior"
+            >
+              <ArrowUpCircle size={14} />
+              Upgrade
+            </button>
+          </div>
+        </td>
       </tr>
     );
   } catch (err) {
     console.error('[SubscriptionMonitor] Error renderizando fila:', s, err);
     return (
       <tr key={s?.id ?? idx} className="border-b border-slate-100 bg-red-50/50">
-        <td colSpan={10} className="px-4 py-3 text-sm text-red-600">
+        <td colSpan={13} className="px-4 py-3 text-sm text-red-600">
           Error al cargar esta fila. Revisa la consola.
         </td>
       </tr>
@@ -277,6 +333,12 @@ const SubscriptionMonitor: React.FC = () => {
   const [tooltipRowId, setTooltipRowId] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
+  const [cancelConfirmRow, setCancelConfirmRow] = useState<SubRow | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [upgradeRow, setUpgradeRow] = useState<SubRow | null>(null);
+  const [upgradePlanSelected, setUpgradePlanSelected] = useState<{ planName: string; priceId: string } | null>(null);
+  const [upgradeIsAnnual, setUpgradeIsAnnual] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message);
@@ -372,6 +434,8 @@ const SubscriptionMonitor: React.FC = () => {
       'UUID Usuario',
       'Email Usuario',
       'Plan',
+      'Límite Mensual',
+      'Créditos Usados',
       'Suscripción (Stripe)',
       'Monto',
       'LTV',
@@ -390,6 +454,8 @@ const SubscriptionMonitor: React.FC = () => {
           escapeCsv(s?.user_id ?? ''),
           escapeCsv(s?.user_email ?? ''),
           escapeCsv(s?.plan_name ?? ''),
+          s?.monthly_limit != null ? String(s.monthly_limit) : '',
+          s?.credits_used != null ? String(s.credits_used) : '',
           escapeCsv(s?.stripe_subscription_id ?? ''),
           s?.amount != null ? String(s.amount) : '',
           (s?.ltv != null && s.ltv !== 0) ? String(s.ltv) : '',
@@ -414,7 +480,7 @@ const SubscriptionMonitor: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData, error } = await supabase
       .from('subscriptions')
-      .select('id, plan_name, amount, billing_type, status, subscription_status, created_at, user_id, stripe_subscription_id')
+      .select('id, plan_name, amount, billing_type, status, subscription_status, created_at, user_id, stripe_subscription_id, monthly_limit, credits_used, slot_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -433,6 +499,9 @@ const SubscriptionMonitor: React.FC = () => {
       subscription_status?: string | null;
       created_at?: string;
       stripe_subscription_id?: string | null;
+      monthly_limit?: number | null;
+      credits_used?: number | null;
+      slot_id?: string | null;
     } | null>;
     const rows = rawRows.filter((r): r is NonNullable<typeof r> => r != null && (r.id != null || r.user_id != null));
 
@@ -481,12 +550,76 @@ const SubscriptionMonitor: React.FC = () => {
           user_email: userMap[uid]?.email ?? null,
           user_nombre: userMap[uid]?.nombre ?? null,
           next_payment: nextPayment,
-          stripe_subscription_id: s?.stripe_subscription_id ?? null,
-          ltv: uid ? (ltvByUser[uid] ?? 0) : 0,
+        stripe_subscription_id: s?.stripe_subscription_id ?? null,
+        ltv: uid ? (ltvByUser[uid] ?? 0) : 0,
+        monthly_limit: s?.monthly_limit ?? null,
+        credits_used: s?.credits_used ?? null,
+        slot_id: s?.slot_id ?? null,
         };
       })
     );
   }, []);
+
+  const handleCancelConfirm = useCallback(async () => {
+    const row = cancelConfirmRow;
+    if (!row?.stripe_subscription_id) {
+      showToast('No se puede cancelar: falta ID de Stripe');
+      setCancelConfirmRow(null);
+      return;
+    }
+    setCancelLoading(true);
+    try {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', subscriptionId: row.stripe_subscription_id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error al cancelar');
+      showToast('Suscripción cancelada correctamente');
+      setCancelConfirmRow(null);
+      fetchSubs();
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Error al cancelar');
+    } finally {
+      setCancelLoading(false);
+    }
+  }, [cancelConfirmRow, showToast, fetchSubs]);
+
+  const handleUpgradeSubmit = useCallback(async () => {
+    const row = upgradeRow;
+    const plan = upgradePlanSelected;
+    if (!row?.user_id || !row?.slot_id || !plan) {
+      showToast('Selecciona un plan para continuar');
+      return;
+    }
+    setUpgradeLoading(true);
+    try {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upgrade',
+          userId: row.user_id,
+          slotId: row.slot_id,
+          newPriceId: plan.priceId,
+          newPlanName: plan.planName,
+          isAnnual: upgradeIsAnnual,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error al procesar upgrade');
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      showToast('No se recibió URL de pago');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Error al procesar upgrade');
+    } finally {
+      setUpgradeLoading(false);
+    }
+  }, [upgradeRow, upgradePlanSelected, upgradeIsAnnual, showToast]);
 
   const fetchNotificationStats = useCallback(async () => {
     if (!user?.id) return;
@@ -551,13 +684,10 @@ const SubscriptionMonitor: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="w-full px-4 py-6">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
-          <h2 className="text-xl font-black text-slate-900 mb-1">Suscripciones (Ventas)</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Fecha creación · Próximo cobro (Stripe o calculado por ciclo). Ordena por columnas. Tooltip en USER_ID: nombre y email.
-          </p>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Suscripciones (Ventas)</h2>
 
           {/* Gráfico últimos 7 días: notificaciones enviadas (notification_history) */}
           {last7Days.length > 0 && (
@@ -742,6 +872,8 @@ const SubscriptionMonitor: React.FC = () => {
                     </button>
                   </th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Plan</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Límite Mensual</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Créditos Usados</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Suscripción</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Ciclo</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Precio exacto</th>
@@ -776,6 +908,7 @@ const SubscriptionMonitor: React.FC = () => {
                       {sortBy === 'status' ? (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : null}
                     </button>
                   </th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -790,6 +923,8 @@ const SubscriptionMonitor: React.FC = () => {
                     setTooltipRowId={setTooltipRowId}
                     setFichaUserId={setFichaUserId}
                     copyToClipboard={copyToClipboard}
+                    onCancel={(row) => setCancelConfirmRow(row)}
+                    onUpgrade={(row) => { setUpgradeRow(row); setUpgradePlanSelected(null); setUpgradeIsAnnual(false); }}
                   />
                 ))}
               </tbody>
@@ -811,6 +946,107 @@ const SubscriptionMonitor: React.FC = () => {
         onClose={() => setFichaUserId(null)}
         userId={fichaUserId}
       />
+
+      {/* Modal confirmar cancelación */}
+      {cancelConfirmRow && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50" onClick={() => !cancelLoading && setCancelConfirmRow(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">¿Cancelar suscripción?</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Se cancelará la suscripción en Stripe y se actualizará el estado. Plan: <strong>{PLAN_LABEL[cancelConfirmRow.plan_name ?? ''] ?? cancelConfirmRow.plan_name ?? '—'}</strong>.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={() => setCancelConfirmRow(null)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium disabled:opacity-50"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={handleCancelConfirm}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {cancelLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal upgrade */}
+      {upgradeRow && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50" onClick={() => { if (!upgradeLoading) { setUpgradeRow(null); setUpgradePlanSelected(null); } }}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Upgrade de plan</h3>
+            <p className="text-sm text-slate-500 mb-4">Plan actual: <strong>{PLAN_LABEL[upgradeRow.plan_name ?? ''] ?? upgradeRow.plan_name ?? '—'}</strong>. Elige un plan superior.</p>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm font-medium text-slate-600">Facturación:</span>
+              <button
+                type="button"
+                onClick={() => setUpgradeIsAnnual(false)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                Mensual
+              </button>
+              <button
+                type="button"
+                onClick={() => setUpgradeIsAnnual(true)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${upgradeIsAnnual ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                Anual
+              </button>
+            </div>
+            <div className="space-y-2 mb-6">
+              {(['Starter', 'Pro', 'Power'] as const).map((planName) => {
+                const currentOrder = { Starter: 1, Pro: 2, Power: 3 }[upgradeRow.plan_name ?? 'Starter'] ?? 1;
+                const planOrder = { Starter: 1, Pro: 2, Power: 3 }[planName];
+                if (planOrder <= currentOrder) return null;
+                const priceId = planName === 'Starter' ? (upgradeIsAnnual ? STRIPE_PRICES.STARTER.ANNUAL : STRIPE_PRICES.STARTER.MONTHLY)
+                  : planName === 'Pro' ? (upgradeIsAnnual ? STRIPE_PRICES.PRO.ANNUAL : STRIPE_PRICES.PRO.MONTHLY)
+                  : (upgradeIsAnnual ? STRIPE_PRICES.POWER.ANNUAL : STRIPE_PRICES.POWER.MONTHLY);
+                const prices = { Starter: { m: 19.90, a: 199 }, Pro: { m: 39.90, a: 399 }, Power: { m: 99, a: 990 } }[planName];
+                const price = upgradeIsAnnual ? prices.a : prices.m;
+                const selected = upgradePlanSelected?.planName === planName;
+                return (
+                  <button
+                    key={planName}
+                    type="button"
+                    onClick={() => setUpgradePlanSelected({ planName, priceId })}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                  >
+                    <span className="font-semibold text-slate-900">{planName}</span>
+                    <span className="text-sm font-bold text-slate-700">${price} {upgradeIsAnnual ? '/año' : '/mes'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                disabled={upgradeLoading}
+                onClick={() => { setUpgradeRow(null); setUpgradePlanSelected(null); }}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                disabled={!upgradePlanSelected || upgradeLoading}
+                onClick={handleUpgradeSubmit}
+                className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {upgradeLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpCircle size={16} />}
+                Continuar a pago
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toastMessage && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium shadow-lg animate-in fade-in duration-200">
