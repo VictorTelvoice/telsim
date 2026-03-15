@@ -234,7 +234,7 @@ const AdminTemplates: React.FC = () => {
           Plantillas
         </h1>
         <p className="text-slate-600 mb-6">
-          Edita las plantillas de correo, Telegram y toasts de la app. Usa las variables dinámicas en el panel de la derecha.
+          Gestiona el contenido que ven los clientes: correos, mensajes de Telegram y toasts de la app. Usa las variables dinámicas en el panel de la derecha.
         </p>
 
         <div className="flex gap-1 p-1 bg-white rounded-xl border border-slate-200 shadow-sm mb-6 inline-flex">

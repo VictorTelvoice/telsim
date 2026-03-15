@@ -408,17 +408,13 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'simulate-critical-alert': {
-        let enabled: boolean;
-        if (typeof req.body?.enabled === 'boolean') {
-          enabled = req.body.enabled;
-        } else {
-          const { data: row } = await supabaseAdmin
-            .from('admin_settings')
-            .select('content')
-            .eq('id', 'config_alert_telegram_admin_enabled')
-            .maybeSingle();
-          enabled = String((row as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
-        }
+        // Siempre leer el valor REAL de admin_settings en la base de datos (no confiar en estado del cliente)
+        const { data: row } = await supabaseAdmin
+          .from('admin_settings')
+          .select('content')
+          .eq('id', 'config_alert_telegram_admin_enabled')
+          .maybeSingle();
+        const enabled = String((row as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
         if (!enabled) {
           await logEvent('TEST_CRITICAL_ALERT', 'info', 'Simulación de error crítico (interruptor apagado, no enviado a Telegram).', null, { source: 'admin-panel' }, 'stripe');
           return res.status(200).json({ sent: false, message: 'Alerta bloqueada: El interruptor está apagado.' });

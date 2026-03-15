@@ -57,20 +57,11 @@ const AdminNotifications: React.FC = () => {
   const handleSimulate = useCallback(async () => {
     setSimulatingAlert(true);
     try {
-      const { data: fresh } = await supabase
-        .from('admin_settings')
-        .select('content')
-        .eq('id', CONFIG_ALERT_KEY)
-        .maybeSingle();
-      const enabledInDb = String((fresh as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
-
+      // La API lee siempre el valor real de admin_settings en la DB; no enviamos estado local
       const res = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'simulate-critical-alert',
-          enabled: enabledInDb,
-        }),
+        body: JSON.stringify({ action: 'simulate-critical-alert' }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.sent) {
@@ -102,7 +93,7 @@ const AdminNotifications: React.FC = () => {
           Notificaciones
         </h1>
         <p className="text-slate-600 mb-6">
-          Configuración de alertas críticas para el CEO.
+          Alertas de administrador: recibe en tu Telegram los fallos críticos del sistema (webhook, etc.).
         </p>
 
         <section className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">

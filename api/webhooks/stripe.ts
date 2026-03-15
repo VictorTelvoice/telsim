@@ -1,6 +1,5 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { logEvent } from '../_helpers/logger';
 import { triggerEmail, sendTelegramNotification } from '../_helpers/notifications';
 
 export const config = { api: { bodyParser: false } };
@@ -13,6 +12,30 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
+
+/** Logger local: no depende de módulos externos (evita ERR_MODULE_NOT_FOUND en Vercel). Solo escribe en audit_logs; no lanza. */
+async function logEvent(
+  eventType: string,
+  severity?: string,
+  message?: string,
+  userEmail?: string | null,
+  payload?: Record<string, unknown>,
+  source?: string
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('audit_logs').insert({
+      event_type: eventType,
+      severity: severity ?? 'info',
+      message: message ?? '',
+      user_email: userEmail ?? null,
+      payload: payload ?? {},
+      source: source ?? 'stripe',
+      created_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[WEBHOOK logEvent]', eventType, (e as Error)?.message);
+  }
+}
 
 async function createNotification(
   userId: string,
@@ -67,8 +90,9 @@ export default async function handler(req: any, res: any) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    // Usar siempre session.metadata (slot_id ej: '43A', userId, planName)
-    let sessionMeta: Record<string, string> = (session.metadata as Record<string, string>) || {};
+    // Stripe envía metadata en el JSON; para que la compra finalice con éxito usamos metadata.slot_id (ej. '43A') y metadata.userId
+    const rawMeta = session.metadata as Record<string, string> | null | undefined;
+    let sessionMeta: Record<string, string> = rawMeta && typeof rawMeta === 'object' ? { ...rawMeta } : {};
 
     if (!sessionMeta.upgrade && session.subscription) {
       try {
@@ -180,9 +204,9 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
-    // session.metadata.slot_id (ej: '43A'), session.metadata.userId, session.metadata.planName
-    const slotId = sessionMeta.slot_id ?? sessionMeta.slotId ?? '';
-    const userId = sessionMeta.userId ?? sessionMeta.user_id ?? '';
+    // Activar número en BD con metadata.slot_id (ej. 43A) y metadata.userId recibidos en el JSON de Stripe (status: complete)
+    const slotId = (sessionMeta.slot_id ?? sessionMeta.slotId ?? '').trim();
+    const userId = (sessionMeta.userId ?? sessionMeta.user_id ?? '').trim();
     const planName = sessionMeta.planName ?? sessionMeta.plan_name ?? '';
     const limit = sessionMeta.limit;
     const transactionType = sessionMeta.transactionType;
