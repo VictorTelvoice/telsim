@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPostAuthRoute } from '../../lib/routing';
 
 // ─── Logo (igual que Landing) ─────────────────────────────────────────────────
 const TelsimLogo = () => (
@@ -45,25 +44,17 @@ const Login = () => {
   const getDestination = () => {
     const hasPlan = !!localStorage.getItem('selected_plan');
     if (hasPlan) return '/onboarding/region';
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    return isMobile ? '/dashboard' : '/web';
+    return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      ? '/dashboard'
+      : '/web';
   };
 
-  // Cuando user pasa de null → autenticado, ir al destino correcto
-  useEffect(() => {
-    if (!prevUserRef.current && user) {
-      if (!applyPostLoginRedirect()) navigate(getDestination(), { replace: true });
-    }
-    prevUserRef.current = user;
-  }, [user, navigate]);
-
-  // Si ya tiene sesión activa al cargar, ir directo
   useEffect(() => {
     if (user) {
       if (!applyPostLoginRedirect()) navigate(getDestination(), { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    prevUserRef.current = user;
+  }, [user, navigate]);
 
   // STEP 1: Detectar si el email existe o es nuevo
   const handleContinueEmail = async () => {
