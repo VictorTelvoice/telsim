@@ -341,7 +341,7 @@ const Login = () => {
 
       {/* Footer */}
       <div className="flex items-center justify-center pb-6">
-        <span className="text-[10px] text-slate-300 dark:text-slate-700 font-semibold">TELSIM © 2025 · v2.4.1</span>
+        <span className="text-[10px] text-slate-300 dark:text-slate-700 font-semibold">TELSIM © 2025 · v2.4.2</span>
       </div>
     </div>
   );
