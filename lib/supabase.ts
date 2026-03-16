@@ -11,7 +11,7 @@ const noopLock = (_name: string, _opts: any, fn: () => Promise<unknown>) => fn()
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    persistSession: true,
+    persistSession: true, // auth v2
     detectSessionInUrl: true,
     flowType: 'pkce',
     lock: noopLock as any,
