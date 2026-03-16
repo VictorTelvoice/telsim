@@ -72,7 +72,7 @@ import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
 const isMobileDevice = (): boolean =>
   /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-const LandingOrDashboard: React.FC = () => {
+const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -291,7 +291,7 @@ const App: React.FC = () => {
                   <PostLoginRedirectHandler />
                   <NavigationWatchdog />
                 <Routes>
-                  <Route path="/" element={<LandingOrDashboard />} />
+                  <Route path="/" element={<LandingOrDash_v2 />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
                   <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
 
