@@ -34,22 +34,55 @@ function escapeHtml(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Envuelve el contenido del editor en una estructura HTML limpia para Resend (test de email). */
-function wrapEmailHtml(content: string): string {
-  const safe = String(content ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-  return `<!DOCTYPE html>
+/** Plantilla maestra del correo: marco azul TELSIM con placeholder {{body_content}} para el mensaje. */
+const EMAIL_MASTER_TEMPLATE = `
+<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;background:#f4f7f9;">
-  <div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:24px;line-height:1.6;color:#333;background:#fff;border-radius:8px;">
-    ${safe}
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .header { background-color: #0074d4; padding: 30px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 2px; }
+    .content { padding: 40px; color: #333333; line-height: 1.6; font-size: 16px; }
+    .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    .btn { display: inline-block; padding: 12px 24px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px; }
+    .highlight { color: #0074d4; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>TELSIM</h1></div>
+    <div class="content">
+      {{body_content}}
+    </div>
+    <div class="footer">
+      <p>© 2026 Telsim.io - Todos los derechos reservados.</p>
+    </div>
   </div>
 </body>
-</html>`;
+</html>
+`;
+
+/** Reemplaza variables {{...}} con datos de prueba y convierte saltos de línea en <br> para el HTML del correo. */
+function fillTestVariables(text: string): string {
+  const testData: Record<string, string> = {
+    plan: 'Plan Pro (Test)',
+    nombre: 'CEO Admin',
+    monto: '$39.90',
+    phone: '+56900000000',
+    email: 'noreply@telsim.io',
+    amount: '$39.90',
+    phone_number: '+56900000000',
+    next_date: new Date().toLocaleDateString('es-CL'),
+    billing_type: 'Mensual',
+  };
+  let processed = String(text ?? '');
+  Object.entries(testData).forEach(([key, value]) => {
+    processed = processed.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+  });
+  return processed.replace(/\n/g, '<br>');
 }
 
 type NotificationChannel = 'email' | 'telegram' | 'sms_product';
@@ -153,9 +186,11 @@ async function internalSendEmail(options: {
   from?: string;
   subject?: string;
   html?: string;
+  is_test?: boolean;
+  custom_content?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const category = options.category ?? 'operational';
-  const preview = (options.content ?? options.html ?? '').slice(0, 500) || null;
+  const preview = (options.content ?? options.html ?? options.custom_content ?? '').slice(0, 500) || null;
   try {
     let email = options.toEmail ?? (options.data?.to_email as string) ?? (options.data?.email as string);
     if (!email) {
@@ -175,6 +210,8 @@ async function internalSendEmail(options: {
       from: options.from ?? undefined,
       subject: options.subject ?? undefined,
       html: options.html ?? undefined,
+      is_test: options.is_test ?? undefined,
+      custom_content: options.custom_content ?? undefined,
     });
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
@@ -909,31 +946,26 @@ export default async function handler(req: any, res: any) {
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
-            // Remitente fijo Resend; contenido del editor inyectado en HTML limpio; asunto claro para la prueba.
-            const htmlBody = wrapEmailHtml(content);
+            // 1. Procesar texto del editor: reemplazar {{variables}} y \n → <br>
+            const personalText = fillTestVariables(content);
+            // 2. Inyectar en la plantilla maestra (marco azul TELSIM)
+            const finalHtml = EMAIL_MASTER_TEMPLATE.replace('{{body_content}}', personalText);
+            // 3. Enviar vía Edge Function (Resend)
             const out = await internalSendEmail({
               userId,
               toEmail,
               event: 'purchase_success',
-              content,
+              content: personalText,
               category: 'operational',
               from: 'Telsim <noreply@telsim.io>',
-              subject: 'Telsim - Prueba de Notificación',
-              html: htmlBody,
+              subject: 'Prueba de Plantilla TELSIM',
+              is_test: true,
+              html: finalHtml,
               data: {
                 to_email: toEmail,
                 email: toEmail,
-                subject: 'Telsim - Prueba de Notificación',
                 message: content,
-                content,
-                nombre: 'CEO Test',
-                phone: '+56900000000',
-                plan: 'Plan Pro (Test)',
-                monto: '$39.90',
-                amount: '$39.90',
-                phone_number: '+56900000000',
-                next_date: new Date().toLocaleDateString('es-CL'),
-                billing_type: 'Mensual',
+                content: personalText,
               },
             });
             if (!out.success) {
@@ -942,7 +974,7 @@ export default async function handler(req: any, res: any) {
                 code: 'EMAIL_ERROR',
               });
             }
-            return res.status(200).json({ success: true, message: '✅ Test de Email enviado a tu correo.' });
+            return res.status(200).json({ success: true, message: '✅ Test enviado con tu texto personalizado.' });
           }
 
           return res.status(400).json({ error: 'Canal no soportado.' });

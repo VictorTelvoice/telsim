@@ -412,7 +412,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, html: payloadHtml } = payload;
+    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, html: payloadHtml, is_test: payloadIsTest, custom_content: payloadCustomContent, html_body: payloadHtmlBody } = payload;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
@@ -481,8 +481,11 @@ Deno.serve(async (req) => {
     };
 
     let bodyStr: string;
-    const contentProvided = payloadContent != null && String(payloadContent).trim() !== '';
-    if (contentProvided) {
+    const isTest = payloadIsTest === true;
+    const customBody = payloadCustomContent ?? payloadHtmlBody ?? (isTest ? (data?.message as string) ?? payloadContent : null);
+    if (isTest && customBody != null && String(customBody).trim() !== '') {
+      bodyStr = renderBodyTemplate(String(customBody), data);
+    } else if (payloadContent != null && String(payloadContent).trim() !== '') {
       bodyStr = renderBodyTemplate(String(payloadContent), data);
     } else if (templateContentFromDb && templateContentFromDb.trim() !== '') {
       bodyStr = renderBodyTemplate(templateContentFromDb, data);
