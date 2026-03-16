@@ -34,6 +34,24 @@ function escapeHtml(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/** Envuelve el contenido del editor en una estructura HTML limpia para Resend (test de email). */
+function wrapEmailHtml(content: string): string {
+  const safe = String(content ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;background:#f4f7f9;">
+  <div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:24px;line-height:1.6;color:#333;background:#fff;border-radius:8px;">
+    ${safe}
+  </div>
+</body>
+</html>`;
+}
+
 type NotificationChannel = 'email' | 'telegram' | 'sms_product';
 type NotificationCategory = 'product_delivery' | 'operational';
 
@@ -120,9 +138,9 @@ async function internalSendTelegram(options: {
 
 /**
  * Envío interno Email con logging automático (category + metadata opcional). Devuelve { success, error? } para evitar 500.
- * Llama a la Edge Function send-email de Supabase, que usa Resend para enviar. El payload debe ser compatible con lo que espera la Edge.
- * Si la Edge (o Resend) devuelve error (ej. dominio no verificado), el mensaje se devuelve en error para mostrarlo en el Toast.
- * Variables en Supabase Secrets: RESEND_API_KEY y RESEND_FROM_EMAIL (el from lo gestiona la Edge).
+ * Llama a la Edge Function send-email de Supabase, que usa Resend. Payload compatible con Resend: from, to, subject, html.
+ * Remitente por defecto: Telsim noreply@telsim.io. Si Resend devuelve error (dominio no verificado, API key inválida), se devuelve en error para el Toast.
+ * Variables en Supabase Secrets: RESEND_API_KEY y RESEND_FROM_EMAIL.
  */
 async function internalSendEmail(options: {
   userId: string;
@@ -132,9 +150,12 @@ async function internalSendEmail(options: {
   data?: Record<string, unknown>;
   category?: NotificationCategory;
   metadata?: { slot_id?: string; phone_number?: string };
+  from?: string;
+  subject?: string;
+  html?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const category = options.category ?? 'operational';
-  const preview = (options.content ?? '').slice(0, 500) || null;
+  const preview = (options.content ?? options.html ?? '').slice(0, 500) || null;
   try {
     let email = options.toEmail ?? (options.data?.to_email as string) ?? (options.data?.email as string);
     if (!email) {
@@ -151,6 +172,9 @@ async function internalSendEmail(options: {
       to_email: email,
       data: options.data ?? {},
       content: options.content ?? undefined,
+      from: options.from ?? undefined,
+      subject: options.subject ?? undefined,
+      html: options.html ?? undefined,
     });
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
@@ -164,9 +188,12 @@ async function internalSendEmail(options: {
     } catch {
       // respuesta no JSON (ej. HTML de error)
     }
-    // Capturar el error específico de la Edge o de Resend (ej. dominio no verificado) para mostrarlo en el Toast.
+    // Capturar el error de Resend (dominio no verificado, API key inválida, etc.) para mostrarlo en el Toast.
+    const errFromDetail = result?.detail && typeof result.detail === 'object' && (result.detail as Record<string, unknown>)?.message != null
+      ? String((result.detail as Record<string, unknown>).message)
+      : null;
     const errorDetail = !res.ok
-      ? (typeof result?.message === 'string' ? result.message : typeof result?.error === 'string' ? result.error : null) || rawBody || `HTTP ${res.status}`
+      ? (typeof result?.error === 'string' ? result.error : typeof result?.message === 'string' ? result.message : errFromDetail) || rawBody || `HTTP ${res.status}`
       : null;
     await insertNotificationLog({
       user_id: options.userId,
@@ -882,18 +909,21 @@ export default async function handler(req: any, res: any) {
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
-            // Payload compatible con la Edge send-email (Resend). from = RESEND_FROM_EMAIL lo gestiona la Edge.
-            // message = contenido del editor de plantillas; subject = asunto del test para que la Edge lo use si lo soporta.
+            // Remitente fijo Resend; contenido del editor inyectado en HTML limpio; asunto claro para la prueba.
+            const htmlBody = wrapEmailHtml(content);
             const out = await internalSendEmail({
               userId,
               toEmail,
               event: 'purchase_success',
               content,
               category: 'operational',
+              from: 'Telsim <noreply@telsim.io>',
+              subject: 'Telsim - Prueba de Notificación',
+              html: htmlBody,
               data: {
                 to_email: toEmail,
                 email: toEmail,
-                subject: 'Test de Notificación - Telsim',
+                subject: 'Telsim - Prueba de Notificación',
                 message: content,
                 content,
                 nombre: 'CEO Test',

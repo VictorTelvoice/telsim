@@ -21,7 +21,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
-const RESEND_FROM = 'TELSIM <noreply@telsim.io>';
+const RESEND_FROM = 'Telsim <noreply@telsim.io>';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 // service_role — bypasea RLS, puede leer public.users
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -412,11 +412,14 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent } = payload;
+    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, html: payloadHtml } = payload;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
     }
+
+    // Remitente: payload (test) o constante. Formato Resend: "Telsim noreply@telsim.io" o "Telsim <noreply@telsim.io>"
+    const fromAddress = payloadFrom != null && String(payloadFrom).trim() !== '' ? String(payloadFrom).trim() : RESEND_FROM;
 
     // Usar to_email si viene directo del webhook, sino intentar lookup
     let email: string | null = to_email ?? (payload.email as string) ?? payload.to ?? null;
@@ -502,7 +505,9 @@ Deno.serve(async (req) => {
     const titleOverride = titleKey ? settingsOverrides[titleKey] : undefined;
     const subjectKey = t ? `email_${ev}_subject_${lang}` : undefined;
     const subjectOverride = subjectKey ? settingsOverrides[subjectKey] : undefined;
-    const subject = subjectOverride != null && subjectOverride !== ''
+    const subject = payloadSubject != null && String(payloadSubject).trim() !== ''
+      ? String(payloadSubject).trim()
+      : subjectOverride != null && subjectOverride !== ''
       ? subjectOverride
       : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || event;
     const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
@@ -541,9 +546,11 @@ Deno.serve(async (req) => {
       footerText,
       year: new Date().getFullYear(),
     });
-    const html = MASTER_TEMPLATE.replace('{{content}}', innerContent);
+    const html = payloadHtml != null && String(payloadHtml).trim() !== ''
+      ? String(payloadHtml).trim()
+      : MASTER_TEMPLATE.replace('{{content}}', innerContent);
 
-    // Enviar via Resend
+    // Enviar via Resend (from/subject/html pueden venir del payload para tests)
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -551,7 +558,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: RESEND_FROM,
+        from: fromAddress,
         to: [email],
         subject,
         html,
@@ -584,7 +591,8 @@ Deno.serve(async (req) => {
 
     if (!ok) {
       console.error('Resend error:', resendData);
-      return new Response(JSON.stringify({ error: 'Failed to send email', detail: resendData }), {
+      const errMsg = typeof resendData?.message === 'string' ? resendData.message : typeof resendData?.name === 'string' ? `${resendData.name}: ${resendData?.message ?? ''}` : JSON.stringify(resendData);
+      return new Response(JSON.stringify({ error: errMsg || 'Failed to send email', detail: resendData }), {
         status: 500,
       });
     }
