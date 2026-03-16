@@ -200,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 navigator.userAgent
               );
               const dest = isMobile ? '/dashboard' : '/web';
-              window.location.href = window.location.origin + '/#' + dest;
+              window.location.replace(window.location.origin + '/#' + dest);
             }
           }
         } catch (err) {
