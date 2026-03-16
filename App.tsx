@@ -65,10 +65,30 @@ import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
 import WebDashboard from './screens/dashboard/WebDashboard';
-import { isMobileDevice } from './lib/routing';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
+
+const isMobileDevice = (): boolean =>
+  /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+const LandingOrDashboard: React.FC = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (user) {
+      const dest = isMobileDevice() ? '/dashboard' : '/web';
+      navigate(dest, { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  // Si hay sesión cargando o usuario autenticado, no mostrar landing
+  if (loading || user) return null;
+
+  return <Landing />;
+};
 
 /** Red de seguridad: si el usuario llega al app ya logueado (p. ej. OAuth) y hay post_login_redirect, ir a onboarding */
 const PostLoginRedirectHandler: React.FC = () => {
@@ -271,7 +291,7 @@ const App: React.FC = () => {
                   <PostLoginRedirectHandler />
                   <NavigationWatchdog />
                 <Routes>
-                  <Route path="/" element={<Landing />} />
+                  <Route path="/" element={<LandingOrDashboard />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
                   <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
 
