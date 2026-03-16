@@ -118,7 +118,12 @@ async function internalSendTelegram(options: {
   }
 }
 
-/** Envío interno Email con logging automático (category + metadata opcional). Devuelve { success, error? } para evitar 500. */
+/**
+ * Envío interno Email con logging automático (category + metadata opcional). Devuelve { success, error? } para evitar 500.
+ * Llama a la Edge Function send-email de Supabase, que usa Resend para enviar. El payload debe ser compatible con lo que espera la Edge.
+ * Si la Edge (o Resend) devuelve error (ej. dominio no verificado), el mensaje se devuelve en error para mostrarlo en el Toast.
+ * Variables en Supabase Secrets: RESEND_API_KEY y RESEND_FROM_EMAIL (el from lo gestiona la Edge).
+ */
 async function internalSendEmail(options: {
   userId: string;
   toEmail?: string;
@@ -152,7 +157,17 @@ async function internalSendEmail(options: {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
       body,
     });
-    const result = await res.json().catch(() => ({}));
+    const rawBody = await res.text();
+    let result: Record<string, unknown> = {};
+    try {
+      result = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      // respuesta no JSON (ej. HTML de error)
+    }
+    // Capturar el error específico de la Edge o de Resend (ej. dominio no verificado) para mostrarlo en el Toast.
+    const errorDetail = !res.ok
+      ? (typeof result?.message === 'string' ? result.message : typeof result?.error === 'string' ? result.error : null) || rawBody || `HTTP ${res.status}`
+      : null;
     await insertNotificationLog({
       user_id: options.userId,
       channel: 'email',
@@ -161,10 +176,10 @@ async function internalSendEmail(options: {
       status: res.ok ? 'sent' : 'error',
       category,
       content_preview: preview,
-      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+      error_message: res.ok ? null : errorDetail,
       metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
     });
-    if (!res.ok) return { success: false, error: result?.message || result?.error || 'Error enviando email' };
+    if (!res.ok) return { success: false, error: errorDetail || 'Error enviando email' };
     return { success: true };
   } catch (err) {
     const msg = (err as Error)?.message || 'Error enviando email';
@@ -341,6 +356,12 @@ async function getTemplateContent(templateId: string): Promise<string | null> {
   }
 }
 
+/**
+ * Dispara un email vía la Edge Function send-email (Resend). El payload es compatible con lo que espera la Edge.
+ * Asegurar que data incluya los campos que la plantilla espera (p. ej. purchase_success: nombre, email, phone, plan, monto).
+ * El campo content/bodyOverride es el texto de la plantilla con variables reemplazadas.
+ * Variables en Supabase Secrets: RESEND_API_KEY y RESEND_FROM_EMAIL.
+ */
 async function triggerEmail(
   event: string,
   userId: string,
@@ -366,7 +387,16 @@ async function triggerEmail(
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
       body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride ?? undefined }),
     });
-    const result = await res.json().catch(() => ({}));
+    const rawBody = await res.text();
+    let result: Record<string, unknown> = {};
+    try {
+      result = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      // respuesta no JSON
+    }
+    const errorMessage: string | null = res.ok
+      ? null
+      : (typeof result?.message === 'string' ? result.message : typeof result?.error === 'string' ? result.error : null) ?? rawBody ?? `HTTP ${res.status}`;
     await insertNotificationLog({
       user_id: userId,
       channel: 'email',
@@ -374,7 +404,7 @@ async function triggerEmail(
       event,
       status: res.ok ? 'sent' : 'error',
       category: 'operational',
-      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+      error_message: errorMessage,
       content_preview: (bodyOverride ?? '').slice(0, 500) || null,
     });
   } catch (err) {
@@ -852,19 +882,28 @@ export default async function handler(req: any, res: any) {
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
+            // Payload compatible con la Edge send-email (Resend). from = RESEND_FROM_EMAIL lo gestiona la Edge.
+            // message = contenido del editor de plantillas; subject = asunto del test para que la Edge lo use si lo soporta.
             const out = await internalSendEmail({
               userId,
               toEmail,
-              event: 'admin_test',
+              event: 'purchase_success',
               content,
               category: 'operational',
               data: {
                 to_email: toEmail,
                 email: toEmail,
+                subject: 'Test de Notificación - Telsim',
                 message: content,
                 content,
                 nombre: 'CEO Test',
+                phone: '+56900000000',
                 plan: 'Plan Pro (Test)',
+                monto: '$39.90',
+                amount: '$39.90',
+                phone_number: '+56900000000',
+                next_date: new Date().toLocaleDateString('es-CL'),
+                billing_type: 'Mensual',
               },
             });
             if (!out.success) {
