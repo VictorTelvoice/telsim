@@ -187,14 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
             } else {
-              // Redirigir según device — limpiar ?code= y navegar al dashboard
               const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
               );
-              // Redirect inmediato sin timeout — el timeout causaba race conditions
-              const dest = isMobile ? '/dashboard' : '/web';
-              window.history.replaceState(null, '', window.location.pathname);
-              window.location.hash = dest;
+              const dest = isMobile ? '#/dashboard' : '#/web';
+              window.location.replace(window.location.origin + '/' + dest);
             }
           }
         } catch (err) {
