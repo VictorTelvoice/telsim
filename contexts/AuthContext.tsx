@@ -176,6 +176,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setTimeout(() => {
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
+            } else {
+              // Sin redirect pendiente: ir a web dashboard (desktop) o mobile dashboard
+              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+              );
+              setTimeout(() => {
+                window.location.hash = isMobile ? '/dashboard' : '/web';
+              }, 100);
             }
           }
         } catch (err) {

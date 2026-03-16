@@ -45,7 +45,10 @@ const Login = () => {
   const getDestination = () => {
     const hasPlan = !!localStorage.getItem('selected_plan');
     if (hasPlan) return '/onboarding/region';
-    return getPostAuthRoute();
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+    return isMobile ? '/dashboard' : '/web';
   };
 
   // Cuando user pasa de null → autenticado, ir al destino correcto
