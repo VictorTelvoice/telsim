@@ -111,11 +111,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const run = async () => {
       try {
-        // Si hay ?code= en la URL (OAuth callback), esperar a que Supabase lo procese
-        if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
-          // Supabase con detectSessionInUrl:true lo procesa automáticamente
-          // Dar tiempo para que intercambie el code por sesión
-          await new Promise((resolve) => setTimeout(resolve, 800));
+        // Si hay ?code= en la URL (OAuth PKCE callback), Supabase necesita
+        // intercambiarlo por sesión. Con detectSessionInUrl:true esto ocurre
+        // automáticamente via onAuthStateChange, así que solo esperamos
+        // sin bloquear el hilo principal.
+        const hasOAuthCode = typeof window !== 'undefined' && 
+          window.location.search.includes('code=') &&
+          window.location.hash === '';
+        
+        if (hasOAuthCode) {
+          // No llamar getSession() todavía — dejar que onAuthStateChange
+          // maneje el SIGNED_IN cuando Supabase intercambie el code.
+          // El failSafeTimer asegura que loading se libere si algo falla.
+          if (!cancelled) setLoading(true);
+          return;
         }
         const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
@@ -183,18 +192,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
             } else {
-              // Sin redirect pendiente: ir a web dashboard (desktop) o mobile dashboard
+              // Redirigir según device — limpiar ?code= y navegar al dashboard
               const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
               );
               setTimeout(() => {
-                // Limpiar el ?code= de la URL y navegar al destino correcto
                 const dest = isMobile ? '/dashboard' : '/web';
-                try {
-                  window.history.replaceState(null, '', window.location.pathname);
-                } catch (_) {
-                  // ignore history errors
-                }
+                window.history.replaceState(null, '', window.location.pathname);
                 window.location.hash = dest;
               }, 150);
             }
