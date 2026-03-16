@@ -45,16 +45,14 @@ const Login = () => {
   const getDestination = () => {
     const hasPlan = !!localStorage.getItem('selected_plan');
     if (hasPlan) return '/onboarding/region';
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     return isMobile ? '/dashboard' : '/web';
   };
 
   // Cuando user pasa de null → autenticado, ir al destino correcto
   useEffect(() => {
     if (!prevUserRef.current && user) {
-      if (!applyPostLoginRedirect()) navigate(getDestination());
+      if (!applyPostLoginRedirect()) navigate(getDestination(), { replace: true });
     }
     prevUserRef.current = user;
   }, [user, navigate]);
@@ -62,7 +60,7 @@ const Login = () => {
   // Si ya tiene sesión activa al cargar, ir directo
   useEffect(() => {
     if (user) {
-      if (!applyPostLoginRedirect()) navigate(getDestination());
+      if (!applyPostLoginRedirect()) navigate(getDestination(), { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

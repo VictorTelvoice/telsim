@@ -187,11 +187,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
             } else {
-              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent
-              );
-              const dest = isMobile ? '#/dashboard' : '#/web';
-              window.location.replace(window.location.origin + '/' + dest);
+              // El redirect lo maneja Login.tsx via useEffect([user])
+              // para evitar doble redirect que causa landing flash
             }
           }
         } catch (err) {
