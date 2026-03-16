@@ -82,6 +82,21 @@ export async function triggerEmail(
     const result = await res.json().catch(() => ({}));
     console.log('[triggerEmail] resultado:', result);
     if (!res.ok) console.error('[triggerEmail]', await res.text());
+
+    // Log universal: registrar envío (éxito o error) en notification_history
+    try {
+      await supabaseAdmin.from('notification_history').insert({
+        user_id: userId,
+        recipient: email,
+        channel: 'email',
+        event,
+        status: res.ok ? 'sent' : 'error',
+        error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+        content_preview: (bodyOverride ?? '').slice(0, 500) || null,
+      });
+    } catch {
+      // no bloquear por fallo de historial
+    }
   } catch (err) {
     console.error('[triggerEmail] Failed:', err);
   }
