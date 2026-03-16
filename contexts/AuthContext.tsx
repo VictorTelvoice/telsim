@@ -111,6 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const run = async () => {
       try {
+        // Si hay ?code= en la URL (OAuth callback), esperar a que Supabase lo procese
+        if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+          // Supabase con detectSessionInUrl:true lo procesa automáticamente
+          // Dar tiempo para que intercambie el code por sesión
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        }
         const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
         setSession(sess);
@@ -182,8 +188,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 navigator.userAgent
               );
               setTimeout(() => {
-                window.location.hash = isMobile ? '/dashboard' : '/web';
-              }, 100);
+                // Limpiar el ?code= de la URL y navegar al destino correcto
+                const dest = isMobile ? '/dashboard' : '/web';
+                try {
+                  window.history.replaceState(null, '', window.location.pathname);
+                } catch (_) {
+                  // ignore history errors
+                }
+                window.location.hash = dest;
+              }, 150);
             }
           }
         } catch (err) {
