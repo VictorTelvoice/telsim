@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { getPostAuthRoute } from '../lib/routing';
+import { getPostAuthRoute, isMobileDevice } from '../lib/routing';
 import { STRIPE_PRICES } from '../constants/stripePrices';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -22,8 +22,8 @@ const Landing: React.FC = () => {
   const [videoOpen, setVideoOpen] = useState(false);
 
   useEffect(() => {
-    // En desktop, centrar en PRO inmediatamente sin animación
-    if (window.innerWidth >= 768 && preciosRef.current) {
+    // En desktop/tablet, centrar en PRO inmediatamente sin animación
+    if (!isMobileDevice() && preciosRef.current) {
       const cardWidth = preciosRef.current.scrollWidth / 3;
       preciosRef.current.scrollTo({ left: cardWidth, behavior: 'auto' });
     }
@@ -32,7 +32,7 @@ const Landing: React.FC = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !pricingAnimatedRef.current && window.innerWidth < 768) {
+          if (entry.isIntersecting && !pricingAnimatedRef.current && isMobileDevice()) {
             pricingAnimatedRef.current = true;
             const el = preciosRef.current;
             if (!el) return;
@@ -1186,7 +1186,7 @@ const Landing: React.FC = () => {
                 { name: 'Telegram', slug: 'telegram' },
                 { name: 'WhatsApp', slug: 'whatsapp' },
                 { name: 'Uber', slug: 'uber' },
-                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi/white' },
                 { name: 'Nike', slug: 'nike' },
                 { name: 'Airbnb', slug: 'airbnb' },
                 { name: 'Google', slug: 'google' },
@@ -1195,17 +1195,17 @@ const Landing: React.FC = () => {
                 { name: 'Discord', slug: 'discord' },
                 { name: 'Binance', slug: 'binance' },
                 { name: 'Coinbase', slug: 'coinbase' },
-                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Microsoft', slug: 'microsoft', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
                 { name: 'Booking', slug: 'bookingdotcom' },
                 { name: 'Ebay', slug: 'ebay' },
-                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Amazon', slug: 'amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg' },
                 { name: 'Shopify', slug: 'shopify' },
                 { name: 'Spotify', slug: 'spotify' },
                 { name: 'Netflix', slug: 'netflix' }
               ].map((brand, i) => (
                 <div key={i} className="flex flex-col items-center gap-3 group">
                   <img
-                    src={`https://cdn.simpleicons.org/${brand.slug}/white`}
+                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}/white`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"
@@ -1220,7 +1220,7 @@ const Landing: React.FC = () => {
                 { name: 'Telegram', slug: 'telegram' },
                 { name: 'WhatsApp', slug: 'whatsapp' },
                 { name: 'Uber', slug: 'uber' },
-                { name: 'Rappi', slug: 'rappi' },
+                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi/white' },
                 { name: 'Nike', slug: 'nike' },
                 { name: 'Airbnb', slug: 'airbnb' },
                 { name: 'Google', slug: 'google' },
@@ -1229,17 +1229,17 @@ const Landing: React.FC = () => {
                 { name: 'Discord', slug: 'discord' },
                 { name: 'Binance', slug: 'binance' },
                 { name: 'Coinbase', slug: 'coinbase' },
-                { name: 'Microsoft', slug: 'microsoft' },
+                { name: 'Microsoft', slug: 'microsoft', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
                 { name: 'Booking', slug: 'bookingdotcom' },
                 { name: 'Ebay', slug: 'ebay' },
-                { name: 'Amazon', slug: 'amazon' },
+                { name: 'Amazon', slug: 'amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg' },
                 { name: 'Shopify', slug: 'shopify' },
                 { name: 'Spotify', slug: 'spotify' },
                 { name: 'Netflix', slug: 'netflix' }
               ].map((brand, i) => (
                 <div key={`dup-${i}`} className="flex flex-col items-center gap-3 group">
                   <img
-                    src={`https://cdn.simpleicons.org/${brand.slug}/white`}
+                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}/white`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"

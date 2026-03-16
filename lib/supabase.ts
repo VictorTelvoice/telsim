@@ -24,13 +24,12 @@ function getSupabase(): SupabaseClient {
   const client = createClient(finalUrl, finalKey, {
     global: { fetch: noStoreFetch },
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: 'telsim-auth-session',
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      // Timeout alto para evitar Navigator LockManager timeout que expulsa la sesión tras errores del servidor
-      lockAcquireTimeout: 60_000,
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      // Deshabilita el lock exclusivo que causa timeout de 10s
+      lock: undefined as unknown as any,
     },
   });
   if (typeof globalThis !== 'undefined') {

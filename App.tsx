@@ -65,6 +65,7 @@ import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
 import WebDashboard from './screens/dashboard/WebDashboard';
+import { isMobileDevice } from './lib/routing';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -209,18 +210,29 @@ const BottomNav = () => {
   );
 };
 
+/** Detecta si el dispositivo ES genuinamente móvil/tablet por user agent,
+ *  independientemente del ancho del viewport (que puede estar reducido por
+ *  paneles laterales como el agente de Cursor, DevTools, etc.) */
+const isMobileDeviceUA = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
+  const mobile = isMobileDeviceUA();
 
-  // Si estamos en desktop (≥1024px), redirigir siempre al web dashboard
+  // Si NO es un dispositivo móvil real, redirigir al web dashboard
   React.useEffect(() => {
-    if (window.innerWidth >= 1024) {
+    if (!mobile) {
       navigate('/web', { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, mobile]);
 
-  // En desktop no renderizar nada (se redirige de inmediato)
-  if (window.innerWidth >= 1024) return null;
+  // En desktop/laptop no renderizar nada (se redirige de inmediato)
+  if (!mobile) return null;
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
@@ -307,7 +319,7 @@ const App: React.FC = () => {
                   </Route>
 
                   <Route path="*" element={
-                    <div className="mx-auto w-full max-w-md lg:max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
+                    <div className="mx-auto w-full max-w-md bg-white dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative">
                       <Routes>
                         <Route path="/legal" element={<LegalScreen />} />
                         <Route path="/onboarding/checkout" element={<QuickCheckout />} />
