@@ -1,13 +1,11 @@
 /**
  * TELSIM · POST /api/manage
  *
- * Único punto de entrada para la API de administración.
+ * Único punto de entrada para la API de administración (100% independiente, sin _helpers).
  * Body: { action: 'portal' | 'payment-method' | 'notify-ticket-reply' | 'upgrade' | 'cancel' | 'send-test' | 'verify-bot' | 'send-notification-test' | ... }
  */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { triggerEmail, sendTelegramNotification } from './_helpers/notifications';
-import { logEvent } from './_helpers/logger';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
@@ -36,20 +34,464 @@ function escapeHtml(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Inserta en notification_history sin bloquear el flujo. */
+type NotificationChannel = 'email' | 'telegram' | 'sms_product';
+type NotificationCategory = 'product_delivery' | 'operational';
+
+/** Inserta en notification_history sin bloquear el flujo. category: product_delivery = SMS/producto; operational = tests, avisos. metadata: slot_id, phone_number para producto. */
 async function insertNotificationLog(params: {
   user_id: string;
-  channel: 'email' | 'telegram';
+  channel: NotificationChannel;
   recipient: string;
   event: string;
   status: 'sent' | 'error';
+  category?: NotificationCategory;
   content_preview?: string | null;
   error_message?: string | null;
+  metadata?: Record<string, unknown> | null;
 }): Promise<void> {
   try {
-    await supabaseAdmin.from('notification_history').insert(params);
+    await supabaseAdmin.from('notification_history').insert({
+      ...params,
+      category: params.category ?? 'operational',
+      metadata: params.metadata ?? {},
+    });
   } catch {
     // no bloquear por fallo de historial
+  }
+}
+
+/** Envío interno Telegram con logging automático (category + metadata opcional). Devuelve { success, error? } para evitar 500. */
+async function internalSendTelegram(options: {
+  userId: string;
+  content: string;
+  category?: NotificationCategory;
+  event?: string;
+  metadata?: { slot_id?: string; phone_number?: string };
+}): Promise<{ success: boolean; error?: string }> {
+  const event = options.event ?? 'notification';
+  const category = options.category ?? 'operational';
+  const preview = (options.content || '').slice(0, 500) || null;
+  try {
+    const { data: userRow } = await supabaseAdmin
+      .from('users')
+      .select('telegram_token, telegram_chat_id')
+      .eq('id', options.userId)
+      .maybeSingle();
+    const token = userRow?.telegram_token?.trim();
+    const chatId = userRow?.telegram_chat_id?.trim();
+    if (!token || !chatId) {
+      return { success: false, error: 'Telegram no configurado para este usuario.' };
+    }
+    const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: options.content, parse_mode: 'Markdown' }),
+    });
+    const tgData = await tgRes.json().catch(() => ({}));
+    await insertNotificationLog({
+      user_id: options.userId,
+      channel: 'telegram',
+      recipient: `Telegram:${chatId}`,
+      event,
+      status: tgRes.ok ? 'sent' : 'error',
+      category,
+      content_preview: preview,
+      error_message: tgRes.ok ? null : (tgData?.description ?? null),
+      metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
+    });
+    if (!tgRes.ok) return { success: false, error: tgData?.description || 'Error de Telegram' };
+    return { success: true };
+  } catch (err) {
+    const msg = (err as Error)?.message || 'Error enviando Telegram';
+    await insertNotificationLog({
+      user_id: options.userId,
+      channel: 'telegram',
+      recipient: '',
+      event,
+      status: 'error',
+      category,
+      content_preview: preview,
+      error_message: msg,
+      metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
+    });
+    return { success: false, error: msg };
+  }
+}
+
+/** Envío interno Email con logging automático (category + metadata opcional). Devuelve { success, error? } para evitar 500. */
+async function internalSendEmail(options: {
+  userId: string;
+  toEmail?: string;
+  event: string;
+  content?: string;
+  data?: Record<string, unknown>;
+  category?: NotificationCategory;
+  metadata?: { slot_id?: string; phone_number?: string };
+}): Promise<{ success: boolean; error?: string }> {
+  const category = options.category ?? 'operational';
+  const preview = (options.content ?? '').slice(0, 500) || null;
+  try {
+    let email = options.toEmail ?? (options.data?.to_email as string) ?? (options.data?.email as string);
+    if (!email) {
+      const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', options.userId).maybeSingle();
+      email = userData?.email;
+    }
+    if (!email) return { success: false, error: 'No hay email para este usuario.' };
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) return { success: false, error: 'Configuración de email faltante.' };
+    const body = JSON.stringify({
+      event: options.event,
+      user_id: options.userId,
+      to_email: email,
+      data: options.data ?? {},
+      content: options.content ?? undefined,
+    });
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+      body,
+    });
+    const result = await res.json().catch(() => ({}));
+    await insertNotificationLog({
+      user_id: options.userId,
+      channel: 'email',
+      recipient: email,
+      event: options.event,
+      status: res.ok ? 'sent' : 'error',
+      category,
+      content_preview: preview,
+      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+      metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
+    });
+    if (!res.ok) return { success: false, error: result?.message || result?.error || 'Error enviando email' };
+    return { success: true };
+  } catch (err) {
+    const msg = (err as Error)?.message || 'Error enviando email';
+    await insertNotificationLog({
+      user_id: options.userId,
+      channel: 'email',
+      recipient: '',
+      event: options.event,
+      status: 'error',
+      category,
+      content_preview: preview,
+      error_message: msg,
+      metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
+    });
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Función unificada de envío (corazón de Telsim).
+ * - telegram | email: envía y registra con category (operational por defecto).
+ * - sms_product: solo registra con category 'product_delivery' (auditoría de ventas).
+ * Devuelve { success, error?: string } para que el llamador pueda devolver JSON sin 500.
+ */
+async function sendUnified(options: {
+  channel: NotificationChannel;
+  userId: string;
+  category?: NotificationCategory;
+  event: string;
+  recipient?: string;
+  content: string;
+  data?: Record<string, unknown>;
+}): Promise<{ success: boolean; error?: string }> {
+  const { channel, userId, event, content, data = {} } = options;
+  const category = options.category ?? (channel === 'sms_product' ? 'product_delivery' : 'operational');
+  const preview = (content || '').slice(0, 500) || null;
+
+  if (channel === 'sms_product') {
+    await insertNotificationLog({
+      user_id: userId,
+      channel: 'sms_product',
+      recipient: options.recipient ?? '',
+      event,
+      status: 'sent',
+      category: 'product_delivery',
+      content_preview: preview,
+    });
+    return { success: true };
+  }
+
+  if (channel === 'telegram') {
+    try {
+      const { data: userRow } = await supabaseAdmin
+        .from('users')
+        .select('telegram_token, telegram_chat_id')
+        .eq('id', userId)
+        .maybeSingle();
+      const token = userRow?.telegram_token?.trim();
+      const chatId = userRow?.telegram_chat_id?.trim();
+      if (!token || !chatId) {
+        return { success: false, error: 'Telegram no configurado para este usuario.' };
+      }
+      const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: content, parse_mode: 'Markdown' }),
+      });
+      const tgData = await tgRes.json().catch(() => ({}));
+      await insertNotificationLog({
+        user_id: userId,
+        channel: 'telegram',
+        recipient: `Telegram:${chatId}`,
+        event,
+        status: tgRes.ok ? 'sent' : 'error',
+        category,
+        content_preview: preview,
+        error_message: tgRes.ok ? null : (tgData?.description ?? null),
+      });
+      if (!tgRes.ok) return { success: false, error: tgData?.description || 'Error de Telegram' };
+      return { success: true };
+    } catch (err) {
+      const msg = (err as Error)?.message || 'Error enviando Telegram';
+      await insertNotificationLog({
+        user_id: userId,
+        channel: 'telegram',
+        recipient: '',
+        event,
+        status: 'error',
+        category,
+        content_preview: preview,
+        error_message: msg,
+      });
+      return { success: false, error: msg };
+    }
+  }
+
+  if (channel === 'email') {
+    try {
+      const email = (data?.to_email as string) ?? (data?.email as string);
+      if (!email) {
+        const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
+        const to = userData?.email;
+        if (!to) return { success: false, error: 'No hay email para este usuario.' };
+        (data as Record<string, unknown>).to_email = to;
+        (data as Record<string, unknown>).email = to;
+      }
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceKey) return { success: false, error: 'Configuración de email faltante.' };
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          event,
+          user_id: userId,
+          to_email: (data?.to_email as string) ?? (data?.email as string),
+          data,
+          content: content || undefined,
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      const ok = res.ok;
+      await insertNotificationLog({
+        user_id: userId,
+        channel: 'email',
+        recipient: (data?.to_email as string) ?? (data?.email as string) ?? '',
+        event,
+        status: ok ? 'sent' : 'error',
+        category,
+        content_preview: preview,
+        error_message: ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+      });
+      if (!ok) return { success: false, error: result?.message || result?.error || 'Error enviando email' };
+      return { success: true };
+    } catch (err) {
+      const msg = (err as Error)?.message || 'Error enviando email';
+      await insertNotificationLog({
+        user_id: userId,
+        channel: 'email',
+        recipient: '',
+        event,
+        status: 'error',
+        category,
+        content_preview: preview,
+        error_message: msg,
+      });
+      return { success: false, error: msg };
+    }
+  }
+
+  return { success: false, error: 'Canal no soportado.' };
+}
+
+function replaceVariables(text: string, data: Record<string, unknown>): string {
+  let out = text;
+  for (const [key, value] of Object.entries(data)) {
+    const val = value != null ? String(value) : '';
+    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val);
+  }
+  return out;
+}
+
+async function getTemplateContent(templateId: string): Promise<string | null> {
+  try {
+    const { data: row } = await supabaseAdmin
+      .from('admin_settings')
+      .select('content')
+      .eq('id', templateId)
+      .maybeSingle();
+    const content = (row as { content?: string | null } | null)?.content;
+    return content != null && content.trim() !== '' ? content.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function triggerEmail(
+  event: string,
+  userId: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const templateId = `template_email_${event}`;
+  let bodyOverride: string | null = null;
+  const templateContent = await getTemplateContent(templateId);
+  if (templateContent) bodyOverride = replaceVariables(templateContent, data);
+
+  try {
+    let email = (data?.to_email as string) ?? (data?.email as string) ?? undefined;
+    if (!email) {
+      const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
+      email = userData?.email;
+    }
+    if (!email) return;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) return;
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+      body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride ?? undefined }),
+    });
+    const result = await res.json().catch(() => ({}));
+    await insertNotificationLog({
+      user_id: userId,
+      channel: 'email',
+      recipient: email,
+      event,
+      status: res.ok ? 'sent' : 'error',
+      category: 'operational',
+      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
+      content_preview: (bodyOverride ?? '').slice(0, 500) || null,
+    });
+  } catch (err) {
+    console.error('[triggerEmail]', err);
+  }
+}
+
+async function sendTelegramNotification(
+  messageOrEvent: string,
+  userId: string,
+  data?: Record<string, unknown>
+): Promise<void> {
+  let message: string;
+  if (data != null) {
+    const templateId = `template_telegram_${messageOrEvent}`;
+    const templateContent = await getTemplateContent(templateId);
+    message = templateContent ? replaceVariables(templateContent, data) : replaceVariables('Evento: {{event}}', { event: messageOrEvent, ...data });
+  } else {
+    message = messageOrEvent;
+  }
+  try {
+    const { data: userRow } = await supabaseAdmin
+      .from('users')
+      .select('telegram_token, telegram_chat_id, notification_preferences')
+      .eq('id', userId)
+      .maybeSingle();
+    const tgToken = userRow?.telegram_token;
+    const tgChatId = userRow?.telegram_chat_id;
+    const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean }; sim_activated?: { telegram?: boolean } } | null | undefined;
+    const sendTg = prefs?.sim_expired?.telegram === true || prefs?.sim_activated?.telegram === true;
+    if (tgToken && tgChatId && sendTg) {
+      const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgChatId, text: message, parse_mode: 'Markdown' }),
+      });
+      const tgData = await tgRes.json().catch(() => ({}));
+      await insertNotificationLog({
+        user_id: userId,
+        channel: 'telegram',
+        recipient: `Telegram:${tgChatId}`,
+        event: typeof data !== 'undefined' ? messageOrEvent : 'notification',
+        status: tgRes.ok ? 'sent' : 'error',
+        category: 'operational',
+        error_message: tgRes.ok ? null : (tgData?.description ?? null),
+        content_preview: (message || '').slice(0, 500) || null,
+      });
+    }
+  } catch (err) {
+    console.warn('[sendTelegramNotification]', (err as Error)?.message);
+  }
+}
+
+const CONFIG_ALERT_KEY = 'config_alert_telegram_admin_enabled';
+async function isAlertTelegramAdminEnabled(): Promise<boolean> {
+  try {
+    const { data } = await supabaseAdmin.from('admin_settings').select('content').eq('id', CONFIG_ALERT_KEY).maybeSingle();
+    return String((data as { content?: string } | null)?.content ?? '').toLowerCase() === 'true';
+  } catch {
+    return false;
+  }
+}
+async function sendTelegramAlertInBackground(
+  eventType: string,
+  severity: string,
+  message: string,
+  userEmail: string | null,
+  payload: Record<string, unknown>,
+  source: string
+): Promise<void> {
+  try {
+    const clientEmail = userEmail ?? (payload?.customer_email as string) ?? (payload?.user_email as string) ?? null;
+    const subscriptionId = (payload?.subscription_id as string) ?? null;
+    const payloadSnippet = Object.keys(payload || {}).length > 0 ? '\n<pre>' + JSON.stringify(payload).slice(0, 500) + (JSON.stringify(payload).length > 500 ? '…' : '') + '</pre>' : '';
+    const enabled = await isAlertTelegramAdminEnabled();
+    const adminToken = process.env.TELEGRAM_ADMIN_TOKEN?.trim();
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID?.trim();
+    if (enabled && adminToken && adminChatId) {
+      const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}` + (clientEmail ? `\n👤 Email: <code>${String(clientEmail).replace(/</g, '&lt;')}</code>` : '') + (subscriptionId ? `\n📋 Suscripción: <code>${String(subscriptionId)}</code>` : '') + (source ? `\n📍 ${source}` : '') + payloadSnippet;
+      await fetch(`https://api.telegram.org/bot${adminToken}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }) });
+      return;
+    }
+    const { data } = await supabaseAdmin.from('users').select('telegram_token, telegram_chat_id').eq('id', ADMIN_UID).maybeSingle();
+    if (!data?.telegram_token?.trim() || !data?.telegram_chat_id?.trim()) return;
+    const token = data.telegram_token.trim();
+    const chatId = data.telegram_chat_id.trim();
+    const text = `<b>🚨 ${severity.toUpperCase()}</b>\n<b>${eventType}</b>\n${message || '—'}` + (clientEmail ? `\n👤 ${clientEmail}` : '') + (subscriptionId ? `\n📋 sub: ${subscriptionId}` : '') + (source ? `\n📍 ${source}` : '') + payloadSnippet;
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }) });
+  } catch {
+    // no bloquear
+  }
+}
+async function logEvent(
+  eventType: string,
+  severity?: 'error' | 'warning' | 'info' | 'critical',
+  message?: string,
+  userEmail?: string | null,
+  payload?: Record<string, unknown>,
+  source?: string
+): Promise<void> {
+  try {
+    const sev = severity ?? 'info';
+    const storeFullPayload = sev === 'error' || sev === 'critical';
+    await supabaseAdmin.from('audit_logs').insert({
+      event_type: eventType,
+      severity: sev,
+      message: message ?? '',
+      user_email: userEmail ?? null,
+      payload: storeFullPayload ? (payload ?? {}) : {},
+      source: source ?? 'app',
+      created_at: new Date().toISOString(),
+    });
+    if (sev === 'error' || sev === 'critical') {
+      void sendTelegramAlertInBackground(eventType, sev, message ?? '', userEmail ?? null, storeFullPayload ? (payload ?? {}) : {}, source ?? 'app');
+    }
+  } catch (err) {
+    console.error('[logEvent]', err);
   }
 }
 
@@ -168,6 +610,7 @@ export default async function handler(req: any, res: any) {
           recipient: `Telegram:${userRow.telegram_chat_id.trim()}`,
           event: 'ticket_reply',
           status: tgRes.ok ? 'sent' : 'error',
+          category: 'operational',
           content_preview: message.slice(0, 500),
           error_message: tgRes.ok ? null : (tgData?.description ?? null),
         });
@@ -337,6 +780,7 @@ export default async function handler(req: any, res: any) {
           recipient: `Telegram:${chatId}`,
           event: 'admin_test',
           status: tgRes.ok ? 'sent' : 'error',
+          category: 'operational',
           content_preview: message.slice(0, 500),
           error_message: tgRes.ok ? null : (result?.description ?? null),
         });
@@ -367,75 +811,68 @@ export default async function handler(req: any, res: any) {
             return res.status(400).json({ error: 'Usuario no encontrado en la base de datos.', code: 'USER_NOT_FOUND' });
           }
 
-          if (channel === 'telegram') {
-            const token = (userRow as { telegram_token?: string }).telegram_token?.trim();
-            const chatId = (userRow as { telegram_chat_id?: string }).telegram_chat_id?.trim();
+          const ch = channel === 'sms_product' ? 'sms_product' : channel;
+          if (ch !== 'telegram' && ch !== 'email' && ch !== 'sms_product') {
+            return res.status(400).json({ error: 'Canal no soportado. Use telegram o email.', code: 'INVALID_CHANNEL' });
+          }
 
-            if (!token || !chatId) {
-              return res.status(400).json({
-                error: 'Tu usuario no tiene configurado un Bot de Telegram en Ajustes.',
-                code: 'TELEGRAM_NOT_CONFIGURED',
-              });
-            }
-
-            const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: content,
-                parse_mode: 'Markdown',
-              }),
-            });
-
-            const tgResult = await tgRes.json().catch(() => ({}));
-            const sent = tgRes.ok;
-            await insertNotificationLog({
-              user_id: userId,
-              channel: 'telegram',
-              recipient: `Telegram:${chatId}`,
+          if (ch === 'sms_product') {
+            const out = await sendUnified({
+              channel: 'sms_product',
+              userId,
+              category: 'product_delivery',
               event: 'admin_test',
-              status: sent ? 'sent' : 'error',
-              content_preview: content.slice(0, 500),
-              error_message: sent ? null : (tgResult?.description ?? null),
+              content,
+              recipient: (userRow as { email?: string }).email ?? '',
             });
+            if (!out.success) {
+              return res.status(400).json({ error: out.error, code: 'SEND_ERROR' });
+            }
+            return res.status(200).json({ success: true, message: '✅ Log de producto registrado.' });
+          }
 
-            if (!sent) {
+          if (ch === 'telegram') {
+            const out = await internalSendTelegram({
+              userId,
+              content,
+              category: 'operational',
+              event: 'admin_test',
+            });
+            if (!out.success) {
               return res.status(400).json({
-                error: tgResult?.description || 'Error de Telegram',
+                error: out.error || 'Error al enviar a Telegram',
                 code: 'TELEGRAM_ERROR',
               });
             }
             return res.status(200).json({ success: true, message: '✅ Test de Telegram enviado.' });
           }
 
-          if (channel === 'email') {
+          if (ch === 'email') {
             const toEmail = (userRow as { email?: string }).email;
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
-
-            const testData = {
-              nombre: 'CEO Test',
-              email: toEmail,
-              phone: '+56900000000',
-              plan: 'Plan Pro (Test)',
-              amount: '$39.90',
-              monto: '$39.90',
-              message: content,
-              content: content,
-            };
-
-            await triggerEmail('purchase_success', userId, testData);
-            await insertNotificationLog({
-              user_id: userId,
-              channel: 'email',
-              recipient: toEmail,
+            const out = await internalSendEmail({
+              userId,
+              toEmail,
               event: 'admin_test',
-              status: 'sent',
-              content_preview: content.slice(0, 500),
+              content,
+              category: 'operational',
+              data: {
+                to_email: toEmail,
+                email: toEmail,
+                message: content,
+                content,
+                nombre: 'CEO Test',
+                plan: 'Plan Pro (Test)',
+              },
             });
-
+            if (!out.success) {
+              return res.status(400).json({
+                error: out.error || 'Error al enviar email',
+                code: 'EMAIL_ERROR',
+              });
+            }
             return res.status(200).json({ success: true, message: '✅ Test de Email enviado a tu correo.' });
           }
 
@@ -445,6 +882,74 @@ export default async function handler(req: any, res: any) {
           console.error('[MANAGE send-notification-test]', err);
           return res.status(500).json({ error: msg, code: 'SERVER_ERROR' });
         }
+      }
+
+      case 'retry-notification': {
+        const { logId, userId: reqUserId } = req.body || {};
+        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+          return res.status(403).json({ error: 'Solo el administrador puede reintentar.', code: 'FORBIDDEN' });
+        }
+        if (!logId || typeof logId !== 'string') {
+          return res.status(400).json({ error: 'Se requiere logId.', code: 'MISSING_LOG_ID' });
+        }
+        const { data: logRow, error: logError } = await supabaseAdmin
+          .from('notification_history')
+          .select('id, user_id, channel, event, recipient, content_preview')
+          .eq('id', logId.trim())
+          .maybeSingle();
+        if (logError || !logRow) {
+          return res.status(404).json({ error: 'Registro no encontrado.', code: 'NOT_FOUND' });
+        }
+        const userId = (logRow as { user_id?: string }).user_id;
+        const channel = (logRow as { channel: string }).channel;
+        const event = (logRow as { event: string }).event;
+        const content = (logRow as { content_preview?: string | null }).content_preview ?? '';
+        const recipient = (logRow as { recipient: string }).recipient;
+        if (!userId) {
+          return res.status(400).json({ error: 'El registro no tiene user_id.', code: 'INVALID_LOG' });
+        }
+        if (channel !== 'telegram' && channel !== 'email') {
+          return res.status(400).json({ error: 'Solo se puede reintentar Telegram o Email.', code: 'INVALID_CHANNEL' });
+        }
+        let success = false;
+        let errorMessage: string | null = null;
+        if (channel === 'telegram') {
+          const out = await internalSendTelegram({
+            userId,
+            content: content || '(contenido no disponible)',
+            category: 'operational',
+            event: event || 'retry',
+          });
+          success = out.success;
+          errorMessage = out.error ?? null;
+        } else {
+          const out = await internalSendEmail({
+            userId,
+            toEmail: recipient?.startsWith('Telegram:') ? undefined : recipient,
+            event: event || 'retry',
+            content: content || undefined,
+            category: 'operational',
+            data: { to_email: recipient?.startsWith('Telegram:') ? undefined : recipient, email: recipient },
+          });
+          success = out.success;
+          errorMessage = out.error ?? null;
+        }
+        if (success) {
+          await supabaseAdmin
+            .from('notification_history')
+            .update({ status: 'sent', error_message: null })
+            .eq('id', logId.trim());
+          return res.status(200).json({ success: true, message: 'Mensaje reintentado con éxito.' });
+        }
+        await supabaseAdmin
+          .from('notification_history')
+          .update({ error_message: errorMessage })
+          .eq('id', logId.trim());
+        return res.status(400).json({
+          success: false,
+          error: errorMessage || 'El reintento falló.',
+          code: 'RETRY_FAILED',
+        });
       }
 
       case 'list-notification-history': {
@@ -542,7 +1047,7 @@ export default async function handler(req: any, res: any) {
 
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, simulate-critical-alert.',
+          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert.',
         });
     }
   } catch (err: any) {

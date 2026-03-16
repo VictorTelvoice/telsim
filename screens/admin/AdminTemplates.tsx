@@ -143,6 +143,7 @@ const AdminTemplates: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyEmailSearch, setHistoryEmailSearch] = useState('');
   const [historyEventSearch, setHistoryEventSearch] = useState('');
+  const [retryingLogId, setRetryingLogId] = useState<string | null>(null);
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   const insertAtCursor = useCallback((id: string, before: string, after?: string) => {
@@ -229,6 +230,39 @@ const AdminTemplates: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'history') fetchHistory();
   }, [activeTab, fetchHistory]);
+
+  const handleRetryNotification = useCallback(
+    async (logId: string) => {
+      if (!user?.id) {
+        showLocalToast('Sesión expirada. Recarga la página.', 'error');
+        return;
+      }
+      setRetryingLogId(logId);
+      try {
+        const res = await fetch('/api/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'retry-notification',
+            logId,
+            userId: user.id,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          showLocalToast('✅ Mensaje reintentado con éxito.', 'success');
+          fetchHistory();
+        } else {
+          showLocalToast(data.error || 'Error al reintentar.', 'error');
+        }
+      } catch {
+        showLocalToast('No se pudo conectar con el servidor.', 'error');
+      } finally {
+        setRetryingLogId(null);
+      }
+    },
+    [user?.id, showLocalToast, fetchHistory]
+  );
 
   const getIdsForTab = (tab: TabKey): string[] => {
     if (tab === 'email') return KNOWN_EMAIL_IDS;
@@ -434,13 +468,14 @@ const AdminTemplates: React.FC = () => {
                     <th className="px-5 py-3">Tipo</th>
                     <th className="px-5 py-3">Evento</th>
                     <th className="px-5 py-3">Estado</th>
+                    <th className="px-5 py-3 w-20">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {historyLoading ? (
-                    <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500"><Loader2 size={24} className="animate-spin mx-auto" /></td></tr>
+                    <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500"><Loader2 size={24} className="animate-spin mx-auto" /></td></tr>
                   ) : historyList.length === 0 ? (
-                    <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">No hay registros.</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">No hay registros.</td></tr>
                   ) : (
                     historyList.map((row) => (
                       <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
@@ -461,6 +496,25 @@ const AdminTemplates: React.FC = () => {
                           >
                             {row.status === 'sent' ? 'Enviado' : 'Error'}
                           </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          {row.status === 'error' && (row.channel === 'telegram' || row.channel === 'email') ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRetryNotification(row.id)}
+                              disabled={retryingLogId !== null}
+                              title="Reintentar envío"
+                              className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                              {retryingLogId === row.id ? (
+                                <Loader2 size={18} className="animate-spin" />
+                              ) : (
+                                <RotateCcw size={18} />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </td>
                       </tr>
                     ))
