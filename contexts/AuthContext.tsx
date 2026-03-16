@@ -162,8 +162,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
         try {
           if (cancelled) return;
-          setSession(sess);
           const currentUser = sess?.user ?? null;
+          console.log('[AUTH EVENT]', event, 'user:', currentUser?.email, 'hash:', window.location.hash, 'search:', window.location.search);
+          setSession(sess);
           if (currentUser) {
             let profileData: ProfileData = null;
             try {
