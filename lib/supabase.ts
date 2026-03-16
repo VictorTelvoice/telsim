@@ -6,10 +6,7 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
 
-// Implementación de lock que NO usa Navigator.locks (evita el timeout de 10s)
-// que ocurre cuando hay múltiples pestañas o el lock queda atrapado.
-const noopLock: (name: string, acquireOptions: { mode: string }, fn: () => Promise<unknown>) => Promise<unknown> =
-  (_name, _opts, fn) => fn();
+const noopLock = (_name: string, _opts: any, fn: () => Promise<unknown>) => fn();
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
