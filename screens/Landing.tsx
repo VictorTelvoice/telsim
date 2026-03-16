@@ -21,6 +21,13 @@ const Landing: React.FC = () => {
   const [testimoniosPage, setTestimoniosPage] = useState(0);
   const [videoOpen, setVideoOpen] = useState(false);
 
+  // Suprimir landing durante callback OAuth (evita flash de contenido mientras se procesa ?code=)
+  if (typeof window !== 'undefined' &&
+      window.location.search.includes('code=') &&
+      !window.location.hash) {
+    return null;
+  }
+
   useEffect(() => {
     // En desktop/tablet, centrar en PRO inmediatamente sin animación
     if (!isMobileDevice() && preciosRef.current) {
