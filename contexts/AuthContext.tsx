@@ -176,7 +176,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
           }
 
-          if (event === 'SIGNED_IN' && currentUser) {
+          // Redirigir tanto en SIGNED_IN como en INITIAL_SESSION con ?code=
+          // OAuth PKCE puede disparar INITIAL_SESSION en vez de SIGNED_IN
+          const isOAuthCallback = window.location.search.includes('code=');
+          if ((event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && isOAuthCallback)) && currentUser) {
             try {
               await syncRef.current(currentUser);
             } catch (err) {
@@ -192,8 +195,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
             } else {
-              // El redirect lo maneja Login.tsx via useEffect([user])
-              // para evitar doble redirect que causa landing flash
+              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+              );
+              const dest = isMobile ? '/dashboard' : '/web';
+              window.location.href = window.location.origin + '/#' + dest;
             }
           }
         } catch (err) {
