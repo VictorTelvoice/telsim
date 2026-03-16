@@ -111,20 +111,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const run = async () => {
       try {
-        // Si hay ?code= en la URL (OAuth PKCE callback), Supabase necesita
-        // intercambiarlo por sesión. Con detectSessionInUrl:true esto ocurre
-        // automáticamente via onAuthStateChange, así que solo esperamos
-        // sin bloquear el hilo principal.
-        const hasOAuthCode = typeof window !== 'undefined' && 
+        // Si hay ?code= sin hash → callback OAuth/PKCE.
+        // Supabase lo procesa via detectSessionInUrl:true de forma automática.
+        // Solo limpiamos la URL para evitar que el ?code= quede visible.
+        if (
+          typeof window !== 'undefined' &&
           window.location.search.includes('code=') &&
-          window.location.hash === '';
-        
-        if (hasOAuthCode) {
-          // No llamar getSession() todavía — dejar que onAuthStateChange
-          // maneje el SIGNED_IN cuando Supabase intercambie el code.
-          // El failSafeTimer asegura que loading se libere si algo falla.
-          if (!cancelled) setLoading(true);
-          return;
+          window.location.hash === ''
+        ) {
+          window.history.replaceState(null, '', window.location.pathname);
         }
         const { data: { session: sess } } = await (supabase.auth as any).getSession();
         if (cancelled) return;
@@ -196,11 +191,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
               );
-              setTimeout(() => {
-                const dest = isMobile ? '/dashboard' : '/web';
-                window.history.replaceState(null, '', window.location.pathname);
-                window.location.hash = dest;
-              }, 150);
+              // Redirect inmediato sin timeout — el timeout causaba race conditions
+              const dest = isMobile ? '/dashboard' : '/web';
+              window.history.replaceState(null, '', window.location.pathname);
+              window.location.hash = dest;
             }
           }
         } catch (err) {
