@@ -1,62 +1,51 @@
 import { supabase } from '../lib/supabase';
 
+const SESSION_KEY = 'telsim_device_session_id';
+
+const getDeviceName = (): string => {
+  const ua = navigator.userAgent;
+  if (ua.includes('iPhone')) return 'iPhone';
+  if (ua.includes('iPad')) return 'iPad';
+  if (ua.includes('Android')) return 'Android';
+  if (ua.includes('Macintosh')) return 'Mac';
+  if (ua.includes('Windows')) return 'Windows PC';
+  return 'Navegador';
+};
+
 export const useDeviceSession = () => {
   const registerOrUpdateSession = async (userId: string) => {
     try {
-      const SESSION_KEY = 'telsim_device_session_id';
-      const storedSessionId = localStorage.getItem(SESSION_KEY);
-      
-      const userAgent = navigator.userAgent;
-      const deviceName = userAgent.includes('iPhone') ? 'iPhone' : 
-                         userAgent.includes('Android') ? 'Android Device' : 
-                         userAgent.includes('Macintosh') ? 'MacBook' : 'Windows PC';
-      
+      const storedId = localStorage.getItem(SESSION_KEY);
       const now = new Date().toISOString();
 
-      // ESCENARIO A: Intentar actualizar sesión existente
-      if (storedSessionId) {
-        const { data: updatedData, error: updateError } = await supabase
+      if (storedId) {
+        const { data } = await supabase
           .from('device_sessions')
-          .update({ 
-            last_active: now,
-            is_current: true 
-          })
-          .eq('id', storedSessionId)
+          .update({ last_active: now, is_current: true })
+          .eq('id', storedId)
           .eq('user_id', userId)
-          .select();
+          .select('id')
+          .single();
 
-        // Si se actualizó correctamente, terminamos
-        if (!updateError && updatedData && updatedData.length > 0) {
-          console.debug('Session updated:', storedSessionId);
-          return;
-        }
-        
-        // Si llegamos aquí, el ID del localStorage ya no existe en la DB
-        console.warn('Stored session ID invalid or deleted. Creating new one.');
+        if (data) return; // Actualizado correctamente
       }
 
-      // ESCENARIO B: Crear nueva sesión (Nuevo dispositivo o ID caducado)
-      const { data: newData, error: insertError } = await supabase
+      // Crear nueva sesión
+      const { data: newSession } = await supabase
         .from('device_sessions')
         .insert([{
           user_id: userId,
-          device_name: deviceName,
-          location: 'Santiago, CL (Simulado)',
+          device_name: getDeviceName(),
           is_current: true,
-          last_active: now
+          last_active: now,
         }])
-        .select()
+        .select('id')
         .single();
 
-      if (insertError) throw insertError;
-
-      if (newData) {
-        localStorage.setItem(SESSION_KEY, newData.id);
-        console.debug('New session registered:', newData.id);
-      }
-
+      if (newSession) localStorage.setItem(SESSION_KEY, newSession.id);
     } catch (err) {
-      console.error('Critical error managing device session:', err);
+      // No crítico — no bloquear el flujo de login
+      console.warn('Device session error (non-critical):', err);
     }
   };
 

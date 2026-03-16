@@ -50,6 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const syncUserToPublicTable = useCallback(async (currentUser: any) => {
+    // Throttle: no sincronizar más de una vez cada 10 minutos
+    const syncKey = `telsim_sync_${currentUser.id}`;
+    const lastSync = parseInt(localStorage.getItem(syncKey) || '0');
+    if (Date.now() - lastSync < 10 * 60 * 1000) return;
+    localStorage.setItem(syncKey, String(Date.now()));
     try {
       const { data: existing } = await supabase
         .from('users')

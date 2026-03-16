@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Notification } from '../types';
@@ -21,7 +20,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -31,36 +30,54 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
-
       if (error) throw error;
       setNotifications(data || []);
     } catch (err) {
-      console.error("Error fetching notifications:", err);
+      console.error('Error fetching notifications:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchNotifications();
-    
     if (!user) return;
+    fetchNotifications();
+
+    // Direct state updates from payload — no refetch on every event (scales for 1000+ users)
     const channel = supabase
-      .channel('notifications_realtime')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
+      .channel(`notifications_${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${user.id}`
-      }, () => {
-        fetchNotifications();
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        setNotifications(prev => [payload.new as Notification, ...prev].slice(0, 20));
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        setNotifications(prev =>
+          prev.map(n => n.id === (payload.new as Notification).id ? (payload.new as Notification) : n)
+        );
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        setNotifications(prev => prev.filter(n => n.id !== (payload.old as Notification).id));
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   const addNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'is_read'>) => {
     if (!user) return;

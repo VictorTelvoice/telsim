@@ -487,6 +487,13 @@ const WebDashboard: React.FC = () => {
 
       setSlots(finalData as Slot[]);
 
+      // Limpiar keys de onboarding si el usuario ya tiene SIMs activas
+      if ((finalData as Slot[]).length > 0) {
+        ['selected_plan', 'selected_billing', 'selected_plan_annual',
+         'post_login_redirect', 'selected_plan_price_id', 'selected_plan_price']
+          .forEach((k) => localStorage.removeItem(k));
+      }
+
       const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user?.id).order('received_at', { ascending: false }).limit(60).abortSignal(signal);
       if (signal.aborted) return;
       if (msgs) setMessages(msgs as SMSLog[]);
@@ -503,6 +510,12 @@ const WebDashboard: React.FC = () => {
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       console.error(e);
+      // Retry automático una vez después de 3s en caso de error de red
+      if (!signal.aborted) {
+        setTimeout(() => {
+          if (!signal.aborted) fetchData();
+        }, 3000);
+      }
     } finally {
       if (!signal.aborted) setLoading(false);
     }
@@ -514,17 +527,22 @@ const WebDashboard: React.FC = () => {
   }, [user?.id, fetchData, authVersion]);
 
   useEffect(() => {
+    let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
     const onVisibilityChange = () => {
       if (typeof document === 'undefined') return;
       if (document.visibilityState === 'hidden') {
+        if (visibilityTimer) clearTimeout(visibilityTimer);
         fetchAbortRef.current.abort();
         fetchAbortRef.current = new AbortController();
       } else {
-        fetchData();
+        visibilityTimer = setTimeout(() => fetchData(), 3000);
       }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      if (visibilityTimer) clearTimeout(visibilityTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [fetchData]);
 
   // ─── Auto-refresh feed en vivo every 5 seconds ────────────────────────────────
@@ -764,6 +782,8 @@ const WebDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
+    // Remover canal existente antes de crear uno nuevo (evita duplicados)
+    supabase.removeChannel(supabase.channel('web-sms-live'));
     const ch = supabase.channel('web-sms-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sms_logs', filter: `user_id=eq.${user.id}` },
         (p) => {
