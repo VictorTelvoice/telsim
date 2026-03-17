@@ -77,12 +77,11 @@ const LandingOrDash_v2: React.FC = () => {
   const navigate = useNavigate();
 
   React.useEffect(() => {
+    console.log('[LOD]', 'loading:', loading, 'user:', user?.email);
     if (loading) return;
     if (user) {
       const dest = isMobileDevice() ? '/dashboard' : '/web';
-      // Usar window.location.replace en vez de navigate()
-      // porque HashRouter no detecta la ruta cuando hash está vacío
-      // después del callback OAuth de Supabase
+      console.log('[LOD] replacing to', dest);
       window.location.replace(window.location.origin + '/#' + dest);
       return;
     }
