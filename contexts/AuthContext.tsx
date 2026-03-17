@@ -196,11 +196,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
               }, 100);
             } else {
+              console.log('[AUTH REDIRECT] firing redirect to /web');
               const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
               );
               const dest = isMobile ? '/dashboard' : '/web';
-              window.location.replace(window.location.origin + '/#' + dest);
+              console.log('[AUTH REDIRECT] dest:', dest, 'current hash:', window.location.hash);
+              window.location.hash = dest;
+              setTimeout(() => window.location.reload(), 100);
             }
           }
         } catch (err) {
