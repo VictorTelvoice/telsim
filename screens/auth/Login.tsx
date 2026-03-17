@@ -50,16 +50,22 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      if (!applyPostLoginRedirect()) {
-        const dest = getDestination();
-        // Limpiar ?code= de la URL primero, luego navegar
-        window.history.replaceState(null, '', '/');
-        window.location.href = window.location.origin + '/#' + dest;
-      }
+    if (!user) return;
+    if (!applyPostLoginRedirect()) {
+      const dest = getDestination();
+      window.history.replaceState(null, '', '/');
+      window.location.href = window.location.origin + '/#' + dest;
     }
     prevUserRef.current = user;
-  }, [user, navigate]);
+  }, [user]);
+
+  // Redirect inmediato si ya hay sesión al montar (OAuth callback)
+  if (user) {
+    const dest = getDestination();
+    window.history.replaceState(null, '', '/');
+    window.location.href = window.location.origin + '/#' + dest;
+    return null;
+  }
 
   // STEP 1: Detectar si el email existe o es nuevo
   const handleContinueEmail = async () => {
