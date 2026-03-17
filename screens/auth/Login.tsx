@@ -51,7 +51,10 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      if (!applyPostLoginRedirect()) navigate(getDestination(), { replace: true });
+      if (!applyPostLoginRedirect()) {
+        const dest = getDestination();
+        window.location.replace(window.location.origin + '/#' + dest);
+      }
     }
     prevUserRef.current = user;
   }, [user, navigate]);
