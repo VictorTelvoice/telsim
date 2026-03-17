@@ -129,6 +129,18 @@
   }
 }
 </script>
+    <script>
+      // OAuth callback: si hay ?code= en la URL, redirigir a /#/login manteniendo el code
+      // para que Supabase lo procese desde ahí
+      (function() {
+        var search = window.location.search;
+        var hash = window.location.hash;
+        if (search.includes('code=') && (!hash || hash === '#/')) {
+          // Vino de OAuth sin hash — redirigir a /#/login para que Login.tsx maneje el flujo
+          window.location.replace(window.location.origin + '/#/login' + '?' + search.slice(1));
+        }
+      })();
+    </script>
 </head>
   <body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 antialiased">
     <div id="root"></div>
