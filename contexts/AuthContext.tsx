@@ -181,30 +181,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // OAuth PKCE puede disparar INITIAL_SESSION en vez de SIGNED_IN
           const isOAuthCallback = window.location.search.includes('code=');
           if ((event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && isOAuthCallback)) && currentUser) {
-            try {
-              await syncRef.current(currentUser);
-            } catch (err) {
-              console.error('Auth sync on sign-in:', err);
-            }
+            // Redirigir PRIMERO antes del sync para no bloquear la navegación
             const redirect = localStorage.getItem('post_login_redirect');
             if (redirect) {
               localStorage.removeItem('post_login_redirect');
               const plan = localStorage.getItem('selected_plan') || 'pro';
               const billing = localStorage.getItem('selected_billing') || 'monthly';
               localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
-              setTimeout(() => {
-                window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
-              }, 100);
+              window.location.hash = `${redirect}?plan=${plan}&billing=${billing}`;
+              setTimeout(() => window.location.reload(), 50);
             } else {
-              console.log('[AUTH REDIRECT] firing redirect to /web');
-              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent
-              );
+              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
               const dest = isMobile ? '/dashboard' : '/web';
-              console.log('[AUTH REDIRECT] dest:', dest, 'current hash:', window.location.hash);
               window.location.hash = dest;
-              setTimeout(() => window.location.reload(), 100);
+              setTimeout(() => window.location.reload(), 50);
             }
+            // Sync en background sin bloquear
+            syncRef.current(currentUser).catch(err => console.error('Auth sync on sign-in:', err));
           }
         } catch (err) {
           console.error('Auth onAuthStateChange error:', err);
