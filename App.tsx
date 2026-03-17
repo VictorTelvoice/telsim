@@ -74,6 +74,8 @@ const isMobileDevice = (): boolean =>
 
 const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
+  const search = typeof window !== 'undefined' ? window.location.search : '';
+  const isOAuth = search.includes('code=') || search.includes('oauth=1');
 
   // Si hay usuario: redirigir inmediatamente
   if (user) {
@@ -83,7 +85,7 @@ const LandingOrDash_v2: React.FC = () => {
   }
 
   // Si está cargando o hay ?code= OAuth pendiente: mostrar spinner
-  if (loading || window.location.search.includes('code=')) {
+  if (loading || isOAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="flex flex-col items-center gap-3">
