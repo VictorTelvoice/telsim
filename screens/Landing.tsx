@@ -1186,7 +1186,7 @@ const Landing: React.FC = () => {
                 { name: 'Telegram', slug: 'telegram' },
                 { name: 'WhatsApp', slug: 'whatsapp' },
                 { name: 'Uber', slug: 'uber' },
-                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi/white' },
+                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi' },
                 { name: 'Nike', slug: 'nike' },
                 { name: 'Airbnb', slug: 'airbnb' },
                 { name: 'Google', slug: 'google' },
@@ -1205,7 +1205,7 @@ const Landing: React.FC = () => {
               ].map((brand, i) => (
                 <div key={i} className="flex flex-col items-center gap-3 group">
                   <img
-                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}/white`}
+                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"
@@ -1220,7 +1220,7 @@ const Landing: React.FC = () => {
                 { name: 'Telegram', slug: 'telegram' },
                 { name: 'WhatsApp', slug: 'whatsapp' },
                 { name: 'Uber', slug: 'uber' },
-                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi/white' },
+                { name: 'Rappi', slug: 'rappi', logo: 'https://cdn.simpleicons.org/rappi' },
                 { name: 'Nike', slug: 'nike' },
                 { name: 'Airbnb', slug: 'airbnb' },
                 { name: 'Google', slug: 'google' },
@@ -1239,7 +1239,7 @@ const Landing: React.FC = () => {
               ].map((brand, i) => (
                 <div key={`dup-${i}`} className="flex flex-col items-center gap-3 group">
                   <img
-                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}/white`}
+                    src={brand.logo ?? `https://cdn.simpleicons.org/${brand.slug}`}
                     alt={brand.name}
                     className="h-8 md:h-10 w-auto opacity-50 group-hover:opacity-100 transition-opacity duration-300"
                     referrerPolicy="no-referrer"
