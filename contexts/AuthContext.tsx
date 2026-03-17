@@ -172,9 +172,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch {
               profileData = null;
             }
+            if (!cancelled) setLoading(false);
             setUser(enrichUser(currentUser, profileData));
           } else {
             setUser(null);
+            if (!cancelled) setLoading(false);
           }
 
           if (event === 'SIGNED_IN' && currentUser) {
@@ -183,9 +185,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (err) {
           console.error('Auth onAuthStateChange error:', err);
-        } finally {
           if (!cancelled) setLoading(false);
         }
+        // setLoading(false) ya fue llamado dentro del try antes de llegar aquí
+        // No llamar en finally para evitar render con loading:false y user:undefined
       });
       subscriptionRef.current = subscription;
     };
