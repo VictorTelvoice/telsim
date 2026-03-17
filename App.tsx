@@ -74,31 +74,21 @@ const isMobileDevice = (): boolean =>
 
 const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
 
-  React.useEffect(() => {
-    console.log('[LOD]', 'loading:', loading, 'user:', user?.email);
-    if (loading) return;
-    if (user) {
-      const dest = isMobileDevice() ? '/dashboard' : '/web';
-      console.log('[LOD] replacing to', dest);
-      window.location.replace(window.location.origin + '/#' + dest);
-      return;
-    }
-    // Sin usuario y sin loading: verificar si hay ?code= pendiente
-    // Si lo hay, esperar a que AuthContext procese la sesión (SIGNED_IN llegará)
-  }, [user, loading, navigate]);
+  // Si hay usuario: redirigir inmediatamente
+  if (user) {
+    const dest = isMobileDevice() ? '/dashboard' : '/web';
+    window.location.replace(window.location.origin + '/#' + dest);
+    return null;
+  }
 
-  // Mientras carga O hay usuario autenticado: no mostrar landing
-  if (loading || user) return null;
-
-  // Si hay ?code= en la URL, Supabase está procesando el OAuth — mostrar spinner
-  if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+  // Si está cargando o hay ?code= OAuth pendiente: mostrar spinner
+  if (loading || window.location.search.includes('code=')) {
     return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-[12px] font-semibold text-slate-400">Iniciando sesión...</p>
+          <p className="text-xs font-semibold text-slate-400">Iniciando sesión...</p>
         </div>
       </div>
     );
