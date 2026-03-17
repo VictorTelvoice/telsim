@@ -27,6 +27,15 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false);
   const prevUserRef = useRef(user);
 
+  // Detectar cuando OAuth termina y recargar para limpiar la URL
+  useEffect(() => {
+    if (sessionStorage.getItem('oauth_pending') && user) {
+      sessionStorage.removeItem('oauth_pending');
+      const dest = getDestination();
+      window.location.replace(window.location.origin + '/#' + dest);
+    }
+  }, [user]);
+
   // Destino post-auth: post_login_redirect (desde landing con plan) o dashboard
   const applyPostLoginRedirect = () => {
     const redirect = localStorage.getItem('post_login_redirect');
@@ -53,19 +62,10 @@ const Login = () => {
     if (!user) return;
     if (!applyPostLoginRedirect()) {
       const dest = getDestination();
-      window.history.replaceState(null, '', '/');
-      window.location.href = window.location.origin + '/#' + dest;
+      window.location.replace(window.location.origin + '/#' + dest);
     }
     prevUserRef.current = user;
   }, [user]);
-
-  // Redirect inmediato si ya hay sesión al montar (OAuth callback)
-  if (user) {
-    const dest = getDestination();
-    window.history.replaceState(null, '', '/');
-    window.location.href = window.location.origin + '/#' + dest;
-    return null;
-  }
 
   // STEP 1: Detectar si el email existe o es nuevo
   const handleContinueEmail = async () => {
