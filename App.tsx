@@ -81,11 +81,26 @@ const LandingOrDash_v2: React.FC = () => {
     if (user) {
       const dest = isMobileDevice() ? '/dashboard' : '/web';
       navigate(dest, { replace: true });
+      return;
     }
+    // Sin usuario y sin loading: verificar si hay ?code= pendiente
+    // Si lo hay, esperar a que AuthContext procese la sesión (SIGNED_IN llegará)
   }, [user, loading, navigate]);
 
-  // Si hay sesión cargando o usuario autenticado, no mostrar landing
+  // Mientras carga O hay usuario autenticado: no mostrar landing
   if (loading || user) return null;
+
+  // Si hay ?code= en la URL, Supabase está procesando el OAuth — mostrar spinner
+  if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-[12px] font-semibold text-slate-400">Iniciando sesión...</p>
+        </div>
+      </div>
+    );
+  }
 
   return <Landing />;
 };
