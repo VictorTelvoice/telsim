@@ -74,28 +74,17 @@ const isMobileDevice = (): boolean =>
 
 const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
-  const search = typeof window !== 'undefined' ? window.location.search : '';
-  const isOAuth = search.includes('code=') || search.includes('oauth=1');
+  const navigate = useNavigate();
 
-  // Si hay usuario: redirigir inmediatamente
-  if (user) {
-    const dest = isMobileDevice() ? '/dashboard' : '/web';
-    window.location.replace(window.location.origin + '/#' + dest);
-    return null;
-  }
+  React.useEffect(() => {
+    if (loading) return;
+    if (user) {
+      const dest = isMobileDevice() ? '/dashboard' : '/web';
+      navigate(dest, { replace: true });
+    }
+  }, [user, loading, navigate]);
 
-  // Si está cargando o hay ?code= OAuth pendiente: mostrar spinner
-  if (loading || isOAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-slate-400">Iniciando sesión...</p>
-        </div>
-      </div>
-    );
-  }
-
+  if (loading || user) return null;
   return <Landing />;
 };
 
