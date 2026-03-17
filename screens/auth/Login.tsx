@@ -82,7 +82,7 @@ const Login = () => {
     await (supabase.auth as any).signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/?oauth=1',
+        redirectTo: window.location.origin + '/#/login',
       },
     });
   };
