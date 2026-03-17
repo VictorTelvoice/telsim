@@ -53,7 +53,9 @@ const Login = () => {
     if (user) {
       if (!applyPostLoginRedirect()) {
         const dest = getDestination();
-        window.location.replace(window.location.origin + '/#' + dest);
+        // Limpiar ?code= de la URL primero, luego navegar
+        window.history.replaceState(null, '', '/');
+        window.location.href = window.location.origin + '/#' + dest;
       }
     }
     prevUserRef.current = user;
