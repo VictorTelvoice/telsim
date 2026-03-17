@@ -80,7 +80,10 @@ const LandingOrDash_v2: React.FC = () => {
     if (loading) return;
     if (user) {
       const dest = isMobileDevice() ? '/dashboard' : '/web';
-      navigate(dest, { replace: true });
+      // Usar window.location.replace en vez de navigate()
+      // porque HashRouter no detecta la ruta cuando hash está vacío
+      // después del callback OAuth de Supabase
+      window.location.replace(window.location.origin + '/#' + dest);
       return;
     }
     // Sin usuario y sin loading: verificar si hay ?code= pendiente
