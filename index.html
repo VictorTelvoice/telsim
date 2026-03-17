@@ -132,9 +132,15 @@
     <script>
       (function() {
         var search = window.location.search;
-        if (search.includes('code=')) {
-          // OAuth callback — guardar destino y dejar que Supabase procese
-          sessionStorage.setItem('oauth_pending', '1');
+        var hash = window.location.hash;
+        // Si hay ?code= y el hash es #/login, Supabase ya procesó el OAuth
+        // Esperar 2 segundos y si seguimos aquí, recargar para que la sesión cargue
+        if (search.includes('code=') && hash.includes('/login')) {
+          setTimeout(function() {
+            if (window.location.hash.includes('/login')) {
+              window.location.replace(window.location.origin + '/#/web');
+            }
+          }, 3000);
         }
       })();
     </script>
