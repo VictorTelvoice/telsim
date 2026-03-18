@@ -839,8 +839,11 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        await markWebhookProcessed();
-        return res.status(200).json({ received: true });
+        await markWebhookFailed(
+          'Stripe webhook: subscription not found in Supabase (allow retry)',
+          undefined
+        );
+        return res.status(500).json({ received: false, error: 'subscription not found' });
       }
 
       // Detectar cambio de plan (upgrade/downgrade)
@@ -997,8 +1000,11 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        await markWebhookProcessed();
-        return res.status(200).json({ received: true });
+        await markWebhookFailed(
+          'Stripe webhook: subscription not found in Supabase (allow retry)',
+          undefined
+        );
+        return res.status(500).json({ received: false, error: 'subscription not found' });
       }
 
       await supabaseAdmin
@@ -1089,8 +1095,11 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        await markWebhookProcessed();
-        return res.status(200).json({ received: true });
+        await markWebhookFailed(
+          'Stripe webhook: subscription not found in Supabase (allow retry)',
+          undefined
+        );
+        return res.status(500).json({ received: false, error: 'subscription not found' });
       }
 
       let phoneNumber = sub.phone_number ?? '';
@@ -1153,8 +1162,11 @@ export default async function handler(req: any, res: any) {
 
       if (!sub) {
         console.log('[WEBHOOK] Sub deleted no encontrada en Supabase, ignorando');
-        await markWebhookProcessed();
-        return res.status(200).json({ received: true });
+        await markWebhookFailed(
+          'Stripe webhook: subscription not found in Supabase (allow retry)',
+          undefined
+        );
+        return res.status(500).json({ received: false, error: 'subscription not found' });
       }
 
       // Si hay una sub activa más reciente para el mismo slot, fue upgrade — no notificar cancelación
