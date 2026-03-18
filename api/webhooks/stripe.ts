@@ -328,6 +328,35 @@ export default async function handler(req: any, res: any) {
         activation_state: 'on_air',
       });
 
+      // Fase 4 (ledger-first): registrar booked_revenue por checkout.session.completed (idempotente por stripe_event_id).
+      try {
+        const bookedAmountCents = Math.round(amount * 100);
+        const monthlyEquivalentCents = billingTypeFromStripe === 'annual'
+          ? Math.round(bookedAmountCents / 12)
+          : bookedAmountCents;
+
+        await supabaseAdmin.from('finance_events').upsert(
+          {
+            stripe_event_id: stripeEventId,
+            stripe_event_type: event.type,
+            finance_event_type: 'booked_revenue',
+            occurred_at: new Date(event.created * 1000).toISOString(),
+            user_id: upgradeMeta.user_id,
+            subscription_id: null,
+            slot_id: upgradeMeta.slot_id,
+            plan_name: upgradeMeta.new_plan_name ?? null,
+            billing_type: billingTypeFromStripe,
+            currency: (newSub.currency ?? 'usd') as string,
+            amount_cents: bookedAmountCents,
+            risk_amount_cents: null,
+            metadata: { monthly_equivalent_cents: monthlyEquivalentCents },
+          },
+          { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+        );
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] booked_revenue (upgrade) insert failed:', finErr?.message ?? finErr);
+      }
+
       await supabaseAdmin
         .from('slots')
         .update({
@@ -592,6 +621,36 @@ export default async function handler(req: any, res: any) {
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
         subscriptionId = (insertedData as { id?: string } | null)?.id ?? subscriptionId;
 
+      }
+
+      // Fase 4 (ledger-first): registrar booked_revenue por checkout.session.completed (idempotente por stripe_event_id).
+      // Nominal vendido = `amount` (mensualidad o anualidad, según billingType).
+      try {
+        const bookedAmountCents = Math.round(amount * 100);
+        const monthlyEquivalentCents = billingType === 'annual'
+          ? Math.round(bookedAmountCents / 12)
+          : bookedAmountCents;
+
+        await supabaseAdmin.from('finance_events').upsert(
+          {
+            stripe_event_id: stripeEventId,
+            stripe_event_type: event.type,
+            finance_event_type: 'booked_revenue',
+            occurred_at: new Date(event.created * 1000).toISOString(),
+            user_id: userId,
+            subscription_id: subscriptionId,
+            slot_id: slotId,
+            plan_name: planName ?? null,
+            billing_type: billingType,
+            currency: (session.currency ?? 'usd') as string,
+            amount_cents: bookedAmountCents,
+            risk_amount_cents: null,
+            metadata: { monthly_equivalent_cents: monthlyEquivalentCents },
+          },
+          { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+        );
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] booked_revenue insert failed:', finErr?.message ?? finErr);
       }
 
       // activation_state = paid (fuente de verdad para iniciar notificaciones)
@@ -995,7 +1054,7 @@ export default async function handler(req: any, res: any) {
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name')
+        .select('id, user_id, plan_name, slot_id, billing_type, currency')
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
@@ -1005,6 +1064,36 @@ export default async function handler(req: any, res: any) {
           undefined
         );
         return res.status(500).json({ received: false, error: 'subscription not found' });
+      }
+
+      // Fase 4 (ledger-first): registrar payment_failed_attempt (riesgo, no revenue negativo).
+      try {
+        const riskAmountCents = invoice.amount_due ?? 0;
+        const occurredAtIso = invoice.created ? new Date(invoice.created * 1000).toISOString() : new Date().toISOString();
+
+        await supabaseAdmin.from('finance_events').upsert(
+          {
+            stripe_event_id: stripeEventId,
+            stripe_event_type: event.type,
+            finance_event_type: 'payment_failed_attempt',
+            occurred_at: occurredAtIso,
+            user_id: sub.user_id,
+            subscription_id: sub.id,
+            slot_id: sub.slot_id ?? null,
+            plan_name: sub.plan_name ?? null,
+            billing_type: sub.billing_type ?? null,
+            currency: (invoice.currency ?? sub.currency ?? 'usd') as string,
+            amount_cents: null,
+            risk_amount_cents: riskAmountCents,
+            metadata: {
+              invoice_id: invoice.id ?? null,
+              billing_reason: invoice.billing_reason ?? null,
+            },
+          },
+          { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+        );
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] payment_failed_attempt insert failed:', finErr?.message ?? finErr);
       }
 
       await supabaseAdmin
@@ -1090,7 +1179,7 @@ export default async function handler(req: any, res: any) {
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, status, slot_id, phone_number')
+        .select('id, user_id, plan_name, status, slot_id, phone_number, billing_type, currency')
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
@@ -1100,6 +1189,36 @@ export default async function handler(req: any, res: any) {
           undefined
         );
         return res.status(500).json({ received: false, error: 'subscription not found' });
+      }
+
+      // Fase 4 (ledger-first): registrar cash_revenue (exclusivo invoice.payment_succeeded.amount_paid).
+      try {
+        const amountPaidCents = invoice.amount_paid ?? 0;
+        const occurredAtIso = invoice.created ? new Date(invoice.created * 1000).toISOString() : new Date().toISOString();
+
+        await supabaseAdmin.from('finance_events').upsert(
+          {
+            stripe_event_id: stripeEventId,
+            stripe_event_type: event.type,
+            finance_event_type: 'cash_revenue',
+            occurred_at: occurredAtIso,
+            user_id: sub.user_id,
+            subscription_id: sub.id,
+            slot_id: sub.slot_id ?? null,
+            plan_name: sub.plan_name ?? null,
+            billing_type: sub.billing_type ?? null,
+            currency: (invoice.currency ?? sub.currency ?? 'usd') as string,
+            amount_cents: amountPaidCents,
+            risk_amount_cents: null,
+            metadata: {
+              invoice_id: invoice.id ?? null,
+              billing_reason: invoice.billing_reason ?? null,
+            },
+          },
+          { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+        );
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] cash_revenue insert failed:', finErr?.message ?? finErr);
       }
 
       let phoneNumber = sub.phone_number ?? '';
@@ -1156,7 +1275,7 @@ export default async function handler(req: any, res: any) {
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, slot_id')
+        .select('id, user_id, plan_name, slot_id, billing_type, currency')
         .eq('stripe_subscription_id', subId)
         .maybeSingle();
 
@@ -1186,6 +1305,32 @@ export default async function handler(req: any, res: any) {
         console.log('[WEBHOOK] Sub deleted es parte de un upgrade, omitiendo notificación de cancelación');
         await markWebhookProcessed();
         return res.status(200).json({ received: true });
+      }
+
+      // Fase 4 (ledger-first): registrar churn_event (solo cuando NO es parte de upgrade).
+      try {
+        const occurredAtIso = event.created ? new Date(event.created * 1000).toISOString() : new Date().toISOString();
+
+        await supabaseAdmin.from('finance_events').upsert(
+          {
+            stripe_event_id: stripeEventId,
+            stripe_event_type: event.type,
+            finance_event_type: 'churn_event',
+            occurred_at: occurredAtIso,
+            user_id: sub.user_id,
+            subscription_id: sub.id,
+            slot_id: sub.slot_id ?? null,
+            plan_name: sub.plan_name ?? null,
+            billing_type: sub.billing_type ?? null,
+            currency: (sub.currency ?? 'usd') as string,
+            amount_cents: null,
+            risk_amount_cents: null,
+            metadata: { subscription_id: subId ?? null },
+          },
+          { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+        );
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] churn_event insert failed:', finErr?.message ?? finErr);
       }
 
       await supabaseAdmin
