@@ -54,6 +54,7 @@ function enrichUser(sessionUser: any, profile: ProfileData) {
 }
 
 const PROFILE_CACHE_PREFIX = 'telsim_profile_v1_';
+const PROFILE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 días
 
 function profileCacheKey(userId: string) {
   return `${PROFILE_CACHE_PREFIX}${userId}`;
@@ -62,10 +63,21 @@ function profileCacheKey(userId: string) {
 function readProfileCache(userId: string): ProfileData | undefined {
   try {
     if (typeof window === 'undefined') return undefined;
-    const raw = window.sessionStorage.getItem(profileCacheKey(userId));
+
+    const key = profileCacheKey(userId);
+
+    const rawFromSession = window.sessionStorage.getItem(key);
+    const raw = rawFromSession ?? window.localStorage.getItem(key);
     if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as { profile?: ProfileData } | null;
+
+    const parsed = JSON.parse(raw) as { profile?: ProfileData; cachedAt?: number } | null;
     if (!parsed || !Object.prototype.hasOwnProperty.call(parsed, 'profile')) return undefined;
+
+    const cachedAt = parsed.cachedAt;
+    if (typeof cachedAt === 'number' && Date.now() - cachedAt > PROFILE_CACHE_TTL_MS) {
+      return undefined;
+    }
+
     return parsed.profile ?? null;
   } catch {
     return undefined;
@@ -75,10 +87,12 @@ function readProfileCache(userId: string): ProfileData | undefined {
 function writeProfileCache(userId: string, profile: ProfileData) {
   try {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem(
-      profileCacheKey(userId),
-      JSON.stringify({ profile })
-    );
+
+    const key = profileCacheKey(userId);
+    const payload = JSON.stringify({ profile, cachedAt: Date.now() });
+
+    window.sessionStorage.setItem(key, payload);
+    window.localStorage.setItem(key, payload);
   } catch {
     // non-critical
   }
@@ -213,6 +227,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {
         // non-critical
       }
+
+      try {
+        window.localStorage.removeItem(profileCacheKey(userId));
+      } catch {
+        // non-critical
+      }
     }
 
     // Recalcula el user enriquecido desde la user original de la sesión (sin profile)
@@ -229,7 +249,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (sess: any) => {
       setSession(sess ?? null);
       const sessUser = sess?.user ?? null;
-      setUser(sessUser ? enrichUser(sessUser, profileRef.current) : null);
+      if (!sessUser) {
+        setUser(null);
+        return;
+      }
+
+      const cached = readProfileCache(sessUser.id);
+      if (cached !== undefined) {
+        setProfile(cached);
+        setProfileLoading(false);
+        setUser(enrichUser(sessUser, cached));
+        return;
+      }
+
+      setUser(enrichUser(sessUser, profileRef.current));
     },
     []
   );
@@ -305,8 +338,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Si ya está hidratado para este userId, evita runBackgroundWork repetido
       if (lastHydratedAuthUserIdRef.current === userId) return;
 
-      syncUserToPublicTable(sessUser).catch((err) => console.error('Auth sync error:', err));
-      loadProfileInBackground(sessUser).catch(() => {});
+      void (async () => {
+        await loadProfileInBackground(sessUser);
+        await syncUserToPublicTable(sessUser);
+      })().catch((err) => console.error('Auth background work error:', err));
     },
     [loadProfileInBackground, syncUserToPublicTable]
   );
