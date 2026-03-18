@@ -89,23 +89,6 @@ const LandingOrDash_v2: React.FC = () => {
   return <Landing />;
 };
 
-/** Red de seguridad: si el usuario llega al app ya logueado (p. ej. OAuth) y hay post_login_redirect, ir a onboarding */
-const PostLoginRedirectHandler: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  useEffect(() => {
-    const redirect = localStorage.getItem('post_login_redirect');
-    if (redirect && user) {
-      localStorage.removeItem('post_login_redirect');
-      const plan = localStorage.getItem('selected_plan') || 'pro';
-      const billing = localStorage.getItem('selected_billing') || 'monthly';
-      localStorage.setItem('selected_plan_annual', billing === 'annual' ? 'true' : 'false');
-      navigate(`${redirect}?plan=${plan}&billing=${billing}`);
-    }
-  }, [user, navigate]);
-  return null;
-};
-
 /** Si la app queda en blanco/loading más de 2s tras volver a visible, refresca AuthContext (iOS PWA rutas congeladas). */
 const NavigationWatchdog: React.FC = () => {
   const { loading, refreshProfile } = useAuth();
@@ -287,7 +270,6 @@ const App: React.FC = () => {
                   <ScrollToTop />
                   <ImpersonationBanner />
                   <ImpersonationBannerSpacer />
-                  <PostLoginRedirectHandler />
                   <NavigationWatchdog />
                 <Routes>
                   <Route path="/" element={<LandingOrDash_v2 />} />
