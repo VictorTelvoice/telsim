@@ -179,6 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Evita carreras en carga de profile cuando cambie el usuario rápidamente
   const profileReqIdRef = useRef(0);
+  const lastProfileErrorAtRef = useRef<number | null>(null);
+  const PROFILE_ERROR_BACKOFF_MS = 60 * 1000;
 
   const clearProfileState = useCallback(() => {
     profileReqIdRef.current += 1; // invalida requests en vuelo
@@ -187,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const invalidateProfile = useCallback(() => {
+    lastProfileErrorAtRef.current = null;
     const userId = user?.id;
     if (userId) {
       try {
@@ -224,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (reqId !== profileReqIdRef.current) return;
 
       if (cached !== undefined) {
+        lastProfileErrorAtRef.current = null;
         // cache puede ser null real o un objeto válido
         setProfile(cached);
         setUser(enrichUser(sessUser, cached));
@@ -232,13 +236,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2) Si no existe cache => consultar DB
+      const lastErrAt = lastProfileErrorAtRef.current;
+      if (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS) {
+        return;
+      }
       setProfileLoading(true);
       try {
         const p = await getProfile(userId);
         if (reqId !== profileReqIdRef.current) return;
 
         // undefined => error/atraso de fetch; no tocar cache ni sobreescribir profile
-        if (p === undefined) return;
+        if (p === undefined) {
+          lastProfileErrorAtRef.current = Date.now();
+          return;
+        }
+
+        lastProfileErrorAtRef.current = null;
 
         // null u objeto => actualizar estado y cache
         setProfile(p);
@@ -261,6 +274,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
+    const lastErrAt = lastProfileErrorAtRef.current;
+    if (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS) {
+      return;
+    }
+
     const reqId = ++profileReqIdRef.current;
     setProfileLoading(true);
     try {
@@ -269,7 +287,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (reqId !== profileReqIdRef.current) return;
 
       // undefined => error/fallo fetch; no tocar estado ni cache
-      if (p === undefined) return;
+      if (p === undefined) {
+        lastProfileErrorAtRef.current = Date.now();
+        return;
+      }
+
+      lastProfileErrorAtRef.current = null;
 
       setProfile(p);
       setUser((prev: any) => (prev ? enrichUser(prev, p) : null));
