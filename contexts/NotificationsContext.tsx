@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Notification } from '../types';
@@ -20,8 +20,22 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const inFlightRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
+  const lastErrorAtRef = useRef(0);
+
+  const MIN_FETCH_MS = 2500;
+  const ERROR_BACKOFF_MS = 10000;
+
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
+    if (inFlightRef.current) return;
+
+    const now = Date.now();
+    if (now - lastFetchAtRef.current < MIN_FETCH_MS) return;
+    if (now - lastErrorAtRef.current < ERROR_BACKOFF_MS) return;
+
+    inFlightRef.current = true;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -32,15 +46,19 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
         .limit(20);
       if (error) throw error;
       setNotifications(data || []);
+      lastFetchAtRef.current = Date.now();
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      // Backoff ante 5xx / network-ish errors (evita spam)
+      lastErrorAtRef.current = Date.now();
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     fetchNotifications();
 
     // Direct state updates from payload — no refetch on every event (scales for 1000+ users)
