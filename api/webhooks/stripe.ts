@@ -212,6 +212,22 @@ export default async function handler(req: any, res: any) {
     }
   };
 
+  const markWebhookFailed = async (message?: string, stack?: string) => {
+    if (!stripeEventId) return;
+    try {
+      await supabaseAdmin
+        .from('stripe_webhook_events')
+        .update({
+          status: 'failed',
+          failed_at: new Date().toISOString(),
+          error_message: message ?? stack ?? null,
+        })
+        .eq('event_id', stripeEventId);
+    } catch {
+      // no bloquear el webhook por problemas del registro de dedupe
+    }
+  };
+
   // Dedupe por event.id: evita duplicar side effects cuando Stripe reintenta el webhook.
   if (stripeEventId) {
     const { data: existing } = await supabaseAdmin
@@ -234,6 +250,12 @@ export default async function handler(req: any, res: any) {
       } catch {
         // si hay race, el registro existirá/ya existió
       }
+    } else if (existing?.status === 'failed') {
+      // Reintento seguro: volvemos a marcar como processing antes de ejecutar side effects.
+      await supabaseAdmin
+        .from('stripe_webhook_events')
+        .update({ status: 'processing', processed_at: null, failed_at: null, error_message: null })
+        .eq('event_id', stripeEventId);
     }
   }
 
@@ -1282,8 +1304,8 @@ export default async function handler(req: any, res: any) {
         console.error('[WEBHOOK] audit_logs insert falló:', (dbErr as Error)?.message);
       }
     }
-    // Si el webhook ya hizo side effects parciales, marcamos como procesado para evitar duplicados en reintentos.
-    await markWebhookProcessed();
+    // No ocultar fallos: marcamos el evento como failed para permitir retries seguros.
+    await markWebhookFailed(errMsg, errStack);
     return res.status(500).json({ received: false, error: errMsg });
   }
 }
