@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const SESSION_KEY = 'telsim_device_session_id';
@@ -13,7 +14,7 @@ const getDeviceName = (): string => {
 };
 
 export const useDeviceSession = () => {
-  const registerOrUpdateSession = async (userId: string) => {
+  const registerOrUpdateSession = useCallback(async (userId: string) => {
     try {
       const storedId = localStorage.getItem(SESSION_KEY);
       const now = new Date().toISOString();
@@ -47,7 +48,7 @@ export const useDeviceSession = () => {
       // No crítico — no bloquear el flujo de login
       console.warn('Device session error (non-critical):', err);
     }
-  };
+  }, []);
 
   return { registerOrUpdateSession };
 };
