@@ -28,7 +28,8 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const ERROR_BACKOFF_MS = 10000;
 
   const fetchNotifications = useCallback(async () => {
-    if (!user?.id) return;
+    const userId = user?.id;
+    if (!userId) return;
     if (inFlightRef.current) return;
 
     const now = Date.now();
@@ -41,7 +42,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -55,20 +56,21 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    const userId = user?.id;
+    if (!userId) return;
     fetchNotifications();
 
     // Direct state updates from payload — no refetch on every event (scales for 1000+ users)
     const channel = supabase
-      .channel(`notifications_${user.id}`)
+      .channel(`notifications_${userId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
+        filter: `user_id=eq.${userId}`,
       }, (payload) => {
         setNotifications(prev => [payload.new as Notification, ...prev].slice(0, 20));
       })
@@ -76,7 +78,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
         event: 'UPDATE',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
+        filter: `user_id=eq.${userId}`,
       }, (payload) => {
         setNotifications(prev =>
           prev.map(n => n.id === (payload.new as Notification).id ? (payload.new as Notification) : n)
@@ -86,7 +88,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
         event: 'DELETE',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
+        filter: `user_id=eq.${userId}`,
       }, (payload) => {
         setNotifications(prev => prev.filter(n => n.id !== (payload.old as Notification).id));
       })
@@ -95,7 +97,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchNotifications]);
+  }, [user?.id, fetchNotifications]);
 
   const addNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'is_read'>) => {
     if (!user) return;
