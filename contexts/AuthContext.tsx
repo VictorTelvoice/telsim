@@ -37,15 +37,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** Construye el user enriquecido: avatar_url (y user_metadata.avatar_url) priorizan la tabla users. */
 function enrichUser(sessionUser: any, profile: ProfileData) {
-  const avatarFromDb = profile?.avatar_url ?? sessionUser?.user_metadata?.avatar_url;
+  const avatarFromMeta = sessionUser?.user_metadata?.avatar_url ?? null;
+  const avatarFromProfile = profile?.avatar_url ?? null;
+  const avatar_url = avatarFromMeta ?? avatarFromProfile;
+
   return {
     ...sessionUser,
     ...profile,
+    avatar_url,
     user_metadata: {
       ...sessionUser?.user_metadata,
-      avatar_url: avatarFromDb,
+      avatar_url,
     },
   };
 }
@@ -58,10 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [profile, setProfile] = useState<ProfileData>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const profileRef = useRef<ProfileData>(null);
 
   const [version, setVersion] = useState(0);
 
   const { registerOrUpdateSession } = useDeviceSession();
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   const getProfile = useCallback(async (userId: string): Promise<ProfileData> => {
     try {
@@ -145,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (sess: any) => {
       setSession(sess ?? null);
       const sessUser = sess?.user ?? null;
-      setUser(sessUser);
+      setUser(sessUser ? enrichUser(sessUser, profileRef.current) : null);
       if (!sessUser) clearProfileState();
     },
     [clearProfileState]
@@ -229,11 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const sessUser = sess?.user ?? null;
         if (!sessUser) return;
 
-        if (
-          event === 'INITIAL_SESSION' ||
-          event === 'SIGNED_IN' ||
-          event === 'TOKEN_REFRESHED'
-        ) {
+        if (event === 'SIGNED_IN') {
           runBackgroundWork(sessUser);
         }
         // SIGNED_OUT queda cubierto por setBaseAuthState(null) + clearProfileState()
