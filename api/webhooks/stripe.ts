@@ -179,6 +179,45 @@ export default async function handler(req: any, res: any) {
   console.log(`[WEBHOOK] Evento recibido: ${event.type}`);
   console.log('[WEBHOOK] Received event type:', event.type);
 
+  const stripeEventId = (event as Stripe.Event).id;
+
+  const markWebhookProcessed = async () => {
+    if (!stripeEventId) return;
+    try {
+      await supabaseAdmin
+        .from('stripe_webhook_events')
+        .update({ status: 'processed', processed_at: new Date().toISOString() })
+        .eq('event_id', stripeEventId);
+    } catch {
+      // no bloquear el webhook por problemas del registro de dedupe
+    }
+  };
+
+  // Dedupe por event.id: evita duplicar side effects cuando Stripe reintenta el webhook.
+  if (stripeEventId) {
+    const { data: existing } = await supabaseAdmin
+      .from('stripe_webhook_events')
+      .select('status')
+      .eq('event_id', stripeEventId)
+      .maybeSingle();
+
+    if (existing?.status === 'processed') {
+      return res.status(200).json({ received: true, deduped: true });
+    }
+
+    if (!existing) {
+      try {
+        await supabaseAdmin.from('stripe_webhook_events').insert({
+          event_id: stripeEventId,
+          event_type: event.type,
+          status: 'processing',
+        });
+      } catch {
+        // si hay race, el registro existirá/ya existió
+      }
+    }
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     // Stripe envía metadata en el JSON; para que la compra finalice con éxito usamos metadata.slot_id (ej. '43A') y metadata.userId
@@ -292,6 +331,7 @@ export default async function handler(req: any, res: any) {
       }
       console.log('[UPGRADE] Telegram enviado OK');
 
+      await markWebhookProcessed();
       return res.status(200).json({ received: true });
     }
 
@@ -311,6 +351,7 @@ export default async function handler(req: any, res: any) {
 
     if (!userId || !slotId) {
       console.log(`[WEBHOOK SKIP] Metadata incomplete - userId: ${userId}, slotId: ${slotId}`);
+      await markWebhookProcessed();
       return res.status(200).json({ received: true });
     }
 
@@ -555,6 +596,7 @@ export default async function handler(req: any, res: any) {
 
     // Ignorar si no hay cambio relevante
     if (!statusChanged && !cancelAtPeriodEndChanged) {
+      await markWebhookProcessed();
       return res.status(200).json({ received: true });
     }
 
@@ -569,7 +611,10 @@ export default async function handler(req: any, res: any) {
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
-      if (!sub) return res.status(200).json({ received: true });
+      if (!sub) {
+        await markWebhookProcessed();
+        return res.status(200).json({ received: true });
+      }
 
       // Detectar cambio de plan (upgrade/downgrade)
       const previousPriceId = (previousAttributes as any)?.items?.data?.[0]?.price?.id;
@@ -699,7 +744,10 @@ export default async function handler(req: any, res: any) {
       ? invoice.subscription
       : invoice.subscription?.id;
 
-    if (!stripeSubId) return res.status(200).json({ received: true });
+    if (!stripeSubId) {
+      await markWebhookProcessed();
+      return res.status(200).json({ received: true });
+    }
 
     try {
       const { data: sub } = await supabaseAdmin
@@ -708,7 +756,10 @@ export default async function handler(req: any, res: any) {
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
-      if (!sub) return res.status(200).json({ received: true });
+      if (!sub) {
+        await markWebhookProcessed();
+        return res.status(200).json({ received: true });
+      }
 
       await supabaseAdmin
         .from('subscriptions')
@@ -744,6 +795,7 @@ export default async function handler(req: any, res: any) {
 
     if (invoice.billing_reason !== 'subscription_cycle' &&
       invoice.billing_reason !== 'subscription_update') {
+      await markWebhookProcessed();
       return res.status(200).json({ received: true });
     }
 
@@ -751,7 +803,10 @@ export default async function handler(req: any, res: any) {
       ? invoice.subscription
       : invoice.subscription?.id;
 
-    if (!stripeSubId) return res.status(200).json({ received: true });
+    if (!stripeSubId) {
+      await markWebhookProcessed();
+      return res.status(200).json({ received: true });
+    }
 
     try {
       const { data: sub } = await supabaseAdmin
@@ -760,7 +815,10 @@ export default async function handler(req: any, res: any) {
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
-      if (!sub) return res.status(200).json({ received: true });
+      if (!sub) {
+        await markWebhookProcessed();
+        return res.status(200).json({ received: true });
+      }
 
       let phoneNumber = sub.phone_number ?? '';
       if (!phoneNumber && sub.slot_id) {
@@ -822,6 +880,7 @@ export default async function handler(req: any, res: any) {
 
       if (!sub) {
         console.log('[WEBHOOK] Sub deleted no encontrada en Supabase, ignorando');
+        await markWebhookProcessed();
         return res.status(200).json({ received: true });
       }
 
@@ -840,6 +899,7 @@ export default async function handler(req: any, res: any) {
 
       if (activeSub) {
         console.log('[WEBHOOK] Sub deleted es parte de un upgrade, omitiendo notificación de cancelación');
+        await markWebhookProcessed();
         return res.status(200).json({ received: true });
       }
 
@@ -929,6 +989,7 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  await markWebhookProcessed();
   return res.status(200).json({ received: true });
   } catch (err: any) {
     const errMsg = err?.message ?? String(err);
