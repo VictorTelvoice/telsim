@@ -416,13 +416,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     const userId = user?.id;
-    if (userId) {
-      try {
-        window.sessionStorage.removeItem(profileCacheKey(userId));
-      } catch {
-        // non-critical
-      }
-    }
 
     localStorage.removeItem('telsim_device_session_id');
     
