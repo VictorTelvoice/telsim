@@ -9,6 +9,8 @@ interface SideDrawerProps {
   unreadNotifications: number;
   currentLang: string;
   onLangChange: (lang: string) => void;
+  onLogout?: () => void;
+  loggingOut?: boolean;
 }
 
 export default function SideDrawer({
@@ -148,7 +150,15 @@ export default function SideDrawer({
             Ir al sitio web
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
-          <div onClick={() => { /* tu función de logout existente */ }} className="flex items-center justify-center gap-1.5 py-2.5 rounded-[11px] text-[12px] font-bold text-red-500 cursor-pointer active:bg-red-50 dark:active:bg-red-900/20">
+          <div
+            onClick={() => {
+              if (!onLogout) return;
+              if (loggingOut) return;
+              onLogout();
+              onClose();
+            }}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-[11px] text-[12px] font-bold text-red-500 cursor-pointer active:bg-red-50 dark:active:bg-red-900/20"
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.3" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Cerrar sesión
           </div>

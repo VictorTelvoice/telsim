@@ -368,9 +368,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     localStorage.removeItem('telsim_device_session_id');
-    await (supabase.auth as any).signOut();
-    // onAuthStateChange actualizará session/user/profile
-  }, [user?.id]);
+    
+    // Limpieza optimista local: aunque el logout remoto falle (503), el usuario no debe quedar atascado.
+    setSession(null);
+    setUser(null);
+    setAuthLoading(false);
+    clearProfileState();
+
+    const signOutFn = (supabase.auth as any).signOut.bind(supabase.auth);
+
+    try {
+      const res = await signOutFn({ scope: 'global' });
+      if (res?.error) throw res.error;
+    } catch {
+      try {
+        const res = await signOutFn({ scope: 'local' });
+        if (res?.error) throw res.error;
+      } catch {
+        // Si también falla el logout local, el estado local ya quedó limpio.
+      }
+    }
+    // onAuthStateChange actualizará session/user/profile (si el backend responde)
+  }, [user?.id, clearProfileState]);
 
   return (
     <AuthContext.Provider

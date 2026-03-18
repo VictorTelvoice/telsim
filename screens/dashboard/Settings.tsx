@@ -11,10 +11,11 @@ import NotificationsMenu from '../../components/NotificationsMenu';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const { user, invalidateProfile, refreshProfile } = useAuth();
+  const { user, invalidateProfile, refreshProfile, signOut } = useAuth();
   const { notifications } = useNotifications();
   const { toggleTheme, theme } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { language: lang, setLanguage: setLang, t } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
@@ -31,8 +32,16 @@ const Settings: React.FC = () => {
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
   const handleLogout = async () => {
-    await (supabase.auth as any).signOut();
-    navigate('/');
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setLoggingOut(false);
+      navigate('/login', { replace: true });
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,7 +225,11 @@ const Settings: React.FC = () => {
 
         {/* LOGOUT */}
         <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
-          <div onClick={handleLogout} className="flex items-center justify-center gap-2 py-[13px] cursor-pointer active:bg-red-50 dark:active:bg-red-900/20">
+          <div
+            onClick={handleLogout}
+            aria-disabled={loggingOut}
+            className="flex items-center justify-center gap-2 py-[13px] cursor-pointer active:bg-red-50 dark:active:bg-red-900/20"
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.3" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span className="text-[13px] font-bold text-red-500">{t('settings.logout')}</span>
           </div>
@@ -233,6 +246,8 @@ const Settings: React.FC = () => {
         unreadNotifications={unreadCount}
         currentLang={lang}
         onLangChange={(l) => setLang(l as 'es' | 'en')}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
       />
     </div>
   );

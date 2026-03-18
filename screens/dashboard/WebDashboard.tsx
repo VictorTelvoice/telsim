@@ -306,7 +306,7 @@ const WebDashboard: React.FC = () => {
   const auth = useAuth();
   const effectiveUser = useEffectiveUser(auth.user);
   const user = effectiveUser ?? auth.user;
-  const { refreshProfile, invalidateProfile, version: authVersion } = auth;
+  const { refreshProfile, invalidateProfile, version: authVersion, signOut } = auth;
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -318,6 +318,7 @@ const WebDashboard: React.FC = () => {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [messages, setMessages] = useState<SMSLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -818,8 +819,16 @@ const WebDashboard: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await (supabase.auth as any).signOut();
-    navigate('/');
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setLoggingOut(false);
+      navigate('/login', { replace: true });
+    }
   };
 
   // ─── Label save ───────────────────────────────────────────────────────────────
@@ -1361,7 +1370,7 @@ const WebDashboard: React.FC = () => {
               <p className="text-[12px] font-bold truncate">{userName}</p>
               <p className={`text-[10px] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
             </div>
-            <button onClick={handleLogout} title="Cerrar sesión"
+            <button onClick={handleLogout} disabled={loggingOut} title="Cerrar sesión"
               className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>
               <LogOut size={14} className="text-slate-400" />
             </button>
