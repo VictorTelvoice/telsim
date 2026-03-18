@@ -109,7 +109,7 @@ const Processing: React.FC = () => {
           return;
         }
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        navigate('/onboarding/activation-success', {
+        navigate(`/onboarding/activation-success?session_id=${encodeURIComponent(sessionId || '')}`, {
           replace: true,
           state: {
             phoneNumber: data.phone_number,
@@ -118,7 +118,7 @@ const Processing: React.FC = () => {
             currency: data.currency,
             monthlyLimit: data.monthly_limit,
             isAnnual,
-          }
+          },
         });
       }
     } catch (err: any) {
