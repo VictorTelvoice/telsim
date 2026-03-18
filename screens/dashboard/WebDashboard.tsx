@@ -675,40 +675,78 @@ const WebDashboard: React.FC = () => {
   }, [settingsSection, user]);
 
   useEffect(() => {
-    if (settingsSection !== 'notifications' || !user) return;
+    const userId = user?.id;
+    if (settingsSection !== 'notifications' || !userId) return;
+
+    const controller = new AbortController();
+    let alive = true;
+
     const loadPrefs = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('notification_preferences')
-        .eq('id', user.id)
-        .single();
-      if (data?.notification_preferences) {
-        setNotifPrefs(prev => ({ ...prev, ...data.notification_preferences }));
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('notification_preferences')
+          .eq('id', userId)
+          .abortSignal(controller.signal as any)
+          .single();
+
+        if (!alive || controller.signal.aborted) return;
+
+        if (data?.notification_preferences) {
+          setNotifPrefs(prev => ({ ...prev, ...data.notification_preferences }));
+        }
+      } catch (e: any) {
+        if (!alive || controller.signal.aborted) return;
+        console.error(e);
       }
     };
+
     loadPrefs();
-  }, [settingsSection, user]);
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, [settingsSection, user?.id]);
 
   // ─── Telegram: load config when section opens ─────────────────────────────
   useEffect(() => {
-    if (settingsSection !== 'telegram' || !user) return;
+    const userId = user?.id;
+    if (settingsSection !== 'telegram' || !userId) return;
     setTgLoading(true);
+
+    const controller = new AbortController();
+    let alive = true;
 
     const loadTg = async () => {
       try {
-        const { data } = await supabase.from('users').select('telegram_token, telegram_chat_id').eq('id', user.id).single();
+        const { data } = await supabase
+          .from('users')
+          .select('telegram_token, telegram_chat_id')
+          .eq('id', userId)
+          .abortSignal(controller.signal as any)
+          .single();
+
+        if (!alive || controller.signal.aborted) return;
+
         if (data) {
           setTgToken(data.telegram_token || '');
           setTgChatId(data.telegram_chat_id || '');
         }
-      } catch (e) {
+      } catch (e: any) {
+        if (!alive || controller.signal.aborted) return;
         console.error(e);
       } finally {
+        if (!alive || controller.signal.aborted) return;
         setTgLoading(false);
       }
     };
+
     loadTg();
-  }, [settingsSection, user]);
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, [settingsSection, user?.id]);
 
   const handleTgTest = async () => {
     if (!tgToken || !tgChatId) { alert('Completa el token y el Chat ID primero'); return; }

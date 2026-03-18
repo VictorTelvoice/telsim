@@ -60,29 +60,42 @@ const TelegramConfig: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const userId = user?.id;
+    if (!userId) return;
+
+    const controller = new AbortController();
+    let alive = true;
+
     const fetchConfig = async () => {
-      if (!user) return;
       try {
         const { data, error } = await supabase
           .from('users')
           .select('telegram_token, telegram_chat_id')
-          .eq('id', user.id)
+          .eq('id', userId)
+          .abortSignal(controller.signal as any)
           .single();
 
+        if (controller.signal.aborted || !alive) return;
         if (error) throw error;
         if (data) {
           setTgToken(data.telegram_token || '');
           setTgChatId(data.telegram_chat_id || '');
         }
       } catch (err) {
+        if (controller.signal.aborted || !alive) return;
         console.error(err);
       } finally {
+        if (controller.signal.aborted || !alive) return;
         setLoading(false);
       }
     };
 
     fetchConfig();
-  }, [user]);
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!loading && tgToken?.trim() && tgChatId?.trim()) {
