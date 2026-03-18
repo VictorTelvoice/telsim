@@ -91,27 +91,39 @@ const LandingOrDash_v2: React.FC = () => {
 
 /** Si la app queda en blanco/loading más de 2s tras volver a visible, refresca AuthContext (iOS PWA rutas congeladas). */
 const NavigationWatchdog: React.FC = () => {
-  const { loading, refreshProfile } = useAuth();
+  const { user, loading, refreshProfile } = useAuth();
+  const lastRunRef = React.useRef(0);
+  const THROTTLE_MS = 300000;
+
+  const safeRefresh = React.useCallback(() => {
+    if (!user?.id) return;
+    if (!loading) return;
+    const now = Date.now();
+    if (now - lastRunRef.current < THROTTLE_MS) return;
+    lastRunRef.current = now;
+    refreshProfile();
+  }, [user?.id, loading, refreshProfile]);
+
   React.useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
     const onVisibilityChange = () => {
       if (t) clearTimeout(t);
       t = null;
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && loading) {
         t = setTimeout(() => {
-          if (document.visibilityState === 'visible') refreshProfile();
+          if (document.visibilityState === 'visible') safeRefresh();
         }, 2000);
       }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     if (document.visibilityState === 'visible' && loading) {
-      t = setTimeout(() => refreshProfile(), 2000);
+      t = setTimeout(() => safeRefresh(), 2000);
     }
     return () => {
       if (t) clearTimeout(t);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [loading, refreshProfile]);
+  }, [loading, safeRefresh]);
   return null;
 };
 
