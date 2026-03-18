@@ -284,6 +284,7 @@ export default async function handler(req: any, res: any) {
         billing_type: billingTypeFromStripe,
         amount,
         status: 'active',
+        activation_state: 'on_air',
       });
 
       await supabaseAdmin
@@ -358,6 +359,14 @@ export default async function handler(req: any, res: any) {
     const billingTypeForEmail = sessionMeta.isAnnual === 'true' ? 'Anual' : 'Mensual';
     const isAnnualBilling = sessionMeta.isAnnual === 'true';
     let nextDateForEmail = '';
+
+    // Fase 2: validación fuerte de reserva (para evitar carreras de slots)
+    const reservationTokenFromMeta = (sessionMeta.reservation_token ?? sessionMeta.reservationToken ?? '').trim();
+    const enforceReservationValidation = reservationTokenFromMeta.length > 0;
+
+    // Para cerrar el hueco entre "pago confirmado" y "servicio operativo real"
+    // solo enviamos side effects de "activación" si llegamos a `on_air`.
+    let activationSucceeded = false;
 
     try {
       // Siempre tomamos el precio contratado desde Stripe (unit_amount del Price),
@@ -444,7 +453,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: slot, error: slotError } = await supabaseAdmin
         .from('slots')
-        .select('phone_number')
+        .select('phone_number, status, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id')
         .eq('slot_id', slotId)
         .maybeSingle();
 
@@ -457,6 +466,40 @@ export default async function handler(req: any, res: any) {
         console.warn(`[WEBHOOK SLOT MISSING] Slot ${slotId} not found in database`);
       }
 
+      const nowForReservationMs = Date.now();
+
+      // Si `reservation_token` no viene en metadata, aceptamos compatibilidad con checkouts antiguos
+      // (Fase 2 solo endurece cuando hay token).
+      let reservationValid = !enforceReservationValidation;
+
+      if (enforceReservationValidation) {
+        reservationValid = !!slot &&
+          slot.status === 'reserved' &&
+          slot.reservation_token === reservationTokenFromMeta &&
+          !!slot.reservation_expires_at &&
+          new Date(slot.reservation_expires_at as any).getTime() > nowForReservationMs &&
+          String(slot.reservation_user_id || '') === String(userId) &&
+          (!slot.reservation_stripe_session_id || slot.reservation_stripe_session_id === session.id);
+
+        // Si la reserva caducó, liberamos el slot solo si el token coincide (evita tocar reservas ajenas).
+        if (slot?.status === 'reserved' && slot?.reservation_token === reservationTokenFromMeta) {
+          const expiresAtMs = slot.reservation_expires_at
+            ? new Date(slot.reservation_expires_at as any).getTime()
+            : 0;
+          if (expiresAtMs <= nowForReservationMs) {
+            await supabaseAdmin.from('slots').update({
+              status: 'libre',
+              assigned_to: null,
+              plan_type: null,
+              reservation_token: null,
+              reservation_expires_at: null,
+              reservation_user_id: null,
+              reservation_stripe_session_id: null,
+            }).eq('slot_id', slotId).eq('reservation_token', reservationTokenFromMeta);
+          }
+        }
+      }
+
       // phone_number para correo y Telegram: metadata primero, luego tabla slots (vital si metadata no lo trajo)
       const resolvedPhoneForNotifications = (phoneFromMeta && String(phoneFromMeta).trim()) || slot?.phone_number || '';
 
@@ -465,6 +508,8 @@ export default async function handler(req: any, res: any) {
         .select('id')
         .eq('stripe_session_id', session.id)
         .maybeSingle();
+
+      let subscriptionId = exists?.id ?? null;
 
       if (!exists) {
         const correctAmount = amount;
@@ -486,12 +531,16 @@ export default async function handler(req: any, res: any) {
           amount: correctAmount,
           billing_type: billingType,
           currency: session.currency || 'usd',
+          activation_state: reservationValid ? 'paid' : 'failed',
           created_at: new Date().toISOString(),
         };
 
         console.log(`[WEBHOOK INSERT] Attempting to insert subscription:`, JSON.stringify(insertData, null, 2));
 
-        const { data: insertedData, error: insertError } = await supabaseAdmin.from('subscriptions').insert(insertData);
+        const { data: insertedData, error: insertError } = await supabaseAdmin.from('subscriptions')
+          .insert(insertData)
+          .select('id')
+          .single();
 
         if (insertError) {
           console.error(`[WEBHOOK INSERT ERROR] Failed to insert subscription:`, insertError);
@@ -499,28 +548,101 @@ export default async function handler(req: any, res: any) {
         }
 
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
+        subscriptionId = (insertedData as { id?: string } | null)?.id ?? subscriptionId;
       }
 
-      // checkout.session.completed: actualizar slot (ej. 43A) con assigned_to = userId y status = 'ocupado'
-      await supabaseAdmin.from('slots').update({
-        status: 'ocupado',
-        assigned_to: userId,
-        plan_type: planName,
-      }).eq('slot_id', slotId);
+      // checkout.session.completed: solo ocupamos el slot si la reserva es válida.
+      if (reservationValid) {
+        // checkout.session.completed: ocupar slot solo si la reserva es válida (o si viene checkout antiguo).
+        const slotUpdatePayload = {
+          status: 'ocupado',
+          assigned_to: userId,
+          plan_type: planName,
+          reservation_token: null,
+          reservation_expires_at: null,
+          reservation_user_id: null,
+          reservation_stripe_session_id: null,
+        };
 
-      await logEvent('SIM_ACTIVATED', 'info', 'SIM activada', undefined, {
-        phone_number: resolvedPhoneForNotifications || slot?.phone_number || '',
-        slot_id: slotId,
-      }, 'stripe');
+        if (enforceReservationValidation) {
+          await supabaseAdmin.from('slots').update(slotUpdatePayload)
+            .eq('slot_id', slotId)
+            .eq('status', 'reserved')
+            .eq('reservation_token', reservationTokenFromMeta);
+        } else {
+          await supabaseAdmin.from('slots').update(slotUpdatePayload)
+            .eq('slot_id', slotId);
+        }
 
-      const trialMsg = trialEnd
-        ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
-        : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
+        // Activación operativa explícita:
+        // - `provisioned`: slot asignado/ocupado en BD
+        // - `on_air`: listo operativamente (cerramos onboarding)
+        const activeSubId = subscriptionId ?? null;
+        if (activeSubId) {
+          await supabaseAdmin.from('subscriptions').update({
+            activation_state: 'provisioned',
+            activation_state_updated_at: new Date().toISOString(),
+          }).eq('id', activeSubId);
+        } else {
+          // Caso raro: la fila ya existía/insertData se ejecutó sin devolución
+          await supabaseAdmin.from('subscriptions').update({
+            activation_state: 'provisioned',
+            activation_state_updated_at: new Date().toISOString(),
+          }).eq('stripe_session_id', session.id);
+        }
 
-      await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
+        await logEvent('SIM_ACTIVATED', 'info', 'SIM activada', undefined, {
+          phone_number: resolvedPhoneForNotifications || slot?.phone_number || '',
+          slot_id: slotId,
+        }, 'stripe');
+
+        const trialMsg = trialEnd
+          ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
+          : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
+
+        await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
+
+        if (activeSubId) {
+          await supabaseAdmin.from('subscriptions').update({
+            activation_state: 'on_air',
+            activation_state_updated_at: new Date().toISOString(),
+          }).eq('id', activeSubId);
+        } else {
+          await supabaseAdmin.from('subscriptions').update({
+            activation_state: 'on_air',
+            activation_state_updated_at: new Date().toISOString(),
+          }).eq('stripe_session_id', session.id);
+        }
+        activationSucceeded = true;
+      } else {
+        // Reserva inválida: marcamos como fallida (no ocupamos el slot).
+        await supabaseAdmin.from('subscriptions').update({
+          activation_state: 'failed',
+          activation_state_updated_at: new Date().toISOString(),
+        }).eq('stripe_session_id', session.id);
+
+        if (enforceReservationValidation) {
+          await createNotification(
+            userId,
+            '⚠️ Activación fallida',
+            'No pudimos activar tu SIM porque la reserva del slot no fue válida. Intenta nuevamente o revisa tu panel.',
+            'error'
+          );
+        }
+      }
 
     } catch (err: any) {
       console.error('[WEBHOOK ERROR]:', err.message);
+      // Resiliencia: si algo falla a mitad del proceso, marcamos activación como "failed"
+      // para que el frontend no asuma falsos positivos.
+      try {
+        await supabaseAdmin.from('subscriptions').update({
+          activation_state: 'failed',
+          activation_state_updated_at: new Date().toISOString(),
+        }).eq('stripe_session_id', session.id);
+      } catch {
+        // no bloquear
+      }
       const subIdStripe = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
       await logEvent('WEBHOOK_ERROR', 'error', err?.message, session.customer_email ?? undefined, {
         stack: err?.stack,
@@ -555,32 +677,34 @@ export default async function handler(req: any, res: any) {
     const customerEmail = session.customer_details?.email ?? '';
     await logEvent('PAYMENT_RECEIVED', 'info', `Pago recibido: ${amountFormatted}`, customerEmail, { amount: amountFormatted, user_id: userId, slot_id: slotId }, 'stripe');
 
-    try {
-      await triggerEmail('purchase_success', userId, {
-        plan: planName ?? '',
-        phone_number: phoneForEmail,
-        billing_type: billingTypeForEmail,
-        next_date: nextDateForEmail,
-        amount: amountFormatted,
-        to: customerEmail,
-      });
-    } catch (emailErr: any) {
-      console.error('[WEBHOOK triggerEmail FAIL]', {
-        event: 'purchase_success',
-        userId,
-        slotId,
-        phone_number: phoneForEmail,
-        error: emailErr?.message,
-        stack: emailErr?.stack,
-      });
-    }
+    if (activationSucceeded) {
+      try {
+        await triggerEmail('purchase_success', userId, {
+          plan: planName ?? '',
+          phone_number: phoneForEmail,
+          billing_type: billingTypeForEmail,
+          next_date: nextDateForEmail,
+          amount: amountFormatted,
+          to: customerEmail,
+        });
+      } catch (emailErr: any) {
+        console.error('[WEBHOOK triggerEmail FAIL]', {
+          event: 'purchase_success',
+          userId,
+          slotId,
+          phone_number: phoneForEmail,
+          error: emailErr?.message,
+          stack: emailErr?.stack,
+        });
+      }
 
-    try {
-      const telegramPhone = phoneForEmail || phoneFromMeta || '';
-      const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
-      await sendTelegramNotification('new_purchase', userId, { phone: displayPhone, plan: planName || '' });
-    } catch (tgErr: unknown) {
-      console.warn('[WEBHOOK] Telegram send skipped or failed:', (tgErr as Error)?.message);
+      try {
+        const telegramPhone = phoneForEmail || phoneFromMeta || '';
+        const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
+        await sendTelegramNotification('new_purchase', userId, { phone: displayPhone, plan: planName || '' });
+      } catch (tgErr: unknown) {
+        console.warn('[WEBHOOK] Telegram send skipped or failed:', (tgErr as Error)?.message);
+      }
     }
   }
 
