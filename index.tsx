@@ -15,20 +15,24 @@ root.render(
   </React.StrictMode>
 );
 
-// PWA: actualizar Service Worker de inmediato cuando haya una versión nueva (skipWaiting)
-if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then((reg) => {
-    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      if (w) {
-        w.addEventListener('statechange', () => {
-          if (w.state === 'installed' && navigator.serviceWorker.controller) {
-            w.postMessage({ type: 'SKIP_WAITING' });
-          }
-        });
-      }
-    });
-  }).catch(() => {});
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
-}
+// PWA: Service Worker temporalmente DESHABILITADO (producción)
+// Deshabilitado temporalmente para evitar problemas de cache en producción
+// (p. ej. servir bundles viejos / MIME type incorrecto).
+//
+// Nota: public/sw.js se mantiene; solo se desactiva el registro desde aquí.
+// if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+//   navigator.serviceWorker.register('/sw.js').then((reg) => {
+//     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+//     reg.addEventListener('updatefound', () => {
+//       const w = reg.installing;
+//       if (w) {
+//         w.addEventListener('statechange', () => {
+//           if (w.state === 'installed' && navigator.serviceWorker.controller) {
+//             w.postMessage({ type: 'SKIP_WAITING' });
+//           }
+//         });
+//       }
+//     });
+//   }).catch(() => {});
+//   navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+// }
