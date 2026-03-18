@@ -11,6 +11,7 @@ interface ActivationData {
   currency: string;
   monthlyLimit: number;
   isAnnual?: boolean;
+  activationState?: string | null;
 }
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -83,7 +84,7 @@ const ActivationSuccess: React.FC = () => {
       if (user) {
         const { data: sub } = await supabase
           .from('subscriptions')
-          .select('phone_number, plan_name, amount, currency, monthly_limit, billing_type')
+          .select('phone_number, plan_name, amount, currency, monthly_limit, billing_type, activation_state')
           .eq('stripe_session_id', sessionId)
           .maybeSingle();
         if (sub) {
@@ -94,6 +95,7 @@ const ActivationSuccess: React.FC = () => {
             currency: sub.currency,
             monthlyLimit: sub.monthly_limit,
             isAnnual: sub.billing_type === 'annual',
+            activationState: sub.activation_state,
           });
         }
       }
@@ -106,6 +108,20 @@ const ActivationSuccess: React.FC = () => {
       <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
+  if (data.activationState && data.activationState !== 'on_air') {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center p-8 text-center">
+        <div>
+          <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Sincronizando...</h3>
+          <p className="text-sm font-medium text-slate-500 max-w-[36ch] mx-auto">
+            Estamos esperando confirmación operativa real del servicio.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const colors = getPlanColors(data.planName);
 

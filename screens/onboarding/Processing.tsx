@@ -67,7 +67,7 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status, billing_type').in('status', ['active', 'trialing']);
+      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state');
 
       if (subId) {
         query = query.eq('id', subId);
@@ -87,8 +87,10 @@ const Processing: React.FC = () => {
         timeoutPromise
       ]) as { data: any };
 
-      if (data?.status === 'active' || data?.status === 'trialing') {
-        // ✅ Payment confirmed — safe to clean up onboarding localStorage
+      const activationState = data?.activation_state as string | null | undefined;
+
+      if (activationState === 'on_air') {
+        // ✅ Servicio operativo confirmado — safe to clean up onboarding localStorage
         const isAnnual = data.billing_type === 'annual';
         ['selected_plan', 'selected_plan_price', 'selected_plan_annual', 'selected_plan_price_id'].forEach(k => localStorage.removeItem(k));
 
@@ -120,6 +122,10 @@ const Processing: React.FC = () => {
             isAnnual,
           },
         });
+      } else if (activationState === 'failed') {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setError('ACTIVATION_FAILED');
+        return;
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
@@ -216,6 +222,28 @@ const Processing: React.FC = () => {
           <button onClick={() => navigate(`/dashboard/numbers`)} className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]">
             <div className="size-12"></div><span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span><div className="size-12 bg-white/20 rounded-xl flex items-center justify-center"><ArrowRight className="size-6" /></div>
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error === 'ACTIVATION_FAILED') {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark font-display p-8 text-center animate-in fade-in">
+        <div className="size-20 bg-amber-500/10 rounded-[2.5rem] flex items-center justify-center border border-amber-500/20 mb-8">
+          <AlertCircle className="size-10 text-amber-500" />
+        </div>
+        <div className="space-y-4 mb-10">
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Activación fallida</h3>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-[32ch] mx-auto leading-relaxed">
+            Detectamos un problema al confirmar la activación del servicio. Vuelve a intentarlo desde tu panel o contacta soporte.
+          </p>
+        </div>
+        <div className="w-full max-w-sm space-y-3">
+          <button onClick={() => navigate('/dashboard/numbers')} className="w-full h-14 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest active:scale-95">
+            Ir a mis números
+          </button>
+          <button onClick={() => navigate('/dashboard')} className="w-full h-14 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Ir a inicio</button>
         </div>
       </div>
     );
