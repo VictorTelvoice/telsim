@@ -181,15 +181,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const profileReqIdRef = useRef(0);
   const lastProfileErrorAtRef = useRef<number | null>(null);
   const PROFILE_ERROR_BACKOFF_MS = 60 * 1000;
+  // Dedupe: evita múltiples fetch concurrentes para el mismo userId
+  const profileFetchInFlightUserIdRef = useRef<string | null>(null);
+  // Marca el último userId cuyo perfil ya quedó resuelto (null real o objeto)
+  const lastProfileLoadedUserIdRef = useRef<string | null>(null);
 
   const clearProfileState = useCallback(() => {
     profileReqIdRef.current += 1; // invalida requests en vuelo
+    profileFetchInFlightUserIdRef.current = null;
+    lastProfileLoadedUserIdRef.current = null;
+    lastProfileErrorAtRef.current = null;
     setProfile(null);
     setProfileLoading(false);
   }, []);
 
   const invalidateProfile = useCallback(() => {
     lastProfileErrorAtRef.current = null;
+    profileFetchInFlightUserIdRef.current = null;
+    lastProfileLoadedUserIdRef.current = null;
     const userId = user?.id;
     if (userId) {
       try {
@@ -228,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (cached !== undefined) {
         lastProfileErrorAtRef.current = null;
+        lastProfileLoadedUserIdRef.current = userId;
         // cache puede ser null real o un objeto válido
         setProfile(cached);
         setUser(enrichUser(sessUser, cached));
@@ -240,7 +250,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS) {
         return;
       }
+
+      // Si ya hay fetch de perfil en vuelo para este userId, no iniciamos otro
+      if (profileFetchInFlightUserIdRef.current === userId) return;
+
+      // Si ya resolvimos el perfil para este userId (memoria/cache ya válidos), no consultamos DB
+      if (lastProfileLoadedUserIdRef.current === userId) return;
+
       setProfileLoading(true);
+      profileFetchInFlightUserIdRef.current = userId;
       try {
         const p = await getProfile(userId);
         if (reqId !== profileReqIdRef.current) return;
@@ -252,12 +270,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         lastProfileErrorAtRef.current = null;
+        lastProfileLoadedUserIdRef.current = userId;
 
         // null u objeto => actualizar estado y cache
         setProfile(p);
         setUser(enrichUser(sessUser, p));
         writeProfileCache(userId, p);
       } finally {
+        if (profileFetchInFlightUserIdRef.current === userId) {
+          profileFetchInFlightUserIdRef.current = null;
+        }
         if (reqId === profileReqIdRef.current) setProfileLoading(false);
       }
     },
@@ -341,6 +363,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!sessUser) return;
 
         if (event === 'SIGNED_IN') {
+          const userId = sessUser.id;
+          const lastErrAt = lastProfileErrorAtRef.current;
+          if (
+            lastProfileLoadedUserIdRef.current === userId ||
+            profileFetchInFlightUserIdRef.current === userId ||
+            (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS)
+          ) {
+            return;
+          }
           runBackgroundWork(sessUser);
         }
         // SIGNED_OUT queda cubierto por setBaseAuthState(null) + clearProfileState()
