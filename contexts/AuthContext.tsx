@@ -1,19 +1,41 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { supabase } from '../lib/supabase';
 import { useDeviceSession } from '../hooks/useDeviceSession';
+
+type ProfileData =
+  | {
+      avatar_url?: string | null;
+      nombre?: string | null;
+      pais?: string | null;
+      moneda?: string | null;
+    }
+  | null;
 
 interface AuthContextType {
   user: any | null;
   session: any | null;
+
+  // Compat: loading === authLoading
   loading: boolean;
+
+  // Nuevos (opcionales para no romper consumidores TS existentes)
+  authLoading?: boolean;
+  profile?: ProfileData;
+  profileLoading?: boolean;
+
   version: number;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-type ProfileData = { avatar_url?: string | null; nombre?: string | null; pais?: string | null; moneda?: string | null } | null;
 
 /** Construye el user enriquecido: avatar_url (y user_metadata.avatar_url) priorizan la tabla users. */
 function enrichUser(sessionUser: any, profile: ProfileData) {
@@ -29,13 +51,18 @@ function enrichUser(sessionUser: any, profile: ProfileData) {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any | null>(null);
+
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const [profile, setProfile] = useState<ProfileData>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
   const [version, setVersion] = useState(0);
+
   const { registerOrUpdateSession } = useDeviceSession();
 
-  /** Siempre devuelve avatar_url (y resto) de la tabla users; en error retorna null. */
   const getProfile = useCallback(async (userId: string): Promise<ProfileData> => {
     try {
       const { data } = await supabase
@@ -49,201 +76,200 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const syncUserToPublicTable = useCallback(async (currentUser: any) => {
-    // Throttle: no sincronizar más de una vez cada 10 minutos
-    const syncKey = `telsim_sync_${currentUser.id}`;
-    const lastSync = parseInt(localStorage.getItem(syncKey) || '0');
-    if (Date.now() - lastSync < 10 * 60 * 1000) return;
-    localStorage.setItem(syncKey, String(Date.now()));
-    try {
-      const { data: existing } = await supabase
-        .from('users')
-        .select('avatar_url')
-        .eq('id', currentUser.id)
-        .maybeSingle();
+  const syncUserToPublicTable = useCallback(
+    async (currentUser: any) => {
+      // Throttle: no sincronizar más de una vez cada 10 minutos
+      const syncKey = `telsim_sync_${currentUser.id}`;
+      const lastSync = parseInt(localStorage.getItem(syncKey) || '0', 10);
+      if (Date.now() - lastSync < 10 * 60 * 1000) return;
+      localStorage.setItem(syncKey, String(Date.now()));
 
-      const raw = existing?.avatar_url != null ? String(existing.avatar_url).trim() : '';
-      const hasSupabaseAvatar = raw !== '' && raw.includes('supabase.co');
-      const metadataAvatar = currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null;
-      const isGoogleAvatar = typeof metadataAvatar === 'string' && (metadataAvatar.includes('google') || metadataAvatar.includes('googleusercontent'));
+      try {
+        const { data: existing } = await supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('id', currentUser.id)
+          .maybeSingle();
 
-      // REGLA: Si en la DB ya hay URL de supabase.co y el metadata trae URL de Google, no sobrescribir.
-      const avatarUrl = hasSupabaseAvatar && isGoogleAvatar
-        ? (existing!.avatar_url as string)
-        : hasSupabaseAvatar
-          ? (existing!.avatar_url as string)
-          : metadataAvatar;
+        const raw = existing?.avatar_url != null ? String(existing.avatar_url).trim() : '';
+        const hasSupabaseAvatar = raw !== '' && raw.includes('supabase.co');
 
-      await supabase
-        .from('users')
-        .upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          nombre: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0],
-          avatar_url: avatarUrl,
-        }, { onConflict: 'id', ignoreDuplicates: false });
+        const metadataAvatar =
+          currentUser.user_metadata?.avatar_url || currentUser.avatar_url || null;
 
-      await registerOrUpdateSession(currentUser.id);
+        const isGoogleAvatar =
+          typeof metadataAvatar === 'string' &&
+          (metadataAvatar.includes('google') || metadataAvatar.includes('googleusercontent'));
 
-      const profile = await getProfile(currentUser.id);
-      setUser((prev: any) => enrichUser(prev ?? currentUser, profile));
-    } catch (err) {
-      console.error('Error sincronización users:', err);
-    }
-  }, [getProfile, registerOrUpdateSession]);
+        // REGLA: Si en la DB ya hay URL de supabase.co y el metadata trae URL de Google, no sobrescribir.
+        const avatarUrl =
+          hasSupabaseAvatar && isGoogleAvatar
+            ? (existing!.avatar_url as string)
+            : hasSupabaseAvatar
+              ? (existing!.avatar_url as string)
+              : metadataAvatar;
+
+        await supabase
+          .from('users')
+          .upsert(
+            {
+              id: currentUser.id,
+              email: currentUser.email,
+              nombre:
+                currentUser.user_metadata?.full_name ||
+                currentUser.user_metadata?.name ||
+                currentUser.email?.split('@')[0],
+              avatar_url: avatarUrl,
+            },
+            { onConflict: 'id', ignoreDuplicates: false }
+          );
+
+        await registerOrUpdateSession(currentUser.id);
+      } catch (err) {
+        console.error('Error sincronización users:', err);
+      }
+    },
+    [registerOrUpdateSession]
+  );
+
+  // Evita carreras en carga de profile cuando cambie el usuario rápidamente
+  const profileReqIdRef = useRef(0);
+
+  const clearProfileState = useCallback(() => {
+    profileReqIdRef.current += 1; // invalida requests en vuelo
+    setProfile(null);
+    setProfileLoading(false);
+  }, []);
+
+  const setBaseAuthState = useCallback(
+    (sess: any) => {
+      setSession(sess ?? null);
+      const sessUser = sess?.user ?? null;
+      setUser(sessUser);
+      if (!sessUser) clearProfileState();
+    },
+    [clearProfileState]
+  );
+
+  const loadProfileInBackground = useCallback(
+    async (sessUser: any) => {
+      const reqId = ++profileReqIdRef.current;
+      setProfileLoading(true);
+      try {
+        const p = await getProfile(sessUser.id);
+        if (reqId !== profileReqIdRef.current) return;
+        setProfile(p);
+        setUser(enrichUser(sessUser, p));
+      } finally {
+        if (reqId === profileReqIdRef.current) setProfileLoading(false);
+      }
+    },
+    [getProfile]
+  );
+
+  const runBackgroundWork = useCallback(
+    (sessUser: any) => {
+      syncUserToPublicTable(sessUser).catch((err) => console.error('Auth sync error:', err));
+      loadProfileInBackground(sessUser).catch(() => {});
+    },
+    [loadProfileInBackground, syncUserToPublicTable]
+  );
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
-    const profile = await getProfile(user.id);
-    if (profile) {
-      setUser((prev: any) => (prev ? enrichUser(prev, profile) : null));
-      setVersion((v) => v + 1);
+    const reqId = ++profileReqIdRef.current;
+    setProfileLoading(true);
+    try {
+      const p = await getProfile(user.id);
+      if (reqId !== profileReqIdRef.current) return;
+      setProfile(p);
+      if (p) {
+        setUser((prev: any) => (prev ? enrichUser(prev, p) : null));
+        setVersion((v) => v + 1);
+      }
+    } finally {
+      if (reqId === profileReqIdRef.current) setProfileLoading(false);
     }
-  }, [user?.id, getProfile]);
-
-  const getProfileRef = useRef(getProfile);
-  const syncRef = useRef(syncUserToPublicTable);
-  const refreshProfileRef = useRef(refreshProfile);
-  const setVersionRef = useRef(setVersion);
-  getProfileRef.current = getProfile;
-  syncRef.current = syncUserToPublicTable;
-  refreshProfileRef.current = refreshProfile;
-  setVersionRef.current = setVersion;
+  }, [getProfile, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
-    const subscriptionRef = { current: null as { unsubscribe: () => void } | null };
 
-    const run = async () => {
+    // 1) Inicialización única: getSession()
+    (async () => {
       try {
-        // Si hay ?code= sin hash → callback OAuth/PKCE.
-        // Supabase lo procesa via detectSessionInUrl:true de forma automática.
-        // Solo limpiamos la URL para evitar que el ?code= quede visible.
-        if (
-          typeof window !== 'undefined' &&
-          window.location.search.includes('code=') &&
-          window.location.hash === ''
-        ) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-        const { data: { session: sess } } = await (supabase.auth as any).getSession();
+        const {
+          data: { session: sess },
+        } = await (supabase.auth as any).getSession();
         if (cancelled) return;
-        setSession(sess);
+
+        setBaseAuthState(sess);
         if (sess?.user) {
-          let profileData: ProfileData = null;
-          try {
-            profileData = await getProfileRef.current(sess.user.id);
-          } catch {
-            profileData = null;
-          }
-          setUser(enrichUser(sess.user, profileData));
-          try {
-            await syncRef.current(sess.user);
-          } catch (err) {
-            console.error('Auth sync error:', err);
-          }
-          if (!cancelled) setLoading(false);
-        } else {
-          if (!cancelled) setLoading(false);
+          runBackgroundWork(sess.user);
         }
       } catch (err) {
         console.error('Auth getSession error:', err);
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setBaseAuthState(null);
+      } finally {
+        if (!cancelled) setAuthLoading(false);
       }
-    };
-    run();
+    })();
 
-    const failSafeTimer = setTimeout(() => {
-      if (!cancelled) setLoading(false);
-    }, 1500);
-
-    const subscribeAuth = () => {
-      subscriptionRef.current?.unsubscribe?.();
-      const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, sess: any) => {
-        try {
-          if (cancelled) return;
-          const currentUser = sess?.user ?? null;
-          console.log('[AUTH EVENT]', event, 'user:', currentUser?.email, 'hash:', window.location.hash, 'search:', window.location.search);
-          setSession(sess);
-          if (currentUser) {
-            let profileData: ProfileData = null;
-            try {
-              profileData = await getProfileRef.current(currentUser.id);
-            } catch {
-              profileData = null;
-            }
-            if (!cancelled) setLoading(false);
-            setUser(enrichUser(currentUser, profileData));
-          } else {
-            setUser(null);
-            if (!cancelled) setLoading(false);
-          }
-
-          if (event === 'SIGNED_IN' && currentUser) {
-            // Sync en background — el redirect lo maneja LandingOrDashboard
-            syncRef.current(currentUser).catch(err => console.error('Auth sync on sign-in:', err));
-          }
-        } catch (err) {
-          console.error('Auth onAuthStateChange error:', err);
-          if (!cancelled) setLoading(false);
-        }
-        // setLoading(false) ya fue llamado dentro del try antes de llegar aquí
-        // No llamar en finally para evitar render con loading:false y user:undefined
-      });
-      subscriptionRef.current = subscription;
-    };
-    subscribeAuth();
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState !== 'visible') return;
-      if (cancelled) return;
-      try {
-        try {
-          await (supabase.auth as any).stopAutoRefresh?.();
-          await (supabase.auth as any).startAutoRefresh?.();
-        } catch (_) {}
-        const { data: { session: s } } = await (supabase.auth as any).getSession();
+    // 2) Suscripción única: onAuthStateChange()
+    const { data } = (supabase.auth as any).onAuthStateChange(
+      (event: string, sess: any) => {
         if (cancelled) return;
-        if (s) {
-          setSession(s);
-          await refreshProfileRef.current?.();
-        }
-        subscriptionRef.current?.unsubscribe?.();
-        subscribeAuth();
-      } catch (err) {
-        console.error('Auth visibility wake error:', err);
-        subscriptionRef.current?.unsubscribe?.();
-        subscribeAuth();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    let swChannel: BroadcastChannel | null = null;
-    try {
-      swChannel = new BroadcastChannel('sw-messages');
-      swChannel.onmessage = (e) => {
-        if (e.data?.type === 'AUTH_REFRESH' && !cancelled) handleVisibilityChange();
-      };
-    } catch (_) {}
+        // Actualizar session/user inmediatamente
+        setBaseAuthState(sess);
+
+        // INITIAL_SESSION puede llegar después del mount; bajar loading igual
+        setAuthLoading(false);
+
+        const sessUser = sess?.user ?? null;
+        if (!sessUser) return;
+
+        if (
+          event === 'INITIAL_SESSION' ||
+          event === 'SIGNED_IN' ||
+          event === 'TOKEN_REFRESHED'
+        ) {
+          runBackgroundWork(sessUser);
+        }
+        // SIGNED_OUT queda cubierto por setBaseAuthState(null) + clearProfileState()
+      }
+    );
 
     return () => {
       cancelled = true;
-      clearTimeout(failSafeTimer);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      try { swChannel?.close(); } catch (_) {}
-      subscriptionRef.current?.unsubscribe?.();
+      try {
+        data?.subscription?.unsubscribe?.();
+      } catch {
+        // ignore
+      }
     };
-  }, []);
+  }, [runBackgroundWork, setBaseAuthState]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     localStorage.removeItem('telsim_device_session_id');
     await (supabase.auth as any).signOut();
-    setUser(null);
-    setSession(null);
-  };
+    // onAuthStateChange actualizará session/user/profile
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, version, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading: authLoading, // alias compat
+        authLoading,
+        profile,
+        profileLoading,
+        version,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
