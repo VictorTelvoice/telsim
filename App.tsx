@@ -12,6 +12,7 @@ import AdminGuard from './components/AdminGuard';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './screens/Landing';
 import Login from './screens/auth/Login';
+import AuthCallback from './screens/auth/AuthCallback';
 import RegionSelect from './screens/onboarding/RegionSelect';
 import PlanSelect from './screens/onboarding/PlanSelect';
 import Summary from './screens/onboarding/Summary';
@@ -295,6 +296,7 @@ const App: React.FC = () => {
 
                   {/* ── Rutas full-width (desktop responsivo, sin max-w-md) ── */}
                   <Route path="/login" element={<Login />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/register" element={<Navigate to="/login" replace />} />
                   {/* Plan sin ProtectedRoute — usuario nuevo puede verlo */}
                   <Route path="/onboarding/plan" element={<PlanSelect />} />
