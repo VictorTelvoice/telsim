@@ -39,9 +39,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function enrichUser(sessionUser: any, profile: ProfileData) {
-  const avatarFromMeta = sessionUser?.user_metadata?.avatar_url ?? null;
-  const avatarFromProfile = profile?.avatar_url ?? null;
-  const avatar_url = avatarFromMeta ?? avatarFromProfile;
+  const avatar_url =
+    profile?.avatar_url ?? sessionUser?.user_metadata?.avatar_url ?? null;
 
   return {
     ...sessionUser,
