@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
 
 interface ActivationData {
@@ -38,11 +37,9 @@ const ActivationSuccess: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { language } = useLanguage();
-  const { addNotification } = useNotifications();
   const [data, setData] = useState<ActivationData | null>(null);
   const [copied, setCopied] = useState(false);
   const [desktop, setDesktop] = useState(isDesktop());
-  const notifSent = useRef(false);
 
   useEffect(() => {
     const handler = () => setDesktop(isDesktop());
@@ -86,24 +83,23 @@ const ActivationSuccess: React.FC = () => {
       if (user) {
         const { data: sub } = await supabase
           .from('subscriptions')
-          .select('phone_number, plan_name, amount, currency, monthly_limit')
+          .select('phone_number, plan_name, amount, currency, monthly_limit, billing_type')
           .eq('stripe_session_id', sessionId)
           .maybeSingle();
-        if (sub) setData({ phoneNumber: sub.phone_number, planName: sub.plan_name, amount: sub.amount, currency: sub.currency, monthlyLimit: sub.monthly_limit });
+        if (sub) {
+          setData({
+            phoneNumber: sub.phone_number,
+            planName: sub.plan_name,
+            amount: sub.amount,
+            currency: sub.currency,
+            monthlyLimit: sub.monthly_limit,
+            isAnnual: sub.billing_type === 'annual',
+          });
+        }
       }
     };
     load();
   }, [user, sessionId]);
-
-  useEffect(() => {
-    if (!data || notifSent.current) return;
-    notifSent.current = true;
-    addNotification({
-      title: '✅ Nueva Suscripción Activada',
-      message: `Tu plan ${data.planName} está activo. Número asignado: ${formatPhone(data.phoneNumber)}. Primer cobro el ${fmt(trialEnd)}.`,
-      type: 'subscription'
-    });
-  }, [data]);
 
   if (!data) return (
     <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">
