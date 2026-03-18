@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,10 +18,15 @@ const Settings: React.FC = () => {
   const [loggingOut, setLoggingOut] = useState(false);
   const { language: lang, setLanguage: setLang, t } = useLanguage();
   const [uploading, setUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const resolvedAvatarUrl = user?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(resolvedAvatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    setAvatarUrl(resolvedAvatarUrl);
+  }, [resolvedAvatarUrl]);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || t('common.user_fallback');
   const userEmail = user?.email || '';

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,6 +11,8 @@ const Profile: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  const resolvedAvatarUrl = user?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
+
   const [nombre, setNombre] = useState(user?.user_metadata?.full_name || '');
   const [phone, setPhone] = useState(user?.user_metadata?.phone || '');
   const [pais, setPais] = useState(user?.user_metadata?.country || 'Chile');
@@ -18,8 +20,12 @@ const Profile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(resolvedAvatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setAvatarUrl(resolvedAvatarUrl);
+  }, [resolvedAvatarUrl]);
 
   const displayName = nombre || user?.email?.split('@')[0] || 'Usuario';
   const userInitials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();

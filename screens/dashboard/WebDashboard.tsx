@@ -306,6 +306,7 @@ const WebDashboard: React.FC = () => {
   const auth = useAuth();
   const effectiveUser = useEffectiveUser(auth.user);
   const user = effectiveUser ?? auth.user;
+  const resolvedAvatarUrl = user?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
   const { refreshProfile, invalidateProfile, version: authVersion, signOut } = auth;
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
@@ -857,7 +858,7 @@ const WebDashboard: React.FC = () => {
 
   useEffect(() => {
     setSidebarAvatarError(false);
-  }, [user?.avatar_url]);
+  }, [resolvedAvatarUrl]);
 
   useEffect(() => {
     if (!user) return;
@@ -1475,8 +1476,8 @@ const WebDashboard: React.FC = () => {
           <div className={`mt-1 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
           <div className="flex items-center gap-2.5 px-1 mt-1">
             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
-              {user?.avatar_url && !sidebarAvatarError ? (
-                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" onError={() => setSidebarAvatarError(true)} />
+              {resolvedAvatarUrl && !sidebarAvatarError ? (
+                <img src={resolvedAvatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" onError={() => setSidebarAvatarError(true)} />
               ) : (
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black">{userInitials}</div>
               )}
@@ -2149,8 +2150,8 @@ const WebDashboard: React.FC = () => {
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative flex-shrink-0">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center">
-                          {user?.avatar_url && !sidebarAvatarError
-                            ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" onError={() => setSidebarAvatarError(true)} />
+                          {resolvedAvatarUrl && !sidebarAvatarError
+                            ? <img src={resolvedAvatarUrl} alt="avatar" className="w-full h-full object-cover" onError={() => setSidebarAvatarError(true)} />
                             : <span className="text-white text-[22px] font-black">{userInitials}</span>
                           }
                         </div>
