@@ -1475,17 +1475,27 @@ const WebDashboard: React.FC = () => {
           </button>
           <div className={`mt-1 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
           <div className="flex items-center gap-2.5 px-1 mt-1">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
-              {resolvedAvatarUrl && !sidebarAvatarError ? (
-                <img src={resolvedAvatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" onError={() => setSidebarAvatarError(true)} />
-              ) : (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black">{userInitials}</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold truncate">{userName}</p>
-              <p className={`text-[10px] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('settings');
+                setSettingsSection('profile');
+              }}
+              className={`flex items-center gap-2.5 flex-1 min-w-0 text-left px-1 py-1 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+              title="Ajustes > Mi Perfil"
+            >
+              <span className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-sky-400 to-primary flex items-center justify-center text-white text-[11px] font-black">
+                {resolvedAvatarUrl && !sidebarAvatarError ? (
+                  <img src={resolvedAvatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" onError={() => setSidebarAvatarError(true)} />
+                ) : (
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black">{userInitials}</span>
+                )}
+              </span>
+              <span className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold truncate">{userName}</p>
+                <p className={`text-[10px] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
+              </span>
+            </button>
             <button onClick={handleLogout} disabled={loggingOut} title="Cerrar sesión"
               className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}>
               <LogOut size={14} className="text-slate-400" />
