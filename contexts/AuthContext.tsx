@@ -32,6 +32,7 @@ interface AuthContextType {
 
   version: number;
   signOut: () => Promise<void>;
+  invalidateProfile: () => void;
   refreshProfile: () => Promise<void>;
 }
 
@@ -53,6 +54,37 @@ function enrichUser(sessionUser: any, profile: ProfileData) {
   };
 }
 
+const PROFILE_CACHE_PREFIX = 'telsim_profile_v1_';
+
+function profileCacheKey(userId: string) {
+  return `${PROFILE_CACHE_PREFIX}${userId}`;
+}
+
+function readProfileCache(userId: string): ProfileData | undefined {
+  try {
+    if (typeof window === 'undefined') return undefined;
+    const raw = window.sessionStorage.getItem(profileCacheKey(userId));
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as { profile?: ProfileData } | null;
+    if (!parsed || !Object.prototype.hasOwnProperty.call(parsed, 'profile')) return undefined;
+    return parsed.profile ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeProfileCache(userId: string, profile: ProfileData) {
+  try {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(
+      profileCacheKey(userId),
+      JSON.stringify({ profile })
+    );
+  } catch {
+    // non-critical
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<any | null>(null);
   const [user, setUser] = useState<any | null>(null);
@@ -71,16 +103,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profileRef.current = profile;
   }, [profile]);
 
-  const getProfile = useCallback(async (userId: string): Promise<ProfileData> => {
+  const getProfile = useCallback(async (userId: string): Promise<ProfileData | undefined> => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('avatar_url, nombre, pais, moneda')
         .eq('id', userId)
-        .single();
-      return data as ProfileData;
+        .maybeSingle();
+
+      // Error => undefined (no tocar caché)
+      if (error) return undefined;
+
+      // Sin fila => null real "no perfil"
+      return (data as ProfileData) ?? null;
     } catch {
-      return null;
+      return undefined;
     }
   }, []);
 
@@ -149,6 +186,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileLoading(false);
   }, []);
 
+  const invalidateProfile = useCallback(() => {
+    const userId = user?.id;
+    if (userId) {
+      try {
+        window.sessionStorage.removeItem(profileCacheKey(userId));
+      } catch {
+        // non-critical
+      }
+    }
+
+    // Recalcula el user enriquecido desde la user original de la sesión (sin profile)
+    if (session?.user) {
+      setUser(enrichUser(session.user, null));
+    }
+
+    clearProfileState();
+  }, [clearProfileState, session?.user, user?.id]);
+
   const setBaseAuthState = useCallback(
     (sess: any) => {
       setSession(sess ?? null);
@@ -162,12 +217,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadProfileInBackground = useCallback(
     async (sessUser: any) => {
       const reqId = ++profileReqIdRef.current;
+      const userId = sessUser.id;
+
+      // 1) Intentar cache primero
+      const cached = readProfileCache(userId);
+      if (reqId !== profileReqIdRef.current) return;
+
+      if (cached !== undefined) {
+        // cache puede ser null real o un objeto válido
+        setProfile(cached);
+        setUser(enrichUser(sessUser, cached));
+        setProfileLoading(false);
+        return;
+      }
+
+      // 2) Si no existe cache => consultar DB
       setProfileLoading(true);
       try {
-        const p = await getProfile(sessUser.id);
+        const p = await getProfile(userId);
         if (reqId !== profileReqIdRef.current) return;
+
+        // undefined => error/atraso de fetch; no tocar cache ni sobreescribir profile
+        if (p === undefined) return;
+
+        // null u objeto => actualizar estado y cache
         setProfile(p);
         setUser(enrichUser(sessUser, p));
+        writeProfileCache(userId, p);
       } finally {
         if (reqId === profileReqIdRef.current) setProfileLoading(false);
       }
@@ -188,13 +264,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const reqId = ++profileReqIdRef.current;
     setProfileLoading(true);
     try {
-      const p = await getProfile(user.id);
+      const userId = user.id;
+      const p = await getProfile(userId);
       if (reqId !== profileReqIdRef.current) return;
+
+      // undefined => error/fallo fetch; no tocar estado ni cache
+      if (p === undefined) return;
+
       setProfile(p);
-      if (p) {
-        setUser((prev: any) => (prev ? enrichUser(prev, p) : null));
-        setVersion((v) => v + 1);
-      }
+      setUser((prev: any) => (prev ? enrichUser(prev, p) : null));
+      writeProfileCache(userId, p);
+      setVersion((v) => v + 1);
     } finally {
       if (reqId === profileReqIdRef.current) setProfileLoading(false);
     }
@@ -255,10 +335,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [runBackgroundWork, setBaseAuthState]);
 
   const signOut = useCallback(async () => {
+    const userId = user?.id;
+    if (userId) {
+      try {
+        window.sessionStorage.removeItem(profileCacheKey(userId));
+      } catch {
+        // non-critical
+      }
+    }
+
     localStorage.removeItem('telsim_device_session_id');
     await (supabase.auth as any).signOut();
     // onAuthStateChange actualizará session/user/profile
-  }, []);
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider
@@ -271,6 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileLoading,
         version,
         signOut,
+        invalidateProfile,
         refreshProfile,
       }}
     >
