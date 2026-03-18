@@ -449,15 +449,20 @@ const WebDashboard: React.FC = () => {
 
   // ─── Data fetching (AbortController: al ir a segundo plano se abortan peticiones para no dejar zombies) ───
   const fetchAbortRef = useRef(new AbortController());
+  const inFlightRef = useRef(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) {
       setLoading(false);
       return;
     }
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     const signal = fetchAbortRef.current.signal;
     try {
+      setFetchError(null);
       const { data: subsData } = await supabase
         .from('subscriptions')
         .select('*')
@@ -510,21 +515,22 @@ const WebDashboard: React.FC = () => {
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       console.error(e);
-      // Retry automático una vez después de 3s en caso de error de red
-      if (!signal.aborted) {
-        setTimeout(() => {
-          if (!signal.aborted) fetchData();
-        }, 3000);
-      }
+      // Parche anti-storm: sin retry automático (evita loops ante 5xx / degradación)
+      const msg =
+        (typeof e?.message === 'string' && e.message) ||
+        (typeof e?.error_description === 'string' && e.error_description) ||
+        'Error cargando datos. Intenta nuevamente.';
+      setFetchError(msg);
     } finally {
       if (!signal.aborted) setLoading(false);
+      inFlightRef.current = false;
     }
   }, [user?.id]);
 
   // Primera carga en cuanto user.id esté disponible; no se espera a auth loading
   useEffect(() => {
     if (user?.id) fetchData();
-  }, [user?.id, fetchData, authVersion]);
+  }, [user?.id, fetchData]);
 
   useEffect(() => {
     let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
@@ -547,22 +553,30 @@ const WebDashboard: React.FC = () => {
 
   // ─── Auto-refresh feed en vivo every 5 seconds ────────────────────────────────
   useEffect(() => {
+    const userId = user?.id;
+    if (activeTab !== 'overview') return;
+    if (!userId) return;
+    if (fetchError) return;
+
     const interval = setInterval(() => {
-      if (activeTab === 'overview' && user) {
-        const fetchFeed = async () => {
-          try {
-            const { data } = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
-              .order('received_at', { ascending: false }).limit(60);
-            if (data) setMessages(data as SMSLog[]);
-          } catch (e: any) {
-            console.error('Error refreshing feed:', e);
-          }
-        };
-        fetchFeed();
-      }
+      if (inFlightRef.current) return;
+      const fetchFeed = async () => {
+        try {
+          const { data } = await supabase
+            .from('sms_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .order('received_at', { ascending: false })
+            .limit(60);
+          if (data) setMessages(data as SMSLog[]);
+        } catch (e: any) {
+          console.error('Error refreshing feed:', e);
+        }
+      };
+      fetchFeed();
     }, 5000);
     return () => clearInterval(interval);
-  }, [user, activeTab]);
+  }, [user?.id, activeTab, fetchError]);
 
   const getAvatarStoragePathFromUrl = (url: string): string | null => {
     if (!url || !url.includes('avatars/')) return null;
