@@ -223,9 +223,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(sess ?? null);
       const sessUser = sess?.user ?? null;
       setUser(sessUser ? enrichUser(sessUser, profileRef.current) : null);
-      if (!sessUser) clearProfileViewState();
     },
-    [clearProfileViewState]
+    []
   );
 
   const loadProfileInBackground = useCallback(
