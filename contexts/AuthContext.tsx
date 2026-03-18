@@ -186,19 +186,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Marca el último userId cuyo perfil ya quedó resuelto (null real o objeto)
   const lastProfileLoadedUserIdRef = useRef<string | null>(null);
 
-  const clearProfileState = useCallback(() => {
-    profileReqIdRef.current += 1; // invalida requests en vuelo
-    profileFetchInFlightUserIdRef.current = null;
-    lastProfileLoadedUserIdRef.current = null;
-    lastProfileErrorAtRef.current = null;
+  const clearProfileViewState = useCallback(() => {
+    profileReqIdRef.current += 1; // invalida requests en vuelo (vista)
     setProfile(null);
     setProfileLoading(false);
   }, []);
 
-  const invalidateProfile = useCallback(() => {
-    lastProfileErrorAtRef.current = null;
+  const resetProfileFetchGuards = useCallback(() => {
+    // Dedupe/guard anti-loop (fetch layer)
     profileFetchInFlightUserIdRef.current = null;
     lastProfileLoadedUserIdRef.current = null;
+    lastProfileErrorAtRef.current = null;
+  }, []);
+
+  const invalidateProfile = useCallback(() => {
     const userId = user?.id;
     if (userId) {
       try {
@@ -213,17 +214,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(enrichUser(session.user, null));
     }
 
-    clearProfileState();
-  }, [clearProfileState, session?.user, user?.id]);
+    resetProfileFetchGuards();
+    clearProfileViewState();
+  }, [clearProfileViewState, resetProfileFetchGuards, session?.user, user?.id]);
 
   const setBaseAuthState = useCallback(
     (sess: any) => {
       setSession(sess ?? null);
       const sessUser = sess?.user ?? null;
       setUser(sessUser ? enrichUser(sessUser, profileRef.current) : null);
-      if (!sessUser) clearProfileState();
+      if (!sessUser) clearProfileViewState();
     },
-    [clearProfileState]
+    [clearProfileViewState]
   );
 
   const loadProfileInBackground = useCallback(
@@ -359,6 +361,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // INITIAL_SESSION puede llegar después del mount; bajar loading igual
         setAuthLoading(false);
 
+        if (event === 'SIGNED_OUT') {
+          clearProfileViewState();
+          resetProfileFetchGuards();
+          return;
+        }
+
         const sessUser = sess?.user ?? null;
         if (!sessUser) return;
 
@@ -374,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           runBackgroundWork(sessUser);
         }
-        // SIGNED_OUT queda cubierto por setBaseAuthState(null) + clearProfileState()
+        // SIGNED_OUT se maneja explícitamente arriba (clearProfileViewState + resetProfileFetchGuards)
       }
     );
 
@@ -386,7 +394,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // ignore
       }
     };
-  }, [runBackgroundWork, setBaseAuthState]);
+  }, [runBackgroundWork, setBaseAuthState, clearProfileViewState, resetProfileFetchGuards]);
 
   const signOut = useCallback(async () => {
     const userId = user?.id;
@@ -404,7 +412,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setUser(null);
     setAuthLoading(false);
-    clearProfileState();
+    clearProfileViewState();
+    resetProfileFetchGuards();
 
     const signOutFn = (supabase.auth as any).signOut.bind(supabase.auth);
 
@@ -420,7 +429,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     // onAuthStateChange actualizará session/user/profile (si el backend responde)
-  }, [user?.id, clearProfileState]);
+  }, [user?.id, clearProfileViewState, resetProfileFetchGuards]);
 
   return (
     <AuthContext.Provider
