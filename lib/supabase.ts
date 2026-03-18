@@ -6,15 +6,13 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_WFpd0btkMWrv_9IW0mcANQ_kFSPScD7';
 
-const noopLock = (_name: string, _opts: any, fn: () => Promise<unknown>) => fn();
-
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     persistSession: true, // auth v2
     detectSessionInUrl: true,
     flowType: 'pkce',
-    lock: noopLock as any,
+    autoRefreshToken: true,
   },
 });
 
@@ -26,6 +24,7 @@ supabase.auth.onAuthStateChange((event) => {
       'post_login_redirect', 'selected_plan_price_id', 'selected_plan_price',
     ].forEach(k => localStorage.removeItem(k));
     const hash = window.location.hash;
+    if (hash.includes('/auth/callback')) return;
     if (hash.includes('/web') || hash.includes('/dashboard') || hash.includes('/admin')) {
       window.location.hash = '/login';
     }
