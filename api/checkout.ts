@@ -7,6 +7,7 @@
  */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
@@ -215,11 +216,78 @@ export default async function handler(req: any, res: any) {
     let targetSlotId = slot_id;
     let targetPhoneNumber: string = typeof phoneNumber === 'string' ? phoneNumber : '';
 
+    const RESERVATION_TTL_MS = 1000 * 60 * 30; // 30 minutes
+    const nowMs = Date.now();
+    let reservationToken: string | null = null;
+
+    const reserveSlotForCheckout = async () => {
+      const nowIso = new Date(nowMs).toISOString();
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        // 1) Prefer truly free slots
+        const { data: freeSlot } = await supabaseAdmin
+          .from('slots')
+          .select('slot_id, phone_number')
+          .eq('status', 'libre')
+          .limit(1)
+          .maybeSingle();
+
+        // 2) Fallback: expired reservations treated as "free"
+        const { data: expiredReservedSlot } = freeSlot
+          ? { data: null }
+          : await supabaseAdmin
+            .from('slots')
+            .select('slot_id, phone_number')
+            .eq('status', 'reserved')
+            .lt('reservation_expires_at', nowIso)
+            .limit(1)
+            .maybeSingle();
+
+        const slotToReserve = freeSlot ?? expiredReservedSlot;
+        if (!slotToReserve) {
+          throw new Error("Sin capacidad física disponible.");
+        }
+
+        const reservationTokenCandidate = crypto.randomBytes(16).toString('hex');
+        const expiresAtIso = new Date(nowMs + RESERVATION_TTL_MS).toISOString();
+
+        // Atomic-ish: aseguramos que el slot no cambie entre "select" y "update" con condición de estado.
+        const currentStatus = freeSlot ? 'libre' : 'reserved';
+        const { data: reservedSlot, error: reserveErr } = await supabaseAdmin
+          .from('slots')
+          .update({
+            status: 'reserved',
+            reservation_token: reservationTokenCandidate,
+            reservation_expires_at: expiresAtIso,
+            reservation_user_id: userId,
+            reservation_stripe_session_id: null,
+            assigned_to: null,
+            plan_type: null,
+          })
+          .eq('slot_id', slotToReserve.slot_id)
+          .eq('status', currentStatus)
+          .select('slot_id, phone_number')
+          .maybeSingle();
+
+        if (!reserveErr && reservedSlot) {
+          return {
+            slotId: reservedSlot.slot_id,
+            phone: (reservedSlot as { phone_number?: string }).phone_number ?? '',
+            reservationToken: reservationTokenCandidate,
+            reservationExpiresAtIso: expiresAtIso,
+          };
+        }
+      }
+
+      throw new Error('No se pudo reservar el slot (posible carrera). Intenta nuevamente.');
+    };
+
     if (!isUpgrade) {
-      const { data: s } = await supabaseAdmin.from('slots').select('slot_id, phone_number').eq('status', 'libre').limit(1).single();
-      if (!s) throw new Error("Sin capacidad física disponible.");
-      targetSlotId = s.slot_id;
-      targetPhoneNumber = (s as { phone_number?: string }).phone_number ?? targetPhoneNumber;
+      // Reserva previa antes de enviar al checkout de Stripe para evitar carreras.
+      const reserved = await reserveSlotForCheckout();
+      targetSlotId = reserved.slotId;
+      targetPhoneNumber = reserved.phone || targetPhoneNumber;
+      reservationToken = reserved.reservationToken;
     } else if (!targetPhoneNumber && targetSlotId) {
       const { data: slotRow } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', targetSlotId).maybeSingle();
       targetPhoneNumber = (slotRow as { phone_number?: string } | null)?.phone_number ?? '';
@@ -245,7 +313,24 @@ export default async function handler(req: any, res: any) {
       }
     };
 
+    // Si es NEW_SUB, incluimos reserva en metadata para validarla en el webhook.
+    // Nota: solo reservamos en el bloque `!isUpgrade` anterior.
+    if (!isUpgrade) {
+      sessionConfig.metadata.reservation_token = reservationToken || '';
+    }
+
     const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    // Asociamos el checkout session id a la reserva (para validación fuerte).
+    if (!isUpgrade) {
+      const tokenToWrite = (sessionConfig.metadata.reservation_token || '') as string;
+      await supabaseAdmin
+        .from('slots')
+        .update({ reservation_stripe_session_id: session.id })
+        .eq('slot_id', targetSlotId)
+        .eq('status', 'reserved')
+        .eq('reservation_token', tokenToWrite);
+    }
     return res.status(200).json({ url: session.url });
 
   } catch (err: any) {
