@@ -335,6 +335,9 @@ const WebDashboard: React.FC = () => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
+  const billingSubsAbortRef = useRef<AbortController | null>(null);
+  const billingSubsInFlightUserIdRef = useRef<string | null>(null);
+  const billingSubsReqIdRef = useRef(0);
   const [helpSearch, setHelpSearch] = useState('');
   const [notifFilter, setNotifFilter] = useState<string>('all');
   const [notifPrefs, setNotifPrefs] = useState<Record<string, { inapp: boolean; email: boolean; telegram: boolean }>>({
@@ -452,6 +455,28 @@ const WebDashboard: React.FC = () => {
   const fetchAbortRef = useRef(new AbortController());
   const inFlightRef = useRef(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Cleanup de unmount: abortar requests en vuelo
+  useEffect(() => {
+    return () => {
+      try { fetchAbortRef.current.abort(); } catch {}
+      try { billingSubsAbortRef.current?.abort(); } catch {}
+    };
+  }, []);
+
+  // Cuando el user se va (logout/cambio), abortar requests en vuelo y resetear controladores
+  useEffect(() => {
+    if (user?.id) return;
+
+    try { fetchAbortRef.current.abort(); } catch {}
+    fetchAbortRef.current = new AbortController();
+    inFlightRef.current = false;
+
+    try { billingSubsAbortRef.current?.abort(); } catch {}
+    billingSubsAbortRef.current = null;
+    billingSubsInFlightUserIdRef.current = null;
+    billingSubsReqIdRef.current += 1; // invalida respuestas tardías
+  }, [user?.id]);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) {
@@ -821,6 +846,15 @@ const WebDashboard: React.FC = () => {
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
+    // Cortar inmediatamente requests en vuelo para evitar setState con user anterior
+    try { fetchAbortRef.current.abort(); } catch {}
+    fetchAbortRef.current = new AbortController();
+    inFlightRef.current = false;
+
+    try { billingSubsAbortRef.current?.abort(); } catch {}
+    billingSubsAbortRef.current = null;
+    billingSubsInFlightUserIdRef.current = null;
+    billingSubsReqIdRef.current += 1; // invalida respuestas tardías
     try {
       await signOut();
     } catch (err) {
@@ -1076,13 +1110,56 @@ const WebDashboard: React.FC = () => {
   // ─── Billing data ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (activeTab !== 'billing' || !user) return;
+    if (activeTab !== 'billing' || !user?.id) return;
+
+    const userId = user.id;
+    const controller = new AbortController();
+    const reqId = ++billingSubsReqIdRef.current;
+
+    if (billingSubsInFlightUserIdRef.current === userId) return;
+
+    let alive = true;
+    billingSubsAbortRef.current = controller;
+    billingSubsInFlightUserIdRef.current = userId;
+
     setBillingLoading(true);
-    supabase.from('subscriptions').select('*').eq('user_id', user.id)
+
+    supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10)
-      .then(({ data }) => { if (data) setSubscriptions(data); setBillingLoading(false); });
-  }, [activeTab, user]);
+      .abortSignal(controller.signal as any)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (reqId !== billingSubsReqIdRef.current) return;
+        if (error) throw error;
+        setSubscriptions(data || []);
+      })
+      .catch((e: any) => {
+        if (!alive) return;
+        if (e?.name === 'AbortError') return;
+        if (reqId !== billingSubsReqIdRef.current) return;
+        console.error(e);
+      })
+      .finally(() => {
+        // Importante: limpiar flags/abortRef aunque sea un abort, para que no quede "en vuelo"
+        if (billingSubsInFlightUserIdRef.current === userId) {
+          billingSubsInFlightUserIdRef.current = null;
+        }
+        if (billingSubsAbortRef.current === controller) {
+          billingSubsAbortRef.current = null;
+        }
+        if (!alive) return;
+        if (reqId === billingSubsReqIdRef.current) setBillingLoading(false);
+      });
+
+    return () => {
+      alive = false;
+      try { controller.abort(); } catch {}
+    };
+  }, [activeTab, user?.id]);
 
   // ─── Open inbox + mark as read ────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -54,51 +54,84 @@ const Billing: React.FC = () => {
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
 
-  const fetchData = async () => {
-    if (!user) return;
+  const subsFetchInFlightRef = useRef(false);
+  const subsReqIdRef = useRef(0);
+
+  const fetchData = async (
+    userId: string,
+    signal: AbortSignal,
+    reqId: number,
+    alive: { current: boolean }
+  ) => {
+    if (subsFetchInFlightRef.current) return;
+    subsFetchInFlightRef.current = true;
     setLoading(true);
 
     try {
-      // Fetch Subscriptions
       const { data: subsData, error: subsError } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', userId)
+        .abortSignal(signal);
 
+      if (!alive.current || reqId !== subsReqIdRef.current) return;
       if (subsError) throw subsError;
-      setSubscriptions(subsData || []);
 
+      // Solo 1 vez: evita duplicar setSubscriptions
+      setSubscriptions(subsData || []);
     } catch (err: any) {
-      console.error("Error fetching billing data:", err);
+      if (!alive.current) return;
+      if (err?.name === 'AbortError' || signal.aborted) return;
+      console.error('Error fetching billing data:', err);
     } finally {
-      setLoading(false);
+      subsFetchInFlightRef.current = false;
+      if (!alive.current) return;
+      if (reqId === subsReqIdRef.current) setLoading(false);
     }
   };
 
-  const fetchPaymentMethod = async () => {
-    if (!user) return;
+  const fetchPaymentMethod = async (
+    userId: string,
+    signal: AbortSignal,
+    alive: { current: boolean }
+  ) => {
     setLoadingPM(true);
     try {
       const response = await fetch('/api/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'payment-method', userId: user.id }),
+        body: JSON.stringify({ action: 'payment-method', userId }),
+        signal
       });
       const data = await response.json();
-      if (data.paymentMethod) {
-        setPaymentMethod(data.paymentMethod);
-      }
+      if (!alive.current) return;
+      if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
     } catch (err) {
-      console.error("Error al obtener método de pago de Stripe:", err);
+      if (!alive.current) return;
+      if ((err as any)?.name === 'AbortError') return;
+      console.error('Error al obtener método de pago de Stripe:', err);
     } finally {
+      if (!alive.current) return;
       setLoadingPM(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-    fetchPaymentMethod();
-  }, [user]);
+    const userId = user?.id;
+    if (!userId) return;
+
+    const controller = new AbortController();
+    const alive = { current: true };
+    const reqId = ++subsReqIdRef.current;
+
+    fetchData(userId, controller.signal, reqId, alive);
+    fetchPaymentMethod(userId, controller.signal, alive);
+
+    return () => {
+      alive.current = false;
+      try { controller.abort(); } catch {}
+    };
+  }, [user?.id]);
 
   const handleOpenStripePortal = async () => {
     if (!user || isCreatingPortal) return;
