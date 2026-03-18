@@ -186,6 +186,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Marca el último userId cuyo perfil ya quedó resuelto (null real o objeto)
   const lastProfileLoadedUserIdRef = useRef<string | null>(null);
 
+  // Hydration gate (TEMP): evita re-ejecutar runBackgroundWork para el mismo userId
+  // cuando ocurre null transitorio en la sesión.
+  const lastHydratedAuthUserIdRef = useRef<string | null>(null);
+  const resetHydrationGate = useCallback(() => {
+    lastHydratedAuthUserIdRef.current = null;
+  }, []);
+
   const clearProfileViewState = useCallback(() => {
     profileReqIdRef.current += 1; // invalida requests en vuelo (vista)
     setProfile(null);
@@ -215,8 +222,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     resetProfileFetchGuards();
+    resetHydrationGate();
     clearProfileViewState();
-  }, [clearProfileViewState, resetProfileFetchGuards, session?.user, user?.id]);
+  }, [clearProfileViewState, resetHydrationGate, resetProfileFetchGuards, session?.user, user?.id]);
 
   const setBaseAuthState = useCallback(
     (sess: any) => {
@@ -242,6 +250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // cache puede ser null real o un objeto válido
         setProfile(cached);
         setUser(enrichUser(sessUser, cached));
+        // Hydration aplicada al estado: marca gate luego de setProfile/setUser
+        lastHydratedAuthUserIdRef.current = userId;
         setProfileLoading(false);
         return;
       }
@@ -276,6 +286,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // null u objeto => actualizar estado y cache
         setProfile(p);
         setUser(enrichUser(sessUser, p));
+        // Hydration aplicada al estado: marca gate luego de setProfile/setUser
+        lastHydratedAuthUserIdRef.current = userId;
         writeProfileCache(userId, p);
       } finally {
         if (profileFetchInFlightUserIdRef.current === userId) {
@@ -289,6 +301,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const runBackgroundWork = useCallback(
     (sessUser: any) => {
+      const userId = sessUser?.id;
+      if (!userId) return;
+      // Si ya está hidratado para este userId, evita runBackgroundWork repetido
+      if (lastHydratedAuthUserIdRef.current === userId) return;
+
       syncUserToPublicTable(sessUser).catch((err) => console.error('Auth sync error:', err));
       loadProfileInBackground(sessUser).catch(() => {});
     },
@@ -339,7 +356,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setBaseAuthState(sess);
         if (sess?.user) {
-          runBackgroundWork(sess.user);
+          const userId = sess.user.id;
+          if (lastHydratedAuthUserIdRef.current !== userId) runBackgroundWork(sess.user);
         }
       } catch (err) {
         console.error('Auth getSession error:', err);
@@ -363,6 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (event === 'SIGNED_OUT') {
           clearProfileViewState();
           resetProfileFetchGuards();
+          resetHydrationGate();
           return;
         }
 
@@ -373,6 +392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userId = sessUser.id;
           const lastErrAt = lastProfileErrorAtRef.current;
           if (
+            lastHydratedAuthUserIdRef.current === userId ||
             lastProfileLoadedUserIdRef.current === userId ||
             profileFetchInFlightUserIdRef.current === userId ||
             (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS)
@@ -393,7 +413,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // ignore
       }
     };
-  }, [runBackgroundWork, setBaseAuthState, clearProfileViewState, resetProfileFetchGuards]);
+  }, [runBackgroundWork, setBaseAuthState, clearProfileViewState, resetHydrationGate, resetProfileFetchGuards]);
 
   const signOut = useCallback(async () => {
     const userId = user?.id;
@@ -413,6 +433,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthLoading(false);
     clearProfileViewState();
     resetProfileFetchGuards();
+    resetHydrationGate();
 
     const signOutFn = (supabase.auth as any).signOut.bind(supabase.auth);
 
@@ -428,7 +449,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     // onAuthStateChange actualizará session/user/profile (si el backend responde)
-  }, [user?.id, clearProfileViewState, resetProfileFetchGuards]);
+  }, [user?.id, clearProfileViewState, resetHydrationGate, resetProfileFetchGuards]);
 
   return (
     <AuthContext.Provider
