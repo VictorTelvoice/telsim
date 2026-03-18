@@ -132,8 +132,10 @@ async function createNotification(
   userId: string,
   title: string,
   message: string,
-  type: 'activation' | 'subscription' | 'error' | 'warning' | 'success'
-) {
+  type: 'activation' | 'subscription' | 'error' | 'warning' | 'success',
+  sourceStripeEventId?: string,
+  sourceNotificationKey?: string
+): Promise<void> {
   try {
     await supabaseAdmin.from('notifications').insert({
       user_id: userId,
@@ -142,7 +144,24 @@ async function createNotification(
       type,
       is_read: false,
       created_at: new Date().toISOString(),
+      ...(sourceStripeEventId ? { source_stripe_event_id: sourceStripeEventId } : {}),
+      ...(sourceNotificationKey ? { source_notification_key: sourceNotificationKey } : {}),
     });
+
+    // Trazabilidad en audit_logs para entender qué se envió y por qué camino.
+    void logEvent(
+      'IN_APP_NOTIFICATION_DISPATCHED',
+      'info',
+      `${title}`,
+      null,
+      {
+        user_id: userId,
+        type,
+        source_notification_key: sourceNotificationKey ?? null,
+        source_stripe_event_id: sourceStripeEventId ?? null,
+      },
+      'stripe'
+    );
   } catch (e) {
     console.warn('[NOTIFICATION WARN]', e);
   }
@@ -505,11 +524,12 @@ export default async function handler(req: any, res: any) {
 
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
-        .select('id')
+        .select('id, activation_state')
         .eq('stripe_session_id', session.id)
         .maybeSingle();
 
       let subscriptionId = exists?.id ?? null;
+      const existingActivationState = (exists?.activation_state as string | null | undefined) ?? null;
 
       if (!exists) {
         const correctAmount = amount;
@@ -549,6 +569,19 @@ export default async function handler(req: any, res: any) {
 
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
         subscriptionId = (insertedData as { id?: string } | null)?.id ?? subscriptionId;
+
+      }
+
+      // activation_state = paid (fuente de verdad para iniciar notificaciones)
+      if (reservationValid && (!exists || existingActivationState === 'paid')) {
+        await createNotification(
+          userId,
+          '✅ Pago confirmado',
+          'Tu pago fue confirmado. Estamos activando tu SIM.',
+          'success',
+          session.id,
+          'activation_paid'
+        );
       }
 
       // checkout.session.completed: solo ocupamos el slot si la reserva es válida.
@@ -591,6 +624,18 @@ export default async function handler(req: any, res: any) {
           }).eq('stripe_session_id', session.id);
         }
 
+        // activation_state = provisioned
+        if (existingActivationState !== 'provisioned' && existingActivationState !== 'on_air') {
+          await createNotification(
+            userId,
+            '📦 SIM aprovisionada',
+            'Tu número fue asignado en infraestructura. Cerrando activación operativa...',
+            'activation',
+            session.id,
+            'activation_provisioned'
+          );
+        }
+
         await logEvent('SIM_ACTIVATED', 'info', 'SIM activada', undefined, {
           phone_number: resolvedPhoneForNotifications || slot?.phone_number || '',
           slot_id: slotId,
@@ -600,7 +645,17 @@ export default async function handler(req: any, res: any) {
           ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
           : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
 
-        await createNotification(userId, '🚀 ¡Línea activada!', trialMsg, 'activation');
+        // activation_state = on_air
+        if (existingActivationState !== 'on_air') {
+          await createNotification(
+            userId,
+            '🚀 ¡Línea activada!',
+            trialMsg,
+            'activation',
+            session.id,
+            'activation_on_air'
+          );
+        }
 
         if (activeSubId) {
           await supabaseAdmin.from('subscriptions').update({
@@ -621,12 +676,14 @@ export default async function handler(req: any, res: any) {
           activation_state_updated_at: new Date().toISOString(),
         }).eq('stripe_session_id', session.id);
 
-        if (enforceReservationValidation) {
+        if (existingActivationState !== 'failed' && enforceReservationValidation) {
           await createNotification(
             userId,
             '⚠️ Activación fallida',
             'No pudimos activar tu SIM porque la reserva del slot no fue válida. Intenta nuevamente o revisa tu panel.',
-            'error'
+            'error',
+            session.id,
+            'activation_failed'
           );
         }
       }
@@ -679,6 +736,18 @@ export default async function handler(req: any, res: any) {
 
     if (activationSucceeded) {
       try {
+        void logEvent(
+          'EMAIL_DISPATCHED',
+          'info',
+          'purchase_success',
+          null,
+          {
+            user_id: userId,
+            template: 'template_email_purchase_success',
+            channel: 'email',
+          },
+          'stripe'
+        );
         await triggerEmail('purchase_success', userId, {
           plan: planName ?? '',
           phone_number: phoneForEmail,
@@ -701,6 +770,18 @@ export default async function handler(req: any, res: any) {
       try {
         const telegramPhone = phoneForEmail || phoneFromMeta || '';
         const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
+        void logEvent(
+          'TELEGRAM_DISPATCHED',
+          'info',
+          'new_purchase',
+          null,
+          {
+            user_id: userId,
+            template: 'template_telegram_new_purchase',
+            channel: 'telegram',
+          },
+          'stripe'
+        );
         await sendTelegramNotification('new_purchase', userId, { phone: displayPhone, plan: planName || '' });
       } catch (tgErr: unknown) {
         console.warn('[WEBHOOK] Telegram send skipped or failed:', (tgErr as Error)?.message);
@@ -852,10 +933,23 @@ export default async function handler(req: any, res: any) {
         .select('user_id, plan_name')
         .eq('stripe_subscription_id', subscription.id)
         .maybeSingle();
+
+      // Fase 3: centralizamos el disparo de emails/notificaciones del flujo de compra
+      // en `checkout.session.completed` usando `activation_state` como fuente de verdad.
+      // Este webhook se mantiene solo para trazabilidad.
       if (sub?.user_id) {
-        await triggerEmail('purchase_success', sub.user_id, {
-          plan: sub.plan_name ?? (subscription.metadata?.plan_name as string) ?? '',
-        });
+        void logEvent(
+          'SUBSCRIPTION_CREATED_WEBHOOK_IGNORED',
+          'info',
+          'subscription.created no envía purchase_success; se espera checkout.session.completed',
+          null,
+          {
+            user_id: sub.user_id,
+            subscription_id: subscription.id,
+            plan_name: sub.plan_name ?? null,
+          },
+          'stripe'
+        );
       }
     } catch (err: any) {
       console.warn('[WEBHOOK] customer.subscription.created email skip:', err?.message);
@@ -894,10 +988,43 @@ export default async function handler(req: any, res: any) {
         sub.user_id,
         '🔴 Pago fallido — Acción requerida',
         `No pudimos cobrar tu plan ${sub.plan_name}. Actualiza tu método de pago en Billing para no perder el acceso.`,
-        'error'
+        'error',
+        stripeEventId,
+        'payment_failed'
       );
 
+      void logEvent(
+        'EMAIL_DISPATCHED',
+        'info',
+        'invoice_failed',
+        null,
+        {
+          user_id: sub.user_id,
+          template: 'template_email_invoice_failed',
+          channel: 'email',
+        },
+        'stripe'
+      );
       await triggerEmail('invoice_failed', sub.user_id, {
+        plan: sub.plan_name ?? '',
+        amount: ((invoice.amount_due ?? 0) / 100).toFixed(2),
+        to: invoice.customer_email ?? '',
+      });
+
+      // Telegram: misma fuente de verdad que email (plantilla admin)
+      void logEvent(
+        'TELEGRAM_DISPATCHED',
+        'info',
+        'invoice_failed',
+        null,
+        {
+          user_id: sub.user_id,
+          template: 'template_telegram_invoice_failed',
+          channel: 'telegram',
+        },
+        'stripe'
+      );
+      await sendTelegramNotification('invoice_failed', sub.user_id, {
         plan: sub.plan_name ?? '',
         amount: ((invoice.amount_due ?? 0) / 100).toFixed(2),
         to: invoice.customer_email ?? '',
@@ -1050,7 +1177,9 @@ export default async function handler(req: any, res: any) {
         sub.user_id,
         '🔴 Suscripción terminada',
         `Tu plan ${sub.plan_name} fue cancelado definitivamente. Reactiva tu suscripción cuando quieras.`,
-        'error'
+        'error',
+        stripeEventId,
+        'subscription_cancelled'
       );
 
       // ── NOTIFICACIONES CANCELACIÓN REAL ─────────────────────────
@@ -1081,6 +1210,14 @@ export default async function handler(req: any, res: any) {
       const phoneNumberCancelled = slotData?.phone_number ?? slotId ?? '';
 
       if (userData?.email && userId) {
+        void logEvent(
+          'EMAIL_DISPATCHED',
+          'info',
+          'subscription_cancelled',
+          null,
+          { user_id: userId, template: 'template_email_subscription_cancelled', channel: 'email' },
+          'stripe'
+        );
         await triggerEmail('subscription_cancelled', userId, {
           plan: sub.plan_name ?? '',
           plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
@@ -1095,6 +1232,14 @@ export default async function handler(req: any, res: any) {
         console.error('[CANCEL] No se encontró email para userId:', userId);
       }
 
+      void logEvent(
+        'TELEGRAM_DISPATCHED',
+        'info',
+        'cancellation',
+        null,
+        { user_id: userId, template: 'template_telegram_cancellation', channel: 'telegram' },
+        'stripe'
+      );
       await sendTelegramNotification('cancellation', userId, {
         phone: String(slotData?.phone_number || slotId),
         plan: String(slotData?.plan_type ?? sub.plan_name ?? ''),
@@ -1137,6 +1282,8 @@ export default async function handler(req: any, res: any) {
         console.error('[WEBHOOK] audit_logs insert falló:', (dbErr as Error)?.message);
       }
     }
+    // Si el webhook ya hizo side effects parciales, marcamos como procesado para evitar duplicados en reintentos.
+    await markWebhookProcessed();
     return res.status(500).json({ received: false, error: errMsg });
   }
 }
