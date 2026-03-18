@@ -306,7 +306,7 @@ const WebDashboard: React.FC = () => {
   const auth = useAuth();
   const effectiveUser = useEffectiveUser(auth.user);
   const user = effectiveUser ?? auth.user;
-  const { refreshProfile, version: authVersion } = auth;
+  const { refreshProfile, invalidateProfile, version: authVersion } = auth;
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -614,9 +614,10 @@ const WebDashboard: React.FC = () => {
       // 3. Actualizar la tabla users con la nueva URL
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
 
-      // 4. refreshProfile() para que Sidebar y toda la interfaz se actualicen al instante
-      await refreshProfile();
       await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
+
+      invalidateProfile();
+      await refreshProfile();
     } catch (err: any) {
       alert(err.message || 'Error al subir la imagen.');
     } finally {
@@ -1053,6 +1054,10 @@ const WebDashboard: React.FC = () => {
         pais: editCountry,
         moneda: editCurrency,
       }).eq('id', user?.id);
+
+      invalidateProfile();
+      await refreshProfile();
+
       setEditSuccess(true);
       setTimeout(() => setEditSuccess(false), 3000);
     } catch (e: any) { setEditError(e.message || 'Error al guardar el perfil.'); }

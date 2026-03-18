@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, invalidateProfile, refreshProfile } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -38,6 +38,10 @@ const Profile: React.FC = () => {
         pais,
         moneda,
       }).eq('id', user.id);
+
+      invalidateProfile();
+      await refreshProfile();
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -62,6 +66,9 @@ const Profile: React.FC = () => {
       await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
       setAvatarUrl(publicUrl);
+
+      invalidateProfile();
+      await refreshProfile();
     } catch (err) {
       console.error('Error subiendo avatar:', err);
     } finally {

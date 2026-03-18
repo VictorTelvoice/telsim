@@ -11,7 +11,7 @@ import NotificationsMenu from '../../components/NotificationsMenu';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, invalidateProfile, refreshProfile } = useAuth();
   const { notifications } = useNotifications();
   const { toggleTheme, theme } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -55,6 +55,9 @@ const Settings: React.FC = () => {
       if (authError) throw authError;
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
       setAvatarUrl(publicUrl);
+
+      invalidateProfile();
+      await refreshProfile();
     } catch (err) {
       console.error('Error subiendo avatar:', err);
     } finally {
