@@ -115,32 +115,43 @@ async function persistSubscriptionInvoiceFromWebhook(params: {
 
   const receiptUrl = extractReceiptUrlFromInvoice(fullInv);
 
-  try {
-    await supabaseAdmin.from('subscription_invoices').upsert(
-      {
-        stripe_invoice_id: fullInv.id,
-        user_id: sub.user_id,
-        subscription_id: sub.id,
-        stripe_subscription_id: stripeSubId,
-        billing_reason: fullInv.billing_reason ?? null,
-        invoice_pdf: fullInv.invoice_pdf ?? null,
-        hosted_invoice_url: fullInv.hosted_invoice_url ?? null,
-        receipt_url: receiptUrl,
-        amount_paid_cents: fullInv.amount_paid ?? 0,
-        subtotal_cents: fullInv.subtotal ?? null,
-        tax_cents: invoiceTaxCents(fullInv),
-        total_cents: fullInv.total ?? null,
-        currency: fullInv.currency ?? 'usd',
-        customer_tax_ids: invoiceCustomerTaxIdsForDb(fullInv),
-        tax_breakdown: invoiceTaxBreakdownForDb(fullInv),
-        next_billing_at: nextBillingIso,
-        period_end_at: periodEndIso,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'stripe_invoice_id' }
+  const { error: invUpsertErr } = await supabaseAdmin.from('subscription_invoices').upsert(
+    {
+      stripe_invoice_id: fullInv.id,
+      user_id: sub.user_id,
+      subscription_id: sub.id,
+      stripe_subscription_id: stripeSubId,
+      billing_reason: fullInv.billing_reason ?? null,
+      invoice_pdf: fullInv.invoice_pdf ?? null,
+      hosted_invoice_url: fullInv.hosted_invoice_url ?? null,
+      receipt_url: receiptUrl,
+      amount_paid_cents: fullInv.amount_paid ?? 0,
+      subtotal_cents: fullInv.subtotal ?? null,
+      tax_cents: invoiceTaxCents(fullInv),
+      total_cents: fullInv.total ?? null,
+      currency: fullInv.currency ?? 'usd',
+      customer_tax_ids: invoiceCustomerTaxIdsForDb(fullInv),
+      tax_breakdown: invoiceTaxBreakdownForDb(fullInv),
+      next_billing_at: nextBillingIso,
+      period_end_at: periodEndIso,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'stripe_invoice_id' }
+  );
+
+  if (invUpsertErr) {
+    console.error('[subscription_invoices] upsert failed (Supabase)', {
+      stripe_invoice_id: fullInv.id,
+      subscription_id: sub.id,
+      user_id: sub.user_id,
+      code: invUpsertErr.code,
+      message: invUpsertErr.message,
+      details: invUpsertErr.details,
+      hint: (invUpsertErr as { hint?: string }).hint,
+    });
+    throw new Error(
+      `[subscription_invoices] persist failed: ${invUpsertErr.message} (code=${invUpsertErr.code ?? 'n/a'})`
     );
-  } catch (e: any) {
-    console.error('[subscription_invoices] upsert failed:', e?.message ?? e);
   }
 
   return fullInv;
@@ -1567,6 +1578,15 @@ export default async function handler(req: any, res: any) {
         subscription_id: stripeSubId ?? undefined,
         customer_email: invoice.customer_email ?? undefined,
       }, 'stripe');
+      const msg = String(err?.message ?? '');
+      if (msg.includes('[subscription_invoices]')) {
+        await markWebhookFailed(msg, err?.stack);
+        return res.status(500).json({
+          received: false,
+          error: msg,
+          phase: 'subscription_invoices',
+        });
+      }
     }
   }
 
