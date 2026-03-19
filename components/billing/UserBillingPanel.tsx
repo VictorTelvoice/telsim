@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -62,15 +62,98 @@ interface InvoiceRow {
   receipt_url: string | null;
 }
 
+function openStripeUrl(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/** Botones: enlaces oficiales Stripe (PDF, hosted page, charge receipt) + sync puntual. */
+const InvoiceDocActions: React.FC<{
+  inv: InvoiceRow;
+  resolving: boolean;
+  onResolve: () => void;
+  dense?: boolean;
+}> = ({ inv, resolving, onResolve, dense }) => {
+  const hasPdf = !!inv.invoice_pdf;
+  const hasHosted = !!inv.hosted_invoice_url;
+  const hasReceipt = !!inv.receipt_url;
+  const hasAny = hasPdf || hasHosted || hasReceipt;
+  const canResolve =
+    inv.status !== 'draft' && inv.status !== 'void' && inv.status !== 'uncollectible' && !hasAny;
+
+  const btn =
+    dense
+      ? 'px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1'
+      : 'px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1';
+
+  const primary =
+    dense
+      ? 'px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/20 disabled:opacity-40 flex items-center gap-1'
+      : 'px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 disabled:opacity-40 flex items-center gap-1';
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        disabled={!hasPdf}
+        className={btn}
+        title="PDF oficial generado por Stripe"
+        onClick={() => inv.invoice_pdf && openStripeUrl(inv.invoice_pdf)}
+      >
+        <FileDown className="size-3.5" />
+        PDF
+      </button>
+      <button
+        type="button"
+        disabled={!hasHosted}
+        className={primary}
+        title="Página de factura alojada en Stripe"
+        onClick={() => inv.hosted_invoice_url && openStripeUrl(inv.hosted_invoice_url)}
+      >
+        <ExternalLink className="size-3.5" />
+        Ver factura
+      </button>
+      <button
+        type="button"
+        disabled={!hasReceipt}
+        className={btn}
+        title="Recibo del cobro (Charge) en Stripe"
+        onClick={() => inv.receipt_url && openStripeUrl(inv.receipt_url)}
+      >
+        <ExternalLink className="size-3.5" />
+        Recibo
+      </button>
+      {canResolve && (
+        <button
+          type="button"
+          disabled={resolving}
+          className={btn}
+          title="Vuelve a pedir a Stripe los enlaces de esta factura"
+          onClick={onResolve}
+        >
+          {resolving ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+          Sincronizar
+        </button>
+      )}
+    </div>
+  );
+};
+
 const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   variant = 'page',
   embeddedDark = false,
   hideIntroTitle = false,
 }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { t, language } = useLanguage();
   const isEmbedded = variant === 'embedded';
+
+  const manageAuthHeaders = useMemo(() => {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = session?.access_token as string | undefined;
+    if (token) h.Authorization = `Bearer ${token}`;
+    return h;
+  }, [session?.access_token]);
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -81,6 +164,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [loadingPM, setLoadingPM] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
+  const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
@@ -129,7 +213,12 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const invoicesByStripeSubscription = useMemo(() => {
     const map = new Map<string, InvoiceRow[]>();
-    for (const inv of invoices) {
+    const sorted = [...invoices].sort((a, b) => {
+      const ta = a.created ? new Date(a.created).getTime() : 0;
+      const tb = b.created ? new Date(b.created).getTime() : 0;
+      return tb - ta;
+    });
+    for (const inv of sorted) {
       if (!inv.subscription_id) continue;
       const list = map.get(inv.subscription_id) ?? [];
       list.push(inv);
@@ -169,7 +258,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     try {
       const response = await fetch('/api/manage', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: manageAuthHeaders,
         body: JSON.stringify({ action: 'payment-method', userId }),
         signal,
       });
@@ -191,7 +280,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     try {
       const response = await fetch('/api/manage', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: manageAuthHeaders,
         body: JSON.stringify({ action: 'invoice-history', userId, limit: 50 }),
         signal,
       });
@@ -227,7 +316,41 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         /* noop */
       }
     };
-  }, [user?.id]);
+  }, [user?.id, manageAuthHeaders]);
+
+  const mergeResolvedInvoice = useCallback((updated: InvoiceRow) => {
+    setInvoices((prev) => prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i)));
+  }, []);
+
+  const resolveInvoiceUrls = useCallback(
+    async (invoiceId: string) => {
+      if (!user?.id) return;
+      if (!session?.access_token) {
+        alert('Vuelve a iniciar sesión para sincronizar facturas con Stripe.');
+        return;
+      }
+      setResolvingInvoiceId(invoiceId);
+      try {
+        const response = await fetch('/api/manage', {
+          method: 'POST',
+          headers: manageAuthHeaders,
+          body: JSON.stringify({ action: 'invoice-resolve', userId: user.id, invoiceId }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          alert(typeof data?.error === 'string' ? data.error : 'No se pudo obtener la factura desde Stripe.');
+          return;
+        }
+        if (data?.invoice?.id) mergeResolvedInvoice(data.invoice as InvoiceRow);
+      } catch (e) {
+        console.error(e);
+        alert('Error al sincronizar con el servidor.');
+      } finally {
+        setResolvingInvoiceId(null);
+      }
+    },
+    [user?.id, manageAuthHeaders, mergeResolvedInvoice, session?.access_token]
+  );
 
   const handleOpenStripePortal = async () => {
     if (!user || isCreatingPortal) return;
@@ -235,7 +358,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     try {
       const response = await fetch('/api/manage', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: manageAuthHeaders,
         body: JSON.stringify({ action: 'portal', userId: user.id }),
       });
       const data = await response.json();
@@ -288,12 +411,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       month: 'long',
       year: 'numeric',
     });
-  };
-
-  const openInvoice = (inv: InvoiceRow) => {
-    const url = inv.invoice_pdf || inv.hosted_invoice_url || inv.receipt_url;
-    if (!url) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   if (loading || loadingPM || loadingInvoices) {
@@ -450,36 +567,33 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedSub(sub)}
-                      className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-                    >
-                      Ver detalle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => latestInvoice && openInvoice(latestInvoice)}
-                      disabled={
-                        !latestInvoice ||
-                        (!latestInvoice.invoice_pdf &&
-                          !latestInvoice.hosted_invoice_url &&
-                          !latestInvoice.receipt_url)
-                      }
-                      className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1"
-                    >
-                      <FileDown className="size-3.5" />
-                      Descargar invoice
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleOpenStripePortal}
-                      className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center gap-1"
-                    >
-                      <ExternalLink className="size-3.5" />
-                      Gestionar pago
-                    </button>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSub(sub)}
+                        className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Ver detalle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenStripePortal}
+                        className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center gap-1"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        Gestionar pago
+                      </button>
+                    </div>
+                    {latestInvoice ? (
+                      <InvoiceDocActions
+                        inv={latestInvoice}
+                        resolving={resolvingInvoiceId === latestInvoice.id}
+                        onResolve={() => resolveInvoiceUrls(latestInvoice.id)}
+                      />
+                    ) : (
+                      <p className="text-[10px] font-bold text-slate-400 italic">Sin factura registrada aún en Stripe para esta suscripción.</p>
+                    )}
                   </div>
                 </div>
               );
@@ -535,27 +649,12 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openInvoice(inv)}
-                    disabled={!inv.invoice_pdf && !inv.hosted_invoice_url && !inv.receipt_url}
-                    className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1"
-                  >
-                    <FileDown className="size-3.5" />
-                    Descargar PDF / receipt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      inv.hosted_invoice_url && window.open(inv.hosted_invoice_url, '_blank', 'noopener,noreferrer')
-                    }
-                    disabled={!inv.hosted_invoice_url}
-                    className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 disabled:opacity-40 flex items-center gap-1"
-                  >
-                    <ExternalLink className="size-3.5" />
-                    Ver invoice
-                  </button>
+                <div className="mt-3">
+                  <InvoiceDocActions
+                    inv={inv}
+                    resolving={resolvingInvoiceId === inv.id}
+                    onResolve={() => resolveInvoiceUrls(inv.id)}
+                  />
                 </div>
               </div>
             ))}
@@ -621,6 +720,31 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             </span>
           </p>
         </div>
+        {selectedSub.stripe_subscription_id &&
+          (() => {
+            const subs =
+              invoicesByStripeSubscription.get(selectedSub.stripe_subscription_id!) || [];
+            const li = subs[0];
+            if (!li) {
+              return (
+                <p className="mt-4 text-[11px] font-bold text-slate-400 italic">
+                  Aún no hay factura de Stripe asociada a esta suscripción.
+                </p>
+              );
+            }
+            return (
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Documentos (Stripe)</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Factura {li.number || li.id}</p>
+                <InvoiceDocActions
+                  inv={li}
+                  resolving={resolvingInvoiceId === li.id}
+                  onResolve={() => resolveInvoiceUrls(li.id)}
+                  dense
+                />
+              </div>
+            );
+          })()}
         <div className="mt-5">
           <button
             type="button"

@@ -18,6 +18,62 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/** Valida Bearer de Supabase y devuelve el user id autenticado (o null). */
+async function getRequestAuthUserId(req: any): Promise<string | null> {
+  const authHeader = req.headers?.authorization;
+  const token = authHeader?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const url = process.env.SUPABASE_URL;
+  if (!anonKey || !url) return null;
+  const supabaseAuth = createClient(url, anonKey, { global: { fetch } });
+  const {
+    data: { user },
+    error,
+  } = await supabaseAuth.auth.getUser(token);
+  if (error || !user?.id) return null;
+  return user.id;
+}
+
+function extractReceiptUrlFromInvoice(inv: Stripe.Invoice): string | null {
+  const ch = inv.charge;
+  if (ch && typeof ch === 'object') {
+    const c = ch as Stripe.Charge;
+    if (!c.deleted && c.receipt_url) return c.receipt_url;
+  }
+  const pi = inv.payment_intent;
+  if (pi && typeof pi === 'object') {
+    const lc = (pi as Stripe.PaymentIntent).latest_charge;
+    if (lc && typeof lc === 'object') {
+      const c2 = lc as Stripe.Charge;
+      if (!c2.deleted && c2.receipt_url) return c2.receipt_url;
+    }
+  }
+  return null;
+}
+
+/** Fila API para el panel de facturación del cliente (fuentes oficiales Stripe). */
+function mapStripeInvoiceToRow(inv: Stripe.Invoice) {
+  const receiptUrl = extractReceiptUrlFromInvoice(inv);
+  const subRaw = inv.subscription;
+  const subscription_id =
+    typeof subRaw === 'string' ? subRaw : subRaw && typeof subRaw === 'object' ? subRaw.id : null;
+  return {
+    id: inv.id,
+    number: inv.number ?? null,
+    status: inv.status ?? null,
+    created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
+    currency: inv.currency ?? 'usd',
+    amount_due: inv.amount_due ?? 0,
+    amount_paid: inv.amount_paid ?? 0,
+    total: inv.total ?? 0,
+    subscription_id,
+    hosted_invoice_url: inv.hosted_invoice_url ?? null,
+    invoice_pdf: inv.invoice_pdf ?? null,
+    receipt_url: receiptUrl,
+  };
+}
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { status: 'online' | 'error'; until: number }>();
 
@@ -604,6 +660,12 @@ export default async function handler(req: any, res: any) {
     switch (action) {
       case 'portal': {
         const { customerId, userId, returnUrl } = req.body;
+        if (userId) {
+          const authUid = await getRequestAuthUserId(req);
+          if (!authUid || authUid !== userId) {
+            return res.status(403).json({ error: 'No autorizado.' });
+          }
+        }
         let stripeCustomerId = customerId;
         if (!stripeCustomerId && userId) {
           const { data: userData, error } = await supabaseAdmin
@@ -632,6 +694,10 @@ export default async function handler(req: any, res: any) {
       case 'payment-method': {
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido.' });
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid || authUid !== userId) {
+          return res.status(403).json({ error: 'No autorizado.' });
+        }
         const { data: userData, error: userError } = await supabaseAdmin
           .from('users')
           .select('stripe_customer_id')
@@ -662,6 +728,10 @@ export default async function handler(req: any, res: any) {
       case 'invoice-history': {
         const { userId, limit } = req.body || {};
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido.' });
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid || authUid !== userId) {
+          return res.status(403).json({ error: 'No autorizado.' });
+        }
 
         const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
         const { data: userData, error: userError } = await supabaseAdmin
@@ -674,30 +744,64 @@ export default async function handler(req: any, res: any) {
           return res.status(200).json({ invoices: [] });
         }
 
-        const invoices = await stripe.invoices.list({
-          customer: userData.stripe_customer_id,
+        const customerId = userData.stripe_customer_id as string;
+        const list = await stripe.invoices.list({
+          customer: customerId,
           limit: safeLimit,
+          expand: ['data.charge', 'data.payment_intent.latest_charge'],
         });
 
-        const rows = invoices.data.map((inv) => ({
-          id: inv.id,
-          number: inv.number ?? null,
-          status: inv.status ?? null,
-          created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-          currency: inv.currency ?? 'usd',
-          amount_due: inv.amount_due ?? 0,
-          amount_paid: inv.amount_paid ?? 0,
-          total: inv.total ?? 0,
-          subscription_id:
-            typeof inv.subscription === 'string'
-              ? inv.subscription
-              : (inv.subscription as any)?.id ?? null,
-          hosted_invoice_url: inv.hosted_invoice_url ?? null,
-          invoice_pdf: inv.invoice_pdf ?? null,
-          receipt_url: (inv as any)?.receipt_url ?? null,
-        }));
+        const rows: ReturnType<typeof mapStripeInvoiceToRow>[] = [];
+        for (const inv of list.data) {
+          let full: Stripe.Invoice = inv;
+          const status = inv.status;
+          const needsRetrieve =
+            !!inv.id &&
+            status !== 'draft' &&
+            status !== 'void' &&
+            !inv.invoice_pdf &&
+            !inv.hosted_invoice_url;
+          if (needsRetrieve) {
+            try {
+              full = await stripe.invoices.retrieve(inv.id, {
+                expand: ['charge', 'payment_intent.latest_charge'],
+              });
+            } catch (e: any) {
+              console.warn('[invoice-history] retrieve', inv.id, e?.message);
+            }
+          }
+          rows.push(mapStripeInvoiceToRow(full));
+        }
 
         return res.status(200).json({ invoices: rows });
+      }
+
+      case 'invoice-resolve': {
+        const { userId, invoiceId } = req.body || {};
+        if (!userId || !invoiceId || typeof invoiceId !== 'string') {
+          return res.status(400).json({ error: 'userId e invoiceId requeridos.' });
+        }
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid || authUid !== userId) {
+          return res.status(403).json({ error: 'No autorizado.' });
+        }
+        const { data: userData, error: userError } = await supabaseAdmin
+          .from('users')
+          .select('stripe_customer_id')
+          .eq('id', userId)
+          .single();
+        if (userError || !userData?.stripe_customer_id) {
+          return res.status(404).json({ error: 'Cliente de facturación no encontrado.' });
+        }
+        const stripeCustomerId = userData.stripe_customer_id as string;
+        const inv = await stripe.invoices.retrieve(invoiceId, {
+          expand: ['charge', 'payment_intent.latest_charge'],
+        });
+        const invCustomer = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id;
+        if (!invCustomer || invCustomer !== stripeCustomerId) {
+          return res.status(403).json({ error: 'Invoice no pertenece a este usuario.' });
+        }
+        return res.status(200).json({ invoice: mapStripeInvoiceToRow(inv) });
       }
 
       case 'notify-ticket-reply': {
@@ -1189,7 +1293,7 @@ export default async function handler(req: any, res: any) {
 
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert.',
+          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert.',
         });
     }
   } catch (err: any) {
