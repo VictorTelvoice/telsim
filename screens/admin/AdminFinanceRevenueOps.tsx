@@ -4,6 +4,10 @@ import { Loader2, Download, RefreshCw } from 'lucide-react';
 
 type FinanceSummary = {
   cash_revenue_cents: number;
+  gross_cash_revenue_cents: number;
+  refunds_amount_cents: number;
+  chargebacks_amount_cents: number;
+  net_cash_revenue_cents: number;
   booked_sales_cents: number;
   booked_monthly_equivalent_cents: number;
   mrr_cents: number;
@@ -106,6 +110,8 @@ const AdminFinanceRevenueOps: React.FC = () => {
     'booked_revenue',
     'payment_failed_attempt',
     'churn_event',
+    'refund',
+    'chargeback',
   ]);
   const [ledgerUserId, setLedgerUserId] = useState<string>('');
   const [ledgerPlanName, setLedgerPlanName] = useState<string>('');
@@ -343,12 +349,15 @@ const AdminFinanceRevenueOps: React.FC = () => {
 
   const cards = [
     { label: 'Cash Revenue 7d', value: formatCents(summary7d?.cash_revenue_cents ?? 0) },
-    { label: 'Cash Revenue 30d', value: formatCents(summary30d?.cash_revenue_cents ?? 0) },
+    { label: 'Gross Cash Revenue 30d', value: formatCents(summary30d?.gross_cash_revenue_cents ?? 0) },
     { label: 'Booked Sales 30d', value: formatCents(summary30d?.booked_sales_cents ?? 0) },
     { label: 'Booked Monthly Equivalent 30d', value: formatCents(summary30d?.booked_monthly_equivalent_cents ?? 0) },
+    { label: 'Refunds Amount 30d', value: formatCents(summary30d?.refunds_amount_cents ?? 0) },
+    { label: 'Chargebacks Amount 30d', value: formatCents(summary30d?.chargebacks_amount_cents ?? 0) },
+    { label: 'Net Cash Revenue 30d', value: formatCents(summary30d?.net_cash_revenue_cents ?? 0) },
     { label: 'Estimated Cost 30d', value: formatCents(summary30d?.estimated_cost_cents ?? 0) },
-    { label: 'Gross Margin 30d', value: formatCents(summary30d?.gross_margin_cents ?? 0) },
-    { label: 'Gross Margin %', value: `${summary30d?.gross_margin_pct ?? 0}%` },
+    { label: 'Gross Margin 30d (net)', value: formatCents(summary30d?.gross_margin_cents ?? 0) },
+    { label: 'Gross Margin % (net)', value: `${summary30d?.gross_margin_pct ?? 0}%` },
     { label: 'MRR', value: formatCents(summary30d?.mrr_cents ?? 0) },
     { label: 'ARR', value: formatCents(summary30d?.arr_cents ?? 0) },
     { label: 'Revenue at Risk', value: formatCents(summary30d?.revenue_at_risk_cents ?? 0) },
@@ -540,6 +549,8 @@ const AdminFinanceRevenueOps: React.FC = () => {
                 { key: 'booked_revenue', label: 'booked_revenue' },
                 { key: 'payment_failed_attempt', label: 'payment_failed_attempt' },
                 { key: 'churn_event', label: 'churn_event' },
+                { key: 'refund', label: 'refund' },
+                { key: 'chargeback', label: 'chargeback' },
               ].map((t) => {
                 const checked = ledgerTypes.includes(t.key);
                 return (

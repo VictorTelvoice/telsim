@@ -1381,7 +1381,7 @@ export default async function handler(req: any, res: any) {
         {
           stripe_event_id: stripeEventId,
           stripe_event_type: event.type,
-          finance_event_type: 'refund_event',
+          finance_event_type: 'refund',
           occurred_at: occurredAtIso,
           user_id: subRow?.user_id ?? (userIdFromMeta || null),
           subscription_id: subRow?.id ?? null,
@@ -1439,7 +1439,7 @@ export default async function handler(req: any, res: any) {
         {
           stripe_event_id: stripeEventId,
           stripe_event_type: event.type,
-          finance_event_type: 'refund_event',
+          finance_event_type: 'refund',
           occurred_at: occurredAtIso,
           user_id: subRow?.user_id ?? (userIdFromMeta || null),
           subscription_id: subRow?.id ?? null,
@@ -1496,7 +1496,7 @@ export default async function handler(req: any, res: any) {
         {
           stripe_event_id: stripeEventId,
           stripe_event_type: event.type,
-          finance_event_type: 'chargeback_event',
+          finance_event_type: 'chargeback',
           occurred_at: occurredAtIso,
           user_id: subRow?.user_id ?? (userIdFromMeta || null),
           subscription_id: subRow?.id ?? null,

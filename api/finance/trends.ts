@@ -47,9 +47,9 @@ function buildPeriodKeysMonth(startDateOnly: string, endDateOnly: string): strin
   return keys;
 }
 
-function computeGrossPct(cash: number, gross: number): number {
-  if (cash === 0) return 0;
-  return Math.round((gross / cash) * 10000) / 100; // 2 decimales
+function computeGrossPct(netCash: number, gross: number): number {
+  if (netCash === 0) return 0;
+  return Math.round((gross / netCash) * 10000) / 100; // 2 decimales
 }
 
 export default async function handler(req: any, res: any) {
@@ -137,11 +137,11 @@ export default async function handler(req: any, res: any) {
       .gte('occurred_at', startIso)
       .lte('occurred_at', endIso)
       .eq('user_id', scopedUserId)
-      .in('finance_event_type', ['cash_revenue', 'booked_revenue', 'estimated_cost']);
+      .in('finance_event_type', ['cash_revenue', 'booked_revenue', 'estimated_cost', 'refund', 'chargeback']);
 
     if (error) return res.status(500).json({ error: `finance_events error: ${error.message}` });
 
-    const buckets: Record<string, { cash: number; booked: number; bookedMonthlyEq: number; estimatedCost: number }> = {};
+    const buckets: Record<string, { cash: number; refunds: number; chargebacks: number; booked: number; bookedMonthlyEq: number; estimatedCost: number }> = {};
     for (const ev of events ?? []) {
       const occurredAt = String(ev.occurred_at);
       const d = new Date(occurredAt);
@@ -149,8 +149,10 @@ export default async function handler(req: any, res: any) {
 
       if (granularity === 'day') {
         const key = d.toISOString().slice(0, 10);
-        if (!buckets[key]) buckets[key] = { cash: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
+        if (!buckets[key]) buckets[key] = { cash: 0, refunds: 0, chargebacks: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
         if (ev.finance_event_type === 'cash_revenue') buckets[key].cash += toNumber(ev.amount_cents);
+        if (ev.finance_event_type === 'refund') buckets[key].refunds += toNumber(ev.amount_cents);
+        if (ev.finance_event_type === 'chargeback') buckets[key].chargebacks += toNumber(ev.amount_cents);
         if (ev.finance_event_type === 'booked_revenue') {
           buckets[key].booked += toNumber(ev.amount_cents);
           buckets[key].bookedMonthlyEq += toNumber(ev.metadata?.monthly_equivalent_cents);
@@ -159,8 +161,10 @@ export default async function handler(req: any, res: any) {
       } else {
         d.setUTCDate(1);
         const key = d.toISOString().slice(0, 10);
-        if (!buckets[key]) buckets[key] = { cash: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
+        if (!buckets[key]) buckets[key] = { cash: 0, refunds: 0, chargebacks: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
         if (ev.finance_event_type === 'cash_revenue') buckets[key].cash += toNumber(ev.amount_cents);
+        if (ev.finance_event_type === 'refund') buckets[key].refunds += toNumber(ev.amount_cents);
+        if (ev.finance_event_type === 'chargeback') buckets[key].chargebacks += toNumber(ev.amount_cents);
         if (ev.finance_event_type === 'booked_revenue') {
           buckets[key].booked += toNumber(ev.amount_cents);
           buckets[key].bookedMonthlyEq += toNumber(ev.metadata?.monthly_equivalent_cents);
@@ -171,8 +175,9 @@ export default async function handler(req: any, res: any) {
 
     const keys = granularity === 'day' ? buildPeriodKeysDay(startDateOnly, endDateOnly) : buildPeriodKeysMonth(startDateOnly, endDateOnly);
     const rows: Row[] = keys.map((key) => {
-      const b = buckets[key] ?? { cash: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
-      const gross = b.cash - b.estimatedCost;
+      const b = buckets[key] ?? { cash: 0, refunds: 0, chargebacks: 0, booked: 0, bookedMonthlyEq: 0, estimatedCost: 0 };
+      const netCash = b.cash - b.refunds - b.chargebacks;
+      const gross = netCash - b.estimatedCost;
       return {
         period_date: key,
         cash_revenue_cents: b.cash,
@@ -180,7 +185,7 @@ export default async function handler(req: any, res: any) {
         booked_monthly_equivalent_cents: b.bookedMonthlyEq,
         estimated_cost_cents: b.estimatedCost,
         gross_margin_cents: gross,
-        gross_margin_pct: computeGrossPct(b.cash, gross),
+        gross_margin_pct: computeGrossPct(netCash, gross),
       };
     });
 

@@ -68,6 +68,10 @@ export default async function handler(req: any, res: any) {
   try {
     let totals: {
       cash_revenue_cents: number;
+      gross_cash_revenue_cents: number;
+      refunds_amount_cents: number;
+      chargebacks_amount_cents: number;
+      net_cash_revenue_cents: number;
       booked_sales_cents: number;
       booked_monthly_equivalent_cents: number;
       failed_payments_count: number;
@@ -75,6 +79,10 @@ export default async function handler(req: any, res: any) {
       estimated_cost_cents: number;
     } = {
       cash_revenue_cents: 0,
+      gross_cash_revenue_cents: 0,
+      refunds_amount_cents: 0,
+      chargebacks_amount_cents: 0,
+      net_cash_revenue_cents: 0,
       booked_sales_cents: 0,
       booked_monthly_equivalent_cents: 0,
       failed_payments_count: 0,
@@ -88,7 +96,7 @@ export default async function handler(req: any, res: any) {
       const { data: ledgerRows, error: ledgerErr } = await supabaseAdmin
         .from('billing_ledger_v')
         .select(
-          'cash_revenue_cents, booked_sales_cents, booked_monthly_equivalent_cents, failed_payments_count, revenue_at_risk_cents, estimated_cost_cents, period_date'
+          'cash_revenue_cents, booked_sales_cents, booked_monthly_equivalent_cents, failed_payments_count, revenue_at_risk_cents, estimated_cost_cents, refunds_amount_cents, chargebacks_amount_cents, period_date'
         )
         .gte('period_date', startDateOnly)
         .lte('period_date', endDateOnly);
@@ -100,6 +108,9 @@ export default async function handler(req: any, res: any) {
       totals = (ledgerRows ?? []).reduce(
         (acc: any, r: any) => {
           acc.cash_revenue_cents += toNumber(r.cash_revenue_cents);
+          acc.gross_cash_revenue_cents += toNumber(r.cash_revenue_cents);
+          acc.refunds_amount_cents += toNumber(r.refunds_amount_cents);
+          acc.chargebacks_amount_cents += toNumber(r.chargebacks_amount_cents);
           acc.booked_sales_cents += toNumber(r.booked_sales_cents);
           acc.booked_monthly_equivalent_cents += toNumber(r.booked_monthly_equivalent_cents);
           acc.failed_payments_count += toNumber(r.failed_payments_count);
@@ -117,7 +128,14 @@ export default async function handler(req: any, res: any) {
         .gte('occurred_at', startIso)
         .lte('occurred_at', endIso)
         .eq('user_id', scopedUserId)
-        .in('finance_event_type', ['cash_revenue', 'booked_revenue', 'payment_failed_attempt', 'estimated_cost']);
+        .in('finance_event_type', [
+          'cash_revenue',
+          'booked_revenue',
+          'payment_failed_attempt',
+          'estimated_cost',
+          'refund',
+          'chargeback',
+        ]);
 
       if (eventsErr) {
         return res.status(500).json({ error: `finance_events error: ${eventsErr.message}` });
@@ -127,6 +145,7 @@ export default async function handler(req: any, res: any) {
         const ft = r.finance_event_type;
         if (ft === 'cash_revenue') {
           totals.cash_revenue_cents += toNumber(r.amount_cents);
+          totals.gross_cash_revenue_cents += toNumber(r.amount_cents);
         } else if (ft === 'booked_revenue') {
           totals.booked_sales_cents += toNumber(r.amount_cents);
           const monthlyEquiv = r.metadata?.monthly_equivalent_cents;
@@ -136,13 +155,22 @@ export default async function handler(req: any, res: any) {
           totals.revenue_at_risk_cents += toNumber(r.risk_amount_cents);
         } else if (ft === 'estimated_cost') {
           totals.estimated_cost_cents += toNumber(r.amount_cents);
+        } else if (ft === 'refund') {
+          totals.refunds_amount_cents += toNumber(r.amount_cents);
+        } else if (ft === 'chargeback') {
+          totals.chargebacks_amount_cents += toNumber(r.amount_cents);
         }
       }
     }
 
-    const gross_margin_cents = totals.cash_revenue_cents - totals.estimated_cost_cents;
+    totals.net_cash_revenue_cents =
+      totals.gross_cash_revenue_cents - totals.refunds_amount_cents - totals.chargebacks_amount_cents;
+
+    const gross_margin_cents = totals.net_cash_revenue_cents - totals.estimated_cost_cents;
     const gross_margin_pct =
-      totals.cash_revenue_cents === 0 ? 0 : Math.round((gross_margin_cents / totals.cash_revenue_cents) * 10000) / 100;
+      totals.net_cash_revenue_cents === 0
+        ? 0
+        : Math.round((gross_margin_cents / totals.net_cash_revenue_cents) * 10000) / 100;
 
     // Estado actual (snapshot): si es global admin, usamos vista; si no, calculamos por user_id.
     let state: any = {};
@@ -212,6 +240,10 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({
       cash_revenue_cents: totals.cash_revenue_cents,
+      gross_cash_revenue_cents: totals.gross_cash_revenue_cents,
+      refunds_amount_cents: totals.refunds_amount_cents,
+      chargebacks_amount_cents: totals.chargebacks_amount_cents,
+      net_cash_revenue_cents: totals.net_cash_revenue_cents,
       booked_sales_cents: totals.booked_sales_cents,
       booked_monthly_equivalent_cents: totals.booked_monthly_equivalent_cents,
       mrr_cents: toNumber(state.mrr_cents),
