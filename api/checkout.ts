@@ -248,6 +248,15 @@ export default async function handler(req: any, res: any) {
                 metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
               });
 
+              const periodEndSec = stripeSub.trial_end ?? stripeSub.current_period_end;
+              const nextBillingDateIso = periodEndSec
+                ? new Date(periodEndSec * 1000).toISOString()
+                : null;
+              const trialEndIso = stripeSub.trial_end
+                ? new Date(stripeSub.trial_end * 1000).toISOString()
+                : null;
+              const activationTs = new Date().toISOString();
+
               const { data: newSub } = await supabaseAdmin
                 .from('subscriptions')
                 .insert({
@@ -260,7 +269,12 @@ export default async function handler(req: any, res: any) {
                   amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
                   billing_type: isAnnual ? 'annual' : 'monthly',
                   currency: priceData.currency || 'usd',
-                  created_at: new Date().toISOString()
+                  trial_end: trialEndIso,
+                  next_billing_date: nextBillingDateIso,
+                  /* Misma línea de llegada que checkout + webhook exitoso: servicio operativo */
+                  activation_state: 'on_air',
+                  activation_state_updated_at: activationTs,
+                  created_at: activationTs
                 })
                 .select('id')
                 .single();
