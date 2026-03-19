@@ -220,8 +220,26 @@ export default async function handler(req: any, res: any) {
     const nowMs = Date.now();
     let reservationToken: string | null = null;
 
+    class HttpError extends Error {
+      status: number;
+      code: string;
+      constructor(status: number, code: string, message: string) {
+        super(message);
+        this.status = status;
+        this.code = code;
+      }
+    }
+
     const reserveSlotForCheckout = async () => {
       const nowIso = new Date(nowMs).toISOString();
+
+      const sleep = (ms: number) =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => resolve(), ms);
+        });
+
+      let hadAnyCandidate = false;
+      let lastCandidateStatus: 'libre' | 'reserved' | null = null;
 
       for (let attempt = 0; attempt < 3; attempt++) {
         // 1) Prefer truly free slots
@@ -229,30 +247,47 @@ export default async function handler(req: any, res: any) {
           .from('slots')
           .select('slot_id, phone_number')
           .eq('status', 'libre')
+          .is('assigned_to', null)
           .limit(1)
           .maybeSingle();
 
         // 2) Fallback: expired reservations treated as "free"
-        const { data: expiredReservedSlot } = freeSlot
-          ? { data: null }
-          : await supabaseAdmin
+        let expiredReservedSlot:
+          | { slot_id: string; phone_number?: string | null }
+          | null = null;
+        if (!freeSlot) {
+          const { data } = await supabaseAdmin
             .from('slots')
             .select('slot_id, phone_number')
             .eq('status', 'reserved')
             .lt('reservation_expires_at', nowIso)
             .limit(1)
             .maybeSingle();
+          expiredReservedSlot = data;
+        }
 
         const slotToReserve = freeSlot ?? expiredReservedSlot;
+        const candidateStatus: 'libre' | 'reserved' = freeSlot ? 'libre' : 'reserved';
+
         if (!slotToReserve) {
-          throw new Error("Sin capacidad física disponible.");
+          if (attempt === 2) {
+            // En este punto no encontramos slots candidatos en ninguna iteración.
+            throw new HttpError(
+              422,
+              'NO_SLOTS_AVAILABLE',
+              'No hay slots disponibles para reservar en este momento.'
+            );
+          }
+          continue;
         }
+
+        hadAnyCandidate = true;
+        lastCandidateStatus = candidateStatus;
 
         const reservationTokenCandidate = crypto.randomBytes(16).toString('hex');
         const expiresAtIso = new Date(nowMs + RESERVATION_TTL_MS).toISOString();
 
         // Atomic-ish: aseguramos que el slot no cambie entre "select" y "update" con condición de estado.
-        const currentStatus = freeSlot ? 'libre' : 'reserved';
         const { data: reservedSlot, error: reserveErr } = await supabaseAdmin
           .from('slots')
           .update({
@@ -262,14 +297,19 @@ export default async function handler(req: any, res: any) {
             reservation_user_id: userId,
             reservation_stripe_session_id: null,
             assigned_to: null,
-            plan_type: null,
+            plan_type: planName,
           })
           .eq('slot_id', slotToReserve.slot_id)
-          .eq('status', currentStatus)
+          .eq('status', candidateStatus)
           .select('slot_id, phone_number')
           .maybeSingle();
 
-        if (!reserveErr && reservedSlot) {
+        if (reserveErr) {
+          // Errores reales del UPDATE (constraints/triggers/etc) -> interno.
+          throw new HttpError(500, 'SLOT_RESERVATION_UPDATE_FAILED', reserveErr.message || 'Error al reservar el slot.');
+        }
+
+        if (reservedSlot) {
           return {
             slotId: reservedSlot.slot_id,
             phone: (reservedSlot as { phone_number?: string }).phone_number ?? '',
@@ -277,9 +317,28 @@ export default async function handler(req: any, res: any) {
             reservationExpiresAtIso: expiresAtIso,
           };
         }
+
+        // Si el UPDATE no afectó filas, pero tuvimos candidato, asumimos conflicto transitorio de concurrencia.
+        if (attempt < 2) {
+          await sleep(150 + attempt * 150);
+          continue;
+        }
       }
 
-      throw new Error('No se pudo reservar el slot (posible carrera). Intenta nuevamente.');
+      if (hadAnyCandidate) {
+        throw new HttpError(
+          409,
+          'SLOT_RESERVATION_CONFLICT',
+          'Hubo un conflicto temporal al reservar tu slot. Intenta nuevamente.'
+        );
+      }
+
+      // Fallback: no hubo candidatos.
+      throw new HttpError(
+        422,
+        'NO_SLOTS_AVAILABLE',
+        'No hay slots disponibles para reservar en este momento.'
+      );
     };
 
     if (!isUpgrade) {
@@ -335,6 +394,8 @@ export default async function handler(req: any, res: any) {
 
   } catch (err: any) {
     console.error('[CHECKOUT]', action, err?.message);
-    return res.status(500).json({ error: err?.message || 'Error interno.' });
+    const status = err?.status ?? 500;
+    const code = err?.code ?? 'INTERNAL_ERROR';
+    return res.status(status).json({ error: err?.message || 'Error interno.', code });
   }
 }

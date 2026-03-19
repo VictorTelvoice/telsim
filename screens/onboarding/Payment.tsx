@@ -63,8 +63,16 @@ const Payment: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.url) throw new Error(data.error || "No se pudo generar la sesión de pago.");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) {
+        if (response.status === 422) {
+          throw new Error(data.error || 'No hay disponibilidad para contratar este plan en este momento. Intenta más tarde.');
+        }
+        if (response.status === 409) {
+          throw new Error(data.error || 'Hubo un conflicto temporal al reservar tu SIM. Reintenta en unos minutos.');
+        }
+        throw new Error(data.error || 'No se pudo generar la sesión de pago.');
+      }
       window.location.href = data.url;
 
     } catch (err: any) {
