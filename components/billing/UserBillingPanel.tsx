@@ -14,6 +14,15 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import {
+  dedupeLatestSubscriptionPerLine,
+  getSubscriptionBadgeLabel,
+  isCanceledBucketStatus,
+  isLiveOperationalStatus,
+  isStrictKpiActiveStatus,
+  normalizeSubscriptionStatus,
+  subscriptionBadgeClassName,
+} from './subscriptionBillingUtils';
 
 export interface UserBillingPanelProps {
   /** Página standalone (móvil / ruta dedicada) vs embebido en WebDashboard o Ajustes */
@@ -213,22 +222,58 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
+  type SubscriptionFilterTab = 'activas' | 'canceladas' | 'todas';
+  const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>('activas');
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
 
-  const activeSubs = useMemo(
-    () => subscriptions.filter((s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'),
+  /** Una fila por línea (slot / Stripe sub): evita duplicados históricos que inflan el conteo. */
+  const subscriptionsDedupedByLine = useMemo(
+    () => dedupeLatestSubscriptionPerLine(subscriptions),
     [subscriptions]
   );
 
+  /** Suscripciones aún operativas para cobros / próximo billing (incluye past_due). */
+  const operationalSubs = useMemo(
+    () => subscriptionsDedupedByLine.filter((s) => isLiveOperationalStatus(s.status)),
+    [subscriptionsDedupedByLine]
+  );
+
+  /**
+   * KPI “Suscripciones activas”: solo active + trialing (past_due no cuenta como “activa” en el número).
+   */
+  const kpiStrictActiveSubs = useMemo(
+    () => subscriptionsDedupedByLine.filter((s) => isStrictKpiActiveStatus(s.status)),
+    [subscriptionsDedupedByLine]
+  );
+
+  const pastDueCountKpi = useMemo(
+    () =>
+      subscriptionsDedupedByLine.filter((s) => normalizeSubscriptionStatus(s.status) === 'past_due').length,
+    [subscriptionsDedupedByLine]
+  );
+
+  const displayedSubscriptions = useMemo(() => {
+    const sortedAll = [...subscriptions].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    if (subscriptionFilter === 'activas') {
+      return subscriptionsDedupedByLine.filter((s) => isLiveOperationalStatus(s.status));
+    }
+    if (subscriptionFilter === 'canceladas') {
+      return sortedAll.filter((s) => isCanceledBucketStatus(s.status));
+    }
+    return sortedAll;
+  }, [subscriptions, subscriptionsDedupedByLine, subscriptionFilter]);
+
   const nextBillingTotalEstimate = useMemo(
-    () => activeSubs.reduce((acc, s) => acc + Number(s.amount || 0), 0),
-    [activeSubs]
+    () => operationalSubs.reduce((acc, s) => acc + Number(s.amount || 0), 0),
+    [operationalSubs]
   );
 
   const nextBillingDate = useMemo(() => {
-    const dates = activeSubs
+    const dates = operationalSubs
       .map((s) => {
         const iso =
           s.next_billing_date ||
@@ -247,7 +292,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       .filter((d): d is Date => !!d && !Number.isNaN(d.getTime()))
       .sort((a, b) => a.getTime() - b.getTime());
     return dates[0] ?? null;
-  }, [activeSubs]);
+  }, [operationalSubs]);
 
   const getNextBillingDateIso = (s: Subscription): string | null => {
     if (s.next_billing_date) return s.next_billing_date;
@@ -478,7 +523,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const mainClasses = isEmbedded
     ? 'px-0 py-0 space-y-6 max-w-none'
-    : 'px-6 max-w-lg mx-auto lg:max-w-5xl lg:px-12 py-6 space-y-8';
+    : 'px-6 max-w-lg mx-auto lg:max-w-5xl xl:max-w-7xl lg:px-12 py-6 space-y-8';
 
   const inner = (
     <main className={mainClasses}>
@@ -494,12 +539,17 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Suscripciones activas</p>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{activeSubs.length}</p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{kpiStrictActiveSubs.length}</p>
+          {pastDueCountKpi > 0 ? (
+            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400/90 mt-1 leading-snug">
+              +{pastDueCountKpi} en past due (siguen activas en Stripe; revisa pago)
+            </p>
+          ) : null}
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Próximo cobro estimado</p>
           <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
-            {formatCurrency(nextBillingTotalEstimate, activeSubs[0]?.currency || 'USD')}
+            {formatCurrency(nextBillingTotalEstimate, operationalSubs[0]?.currency || 'USD')}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
@@ -550,20 +600,54 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus suscripciones</h3>
-          <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase dark:bg-emerald-500/20 dark:text-emerald-400">
-            {activeSubs.length} activas
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/80 p-0.5"
+              role="tablist"
+              aria-label="Filtro de suscripciones"
+            >
+              {(
+                [
+                  { key: 'activas' as const, label: 'Activas' },
+                  { key: 'canceladas' as const, label: 'Canceladas' },
+                  { key: 'todas' as const, label: 'Todas' },
+                ] satisfies { key: SubscriptionFilterTab; label: string }[]
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={subscriptionFilter === key}
+                  onClick={() => setSubscriptionFilter(key)}
+                  className={
+                    subscriptionFilter === key
+                      ? 'rounded-lg bg-white dark:bg-slate-800 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-900 dark:text-white shadow-sm'
+                      : 'rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[9px] font-black bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full uppercase dark:bg-slate-700 dark:text-slate-200">
+              {displayedSubscriptions.length} mostradas
+            </span>
+          </div>
         </div>
 
-        {activeSubs.length === 0 ? (
+        {displayedSubscriptions.length === 0 ? (
           <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-            <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
+            <p className="text-xs font-bold text-slate-400 italic">
+              {subscriptionFilter === 'activas' && t('billing.no_services')}
+              {subscriptionFilter === 'canceladas' && 'No hay suscripciones canceladas en el historial.'}
+              {subscriptionFilter === 'todas' && 'No hay suscripciones para este usuario.'}
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {activeSubs.map((sub) => {
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {displayedSubscriptions.map((sub) => {
               const subInvoices = sub.stripe_subscription_id
                 ? invoicesByStripeSubscription.get(sub.stripe_subscription_id) || []
                 : [];
@@ -571,18 +655,20 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
               return (
                 <div
                   key={sub.id}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3"
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 min-w-0"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{sub.plan_name || 'Plan'}</p>
-                      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                        <Smartphone className="size-3.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-900 dark:text-white truncate">{sub.plan_name || 'Plan'}</p>
+                      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                        <Smartphone className="size-3.5 shrink-0" />
                         {sub.phone_number || sub.slot_id || 'Sin línea asociada'}
                       </p>
                     </div>
-                    <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      {sub.status}
+                    <span
+                      className={`shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-full ${subscriptionBadgeClassName(sub.status)}`}
+                    >
+                      {getSubscriptionBadgeLabel(sub.status)}
                     </span>
                   </div>
 
@@ -729,12 +815,19 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-black text-slate-900 dark:text-white">{selectedSub.plan_name}</h2>
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+            <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight">{selectedSub.plan_name}</h2>
+            <span
+              className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${subscriptionBadgeClassName(selectedSub.status)}`}
+            >
+              {getSubscriptionBadgeLabel(selectedSub.status)}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => setSelectedSub(null)}
-            className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+            className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 shrink-0"
           >
             <X className="size-5" />
           </button>
@@ -745,10 +838,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             <span className="text-slate-800 dark:text-slate-200">
               {selectedSub.phone_number || selectedSub.slot_id || '—'}
             </span>
-          </p>
-          <p>
-            <span className="font-black text-slate-500">Estado:</span>{' '}
-            <span className="text-slate-800 dark:text-slate-200">{selectedSub.status}</span>
           </p>
           <p>
             <span className="font-black text-slate-500">Billing:</span>{' '}
