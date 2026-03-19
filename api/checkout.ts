@@ -9,6 +9,10 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
+import {
+  applySlotCountryFilter,
+  isSupportedOnboardingCountryCode,
+} from './_helpers/slotCountryMapping.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
@@ -100,6 +104,27 @@ export default async function handler(req: any, res: any) {
     const regionCode =
       typeof region === 'string' && region.trim().length > 0 ? region.trim().toUpperCase() : '';
 
+    class CheckoutHttpError extends Error {
+      status: number;
+      code: string;
+      constructor(status: number, code: string, message: string) {
+        super(message);
+        this.status = status;
+        this.code = code;
+      }
+    }
+
+    if (regionCode && !isSupportedOnboardingCountryCode(regionCode)) {
+      console.warn('[CHECKOUT] UNSUPPORTED_ONBOARDING_COUNTRY — sin mapping en slotCountryMapping.ts', {
+        regionCode,
+      });
+      return res.status(400).json({
+        error:
+          `El país "${regionCode}" no está configurado para asignación de línea. Actualiza el catálogo o contacta soporte.`,
+        code: 'UNSUPPORTED_ONBOARDING_COUNTRY',
+      });
+    }
+
     if (customerId && !forceManual) {
       try {
         const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
@@ -172,20 +197,44 @@ export default async function handler(req: any, res: any) {
               .select('slot_id, phone_number')
               .eq('status', 'libre')
               .is('assigned_to', null);
-            if (regionCode) freeQ = freeQ.ilike('region', regionCode);
+            if (regionCode) freeQ = applySlotCountryFilter(freeQ, regionCode);
 
-            const { data: freeSlot } = await freeQ
+            const { data: freeSlot, error: freeSelectErr } = await freeQ
               .order('slot_id', { ascending: true })
               .limit(1)
               .maybeSingle();
 
+            if (freeSelectErr) {
+              console.error('[CHECKOUT][slots] one-click SELECT libre failed:', {
+                code: freeSelectErr.code,
+                message: freeSelectErr.message,
+                details: freeSelectErr.details,
+                hint: (freeSelectErr as { hint?: string }).hint,
+              });
+              throw new CheckoutHttpError(
+                500,
+                'SLOT_QUERY_FAILED',
+                `Error al consultar inventario de líneas: ${freeSelectErr.message}`
+              );
+            }
+
             if (freeSlot) {
-              let updQ: any = supabaseAdmin
+              const { error: oneClickOccupyErr } = await supabaseAdmin
                 .from('slots')
                 .update({ status: 'ocupado', assigned_to: userId, plan_type: planName })
                 .eq('slot_id', freeSlot.slot_id);
-              if (regionCode) updQ = updQ.ilike('region', regionCode);
-              await updQ;
+              if (oneClickOccupyErr) {
+                console.error('[CHECKOUT][slots] one-click UPDATE ocupado failed:', {
+                  code: oneClickOccupyErr.code,
+                  message: oneClickOccupyErr.message,
+                  details: oneClickOccupyErr.details,
+                });
+                throw new CheckoutHttpError(
+                  500,
+                  'SLOT_OCCUPY_FAILED',
+                  `Error al ocupar la línea: ${oneClickOccupyErr.message}`
+                );
+              }
 
               const priceData = await stripe.prices.retrieve(priceId);
               const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
@@ -229,6 +278,7 @@ export default async function handler(req: any, res: any) {
           }
         }
       } catch (oneClickErr: any) {
+        if (oneClickErr instanceof CheckoutHttpError) throw oneClickErr;
         console.error('[ONE-CLICK ERROR]', oneClickErr?.message, JSON.stringify(oneClickErr));
       }
     }
@@ -242,16 +292,6 @@ export default async function handler(req: any, res: any) {
     const RESERVATION_TTL_MS = 1000 * 60 * 30; // 30 minutes
     const nowMs = Date.now();
     let reservationToken: string | null = null;
-
-    class HttpError extends Error {
-      status: number;
-      code: string;
-      constructor(status: number, code: string, message: string) {
-        super(message);
-        this.status = status;
-        this.code = code;
-      }
-    }
 
     const reserveSlotForCheckout = async () => {
       const nowIso = new Date(nowMs).toISOString();
@@ -271,8 +311,25 @@ export default async function handler(req: any, res: any) {
           .select('slot_id, phone_number')
           .eq('status', 'libre')
           .is('assigned_to', null);
-        if (regionCode) freeQ = freeQ.ilike('region', regionCode);
-        const { data: freeSlot } = await freeQ.limit(1).maybeSingle();
+        if (regionCode) freeQ = applySlotCountryFilter(freeQ, regionCode);
+        const { data: freeSlot, error: freeSelectErr } = await freeQ
+          .order('slot_id', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (freeSelectErr) {
+          console.error('[CHECKOUT][slots] reserve SELECT libre failed:', {
+            code: freeSelectErr.code,
+            message: freeSelectErr.message,
+            details: freeSelectErr.details,
+            hint: (freeSelectErr as { hint?: string }).hint,
+          });
+          throw new CheckoutHttpError(
+            500,
+            'SLOT_QUERY_FAILED',
+            `Error al consultar inventario de líneas: ${freeSelectErr.message}`
+          );
+        }
 
         // 2) Fallback: expired reservations treated as "free"
         let expiredReservedSlot:
@@ -285,8 +342,20 @@ export default async function handler(req: any, res: any) {
             .eq('status', 'reserved')
             .is('assigned_to', null)
             .lt('reservation_expires_at', nowIso);
-          if (regionCode) expiredQ = expiredQ.ilike('region', regionCode);
-          const { data } = await expiredQ.limit(1).maybeSingle();
+          if (regionCode) expiredQ = applySlotCountryFilter(expiredQ, regionCode);
+          const { data, error: expiredErr } = await expiredQ.order('slot_id', { ascending: true }).limit(1).maybeSingle();
+          if (expiredErr) {
+            console.error('[CHECKOUT][slots] reserve SELECT reserved-expired failed:', {
+              code: expiredErr.code,
+              message: expiredErr.message,
+              details: expiredErr.details,
+            });
+            throw new CheckoutHttpError(
+              500,
+              'SLOT_QUERY_FAILED',
+              `Error al consultar reservas expiradas: ${expiredErr.message}`
+            );
+          }
           expiredReservedSlot = data;
         }
 
@@ -296,7 +365,7 @@ export default async function handler(req: any, res: any) {
         if (!slotToReserve) {
           if (attempt === 2) {
             // En este punto no encontramos slots candidatos en ninguna iteración.
-            throw new HttpError(
+            throw new CheckoutHttpError(
               422,
               'NO_SLOTS_AVAILABLE',
               'No hay slots disponibles para reservar en este momento.'
@@ -325,15 +394,17 @@ export default async function handler(req: any, res: any) {
           })
           .eq('slot_id', slotToReserve.slot_id)
           .eq('status', candidateStatus);
-        if (regionCode) updateQ = updateQ.ilike('region', regionCode);
-
         const { data: reservedSlot, error: reserveErr } = await updateQ
           .select('slot_id, phone_number')
           .maybeSingle();
 
         if (reserveErr) {
           // Errores reales del UPDATE (constraints/triggers/etc) -> interno.
-          throw new HttpError(500, 'SLOT_RESERVATION_UPDATE_FAILED', reserveErr.message || 'Error al reservar el slot.');
+          throw new CheckoutHttpError(
+            500,
+            'SLOT_RESERVATION_UPDATE_FAILED',
+            reserveErr.message || 'Error al reservar el slot.'
+          );
         }
 
         if (reservedSlot) {
@@ -353,7 +424,7 @@ export default async function handler(req: any, res: any) {
       }
 
       if (hadAnyCandidate) {
-        throw new HttpError(
+        throw new CheckoutHttpError(
           409,
           'SLOT_RESERVATION_CONFLICT',
           'Hubo un conflicto temporal al reservar tu slot. Intenta nuevamente.'
@@ -361,7 +432,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // Fallback: no hubo candidatos.
-      throw new HttpError(
+      throw new CheckoutHttpError(
         422,
         'NO_SLOTS_AVAILABLE',
         'No hay slots disponibles para reservar en este momento.'
