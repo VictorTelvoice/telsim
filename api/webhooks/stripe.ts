@@ -36,6 +36,41 @@ async function getTemplateContent(templateId: string): Promise<string | null> {
   }
 }
 
+const FINANCE_COST_PER_SLOT_MONTH_CENTS_ID = 'finance_cost_per_slot_month_cents';
+const FINANCE_COST_PER_SMS_CENTS_ID = 'finance_cost_per_sms_cents';
+
+function parseCentsSetting(content: unknown): number {
+  const n = typeof content === 'string' ? parseInt(content, 10) : Number(content);
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function getFinanceCostRatesCents(): Promise<{
+  costPerSlotMonthCents: number;
+  costPerSmsCents: number;
+}> {
+  try {
+    const [slotRow, smsRow] = await Promise.all([
+      supabaseAdmin
+        .from('admin_settings')
+        .select('content')
+        .eq('id', FINANCE_COST_PER_SLOT_MONTH_CENTS_ID)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('admin_settings')
+        .select('content')
+        .eq('id', FINANCE_COST_PER_SMS_CENTS_ID)
+        .maybeSingle(),
+    ]);
+
+    const costPerSlotMonthCents = parseCentsSetting((slotRow as any)?.data?.content);
+    const costPerSmsCents = parseCentsSetting((smsRow as any)?.data?.content);
+
+    return { costPerSlotMonthCents, costPerSmsCents };
+  } catch {
+    return { costPerSlotMonthCents: 0, costPerSmsCents: 0 };
+  }
+}
+
 async function triggerEmail(
   event: string,
   userId: string,
@@ -1179,7 +1214,7 @@ export default async function handler(req: any, res: any) {
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, status, slot_id, phone_number, billing_type, currency')
+        .select('id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency')
         .eq('stripe_subscription_id', stripeSubId)
         .maybeSingle();
 
@@ -1219,6 +1254,49 @@ export default async function handler(req: any, res: any) {
         );
       } catch (finErr: any) {
         console.error('[FINANCE_EVENTS] cash_revenue insert failed:', finErr?.message ?? finErr);
+      }
+
+      // Fase 5 (margen): registrar estimated_cost en función de costo por slot mes + costo por SMS.
+      // Para idempotencia, usamos un `stripe_event_id` derivado (no colisiona con el row de cash_revenue).
+      try {
+        const amountPaidCents = invoice.amount_paid ?? 0;
+        const occurredAtIso = invoice.created ? new Date(invoice.created * 1000).toISOString() : new Date().toISOString();
+        const { costPerSlotMonthCents, costPerSmsCents } = await getFinanceCostRatesCents();
+
+        const monthlyLimit = sub.monthly_limit ?? 0;
+        const monthsFactor = sub.billing_type === 'annual' ? 12 : 1;
+
+        const costMonthlyCents = costPerSlotMonthCents + (costPerSmsCents * Number(monthlyLimit || 0));
+        const estimatedCostCents = costMonthlyCents * monthsFactor;
+
+        if (estimatedCostCents !== 0 || amountPaidCents !== 0) {
+          await supabaseAdmin.from('finance_events').upsert(
+            {
+              stripe_event_id: `${stripeEventId}:estimated_cost`,
+              stripe_event_type: event.type,
+              finance_event_type: 'estimated_cost',
+              occurred_at: occurredAtIso,
+              user_id: sub.user_id,
+              subscription_id: sub.id,
+              slot_id: sub.slot_id ?? null,
+              plan_name: sub.plan_name ?? null,
+              billing_type: sub.billing_type ?? null,
+              currency: (invoice.currency ?? sub.currency ?? 'usd') as string,
+              amount_cents: estimatedCostCents,
+              risk_amount_cents: null,
+              metadata: {
+                cost_per_slot_month_cents: costPerSlotMonthCents,
+                cost_per_sms_cents: costPerSmsCents,
+                monthly_limit: monthlyLimit,
+                months_factor: monthsFactor,
+                cost_monthly_cents: costMonthlyCents,
+              },
+            },
+            { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+          );
+        }
+      } catch (finErr: any) {
+        console.error('[FINANCE_EVENTS] estimated_cost insert failed:', finErr?.message ?? finErr);
       }
 
       let phoneNumber = sub.phone_number ?? '';
@@ -1265,6 +1343,179 @@ export default async function handler(req: any, res: any) {
         subscription_id: stripeSubId ?? undefined,
         customer_email: invoice.customer_email ?? undefined,
       }, 'stripe');
+    }
+  }
+
+  // Fase 5: refunds / chargebacks (modelo preparado, sin notificaciones)
+  else if (event.type === 'refund.created') {
+    const refund = event.data.object as Stripe.Refund;
+    try {
+      const meta = (refund.metadata || {}) as Record<string, unknown>;
+      const stripeSubscriptionId = (meta.stripe_subscription_id ?? meta.stripeSubscriptionId ?? meta.subscription_id ?? meta.subscriptionId ?? '') as string;
+      const stripeSessionId = (meta.stripe_session_id ?? meta.stripeSessionId ?? '') as string;
+      const userIdFromMeta = (meta.user_id ?? meta.userId ?? '') as string;
+
+      let subRow: { id: string; user_id: string; plan_name: string | null; slot_id: string | null; billing_type: string | null; currency: string | null } | null = null;
+
+      if (stripeSubscriptionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_subscription_id', stripeSubscriptionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      } else if (stripeSessionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_session_id', stripeSessionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      }
+
+      const occurredAtIso = refund.created ? new Date(refund.created * 1000).toISOString() : new Date().toISOString();
+      const amountCents = refund.amount ?? 0;
+      const currency = (refund.currency ?? subRow?.currency ?? 'usd') as string;
+
+      await supabaseAdmin.from('finance_events').upsert(
+        {
+          stripe_event_id: stripeEventId,
+          stripe_event_type: event.type,
+          finance_event_type: 'refund_event',
+          occurred_at: occurredAtIso,
+          user_id: subRow?.user_id ?? (userIdFromMeta || null),
+          subscription_id: subRow?.id ?? null,
+          slot_id: subRow?.slot_id ?? null,
+          plan_name: subRow?.plan_name ?? null,
+          billing_type: subRow?.billing_type ?? null,
+          currency,
+          amount_cents: amountCents,
+          risk_amount_cents: null,
+          metadata: {
+            refund_id: refund.id ?? null,
+            charge_id: typeof refund.charge === 'string' ? refund.charge : (refund.charge as any)?.id ?? null,
+            stripe_subscription_id: stripeSubscriptionId || null,
+            stripe_session_id: stripeSessionId || null,
+          },
+        },
+        { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+      );
+    } catch (err: any) {
+      console.error('[FINANCE_EVENTS] refund_event insert failed:', err?.message ?? err);
+    }
+  }
+
+  else if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+    try {
+      const meta = (charge.metadata || {}) as Record<string, unknown>;
+      const stripeSubscriptionId = (meta.stripe_subscription_id ?? meta.stripeSubscriptionId ?? meta.subscription_id ?? meta.subscriptionId ?? '') as string;
+      const stripeSessionId = (meta.stripe_session_id ?? meta.stripeSessionId ?? '') as string;
+      const userIdFromMeta = (meta.user_id ?? meta.userId ?? '') as string;
+
+      let subRow: { id: string; user_id: string; plan_name: string | null; slot_id: string | null; billing_type: string | null; currency: string | null } | null = null;
+
+      if (stripeSubscriptionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_subscription_id', stripeSubscriptionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      } else if (stripeSessionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_session_id', stripeSessionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      }
+
+      const occurredAtIso = charge.created ? new Date(charge.created * 1000).toISOString() : new Date().toISOString();
+      const amountCents = charge.amount_refunded ?? 0;
+      const currency = (charge.currency ?? subRow?.currency ?? 'usd') as string;
+
+      await supabaseAdmin.from('finance_events').upsert(
+        {
+          stripe_event_id: stripeEventId,
+          stripe_event_type: event.type,
+          finance_event_type: 'refund_event',
+          occurred_at: occurredAtIso,
+          user_id: subRow?.user_id ?? (userIdFromMeta || null),
+          subscription_id: subRow?.id ?? null,
+          slot_id: subRow?.slot_id ?? null,
+          plan_name: subRow?.plan_name ?? null,
+          billing_type: subRow?.billing_type ?? null,
+          currency,
+          amount_cents: amountCents,
+          risk_amount_cents: null,
+          metadata: {
+            charge_id: charge.id ?? null,
+            stripe_subscription_id: stripeSubscriptionId || null,
+            stripe_session_id: stripeSessionId || null,
+          },
+        },
+        { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+      );
+    } catch (err: any) {
+      console.error('[FINANCE_EVENTS] refund_event (charge.refunded) insert failed:', err?.message ?? err);
+    }
+  }
+
+  else if (event.type === 'charge.dispute.created') {
+    const dispute = event.data.object as Stripe.Dispute;
+    try {
+      const meta = (dispute.metadata || {}) as Record<string, unknown>;
+      const stripeSubscriptionId = (meta.stripe_subscription_id ?? meta.stripeSubscriptionId ?? meta.subscription_id ?? meta.subscriptionId ?? '') as string;
+      const stripeSessionId = (meta.stripe_session_id ?? meta.stripeSessionId ?? '') as string;
+      const userIdFromMeta = (meta.user_id ?? meta.userId ?? '') as string;
+
+      let subRow: { id: string; user_id: string; plan_name: string | null; slot_id: string | null; billing_type: string | null; currency: string | null } | null = null;
+
+      if (stripeSubscriptionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_subscription_id', stripeSubscriptionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      } else if (stripeSessionId) {
+        const { data } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, plan_name, slot_id, billing_type, currency')
+          .eq('stripe_session_id', stripeSessionId)
+          .maybeSingle();
+        subRow = (data as any) ?? null;
+      }
+
+      const occurredAtIso = dispute.created ? new Date(dispute.created * 1000).toISOString() : new Date().toISOString();
+      const amountCents = (dispute.amount ?? 0);
+      const currency = (dispute.currency ?? subRow?.currency ?? 'usd') as string;
+
+      await supabaseAdmin.from('finance_events').upsert(
+        {
+          stripe_event_id: stripeEventId,
+          stripe_event_type: event.type,
+          finance_event_type: 'chargeback_event',
+          occurred_at: occurredAtIso,
+          user_id: subRow?.user_id ?? (userIdFromMeta || null),
+          subscription_id: subRow?.id ?? null,
+          slot_id: subRow?.slot_id ?? null,
+          plan_name: subRow?.plan_name ?? null,
+          billing_type: subRow?.billing_type ?? null,
+          currency,
+          amount_cents: amountCents,
+          risk_amount_cents: null,
+          metadata: {
+            dispute_id: dispute.id ?? null,
+            stripe_subscription_id: stripeSubscriptionId || null,
+            stripe_session_id: stripeSessionId || null,
+          },
+        },
+        { onConflict: 'stripe_event_id', ignoreDuplicates: true }
+      );
+    } catch (err: any) {
+      console.error('[FINANCE_EVENTS] chargeback_event insert failed:', err?.message ?? err);
     }
   }
 
