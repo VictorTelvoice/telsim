@@ -89,6 +89,33 @@ function mapStripeInvoiceToRow(inv: Stripe.Invoice, dbRow?: Record<string, unkno
   };
 }
 
+/** Fila API cuando solo existe registro en subscription_invoices (p. ej. no listada por Stripe en ese momento). */
+function mapSubscriptionInvoiceDbRowToApiRow(r: Record<string, unknown>): ReturnType<typeof mapStripeInvoiceToRow> {
+  const stripeInvoiceId = String(r.stripe_invoice_id ?? '');
+  const createdAt = r.created_at ? new Date(r.created_at as string).toISOString() : null;
+  const amountPaid = Number(r.amount_paid_cents ?? 0);
+  const totalCents = Number(r.total_cents ?? amountPaid);
+  return {
+    id: stripeInvoiceId,
+    number: null,
+    status: 'paid',
+    created: createdAt,
+    currency: String(r.currency ?? 'usd'),
+    amount_due: 0,
+    amount_paid: amountPaid,
+    total: totalCents,
+    subscription_id: (r.stripe_subscription_id as string) ?? null,
+    hosted_invoice_url: (r.hosted_invoice_url as string) ?? null,
+    invoice_pdf: (r.invoice_pdf as string) ?? null,
+    receipt_url: (r.receipt_url as string) ?? null,
+    subtotal_cents: Number(r.subtotal_cents ?? 0),
+    tax_cents: Number(r.tax_cents ?? 0),
+    total_cents: totalCents,
+    customer_tax_ids: Array.isArray(r.customer_tax_ids) ? r.customer_tax_ids : [],
+    tax_breakdown: Array.isArray(r.tax_breakdown) ? r.tax_breakdown : [],
+  };
+}
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { status: 'online' | 'error'; until: number }>();
 
@@ -755,8 +782,24 @@ export default async function handler(req: any, res: any) {
           .eq('id', userId)
           .single();
 
+        const { data: dbInvoices } = await supabaseAdmin
+          .from('subscription_invoices')
+          .select('*')
+          .eq('user_id', userId);
+        const dbById = new Map<string, Record<string, unknown>>(
+          (dbInvoices ?? []).map((r: any) => [r.stripe_invoice_id as string, r as Record<string, unknown>])
+        );
+
         if (userError || !userData?.stripe_customer_id) {
-          return res.status(200).json({ invoices: [] });
+          const dbOnlyRows = (dbInvoices ?? [])
+            .slice()
+            .sort(
+              (a: any, b: any) =>
+                new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+            )
+            .slice(0, safeLimit)
+            .map((r: any) => mapSubscriptionInvoiceDbRowToApiRow(r as Record<string, unknown>));
+          return res.status(200).json({ invoices: dbOnlyRows });
         }
 
         const customerId = userData.stripe_customer_id as string;
@@ -766,16 +809,10 @@ export default async function handler(req: any, res: any) {
           expand: ['data.charge', 'data.payment_intent.latest_charge'],
         });
 
-        const { data: dbInvoices } = await supabaseAdmin
-          .from('subscription_invoices')
-          .select('*')
-          .eq('user_id', userId);
-        const dbById = new Map<string, Record<string, unknown>>(
-          (dbInvoices ?? []).map((r: any) => [r.stripe_invoice_id as string, r as Record<string, unknown>])
-        );
-
         const rows: ReturnType<typeof mapStripeInvoiceToRow>[] = [];
+        const stripeIds = new Set<string>();
         for (const inv of list.data) {
+          if (inv.id) stripeIds.add(inv.id);
           let full: Stripe.Invoice = inv;
           const status = inv.status;
           const needsRetrieve =
@@ -796,7 +833,19 @@ export default async function handler(req: any, res: any) {
           rows.push(mapStripeInvoiceToRow(full, dbById.get(full.id) ?? null));
         }
 
-        return res.status(200).json({ invoices: rows });
+        for (const r of dbInvoices ?? []) {
+          const rid = (r as any).stripe_invoice_id as string;
+          if (!rid || stripeIds.has(rid)) continue;
+          rows.push(mapSubscriptionInvoiceDbRowToApiRow(r as Record<string, unknown>));
+        }
+
+        rows.sort((a, b) => {
+          const ta = a.created ? new Date(a.created).getTime() : 0;
+          const tb = b.created ? new Date(b.created).getTime() : 0;
+          return tb - ta;
+        });
+
+        return res.status(200).json({ invoices: rows.slice(0, safeLimit) });
       }
 
       case 'invoice-resolve': {
@@ -824,8 +873,14 @@ export default async function handler(req: any, res: any) {
         if (!invCustomer || invCustomer !== stripeCustomerId) {
           return res.status(403).json({ error: 'Invoice no pertenece a este usuario.' });
         }
+        const { data: dbInvExtra } = await supabaseAdmin
+          .from('subscription_invoices')
+          .select('*')
+          .eq('stripe_invoice_id', invoiceId)
+          .eq('user_id', userId)
+          .maybeSingle();
         return res.status(200).json({
-          invoice: mapStripeInvoiceToRow(inv, null),
+          invoice: mapStripeInvoiceToRow(inv, (dbInvExtra as Record<string, unknown>) ?? null),
         });
       }
 

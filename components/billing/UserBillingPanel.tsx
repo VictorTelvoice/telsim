@@ -123,68 +123,83 @@ const InvoiceFiscalSummary: React.FC<{ inv: InvoiceRow; formatCurrency: (n: numb
   );
 };
 
-/** Botones: enlaces oficiales Stripe (PDF, hosted page, charge receipt) + sync puntual. */
-const InvoiceDocActions: React.FC<{
+/**
+ * Un solo CTA según prioridad Stripe: PDF → hosted → recibo (URLs oficiales).
+ * Si no hay URLs, "No disponible" + Sincronizar cuando aplique.
+ */
+const InvoicePrimaryAccess: React.FC<{
   inv: InvoiceRow;
   resolving: boolean;
   onResolve: () => void;
   dense?: boolean;
 }> = ({ inv, resolving, onResolve, dense }) => {
-  const hasPdf = !!inv.invoice_pdf;
-  const hasHosted = !!inv.hosted_invoice_url;
-  const hasReceipt = !!inv.receipt_url;
-  const hasAny = hasPdf || hasHosted || hasReceipt;
+  const pdf = inv.invoice_pdf?.trim() || null;
+  const hosted = inv.hosted_invoice_url?.trim() || null;
+  const receipt = inv.receipt_url?.trim() || null;
+  const hasAny = !!(pdf || hosted || receipt);
   const canResolve =
     inv.status !== 'draft' && inv.status !== 'void' && inv.status !== 'uncollectible' && !hasAny;
 
-  const btn =
-    dense
-      ? 'px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1'
-      : 'px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1';
-
   const primary =
     dense
-      ? 'px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/20 disabled:opacity-40 flex items-center gap-1'
-      : 'px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 disabled:opacity-40 flex items-center gap-1';
+      ? 'px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center justify-center gap-1 min-h-[36px] w-full sm:w-auto'
+      : 'px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center justify-center gap-1 min-h-[40px] w-full sm:w-auto';
+
+  const syncBtn =
+    dense
+      ? 'px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1'
+      : 'px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1';
+
+  let main: React.ReactNode = null;
+  if (pdf) {
+    main = (
+      <button
+        type="button"
+        className={primary}
+        title="PDF oficial de Stripe"
+        onClick={() => openStripeUrl(pdf)}
+      >
+        <FileDown className="size-3.5 shrink-0" />
+        Descargar PDF
+      </button>
+    );
+  } else if (hosted) {
+    main = (
+      <button
+        type="button"
+        className={primary}
+        title="Factura alojada en Stripe"
+        onClick={() => openStripeUrl(hosted)}
+      >
+        <ExternalLink className="size-3.5 shrink-0" />
+        Ver factura
+      </button>
+    );
+  } else if (receipt) {
+    main = (
+      <button
+        type="button"
+        className={primary}
+        title="Recibo del cobro en Stripe"
+        onClick={() => openStripeUrl(receipt)}
+      >
+        <ExternalLink className="size-3.5 shrink-0" />
+        Ver recibo
+      </button>
+    );
+  }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        disabled={!hasPdf}
-        className={btn}
-        title="Descargar PDF oficial generado por Stripe"
-        onClick={() => inv.invoice_pdf && openStripeUrl(inv.invoice_pdf)}
-      >
-        <FileDown className="size-3.5" />
-        <span className="hidden min-[380px]:inline">Descargar </span>PDF
-      </button>
-      <button
-        type="button"
-        disabled={!hasHosted}
-        className={primary}
-        title="Ver invoice oficial en Stripe (hosted)"
-        onClick={() => inv.hosted_invoice_url && openStripeUrl(inv.hosted_invoice_url)}
-      >
-        <ExternalLink className="size-3.5" />
-        Ver invoice
-      </button>
-      <button
-        type="button"
-        disabled={!hasReceipt}
-        className={btn}
-        title="Recibo del cobro (Charge) en Stripe"
-        onClick={() => inv.receipt_url && openStripeUrl(inv.receipt_url)}
-      >
-        <ExternalLink className="size-3.5" />
-        Recibo
-      </button>
+    <div className="flex flex-wrap gap-2 items-center">
+      {main ?? (
+        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 py-1.5">No disponible</span>
+      )}
       {canResolve && (
         <button
           type="button"
           disabled={resolving}
-          className={btn}
-          title="Vuelve a pedir a Stripe los enlaces de esta factura"
+          className={syncBtn}
+          title="Sincronizar enlaces desde Stripe"
           onClick={onResolve}
         >
           {resolving ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
@@ -723,7 +738,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                       </button>
                     </div>
                     {latestInvoice ? (
-                      <InvoiceDocActions
+                      <InvoicePrimaryAccess
                         inv={latestInvoice}
                         resolving={resolvingInvoiceId === latestInvoice.id}
                         onResolve={() => resolveInvoiceUrls(latestInvoice.id)}
@@ -789,7 +804,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                 <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
 
                 <div className="mt-3">
-                  <InvoiceDocActions
+                  <InvoicePrimaryAccess
                     inv={inv}
                     resolving={resolvingInvoiceId === inv.id}
                     onResolve={() => resolveInvoiceUrls(inv.id)}
@@ -879,7 +894,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                 <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Documentos (Stripe)</p>
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Factura {li.number || li.id}</p>
                 <InvoiceFiscalSummary inv={li} formatCurrency={formatCurrency} />
-                <InvoiceDocActions
+                <InvoicePrimaryAccess
                   inv={li}
                   resolving={resolvingInvoiceId === li.id}
                   onResolve={() => resolveInvoiceUrls(li.id)}
