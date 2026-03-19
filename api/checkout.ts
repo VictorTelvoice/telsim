@@ -8,6 +8,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
@@ -378,7 +379,7 @@ export default async function handler(req: any, res: any) {
       targetPhoneNumber = (slotRow as { phone_number?: string } | null)?.phone_number ?? '';
     }
 
-    const sessionConfig: any = {
+    const sessionConfig: Record<string, unknown> = {
       customer: customerId || undefined,
       payment_method_collection: 'always',
       payment_method_types: ['card'],
@@ -395,17 +396,22 @@ export default async function handler(req: any, res: any) {
         region: regionCode,
         limit: String(monthlyLimit ?? ''),
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUB',
-        isAnnual: isAnnual ? 'true' : 'false'
-      }
+        isAnnual: isAnnual ? 'true' : 'false',
+      },
     };
+
+    // Dirección de facturación obligatoria; Stripe Tax / tax IDs solo si env está activado (ver stripeCheckoutCompliance).
+    applyStripeCheckoutBillingCompliance(sessionConfig);
+    // Nota: `invoice_creation.enabled` aplica solo a Checkout `mode: 'payment'` (one-time). Este flujo usa suscripción:
+    // Stripe genera la invoice oficial en cada ciclo / alta; URLs se persisten en `invoice.payment_succeeded`.
 
     // Si es NEW_SUB, incluimos reserva en metadata para validarla en el webhook.
     // Nota: solo reservamos en el bloque `!isUpgrade` anterior.
     if (!isUpgrade) {
-      sessionConfig.metadata.reservation_token = reservationToken || '';
+      (sessionConfig.metadata as Record<string, string>).reservation_token = reservationToken || '';
     }
 
-    const session = await stripe.checkout.sessions.create(sessionConfig);
+    const session = await stripe.checkout.sessions.create(sessionConfig as Stripe.Checkout.SessionCreateParams);
 
     // Asociamos el checkout session id a la reserva (para validación fuerte).
     if (!isUpgrade) {

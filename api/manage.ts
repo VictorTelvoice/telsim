@@ -6,6 +6,13 @@
  */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
+import {
+  extractReceiptUrlFromInvoice,
+  invoiceCustomerTaxIdsForDb,
+  invoiceTaxBreakdownForDb,
+  invoiceTaxCents,
+} from './_helpers/stripeInvoice.js';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
@@ -35,29 +42,32 @@ async function getRequestAuthUserId(req: any): Promise<string | null> {
   return user.id;
 }
 
-function extractReceiptUrlFromInvoice(inv: Stripe.Invoice): string | null {
-  const ch = inv.charge;
-  if (ch && typeof ch === 'object') {
-    const c = ch as Stripe.Charge;
-    if (!c.deleted && c.receipt_url) return c.receipt_url;
-  }
-  const pi = inv.payment_intent;
-  if (pi && typeof pi === 'object') {
-    const lc = (pi as Stripe.PaymentIntent).latest_charge;
-    if (lc && typeof lc === 'object') {
-      const c2 = lc as Stripe.Charge;
-      if (!c2.deleted && c2.receipt_url) return c2.receipt_url;
-    }
-  }
-  return null;
-}
-
 /** Fila API para el panel de facturación del cliente (fuentes oficiales Stripe). */
-function mapStripeInvoiceToRow(inv: Stripe.Invoice) {
+function mapStripeInvoiceToRow(inv: Stripe.Invoice, dbRow?: Record<string, unknown> | null) {
   const receiptUrl = extractReceiptUrlFromInvoice(inv);
   const subRaw = inv.subscription;
   const subscription_id =
     typeof subRaw === 'string' ? subRaw : subRaw && typeof subRaw === 'object' ? subRaw.id : null;
+  const taxFromStripe = invoiceTaxCents(inv);
+  const subtotalStripe = inv.subtotal ?? 0;
+  const totalStripe = inv.total ?? 0;
+  const taxDb = typeof dbRow?.tax_cents === 'number' || typeof dbRow?.tax_cents === 'string' ? Number(dbRow.tax_cents) : null;
+  const subDb =
+    typeof dbRow?.subtotal_cents === 'number' || typeof dbRow?.subtotal_cents === 'string'
+      ? Number(dbRow.subtotal_cents)
+      : null;
+  const totalDb =
+    typeof dbRow?.total_cents === 'number' || typeof dbRow?.total_cents === 'string' ? Number(dbRow.total_cents) : null;
+
+  const customerTax =
+    Array.isArray(dbRow?.customer_tax_ids) && dbRow.customer_tax_ids.length > 0
+      ? dbRow.customer_tax_ids
+      : invoiceCustomerTaxIdsForDb(inv);
+  const taxBreakdown =
+    Array.isArray(dbRow?.tax_breakdown) && (dbRow.tax_breakdown as unknown[]).length > 0
+      ? dbRow.tax_breakdown
+      : invoiceTaxBreakdownForDb(inv);
+
   return {
     id: inv.id,
     number: inv.number ?? null,
@@ -68,9 +78,14 @@ function mapStripeInvoiceToRow(inv: Stripe.Invoice) {
     amount_paid: inv.amount_paid ?? 0,
     total: inv.total ?? 0,
     subscription_id,
-    hosted_invoice_url: inv.hosted_invoice_url ?? null,
-    invoice_pdf: inv.invoice_pdf ?? null,
-    receipt_url: receiptUrl,
+    hosted_invoice_url: inv.hosted_invoice_url ?? (dbRow?.hosted_invoice_url as string) ?? null,
+    invoice_pdf: inv.invoice_pdf ?? (dbRow?.invoice_pdf as string) ?? null,
+    receipt_url: receiptUrl || (dbRow?.receipt_url as string) ?? null,
+    subtotal_cents: subtotalStripe || subDb || 0,
+    tax_cents: taxFromStripe || taxDb || 0,
+    total_cents: totalStripe || totalDb || 0,
+    customer_tax_ids: customerTax,
+    tax_breakdown: taxBreakdown,
   };
 }
 
@@ -751,6 +766,14 @@ export default async function handler(req: any, res: any) {
           expand: ['data.charge', 'data.payment_intent.latest_charge'],
         });
 
+        const { data: dbInvoices } = await supabaseAdmin
+          .from('subscription_invoices')
+          .select('*')
+          .eq('user_id', userId);
+        const dbById = new Map<string, Record<string, unknown>>(
+          (dbInvoices ?? []).map((r: any) => [r.stripe_invoice_id as string, r as Record<string, unknown>])
+        );
+
         const rows: ReturnType<typeof mapStripeInvoiceToRow>[] = [];
         for (const inv of list.data) {
           let full: Stripe.Invoice = inv;
@@ -770,7 +793,7 @@ export default async function handler(req: any, res: any) {
               console.warn('[invoice-history] retrieve', inv.id, e?.message);
             }
           }
-          rows.push(mapStripeInvoiceToRow(full));
+          rows.push(mapStripeInvoiceToRow(full, dbById.get(full.id) ?? null));
         }
 
         return res.status(200).json({ invoices: rows });
@@ -801,7 +824,9 @@ export default async function handler(req: any, res: any) {
         if (!invCustomer || invCustomer !== stripeCustomerId) {
           return res.status(403).json({ error: 'Invoice no pertenece a este usuario.' });
         }
-        return res.status(200).json({ invoice: mapStripeInvoiceToRow(inv) });
+        return res.status(200).json({
+          invoice: mapStripeInvoiceToRow(inv, null),
+        });
       }
 
       case 'notify-ticket-reply': {
@@ -920,7 +945,7 @@ export default async function handler(req: any, res: any) {
         const { data: slotRow } = await supabaseAdmin.from('slots').select('phone_number').eq('slot_id', slotId).maybeSingle();
         const baseUrl = getBaseUrl(req);
 
-        const session = await stripe.checkout.sessions.create({
+        const upgradeSession: Record<string, unknown> = {
           mode: 'subscription',
           customer: customerId,
           line_items: [{ price: newPriceId, quantity: 1 }],
@@ -939,7 +964,9 @@ export default async function handler(req: any, res: any) {
           payment_method_collection: 'always',
           success_url: `${baseUrl}/#/dashboard/upgrade-success?session_id={CHECKOUT_SESSION_ID}&slotId=${slotId}&planName=${encodeURIComponent(newPlanName)}&isAnnual=${isAnnual}`,
           cancel_url: `${baseUrl}/#/dashboard/upgrade-plan`,
-        });
+        };
+        applyStripeCheckoutBillingCompliance(upgradeSession);
+        const session = await stripe.checkout.sessions.create(upgradeSession as Stripe.Checkout.SessionCreateParams);
 
         return res.status(200).json({ url: session.url });
       }

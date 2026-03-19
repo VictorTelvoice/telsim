@@ -1,6 +1,12 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logEvent } from '../_helpers/logger.js';
+import {
+  extractReceiptUrlFromInvoice,
+  invoiceCustomerTaxIdsForDb,
+  invoiceTaxBreakdownForDb,
+  invoiceTaxCents,
+} from '../_helpers/stripeInvoice.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -69,6 +75,71 @@ async function getFinanceCostRatesCents(): Promise<{
   } catch {
     return { costPerSlotMonthCents: 0, costPerSmsCents: 0 };
   }
+}
+
+/** Persiste invoice / recibo oficial Stripe (PDF + URLs + impuestos) para el panel del cliente. Devuelve la invoice enriquecida. */
+async function persistSubscriptionInvoiceFromWebhook(params: {
+  invoice: Stripe.Invoice;
+  sub: { id: string; user_id: string };
+  stripeSubId: string;
+}): Promise<Stripe.Invoice> {
+  const { invoice, sub, stripeSubId } = params;
+  let fullInv: Stripe.Invoice = invoice;
+  try {
+    if (invoice.id) {
+      fullInv = await stripe.invoices.retrieve(invoice.id, {
+        expand: ['customer_tax_ids', 'charge', 'payment_intent.latest_charge'],
+      });
+    }
+  } catch (e: any) {
+    console.warn('[subscription_invoices] retrieve', invoice.id, e?.message);
+    fullInv = invoice;
+  }
+
+  const periodEndSec = fullInv.period_end ?? fullInv.lines?.data?.[0]?.period?.end;
+  const periodEndIso = periodEndSec ? new Date(periodEndSec * 1000).toISOString() : null;
+
+  let nextBillingIso: string | null = periodEndIso;
+  try {
+    const stSub = await stripe.subscriptions.retrieve(stripeSubId);
+    if (stSub.current_period_end) {
+      nextBillingIso = new Date(stSub.current_period_end * 1000).toISOString();
+    }
+  } catch {
+    /* mantener periodEndIso */
+  }
+
+  const receiptUrl = extractReceiptUrlFromInvoice(fullInv);
+
+  try {
+    await supabaseAdmin.from('subscription_invoices').upsert(
+      {
+        stripe_invoice_id: fullInv.id,
+        user_id: sub.user_id,
+        subscription_id: sub.id,
+        stripe_subscription_id: stripeSubId,
+        billing_reason: fullInv.billing_reason ?? null,
+        invoice_pdf: fullInv.invoice_pdf ?? null,
+        hosted_invoice_url: fullInv.hosted_invoice_url ?? null,
+        receipt_url: receiptUrl,
+        amount_paid_cents: fullInv.amount_paid ?? 0,
+        subtotal_cents: fullInv.subtotal ?? null,
+        tax_cents: invoiceTaxCents(fullInv),
+        total_cents: fullInv.total ?? null,
+        currency: fullInv.currency ?? 'usd',
+        customer_tax_ids: invoiceCustomerTaxIdsForDb(fullInv),
+        tax_breakdown: invoiceTaxBreakdownForDb(fullInv),
+        next_billing_at: nextBillingIso,
+        period_end_at: periodEndIso,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'stripe_invoice_id' }
+    );
+  } catch (e: any) {
+    console.error('[subscription_invoices] upsert failed:', e?.message ?? e);
+  }
+
+  return fullInv;
 }
 
 async function triggerEmail(
@@ -1227,17 +1298,22 @@ export default async function handler(req: any, res: any) {
   else if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice;
 
-    if (invoice.billing_reason !== 'subscription_cycle' &&
-      invoice.billing_reason !== 'subscription_update') {
-      await markWebhookProcessed();
-      return res.status(200).json({ received: true });
-    }
-
     const stripeSubId = typeof invoice.subscription === 'string'
       ? invoice.subscription
       : invoice.subscription?.id;
 
     if (!stripeSubId) {
+      await markWebhookProcessed();
+      return res.status(200).json({ received: true });
+    }
+
+    const subscriptionInvoiceReasons = new Set([
+      'subscription_create',
+      'subscription_cycle',
+      'subscription_update',
+    ]);
+
+    if (!invoice.billing_reason || !subscriptionInvoiceReasons.has(invoice.billing_reason)) {
       await markWebhookProcessed();
       return res.status(200).json({ received: true });
     }
@@ -1256,6 +1332,12 @@ export default async function handler(req: any, res: any) {
         );
         return res.status(500).json({ received: false, error: 'subscription not found' });
       }
+
+      const fullInv = await persistSubscriptionInvoiceFromWebhook({
+        invoice,
+        sub: sub as { id: string; user_id: string },
+        stripeSubId,
+      });
 
       // Fase 4 (ledger-first): registrar cash_revenue (exclusivo invoice.payment_succeeded.amount_paid).
       try {
@@ -1354,7 +1436,7 @@ export default async function handler(req: any, res: any) {
         );
       }
 
-      const periodEndMs = (invoice.period_end ?? 0) * 1000;
+      const periodEndMs = (fullInv.period_end ?? invoice.period_end ?? 0) * 1000;
       const next_date = new Date(periodEndMs).toLocaleDateString('es-CL');
 
       if (periodEndMs && periodEndMs > 0) {
@@ -1364,9 +1446,16 @@ export default async function handler(req: any, res: any) {
           .eq('id', sub.id);
       }
 
+      const receiptUrl = extractReceiptUrlFromInvoice(fullInv);
       await triggerEmail('invoice_paid', sub.user_id, {
         plan: sub.plan_name ?? '',
-        amount: ((invoice.amount_paid ?? 0) / 100).toFixed(2),
+        amount: ((fullInv.amount_paid ?? invoice.amount_paid ?? 0) / 100).toFixed(2),
+        subtotal: ((fullInv.subtotal ?? 0) / 100).toFixed(2),
+        tax: (invoiceTaxCents(fullInv) / 100).toFixed(2),
+        total: ((fullInv.total ?? 0) / 100).toFixed(2),
+        invoice_pdf: fullInv.invoice_pdf ?? '',
+        hosted_invoice_url: fullInv.hosted_invoice_url ?? '',
+        receipt_url: receiptUrl ?? '',
         next_date,
         phone_number: phoneNumber || sub.slot_id || '',
         slot_id: sub.slot_id ?? '',
