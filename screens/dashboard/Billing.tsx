@@ -28,10 +28,13 @@ interface Subscription {
   plan_name: string;
   phone_number: string;
   amount: number;
+  billing_type?: 'monthly' | 'annual' | string | null;
+  activation_state?: 'paid' | 'provisioned' | 'on_air' | 'failed' | string | null;
   status: 'active' | 'trialing' | 'canceled' | 'past_due' | 'expired';
-  next_billing_date: string;
+  next_billing_date?: string | null;
   created_at: string;
-  currency: string;
+  currency?: string | null;
+  slot_id?: string | null;
 }
 
 interface PaymentMethod {
@@ -42,6 +45,33 @@ interface PaymentMethod {
   exp_year: number;
 }
 
+interface FinanceSummary {
+  cash_revenue_cents: number;
+  booked_sales_cents: number;
+  booked_monthly_equivalent_cents: number;
+  mrr_cents: number;
+  arr_cents: number;
+  failed_payments_count: number;
+  revenue_at_risk_cents: number;
+  active_subscriptions_count: number;
+  active_sims_count: number;
+  paid_count: number;
+  provisioned_count: number;
+  on_air_count: number;
+  failed_count: number;
+}
+
+interface FinanceLedgerEvent {
+  id: string;
+  finance_event_type: string;
+  plan_name: string | null;
+  occurred_at: string;
+  amount_cents: string | number | null;
+  risk_amount_cents: string | number | null;
+  currency: string;
+  metadata: any;
+}
+
 const Billing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -50,9 +80,13 @@ const Billing: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingFinance, setLoadingFinance] = useState(true);
   const [loadingPM, setLoadingPM] = useState(true);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
+
+  const [financeSummary, setFinanceSummary] = useState<FinanceSummary | null>(null);
+  const [ledgerEvents, setLedgerEvents] = useState<FinanceLedgerEvent[]>([]);
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
@@ -127,6 +161,65 @@ const Billing: React.FC = () => {
     fetchData(userId, controller.signal, reqId, alive);
     fetchPaymentMethod(userId, controller.signal, alive);
 
+    const fetchFinance = async () => {
+      setLoadingFinance(true);
+      try {
+        const {
+          data: { session },
+        } = await (supabase.auth as any).getSession();
+        const token: string | undefined = session?.access_token;
+        if (!token) return;
+
+        const end = new Date();
+        const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const startDate = start.toISOString().slice(0, 10);
+        const endDate = end.toISOString().slice(0, 10);
+
+        const summaryRes = await fetch('/api/finance/summary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ startDate, endDate }),
+          signal: controller.signal,
+        });
+        const summaryJson = await summaryRes.json();
+        if (!alive.current) return;
+        if (summaryRes.ok) setFinanceSummary(summaryJson as FinanceSummary);
+        else console.error('finance/summary error:', summaryJson);
+
+        const ledgerRes = await fetch('/api/finance/ledger', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            financeEventTypes: ['cash_revenue', 'booked_revenue', 'payment_failed_attempt', 'churn_event'],
+            limit: 50,
+            offset: 0,
+          }),
+          signal: controller.signal,
+        });
+        const ledgerJson = await ledgerRes.json();
+        if (!alive.current) return;
+        if (ledgerRes.ok) setLedgerEvents((ledgerJson?.events ?? []) as FinanceLedgerEvent[]);
+        else console.error('finance/ledger error:', ledgerJson);
+      } catch (err) {
+        if (!alive.current) return;
+        if ((err as any)?.name === 'AbortError') return;
+        console.error('Error fetching finance:', err);
+      } finally {
+        if (!alive.current) return;
+        setLoadingFinance(false);
+      }
+    };
+
+    void fetchFinance();
+
     return () => {
       alive.current = false;
       try { controller.abort(); } catch {}
@@ -182,6 +275,10 @@ const Billing: React.FC = () => {
   const activeServices = subscriptions.filter(
     (s) => s.status === 'active' || s.status === 'trialing'
   );
+
+  const activeTableSubscriptions = subscriptions.filter(
+    (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+  );
   const previousServices = subscriptions.filter(
     (s) => s.status !== 'active' && s.status !== 'trialing'
   );
@@ -225,6 +322,29 @@ const Billing: React.FC = () => {
     }).format(val);
   };
 
+  const formatCentsCurrency = (cents: number, currency: string = 'USD') => {
+    const code = (currency || 'USD').toUpperCase();
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: code,
+    }).format((cents || 0) / 100);
+  };
+
+  const activationStateLabel = (s?: string | null) => {
+    switch (s) {
+      case 'paid':
+        return 'paid';
+      case 'provisioned':
+        return 'provisioned';
+      case 'on_air':
+        return 'on_air';
+      case 'failed':
+        return 'failed';
+      default:
+        return (s || '—').toString();
+    }
+  };
+
   const formatFriendlyDate = (dateStr: string) => {
     if (!dateStr) return '—';
     const date = new Date(dateStr);
@@ -235,7 +355,7 @@ const Billing: React.FC = () => {
     });
   };
 
-  if (loading) {
+  if (loading || loadingFinance) {
     return (
       <div className="min-h-screen bg-white dark:bg-background-dark flex flex-col items-center justify-center p-6">
         <RefreshCw className="size-6 text-primary animate-spin mb-4" />
@@ -252,8 +372,8 @@ const Billing: React.FC = () => {
           <ArrowLeft className="size-6" />
         </button>
         <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('billing.total_monthly')}</p>
-          <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalMonthlySpend)}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cash Revenue (últimos 30 días)</p>
+          <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{formatCentsCurrency(financeSummary?.cash_revenue_cents ?? 0, 'USD')}</p>
         </div>
       </header>
 
@@ -266,146 +386,192 @@ const Billing: React.FC = () => {
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('billing.subtitle')}</p>
           </div>
 
-          {/* SECCIÓN A: MÉTODO DE PAGO */}
+          {/* SECCIÓN 1: RESUMEN FINANCIERO */}
           <section className="space-y-4">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">{t('billing.default_payment')}</h3>
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Resumen financiero</h3>
+              <button
+                onClick={handleOpenStripePortal}
+                disabled={isCreatingPortal}
+                className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
+              >
+                {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : t('billing.manage')}
+              </button>
+            </div>
 
-            {loadingPM ? (
-              <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="size-5 text-primary animate-spin" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('billing.consulting_stripe')}</span>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Cash Revenue</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{formatCentsCurrency(financeSummary?.cash_revenue_cents ?? 0, 'USD')}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Últimos 30 días</p>
               </div>
-            ) : paymentMethod ? (
-              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group animate-in fade-in duration-500">
-                <div className="flex items-center gap-4">
-                  <div className="size-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm overflow-hidden p-2">
-                    {getBrandLogo(paymentMethod.brand) ? (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {getBrandLogo(paymentMethod.brand)}
-                      </div>
-                    ) : (
-                      <CreditCard className="size-6 text-slate-400" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                      {paymentMethod.brand} •••• {paymentMethod.last4}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">EXPIRES: {paymentMethod.exp_month}/{paymentMethod.exp_year}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleOpenStripePortal}
-                  disabled={isCreatingPortal}
-                  className="text-[11px] font-black text-primary uppercase tracking-widest px-4 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
-                >
-                  {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : t('billing.manage')}
-                </button>
+
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Booked Sales</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{formatCentsCurrency(financeSummary?.booked_sales_cents ?? 0, 'USD')}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Últimos 30 días</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Booked Monthly Equivalent</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{formatCentsCurrency(financeSummary?.booked_monthly_equivalent_cents ?? 0, 'USD')}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Eq. mensual</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Revenue at Risk</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{formatCentsCurrency(financeSummary?.revenue_at_risk_cents ?? 0, 'USD')}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{financeSummary ? `${financeSummary.failed_payments_count} fallos` : '—'}</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Active Subscriptions</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.active_subscriptions_count ?? 0}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Activas + trial</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Active SIMs</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.active_sims_count ?? 0}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">En línea</p>
+              </div>
+            </div>
+          </section>
+
+          {/* SECCIÓN 2: TUS SUSCRIPCIONES ACTIVAS */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus suscripciones activas</h3>
+              <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">
+                {activeTableSubscriptions.length} planes
+              </span>
+            </div>
+
+            {activeTableSubscriptions.length === 0 ? (
+              <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-400 italic">No tienes suscripciones activas</p>
               </div>
             ) : (
-              <button
-                onClick={() => navigate('/onboarding/region')}
-                className="w-full border-2 border-dashed border-slate-200 dark:border-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center gap-3 hover:border-primary/40 transition-all group"
-              >
-                <div className="size-10 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                  <Plus className="size-5" />
-                </div>
-                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300">{t('billing.link_card_stripe')}</span>
-              </button>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left border-separate" style={{ borderSpacing: 0 }}>
+                  <thead>
+                    <tr>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Plan</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Tipo</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Monto</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Activation</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Slot / Tel.</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Próximo cobro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeTableSubscriptions.map((sub) => (
+                      <tr
+                        key={sub.id}
+                        className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-900/40 cursor-pointer"
+                        onClick={() => setSelectedSub(sub)}
+                      >
+                        <td className="px-2 py-3 font-black text-slate-900 dark:text-white">{sub.plan_name}</td>
+                        <td className="px-2 py-3 text-slate-600 dark:text-slate-300">
+                          {sub.billing_type === 'annual' ? 'Anual' : sub.billing_type === 'monthly' ? 'Mensual' : sub.billing_type ?? '—'}
+                        </td>
+                        <td className="px-2 py-3 text-slate-900 dark:text-white tabular-nums font-black">
+                          {sub.amount != null ? formatCurrency(sub.amount) : '—'}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 dark:text-slate-300">
+                          {activationStateLabel(sub.activation_state)}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 dark:text-slate-300">
+                          {sub.phone_number || sub.slot_id || '—'}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 dark:text-slate-300">
+                          {sub.next_billing_date ? formatFriendlyDate(sub.next_billing_date) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
 
-          {/* DESKTOP: B + C LADO A LADO / MOBILE: APILADOS */}
-          <div className="space-y-10 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0 lg:items-start">
-
-            {/* SECCIÓN B: PLANES ACTIVOS */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">{t('billing.active_services')}</h3>
-                <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">{activeServices.length} {t('billing.plans')}</span>
+          {/* SECCIÓN 3: ACTIVATION FUNNEL */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Activation funnel</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">paid</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.paid_count ?? 0}</p>
               </div>
-
-              {activeServices.length === 0 ? (
-                <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-xs font-bold text-slate-400 italic">{t('billing.no_services')}</p>
-                </div>
-              ) : (
-                <div className={`grid gap-3 ${activeServices.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {activeServices.map((sub) => {
-                    const visual = getPlanVisual(sub.plan_name);
-                    return (
-                      <div
-                        key={sub.id}
-                        onClick={() => setSelectedSub(sub)}
-                        className={`${visual.gradient} border ${visual.border} rounded-[1.75rem] p-5 shadow-lg ${visual.shadow} cursor-pointer active:scale-[0.96] transition-all duration-200 flex flex-col justify-between min-h-[180px] lg:min-h-[220px]`}
-                      >
-                        {/* Top: icon + status */}
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="text-2xl lg:text-3xl leading-none">{visual.icon}</span>
-                          <div className="flex items-center gap-1">
-                            <div className="size-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>{t('billing.active')}</span>
-                          </div>
-                        </div>
-
-                        {/* Middle: plan name + phone */}
-                        <div className="flex-1">
-                          <h4 className={`text-[13px] lg:text-[15px] font-black uppercase tracking-tight leading-tight mb-1 ${visual.text}`}>{sub.plan_name}</h4>
-                          <p className={`text-[10px] font-bold font-mono truncate ${visual.subText}`}>{sub.phone_number}</p>
-                        </div>
-
-                        {/* Bottom: price */}
-                        <div className="mt-4 pt-3 border-t border-white/10">
-                          <p className={`text-xl lg:text-2xl font-black tabular-nums leading-none ${visual.priceText}`}>{formatCurrency(sub.amount)}</p>
-                          <span className={`text-[8px] font-black uppercase tracking-widest ${visual.subText}`}>/mes</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* SECCIÓN C: HISTORIAL */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <History className="size-4" />
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">{t('billing.view_canceled')}</h3>
-                </div>
-                {previousServices.length > 0 && (
-                  <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full uppercase">{previousServices.length}</span>
-                )}
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">provisioned</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.provisioned_count ?? 0}</p>
               </div>
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">on_air</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.on_air_count ?? 0}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">failed</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tabular-nums mt-1">{financeSummary?.failed_count ?? 0}</p>
+              </div>
+            </div>
+          </section>
 
-              {previousServices.length === 0 ? (
-                <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-xs font-bold text-slate-400 italic">Sin historial de cancelaciones</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {previousServices.map((sub) => (
-                    <div key={sub.id} className="px-5 py-4 bg-slate-50/70 dark:bg-slate-900/40 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-3">
-                        <div className="size-9 bg-slate-200/60 dark:bg-slate-800 rounded-xl flex items-center justify-center">
-                          <Smartphone className="size-4 text-slate-400" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">{sub.plan_name}</span>
-                          <span className="text-[10px] font-bold text-slate-400 font-mono tracking-tighter">{sub.phone_number}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] font-bold text-slate-400 line-through">{formatCurrency(sub.amount)}</p>
-                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t('billing.canceled')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+          {/* SECCIÓN 4: HISTORIAL FINANCIERO */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-slate-400">
+                <History className="size-4" />
+                <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">Historial financiero</h3>
+              </div>
+              <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full uppercase">
+                Últimos 30 días
+              </span>
+            </div>
 
-          </div>{/* end desktop grid */}
+            {ledgerEvents.length === 0 ? (
+              <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-400 italic">Sin eventos financieros para el período</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left border-separate" style={{ borderSpacing: 0 }}>
+                  <thead>
+                    <tr>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Fecha</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Evento</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Plan</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Monto</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Riesgo</th>
+                      <th className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] px-2 py-2">Moneda</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerEvents.map((ev) => {
+                      const currency = ev.currency || 'USD';
+                      const monto =
+                        ev.amount_cents == null ? '—' : formatCentsCurrency(Number(ev.amount_cents), currency);
+                      const riesgo =
+                        ev.risk_amount_cents == null ? '—' : formatCentsCurrency(Number(ev.risk_amount_cents), currency);
+                      return (
+                        <tr key={ev.id} className="border-t border-slate-100 dark:border-slate-800">
+                          <td className="px-2 py-3 text-slate-600 dark:text-slate-300">{formatFriendlyDate(ev.occurred_at)}</td>
+                          <td className="px-2 py-3 text-slate-600 dark:text-slate-300">{ev.finance_event_type}</td>
+                          <td className="px-2 py-3 text-slate-600 dark:text-slate-300">{ev.plan_name ?? '—'}</td>
+                          <td className="px-2 py-3 text-slate-900 dark:text-white tabular-nums font-black">{monto}</td>
+                          <td className="px-2 py-3 text-slate-900 dark:text-white tabular-nums font-black">{riesgo}</td>
+                          <td className="px-2 py-3 text-slate-600 dark:text-slate-300">{String(currency).toUpperCase()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           {/* BANNER DE SEGURIDAD */}
           <div className="flex flex-col items-center gap-6 pt-8 pb-4">
