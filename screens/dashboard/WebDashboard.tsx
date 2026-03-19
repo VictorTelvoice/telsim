@@ -16,10 +16,11 @@ import {
   CheckCircle2, Send, Link2, CreditCard, Pencil, X,
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
   Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
-  HelpCircle, Download, TrendingUp, Receipt, FileText, Calendar, Star, Code2,
+  HelpCircle, TrendingUp, Code2,
   AlertCircle, AlertTriangle, Activity, Volume2, VolumeX
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
+import UserBillingPanel from '../../components/billing/UserBillingPanel';
 
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
 
@@ -334,11 +335,6 @@ const WebDashboard: React.FC = () => {
   const [releasing, setReleasing] = useState(false);
   const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<any[]>([]);
-  const [billingLoading, setBillingLoading] = useState(false);
-  const billingSubsAbortRef = useRef<AbortController | null>(null);
-  const billingSubsInFlightUserIdRef = useRef<string | null>(null);
-  const billingSubsReqIdRef = useRef(0);
   const [helpSearch, setHelpSearch] = useState('');
   const [notifFilter, setNotifFilter] = useState<string>('all');
   const [notifPrefs, setNotifPrefs] = useState<Record<string, { inapp: boolean; email: boolean; telegram: boolean }>>({
@@ -461,7 +457,6 @@ const WebDashboard: React.FC = () => {
   useEffect(() => {
     return () => {
       try { fetchAbortRef.current.abort(); } catch {}
-      try { billingSubsAbortRef.current?.abort(); } catch {}
     };
   }, []);
 
@@ -472,11 +467,6 @@ const WebDashboard: React.FC = () => {
     try { fetchAbortRef.current.abort(); } catch {}
     fetchAbortRef.current = new AbortController();
     inFlightRef.current = false;
-
-    try { billingSubsAbortRef.current?.abort(); } catch {}
-    billingSubsAbortRef.current = null;
-    billingSubsInFlightUserIdRef.current = null;
-    billingSubsReqIdRef.current += 1; // invalida respuestas tardías
   }, [user?.id]);
 
   const fetchData = useCallback(async () => {
@@ -890,10 +880,6 @@ const WebDashboard: React.FC = () => {
     fetchAbortRef.current = new AbortController();
     inFlightRef.current = false;
 
-    try { billingSubsAbortRef.current?.abort(); } catch {}
-    billingSubsAbortRef.current = null;
-    billingSubsInFlightUserIdRef.current = null;
-    billingSubsReqIdRef.current += 1; // invalida respuestas tardías
     try {
       await signOut();
     } catch (err) {
@@ -1146,60 +1132,6 @@ const WebDashboard: React.FC = () => {
     finally { setEditSaving(false); }
   };
 
-  // ─── Billing data ────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (activeTab !== 'billing' || !user?.id) return;
-
-    const userId = user.id;
-    const controller = new AbortController();
-    const reqId = ++billingSubsReqIdRef.current;
-
-    if (billingSubsInFlightUserIdRef.current === userId) return;
-
-    let alive = true;
-    billingSubsAbortRef.current = controller;
-    billingSubsInFlightUserIdRef.current = userId;
-
-    setBillingLoading(true);
-
-    supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10)
-      .abortSignal(controller.signal as any)
-      .then(({ data, error }) => {
-        if (!alive) return;
-        if (reqId !== billingSubsReqIdRef.current) return;
-        if (error) throw error;
-        setSubscriptions(data || []);
-      })
-      .catch((e: any) => {
-        if (!alive) return;
-        if (e?.name === 'AbortError') return;
-        if (reqId !== billingSubsReqIdRef.current) return;
-        console.error(e);
-      })
-      .finally(() => {
-        // Importante: limpiar flags/abortRef aunque sea un abort, para que no quede "en vuelo"
-        if (billingSubsInFlightUserIdRef.current === userId) {
-          billingSubsInFlightUserIdRef.current = null;
-        }
-        if (billingSubsAbortRef.current === controller) {
-          billingSubsAbortRef.current = null;
-        }
-        if (!alive) return;
-        if (reqId === billingSubsReqIdRef.current) setBillingLoading(false);
-      });
-
-    return () => {
-      alive = false;
-      try { controller.abort(); } catch {}
-    };
-  }, [activeTab, user?.id]);
-
   // ─── Open inbox + mark as read ────────────────────────────────────────────────
 
   const handleOpenInbox = async (slotId: string) => {
@@ -1211,47 +1143,6 @@ const WebDashboard: React.FC = () => {
         .eq('slot_id', slotId).eq('is_read', false);
       setMessages(prev => (prev || []).map(m => m.slot_id === slotId ? { ...m, is_read: true } : m));
     }
-  };
-
-  // ─── Download CSV usage report ────────────────────────────────────────────────
-
-  const handleDownloadReport = () => {
-    const rows = [
-      ['Fecha', 'Número', 'Region', 'Remitente', 'Contenido', 'Código Extraído'].join(','),
-      ...(messages || []).map(m => {
-        const slot = slots.find(s => s.slot_id === m.slot_id);
-        return [
-          new Date(m.received_at).toLocaleDateString('es-CL'),
-          slot?.phone_number || m.slot_id,
-          slot?.region || '',
-          `"${(m.sender || '').replace(/"/g, '""')}"`,
-          `"${(m.content || '').replace(/"/g, '""')}"`,
-          m.extracted_code || '',
-        ].join(',');
-      }),
-    ].join('\n');
-    const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `telsim-reporte-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-  };
-
-  // ─── Stripe Customer Portal ───────────────────────────────────────────────────
-
-  const handleStripePortal = async () => {
-    const sub = subscriptions.find(s => s.stripe_customer_id);
-    if (!sub?.stripe_customer_id) { alert('No se encontró información de tu suscripción en Stripe. Contacta soporte.'); return; }
-    try {
-      const res = await fetch('/api/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'portal', customerId: sub.stripe_customer_id, returnUrl: window.location.href }),
-      });
-      const { url, error } = await res.json();
-      if (error) throw new Error(error);
-      window.location.href = url;
-    } catch (e: any) { alert('Error al abrir el portal de Stripe: ' + e.message); }
   };
 
   // ─── Release slot (cancel subscription + free slot) ───────────────────────────
@@ -2736,34 +2627,19 @@ const WebDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Facturación */}
+                {/* Facturación (misma experiencia que pestaña Facturación / Billing.tsx) */}
                 {settingsSection === 'billing' && (
                   <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
                     <div className="flex items-center gap-3 mb-5">
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center"><CreditCard size={18} className="text-emerald-500" /></div>
-                      <div><h3 className="text-[15px] font-black">Plan y Facturación</h3><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Gestiona tu suscripción</p></div>
+                      <div>
+                        <h3 className="text-[15px] font-black">Facturación</h3>
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Tus suscripciones, cobros e historial de invoices
+                        </p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 mb-5">
-                      {(['starter', 'pro', 'power'] as const).map(p => {
-                        const pc = PLAN_COLORS[p];
-                        const prices: Record<string, string> = { starter: 'USD 19.90/mes', pro: 'USD 39.90/mes', power: 'USD 99.00/mes' };
-                        const limits: Record<string, string> = { starter: '150 créditos', pro: '400 créditos', power: '1400 créditos' };
-                        const isCurrent = savedPlanId === p;
-                        return (
-                          <div key={p} className={`p-4 rounded-xl border-2 transition-all ${isCurrent ? '' : (isDark ? 'border-slate-700' : 'border-slate-200')}`}
-                            style={isCurrent ? { borderColor: pc.border, background: pc.badge + '33' } : {}}>
-                            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: pc.text }}>{pc.label}</span>
-                            <p className="text-[20px] font-black mt-1">{prices[p]}</p>
-                            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{limits[p]} / mes</p>
-                            {isCurrent && <span className="mt-2 inline-flex text-[9px] font-black px-2 py-0.5 rounded-full uppercase" style={{ background: pc.border, color: 'white' }}>Plan activo</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => navigate('/dashboard/billing')} className="px-4 py-2.5 bg-primary text-white text-[12px] font-bold rounded-xl hover:bg-primary/90 transition-colors">Ver historial de pagos</button>
-                      <button onClick={() => navigate('/onboarding/plan')} className={`px-4 py-2.5 text-[12px] font-bold rounded-xl transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Cambiar plan</button>
-                    </div>
+                    <UserBillingPanel variant="embedded" embeddedDark={isDark} hideIntroTitle />
                   </div>
                 )}
 
@@ -3068,152 +2944,18 @@ const WebDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ── BILLING TAB ─────────────────────────────────────────────── */}
+          {/* ── BILLING TAB (alineado con Billing.tsx / app móvil) ───────── */}
           {activeTab === 'billing' && (
             <div className="flex flex-col gap-6">
-
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-[20px] font-black">Facturación</h2>
-                  <p className={`text-[12px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Gestiona tu plan, facturas y métodos de pago</p>
-                </div>
-                <button onClick={handleDownloadReport}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-colors border ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
-                  <Download size={13} /> Descargar reporte CSV
-                </button>
-              </div>
-
-              {/* KPI cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { icon: <Smartphone size={15} />, label: 'SIMs activas', value: activeSlots.length.toString(), color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50' },
-                  { icon: <MessageSquare size={15} />, label: 'SMS este mes', value: (messages || []).length.toString(), color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50' },
-                  { icon: <Receipt size={15} />, label: 'Próxima factura', value: billingLoading ? '...' : (() => { const active = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing'); const total = active.reduce((acc, s) => acc + (Number(s.amount) || 0), 0); return total > 0 ? `$${total.toFixed(2)}` : '$0.00'; })(), color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50' },
-                  { icon: <Calendar size={15} />, label: 'Próximo cobro', value: billingLoading ? '...' : (() => { const s = subscriptions.find(x => x.status === 'active' && x.renewal_date); return s ? new Date(s.renewal_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'; })(), color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
-                ].map(stat => (
-                  <div key={stat.label} className={`rounded-2xl p-4 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${stat.bg}`}>
-                      <span className={stat.color}>{stat.icon}</span>
-                    </div>
-                    <p className="text-[20px] font-black">{stat.value}</p>
-                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{stat.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Current plan card */}
-                <div className={`lg:col-span-1 rounded-2xl p-5 border shadow-sm flex flex-col gap-4 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-primary/10' : 'bg-blue-50'}`}>
-                      <Star size={14} className="text-primary" />
-                    </div>
-                    <h3 className="text-[13px] font-black">Plan actual</h3>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[22px] font-black capitalize">{planName}</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-500 uppercase">Activo</span>
-                    </div>
-                    <p className={`text-[11px] mb-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{planCredits} créditos SMS / mes · {activeSlots.length} SIM{activeSlots.length !== 1 ? 's' : ''}</p>
-                    <div className={`rounded-xl p-3 text-[11px] ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                      <div className="flex justify-between mb-1.5">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>SMS usados</span>
-                        <span className="font-bold">{(messages || []).length} / {planCredits}</span>
-                      </div>
-                      <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, ((messages || []).length / Math.max(planCredits, 1)) * 100)}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2 mt-auto">
-                    <button onClick={handleStripePortal}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold bg-primary text-white hover:bg-primary/90 transition-colors">
-                      <ExternalLink size={13} /> Gestionar en Stripe
-                    </button>
-                    <button onClick={() => navigate('/onboarding/plan')}
-                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold transition-colors border ${isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                      <TrendingUp size={13} /> Cambiar plan
-                    </button>
-                  </div>
-                </div>
-
-                {/* Invoice history */}
-                <div className={`lg:col-span-2 rounded-2xl p-5 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                      <FileText size={14} className="text-emerald-500" />
-                    </div>
-                    <h3 className="text-[13px] font-black">Historial de facturas</h3>
-                  </div>
-                  {billingLoading ? (
-                    <div className="flex items-center justify-center py-10">
-                      <RefreshCw size={18} className="text-slate-400 animate-spin" />
-                    </div>
-                  ) : subscriptions.length === 0 ? (
-                    <div className="flex flex-col items-center gap-2 py-10 text-center">
-                      <FileText size={28} className="text-slate-300" />
-                      <p className={`text-[12px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Sin facturas disponibles</p>
-                    </div>
-                  ) : (
-                    <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                      <table className="w-full text-left text-[12px]">
-                        <thead>
-                          <tr className={`text-[10px] font-black uppercase tracking-wider border-b ${isDark ? 'border-slate-800 text-slate-500 bg-slate-800/50' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>
-                            <th className="px-4 py-2.5">Fecha</th>
-                            <th className="px-4 py-2.5">Número</th>
-                            <th className="px-4 py-2.5">Plan</th>
-                            <th className="px-4 py-2.5">Créditos</th>
-                            <th className="px-4 py-2.5">Importe</th>
-                            <th className="px-4 py-2.5">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {subscriptions.map((sub, i) => (
-                            <tr key={sub.id || i} className={`border-b transition-colors ${isDark ? 'border-slate-800 hover:bg-slate-800/40' : 'border-slate-50 hover:bg-slate-50'}`}>
-                              <td className="px-4 py-3 font-mono text-[11px]">{sub.created_at ? new Date(sub.created_at).toLocaleDateString('es-ES') : '—'}</td>
-                              <td className="px-4 py-3 font-mono text-[11px]">{sub.phone_number || '—'}</td>
-                              <td className="px-4 py-3 font-semibold capitalize">{sub.plan_name || sub.plan_type || 'Starter'}</td>
-                              <td className="px-4 py-3">{sub.monthly_limit ? `${sub.monthly_limit} SMS` : '—'}</td>
-                              <td className="px-4 py-3 font-bold">{sub.amount ? `$${Number(sub.amount).toFixed(2)} ${(sub.currency || 'usd').toUpperCase()}` : '—'}</td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' :
-                                  sub.status === 'trialing' ? 'bg-sky-500/10 text-sky-500' :
-                                    sub.status === 'past_due' ? 'bg-amber-500/10 text-amber-500' :
-                                      sub.status === 'canceled' ? 'bg-slate-500/10 text-slate-400' :
-                                        'bg-emerald-500/10 text-emerald-500'
-                                  }`}>{sub.status || 'active'}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <p className={`text-[12px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Tus planes, próximos cobros e historial de invoices
+                  </p>
                 </div>
               </div>
-
-              {/* Payment method row */}
-              <div className={`rounded-2xl p-5 border shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                      <CreditCard size={14} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-bold">Método de pago</p>
-                      <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Gestiona tus tarjetas y métodos de pago en el portal de Stripe</p>
-                    </div>
-                  </div>
-                  <button onClick={handleStripePortal}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors border ${isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <ExternalLink size={12} /> Abrir portal
-                  </button>
-                </div>
-              </div>
-
+              <UserBillingPanel variant="embedded" embeddedDark={isDark} hideIntroTitle />
             </div>
           )}
 
