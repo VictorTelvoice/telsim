@@ -10,6 +10,9 @@ type FinanceSummary = {
   arr_cents: number;
   failed_payments_count: number;
   revenue_at_risk_cents: number;
+  estimated_cost_cents: number;
+  gross_margin_cents: number;
+  gross_margin_pct: number;
   active_subscriptions_count: number;
   active_sims_count: number;
   paid_count: number;
@@ -144,51 +147,39 @@ const AdminFinanceRevenueOps: React.FC = () => {
     async () => {
       if (!authHeaders) return;
       const { startDate, endDate } = buildDateRange(trendDays);
-      const res = await fetch('/api/finance/ledger', {
+      const res = await fetch('/api/finance/trends', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           startDate,
           endDate,
-          financeEventTypes: ['cash_revenue', 'booked_revenue'],
-          limit: 500,
-          offset: 0,
+          granularity: 'day',
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to load trends');
 
-      const events = (json?.events ?? []) as FinanceLedgerEvent[];
-      const byDate: Record<string, { cash: number; booked: number; bookedMonthlyEquivalent: number }> = {};
+      const rows = (json?.rows ?? []) as {
+        period_date: string;
+        cash_revenue_cents: number;
+        booked_sales_cents: number;
+        booked_monthly_equivalent_cents: number;
+      }[];
 
-      for (const ev of events) {
-        const dateKey = (ev.occurred_at || '').slice(0, 10);
-        if (!dateKey) continue;
-        if (!byDate[dateKey]) byDate[dateKey] = { cash: 0, booked: 0, bookedMonthlyEquivalent: 0 };
-        if (ev.finance_event_type === 'cash_revenue') {
-          byDate[dateKey].cash += parseCents(ev.amount_cents);
-        } else if (ev.finance_event_type === 'booked_revenue') {
-          byDate[dateKey].booked += parseCents(ev.amount_cents);
-          byDate[dateKey].bookedMonthlyEquivalent += parseCents(ev.metadata?.monthly_equivalent_cents);
-        }
-      }
-
-      // Fill gaps (so the chart doesn't jump):
-      const rows: TrendsRow[] = [];
-      const start = new Date(startDate + 'T00:00:00.000Z');
-      const end = new Date(endDate + 'T00:00:00.000Z');
-      for (let d = new Date(start.getTime()); d.getTime() <= end.getTime(); d = new Date(d.getTime() + 24 * 60 * 60 * 1000)) {
-        const key = d.toISOString().slice(0, 10);
-        const label = d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
-        rows.push({
-          date: key,
-          label,
-          cash: byDate[key]?.cash ?? 0,
-          booked: byDate[key]?.booked ?? 0,
-          bookedMonthlyEquivalent: byDate[key]?.bookedMonthlyEquivalent ?? 0,
-        });
-      }
-      setTrends(rows);
+      setTrends(
+        rows.map((r) => {
+          const key = r.period_date?.slice(0, 10) ?? '';
+          const d = key ? new Date(key + 'T00:00:00.000Z') : null;
+          const label = d ? d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : key;
+          return {
+            date: key,
+            label,
+            cash: r.cash_revenue_cents ?? 0,
+            booked: r.booked_sales_cents ?? 0,
+            bookedMonthlyEquivalent: r.booked_monthly_equivalent_cents ?? 0,
+          } as TrendsRow;
+        })
+      );
     },
     [authHeaders, buildDateRange, trendDays]
   );
@@ -355,6 +346,9 @@ const AdminFinanceRevenueOps: React.FC = () => {
     { label: 'Cash Revenue 30d', value: formatCents(summary30d?.cash_revenue_cents ?? 0) },
     { label: 'Booked Sales 30d', value: formatCents(summary30d?.booked_sales_cents ?? 0) },
     { label: 'Booked Monthly Equivalent 30d', value: formatCents(summary30d?.booked_monthly_equivalent_cents ?? 0) },
+    { label: 'Estimated Cost 30d', value: formatCents(summary30d?.estimated_cost_cents ?? 0) },
+    { label: 'Gross Margin 30d', value: formatCents(summary30d?.gross_margin_cents ?? 0) },
+    { label: 'Gross Margin %', value: `${summary30d?.gross_margin_pct ?? 0}%` },
     { label: 'MRR', value: formatCents(summary30d?.mrr_cents ?? 0) },
     { label: 'ARR', value: formatCents(summary30d?.arr_cents ?? 0) },
     { label: 'Revenue at Risk', value: formatCents(summary30d?.revenue_at_risk_cents ?? 0) },
@@ -375,7 +369,7 @@ const AdminFinanceRevenueOps: React.FC = () => {
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="text-lg font-black text-slate-900">Revenue Ops</h1>
-          <p className="text-sm text-slate-500">KPIs, tendencias y drilldown financiero (Fase 4)</p>
+          <p className="text-sm text-slate-500">KPIs, tendencias y drilldown financiero (Fase 5)</p>
         </div>
         <button
           onClick={() => refreshAll()}
