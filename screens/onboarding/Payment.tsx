@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { supabase } from '../../lib/supabase';
+import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { Loader2, ShieldCheck, Lock } from 'lucide-react';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -29,6 +31,14 @@ const Payment: React.FC = () => {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void supabase
+      .from('users')
+      .update({ onboarding_step: ONBOARDING_STEPS.PAYMENT })
+      .eq('id', user.id);
+  }, [user?.id]);
 
   // ─── Fallback: read from localStorage if location.state is lost (e.g. after Stripe back nav)
   const _state = location.state || {};
@@ -77,6 +87,17 @@ const Payment: React.FC = () => {
           throw new Error(data.error || 'Hubo un conflicto temporal al reservar tu SIM. Reintenta en unos minutos.');
         }
         throw new Error(data.error || 'No se pudo generar la sesión de pago.');
+      }
+      const checkoutSessionId =
+        typeof data.checkoutSessionId === 'string' ? data.checkoutSessionId : null;
+      if (checkoutSessionId) {
+        await supabase
+          .from('users')
+          .update({
+            onboarding_step: ONBOARDING_STEPS.PROCESSING,
+            onboarding_checkout_session_id: checkoutSessionId,
+          })
+          .eq('id', user.id);
       }
       window.location.href = data.url;
 

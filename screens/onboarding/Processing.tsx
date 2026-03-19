@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { 
   Loader2, 
   AlertCircle, 
@@ -35,6 +36,13 @@ const Processing: React.FC = () => {
   const subId = searchParams.get('id'); 
   const slotId = searchParams.get('slot_id');
   const isUpgrade = searchParams.get('isUpgrade') === 'true';
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const patch: Record<string, string> = { onboarding_step: ONBOARDING_STEPS.PROCESSING };
+    if (sessionId) patch.onboarding_checkout_session_id = sessionId;
+    void supabase.from('users').update(patch).eq('id', user.id);
+  }, [user?.id, sessionId]);
 
   const statusMessages = isUpgrade ? [
     "Validando tu nuevo plan...",

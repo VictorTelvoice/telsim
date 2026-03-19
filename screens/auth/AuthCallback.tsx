@@ -2,22 +2,34 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import {
+  isValidOnboardingStep,
+  ONBOARDING_STEPS,
+  routeForOnboardingStep,
+} from '../../lib/onboardingSteps';
 
 const AuthCallback: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [timedOut, setTimedOut] = React.useState(false);
   const [resolving, setResolving] = React.useState(false);
+  const resolveStartedForUserRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (loading || !user || resolving) return;
+    resolveStartedForUserRef.current = null;
+  }, [user?.id]);
+
+  React.useEffect(() => {
+    if (loading || !user) return;
 
     const t = window.setTimeout(() => setTimedOut(true), 6000);
     return () => window.clearTimeout(t);
-  }, [user, loading, resolving]);
+  }, [user, loading]);
 
   React.useEffect(() => {
-    if (loading || !user || resolving) return;
+    if (loading || !user) return;
+    if (resolveStartedForUserRef.current === user.id) return;
+    resolveStartedForUserRef.current = user.id;
     let cancelled = false;
 
     const resolveRoute = async () => {
@@ -57,12 +69,23 @@ const AuthCallback: React.FC = () => {
 
         const { data: profileRow } = await supabase
           .from('users')
-          .select('onboarding_completed')
+          .select('onboarding_completed, onboarding_step, onboarding_checkout_session_id')
           .eq('id', user.id)
           .maybeSingle();
 
+        // onboarding_completed gana sobre step desfasado o nulo
         const onboardingCompleted = !!profileRow?.onboarding_completed;
         if (onboardingCompleted) {
+          if (!cancelled) navigate('/web', { replace: true });
+          return;
+        }
+
+        const stepRawEarly = profileRow?.onboarding_step ?? null;
+        if (stepRawEarly === ONBOARDING_STEPS.COMPLETED) {
+          await supabase
+            .from('users')
+            .update({ onboarding_completed: true, onboarding_checkout_session_id: null })
+            .eq('id', user.id);
           if (!cancelled) navigate('/web', { replace: true });
           return;
         }
@@ -78,16 +101,34 @@ const AuthCallback: React.FC = () => {
         if (existingSub?.id) {
           await supabase
             .from('users')
-            .update({ onboarding_completed: true })
+            .update({
+              onboarding_completed: true,
+              onboarding_step: ONBOARDING_STEPS.COMPLETED,
+              onboarding_checkout_session_id: null,
+            })
             .eq('id', user.id);
           if (!cancelled) navigate('/web', { replace: true });
           return;
         }
 
-        // Nuevo o incompleto: volver al onboarding.
+        const stepRaw = profileRow?.onboarding_step ?? null;
+        const checkoutSessionId = profileRow?.onboarding_checkout_session_id ?? null;
+
+        if (isValidOnboardingStep(stepRaw)) {
+          const route = routeForOnboardingStep(String(stepRaw), checkoutSessionId);
+          if (route) {
+            if (!cancelled) {
+              navigate(
+                { pathname: route.pathname, search: route.search || '' },
+                { replace: true }
+              );
+            }
+            return;
+          }
+        }
+
         if (!cancelled) navigate('/onboarding/region', { replace: true });
       } catch {
-        // Fallback seguro para no "perder" usuarios nuevos tras OAuth.
         if (!cancelled) navigate('/onboarding/region', { replace: true });
       } finally {
         if (!cancelled) setResolving(false);
@@ -98,7 +139,7 @@ const AuthCallback: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, loading, navigate, resolving]);
+  }, [user, loading, navigate]);
 
   if (loading || resolving || !timedOut) {
     return (

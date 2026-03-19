@@ -216,7 +216,11 @@ export default async function handler(req: any, res: any) {
               // One-click path también debe marcar onboarding como completo.
               await supabaseAdmin
                 .from('users')
-                .update({ onboarding_completed: true })
+                .update({
+                  onboarding_completed: true,
+                  onboarding_step: 'completed',
+                  onboarding_checkout_session_id: null,
+                })
                 .eq('id', userId);
 
               return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
@@ -413,7 +417,7 @@ export default async function handler(req: any, res: any) {
         .eq('status', 'reserved')
         .eq('reservation_token', tokenToWrite);
     }
-    return res.status(200).json({ url: session.url });
+    return res.status(200).json({ url: session.url, checkoutSessionId: session.id });
 
   } catch (err: any) {
     console.error('[CHECKOUT]', action, err?.message);

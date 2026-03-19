@@ -801,7 +801,11 @@ export default async function handler(req: any, res: any) {
         // Fuente de verdad para quick access post-login: onboarding ya completado.
         await supabaseAdmin
           .from('users')
-          .update({ onboarding_completed: true })
+          .update({
+            onboarding_completed: true,
+            onboarding_step: 'completed',
+            onboarding_checkout_session_id: null,
+          })
           .eq('id', userId);
         activationSucceeded = true;
       } else {

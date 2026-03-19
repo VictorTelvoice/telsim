@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -59,6 +62,7 @@ const Step = ({ num, label, active, done }: { num: number; label: string; active
 const RegionSelect: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string>('CL');
   const [desktop, setDesktop] = useState(isDesktop());
 
@@ -67,6 +71,14 @@ const RegionSelect: React.FC = () => {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void supabase
+      .from('users')
+      .update({ onboarding_step: ONBOARDING_STEPS.REGION })
+      .eq('id', user.id);
+  }, [user?.id]);
 
   const planId = getPlanName();
   const pc = PLAN_COLORS[planId] ?? PLAN_COLORS.starter;

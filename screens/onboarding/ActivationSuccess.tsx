@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 
 interface ActivationData {
   phoneNumber: string;
@@ -102,6 +103,25 @@ const ActivationSuccess: React.FC = () => {
     };
     load();
   }, [user, sessionId]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const patch: Record<string, string> = { onboarding_step: ONBOARDING_STEPS.ACTIVATION_SUCCESS };
+    if (sessionId) patch.onboarding_checkout_session_id = sessionId;
+    void supabase.from('users').update(patch).eq('id', user.id);
+  }, [user?.id, sessionId]);
+
+  useEffect(() => {
+    if (!user?.id || !data || data.activationState !== 'on_air') return;
+    void supabase
+      .from('users')
+      .update({
+        onboarding_completed: true,
+        onboarding_step: ONBOARDING_STEPS.COMPLETED,
+        onboarding_checkout_session_id: null,
+      })
+      .eq('id', user.id);
+  }, [user?.id, data?.activationState]);
 
   if (!data) return (
     <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">

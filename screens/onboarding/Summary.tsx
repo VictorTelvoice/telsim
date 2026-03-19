@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -32,6 +35,7 @@ const Summary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
   const [desktop, setDesktop] = useState(isDesktop());
 
@@ -40,6 +44,14 @@ const Summary: React.FC = () => {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void supabase
+      .from('users')
+      .update({ onboarding_step: ONBOARDING_STEPS.SUMMARY })
+      .eq('id', user.id);
+  }, [user?.id]);
 
   const planData = useMemo(() => {
     // Priority 1: navigation state (from RegionSelect.handleContinue)
