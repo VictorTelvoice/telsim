@@ -659,6 +659,47 @@ export default async function handler(req: any, res: any) {
         });
       }
 
+      case 'invoice-history': {
+        const { userId, limit } = req.body || {};
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido.' });
+
+        const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+        const { data: userData, error: userError } = await supabaseAdmin
+          .from('users')
+          .select('stripe_customer_id')
+          .eq('id', userId)
+          .single();
+
+        if (userError || !userData?.stripe_customer_id) {
+          return res.status(200).json({ invoices: [] });
+        }
+
+        const invoices = await stripe.invoices.list({
+          customer: userData.stripe_customer_id,
+          limit: safeLimit,
+        });
+
+        const rows = invoices.data.map((inv) => ({
+          id: inv.id,
+          number: inv.number ?? null,
+          status: inv.status ?? null,
+          created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
+          currency: inv.currency ?? 'usd',
+          amount_due: inv.amount_due ?? 0,
+          amount_paid: inv.amount_paid ?? 0,
+          total: inv.total ?? 0,
+          subscription_id:
+            typeof inv.subscription === 'string'
+              ? inv.subscription
+              : (inv.subscription as any)?.id ?? null,
+          hosted_invoice_url: inv.hosted_invoice_url ?? null,
+          invoice_pdf: inv.invoice_pdf ?? null,
+          receipt_url: (inv as any)?.receipt_url ?? null,
+        }));
+
+        return res.status(200).json({ invoices: rows });
+      }
+
       case 'notify-ticket-reply': {
         const authHeader = req.headers?.authorization;
         const token = authHeader?.replace(/^Bearer\s+/i, '');
