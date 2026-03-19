@@ -14,6 +14,7 @@ interface Subscription {
   status: 'active' | 'trialing' | 'canceled' | 'past_due' | 'expired' | string;
   billing_type?: 'monthly' | 'annual' | string | null;
   next_billing_date?: string | null;
+  trial_end?: string | null;
   created_at: string;
   currency?: string | null;
   stripe_subscription_id?: string | null;
@@ -72,11 +73,36 @@ const Billing: React.FC = () => {
 
   const nextBillingDate = useMemo(() => {
     const dates = activeSubs
-      .map((s) => (s.next_billing_date ? new Date(s.next_billing_date) : null))
+      .map((s) => {
+        const iso =
+          s.next_billing_date ||
+          s.trial_end ||
+          (() => {
+            const d0 = new Date(s.created_at);
+            if (Number.isNaN(d0.getTime())) return null;
+            if (s.billing_type === 'annual') d0.setFullYear(d0.getFullYear() + 1);
+            else d0.setDate(d0.getDate() + 30);
+            return d0.toISOString();
+          })();
+        if (!iso) return null;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? null : d;
+      })
       .filter((d): d is Date => !!d && !Number.isNaN(d.getTime()))
       .sort((a, b) => a.getTime() - b.getTime());
     return dates[0] ?? null;
   }, [activeSubs]);
+
+  const getNextBillingDateIso = (s: Subscription): string | null => {
+    if (s.next_billing_date) return s.next_billing_date;
+    if (s.trial_end) return s.trial_end;
+    // Fallback solo si no existe un campo confiable (evita mostrar “—”).
+    const d = new Date(s.created_at);
+    if (Number.isNaN(d.getTime())) return null;
+    if (s.billing_type === 'annual') d.setFullYear(d.getFullYear() + 1);
+    else d.setDate(d.getDate() + 30);
+    return d.toISOString();
+  };
 
   const invoicesByStripeSubscription = useMemo(() => {
     const map = new Map<string, InvoiceRow[]>();
@@ -370,8 +396,14 @@ const Billing: React.FC = () => {
                         <p className="font-bold text-slate-700 dark:text-slate-200">{formatCurrency(Number(sub.amount || 0), sub.currency || 'USD')}</p>
                       </div>
                       <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
-                        <p className="text-[10px] uppercase font-black text-slate-400">Próxima renovación</p>
-                        <p className="font-bold text-slate-700 dark:text-slate-200">{formatFriendlyDate(sub.next_billing_date)}</p>
+                        <p className="text-[10px] uppercase font-black text-slate-400">Contratación</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-200">{formatFriendlyDate(sub.created_at)}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                        <p className="text-[10px] uppercase font-black text-slate-400">Próxima renovación / cobro</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-200">
+                          {formatFriendlyDate(getNextBillingDateIso(sub))}
+                        </p>
                       </div>
                       <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
                         <p className="text-[10px] uppercase font-black text-slate-400">Invoice</p>
@@ -487,7 +519,8 @@ const Billing: React.FC = () => {
               <p><span className="font-black text-slate-500">Estado:</span> <span className="text-slate-800 dark:text-slate-200">{selectedSub.status}</span></p>
               <p><span className="font-black text-slate-500">Billing:</span> <span className="text-slate-800 dark:text-slate-200">{selectedSub.billing_type === 'annual' ? 'Anual' : 'Mensual'}</span></p>
               <p><span className="font-black text-slate-500">Monto:</span> <span className="text-slate-800 dark:text-slate-200">{formatCurrency(Number(selectedSub.amount || 0), selectedSub.currency || 'USD')}</span></p>
-              <p><span className="font-black text-slate-500">Próxima renovación:</span> <span className="text-slate-800 dark:text-slate-200">{formatFriendlyDate(selectedSub.next_billing_date)}</span></p>
+              <p><span className="font-black text-slate-500">Contratación:</span> <span className="text-slate-800 dark:text-slate-200">{formatFriendlyDate(selectedSub.created_at)}</span></p>
+              <p><span className="font-black text-slate-500">Próxima renovación / cobro:</span> <span className="text-slate-800 dark:text-slate-200">{formatFriendlyDate(getNextBillingDateIso(selectedSub))}</span></p>
             </div>
             <div className="mt-5">
               <button

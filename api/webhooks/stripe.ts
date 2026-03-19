@@ -464,6 +464,7 @@ export default async function handler(req: any, res: any) {
     const billingTypeForEmail = sessionMeta.isAnnual === 'true' ? 'Anual' : 'Mensual';
     const isAnnualBilling = sessionMeta.isAnnual === 'true';
     let nextDateForEmail = '';
+    let nextBillingDateIso: string | null = null;
 
     // Fase 2: validación fuerte de reserva (para evitar carreras de slots)
     const reservationTokenFromMeta = (sessionMeta.reservation_token ?? sessionMeta.reservationToken ?? '').trim();
@@ -524,6 +525,7 @@ export default async function handler(req: any, res: any) {
           const periodEnd = stripeSub.trial_end ?? stripeSub.current_period_end;
           if (periodEnd) {
             nextDateForEmail = new Date(periodEnd * 1000).toLocaleDateString('es-CL');
+            nextBillingDateIso = new Date(periodEnd * 1000).toISOString();
           }
         } catch (subErr) {
           console.warn('[WEBHOOK] No se pudo recuperar suscripción Stripe:', subErr);
@@ -537,6 +539,7 @@ export default async function handler(req: any, res: any) {
           d.setDate(d.getDate() + 30);
         }
         nextDateForEmail = d.toLocaleDateString('es-CL');
+        nextBillingDateIso = d.toISOString();
       }
 
       if (session.customer) {
@@ -637,6 +640,7 @@ export default async function handler(req: any, res: any) {
           amount: correctAmount,
           billing_type: billingType,
           currency: session.currency || 'usd',
+          next_billing_date: nextBillingDateIso,
           activation_state: reservationValid ? 'paid' : 'failed',
           created_at: new Date().toISOString(),
         };
@@ -728,16 +732,20 @@ export default async function handler(req: any, res: any) {
         // - `on_air`: listo operativamente (cerramos onboarding)
         const activeSubId = subscriptionId ?? null;
         if (activeSubId) {
-          await supabaseAdmin.from('subscriptions').update({
+          const payload: any = {
             activation_state: 'provisioned',
             activation_state_updated_at: new Date().toISOString(),
-          }).eq('id', activeSubId);
+          };
+          if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
+          await supabaseAdmin.from('subscriptions').update(payload).eq('id', activeSubId);
         } else {
           // Caso raro: la fila ya existía/insertData se ejecutó sin devolución
-          await supabaseAdmin.from('subscriptions').update({
+          const payload: any = {
             activation_state: 'provisioned',
             activation_state_updated_at: new Date().toISOString(),
-          }).eq('stripe_session_id', session.id);
+          };
+          if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
+          await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_session_id', session.id);
         }
 
         // activation_state = provisioned
@@ -774,15 +782,19 @@ export default async function handler(req: any, res: any) {
         }
 
         if (activeSubId) {
-          await supabaseAdmin.from('subscriptions').update({
+          const payload: any = {
             activation_state: 'on_air',
             activation_state_updated_at: new Date().toISOString(),
-          }).eq('id', activeSubId);
+          };
+          if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
+          await supabaseAdmin.from('subscriptions').update(payload).eq('id', activeSubId);
         } else {
-          await supabaseAdmin.from('subscriptions').update({
+          const payload: any = {
             activation_state: 'on_air',
             activation_state_updated_at: new Date().toISOString(),
-          }).eq('stripe_session_id', session.id);
+          };
+          if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
+          await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_session_id', session.id);
         }
         activationSucceeded = true;
       } else {
