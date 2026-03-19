@@ -57,6 +57,7 @@ import SupportCenter from './screens/admin/SupportCenter';
 import AdminTicketChat from './screens/admin/AdminTicketChat';
 import AdminNotifications from './screens/admin/AdminNotifications';
 import AdminTemplates from './screens/admin/AdminTemplates';
+import AdminFinanceRevenueOps from './screens/admin/AdminFinanceRevenueOps';
 import ApiDocs from './screens/ApiDocs';
 import LegalScreen from './screens/legal/LegalScreen';
 import AnonymousRegistration from './screens/use-cases/AnonymousRegistration';
@@ -281,6 +282,7 @@ const App: React.FC = () => {
                   >
                     <Route index element={<Navigate to="/admin/overview" replace />} />
                     <Route path="overview" element={<AdminOverview />} />
+                    <Route path="finance" element={<AdminFinanceRevenueOps />} />
                     <Route path="inventory" element={<InventoryManager />} />
                     <Route path="users" element={<UserManager />} />
                     <Route path="users/:userId" element={<UserDetail />} />
