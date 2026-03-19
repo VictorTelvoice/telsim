@@ -72,12 +72,14 @@ export default async function handler(req: any, res: any) {
       booked_monthly_equivalent_cents: number;
       failed_payments_count: number;
       revenue_at_risk_cents: number;
+      estimated_cost_cents: number;
     } = {
       cash_revenue_cents: 0,
       booked_sales_cents: 0,
       booked_monthly_equivalent_cents: 0,
       failed_payments_count: 0,
       revenue_at_risk_cents: 0,
+      estimated_cost_cents: 0,
     };
 
     // Ledger por período:
@@ -86,7 +88,7 @@ export default async function handler(req: any, res: any) {
       const { data: ledgerRows, error: ledgerErr } = await supabaseAdmin
         .from('billing_ledger_v')
         .select(
-          'cash_revenue_cents, booked_sales_cents, booked_monthly_equivalent_cents, failed_payments_count, revenue_at_risk_cents, period_date'
+          'cash_revenue_cents, booked_sales_cents, booked_monthly_equivalent_cents, failed_payments_count, revenue_at_risk_cents, estimated_cost_cents, period_date'
         )
         .gte('period_date', startDateOnly)
         .lte('period_date', endDateOnly);
@@ -102,6 +104,7 @@ export default async function handler(req: any, res: any) {
           acc.booked_monthly_equivalent_cents += toNumber(r.booked_monthly_equivalent_cents);
           acc.failed_payments_count += toNumber(r.failed_payments_count);
           acc.revenue_at_risk_cents += toNumber(r.revenue_at_risk_cents);
+          acc.estimated_cost_cents += toNumber(r.estimated_cost_cents);
           return acc;
         },
         totals
@@ -114,7 +117,7 @@ export default async function handler(req: any, res: any) {
         .gte('occurred_at', startIso)
         .lte('occurred_at', endIso)
         .eq('user_id', scopedUserId)
-        .in('finance_event_type', ['cash_revenue', 'booked_revenue', 'payment_failed_attempt']);
+        .in('finance_event_type', ['cash_revenue', 'booked_revenue', 'payment_failed_attempt', 'estimated_cost']);
 
       if (eventsErr) {
         return res.status(500).json({ error: `finance_events error: ${eventsErr.message}` });
@@ -131,9 +134,15 @@ export default async function handler(req: any, res: any) {
         } else if (ft === 'payment_failed_attempt') {
           totals.failed_payments_count += 1;
           totals.revenue_at_risk_cents += toNumber(r.risk_amount_cents);
+        } else if (ft === 'estimated_cost') {
+          totals.estimated_cost_cents += toNumber(r.amount_cents);
         }
       }
     }
+
+    const gross_margin_cents = totals.cash_revenue_cents - totals.estimated_cost_cents;
+    const gross_margin_pct =
+      totals.cash_revenue_cents === 0 ? 0 : Math.round((gross_margin_cents / totals.cash_revenue_cents) * 10000) / 100;
 
     // Estado actual (snapshot): si es global admin, usamos vista; si no, calculamos por user_id.
     let state: any = {};
@@ -209,6 +218,9 @@ export default async function handler(req: any, res: any) {
       arr_cents: toNumber(state.arr_cents),
       failed_payments_count: totals.failed_payments_count,
       revenue_at_risk_cents: totals.revenue_at_risk_cents,
+      estimated_cost_cents: totals.estimated_cost_cents,
+      gross_margin_cents,
+      gross_margin_pct,
 
       active_subscriptions_count: toNumber(state.active_subscriptions_count),
       active_sims_count: toNumber(state.active_sims_count),
