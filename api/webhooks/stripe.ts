@@ -798,6 +798,11 @@ export default async function handler(req: any, res: any) {
           if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
           await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_session_id', session.id);
         }
+        // Fuente de verdad para quick access post-login: onboarding ya completado.
+        await supabaseAdmin
+          .from('users')
+          .update({ onboarding_completed: true })
+          .eq('id', userId);
         activationSucceeded = true;
       } else {
         // Reserva inválida: marcamos como fallida (no ocupamos el slot).

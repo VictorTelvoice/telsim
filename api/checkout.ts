@@ -213,6 +213,12 @@ export default async function handler(req: any, res: any) {
                 .select('id')
                 .single();
 
+              // One-click path también debe marcar onboarding como completo.
+              await supabaseAdmin
+                .from('users')
+                .update({ onboarding_completed: true })
+                .eq('id', userId);
+
               return res.status(200).json({ instant: true, subscriptionId: newSub?.id });
             }
           }
