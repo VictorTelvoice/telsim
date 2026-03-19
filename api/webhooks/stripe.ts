@@ -449,6 +449,7 @@ export default async function handler(req: any, res: any) {
     const transactionType = sessionMeta.transactionType;
     const isAnnual = sessionMeta.isAnnual;
     const phoneFromMeta = (sessionMeta.phoneNumber ?? sessionMeta.phone_number ?? '') as string;
+    const expectedRegion = (sessionMeta.region ?? sessionMeta.regionCode ?? '') as string;
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
     console.log(
@@ -561,7 +562,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: slot, error: slotError } = await supabaseAdmin
         .from('slots')
-        .select('phone_number, status, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id')
+        .select('phone_number, region, status, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id')
         .eq('slot_id', slotId)
         .maybeSingle();
 
@@ -587,6 +588,7 @@ export default async function handler(req: any, res: any) {
           !!slot.reservation_expires_at &&
           new Date(slot.reservation_expires_at as any).getTime() > nowForReservationMs &&
           String(slot.reservation_user_id || '') === String(userId) &&
+          (!expectedRegion || String(slot.region || '').toUpperCase() === String(expectedRegion || '').toUpperCase()) &&
           (!slot.reservation_stripe_session_id || slot.reservation_stripe_session_id === session.id);
 
         // Si la reserva caducó, liberamos el slot solo si el token coincide (evita tocar reservas ajenas).
@@ -999,6 +1001,14 @@ export default async function handler(req: any, res: any) {
         .update({ status: statusMap[newStatus] || 'active' })
         .eq('id', sub.id);
 
+      const periodEndForBilling = subscription.current_period_end ?? 0;
+      if (periodEndForBilling && periodEndForBilling > 0) {
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ next_billing_date: new Date(periodEndForBilling * 1000).toISOString() })
+          .eq('id', sub.id);
+      }
+
       if (prevStatus === 'trialing' && newStatus === 'active') {
         await createNotification(
           sub.user_id,
@@ -1337,6 +1347,13 @@ export default async function handler(req: any, res: any) {
 
       const periodEndMs = (invoice.period_end ?? 0) * 1000;
       const next_date = new Date(periodEndMs).toLocaleDateString('es-CL');
+
+      if (periodEndMs && periodEndMs > 0) {
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ next_billing_date: new Date(periodEndMs).toISOString() })
+          .eq('id', sub.id);
+      }
 
       await triggerEmail('invoice_paid', sub.user_id, {
         plan: sub.plan_name ?? '',
