@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   ExternalLink,
   FileDown,
@@ -239,6 +241,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
   type SubscriptionFilterTab = 'activas' | 'canceladas' | 'todas';
   const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>('activas');
+  const [billingHistoryOpen, setBillingHistoryOpen] = useState(false);
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
@@ -269,6 +272,11 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     [subscriptionsDedupedByLine]
   );
 
+  /**
+   * Activas: active + trialing + past_due (dedupe por línea). past_due sigue con badge “Past Due”.
+   * Canceladas: canceled, expired, unpaid, incomplete, incomplete_expired (todas las filas, sin dedupe).
+   * Todas: historial completo ordenado por created_at.
+   */
   const displayedSubscriptions = useMemo(() => {
     const sortedAll = [...subscriptions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -281,6 +289,26 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     }
     return sortedAll;
   }, [subscriptions, subscriptionsDedupedByLine, subscriptionFilter]);
+
+  const subscriptionFilterCounts = useMemo(() => {
+    const sortedAll = [...subscriptions].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return {
+      activas: subscriptionsDedupedByLine.filter((s) => isLiveOperationalStatus(s.status)).length,
+      canceladas: sortedAll.filter((s) => isCanceledBucketStatus(s.status)).length,
+      todas: subscriptions.length,
+    };
+  }, [subscriptions, subscriptionsDedupedByLine]);
+
+  const planNameByStripeSubscriptionId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of subscriptions) {
+      const sid = s.stripe_subscription_id?.trim();
+      if (sid) m.set(sid, s.plan_name || '—');
+    }
+    return m;
+  }, [subscriptions]);
 
   const nextBillingTotalEstimate = useMemo(
     () => operationalSubs.reduce((acc, s) => acc + Number(s.amount || 0), 0),
@@ -625,29 +653,54 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             >
               {(
                 [
-                  { key: 'activas' as const, label: 'Activas' },
-                  { key: 'canceladas' as const, label: 'Canceladas' },
-                  { key: 'todas' as const, label: 'Todas' },
-                ] satisfies { key: SubscriptionFilterTab; label: string }[]
-              ).map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={subscriptionFilter === key}
-                  onClick={() => setSubscriptionFilter(key)}
-                  className={
-                    subscriptionFilter === key
-                      ? 'rounded-lg bg-white dark:bg-slate-800 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-900 dark:text-white shadow-sm'
-                      : 'rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }
-                >
-                  {label}
-                </button>
-              ))}
+                  {
+                    key: 'activas' as const,
+                    label: 'Activas',
+                    count: subscriptionFilterCounts.activas,
+                    hint: 'Activas + trialing + past due (una por línea)',
+                  },
+                  {
+                    key: 'canceladas' as const,
+                    label: 'Canceladas',
+                    count: subscriptionFilterCounts.canceladas,
+                    hint: 'Cancelada, expirada, impaga o incompleta',
+                  },
+                  {
+                    key: 'todas' as const,
+                    label: 'Todas',
+                    count: subscriptionFilterCounts.todas,
+                    hint: 'Todas las filas de suscripción',
+                  },
+                ] satisfies {
+                  key: SubscriptionFilterTab;
+                  label: string;
+                  count: number;
+                  hint: string;
+                }[]
+              ).map(({ key, label, count, hint }) => {
+                const selected = subscriptionFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    title={hint}
+                    aria-selected={selected}
+                    onClick={() => setSubscriptionFilter(key)}
+                    className={
+                      selected
+                        ? 'rounded-lg bg-white dark:bg-slate-800 px-2.5 sm:px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-900 dark:text-white shadow-sm ring-2 ring-primary/35 ring-offset-1 ring-offset-slate-50 dark:ring-offset-slate-900'
+                        : 'rounded-lg px-2.5 sm:px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }
+                  >
+                    {label}{' '}
+                    <span className={selected ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}>({count})</span>
+                  </button>
+                );
+              })}
             </div>
             <span className="text-[9px] font-black bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full uppercase dark:bg-slate-700 dark:text-slate-200">
-              {displayedSubscriptions.length} mostradas
+              {displayedSubscriptions.length} en vista
             </span>
           </div>
         </div>
@@ -754,66 +807,99 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         )}
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-          <History className="size-4" />
-          <h3 className="text-[11px] font-black uppercase tracking-[0.15em]">Historial de facturación</h3>
-        </div>
-
-        {invoices.length === 0 ? (
-          <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-            <p className="text-xs font-bold text-slate-400 italic">No hay invoices disponibles.</p>
+      <section className="space-y-3" aria-labelledby="billing-history-toggle">
+        <button
+          type="button"
+          id="billing-history-toggle"
+          className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-4 py-3.5 text-left hover:bg-slate-100/90 dark:hover:bg-slate-800/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          onClick={() => setBillingHistoryOpen((o) => !o)}
+          aria-expanded={billingHistoryOpen}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+              <History className="size-4 text-slate-500 dark:text-slate-400" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-black uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
+                Historial de facturación
+              </span>
+              <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                {invoices.length} factura{invoices.length === 1 ? '' : 's'} ·{' '}
+                {billingHistoryOpen ? 'Ocultar historial' : 'Ver historial'}
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {invoices.map((inv) => (
-              <div
-                key={inv.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-black text-slate-900 dark:text-white">{inv.number || inv.id}</p>
-                    <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                      {formatFriendlyDate(inv.created)}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    {inv.status || '—'}
-                  </span>
-                </div>
-
-                <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
-                  <div>
-                    <p className="text-[10px] uppercase font-black text-slate-400">Plan</p>
-                    <p className="font-bold text-slate-700 dark:text-slate-200">
-                      {subscriptions.find((s) => s.stripe_subscription_id === inv.subscription_id)?.plan_name || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-black text-slate-400">Monto</p>
-                    <p className="font-bold text-slate-700 dark:text-slate-200">
-                      {formatCurrency(
-                        (inv.amount_paid || inv.total || inv.amount_due || 0) / 100,
-                        inv.currency || 'USD'
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
-
-                <div className="mt-3">
-                  <InvoicePrimaryAccess
-                    inv={inv}
-                    resolving={resolvingInvoiceId === inv.id}
-                    onResolve={() => resolveInvoiceUrls(inv.id)}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center gap-1 shrink-0 text-slate-500 dark:text-slate-400">
+            {billingHistoryOpen ? (
+              <ChevronUp className="size-5" aria-hidden />
+            ) : (
+              <ChevronDown className="size-5" aria-hidden />
+            )}
           </div>
-        )}
+        </button>
+
+        {billingHistoryOpen &&
+          (invoices.length === 0 ? (
+            <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-bold text-slate-400 italic">No hay facturas disponibles.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {invoices.map((inv) => {
+                const planLabel =
+                  (inv.subscription_id && planNameByStripeSubscriptionId.get(inv.subscription_id)) || '—';
+                return (
+                  <div
+                    key={inv.id}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 min-w-0"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-900 dark:text-white truncate">
+                          {inv.number || inv.id}
+                        </p>
+                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          {formatFriendlyDate(inv.created)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {inv.status || '—'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                        <p className="text-[10px] uppercase font-black text-slate-400">Plan</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{planLabel}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                        <p className="text-[10px] uppercase font-black text-slate-400">Monto</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-200">
+                          {formatCurrency(
+                            (inv.amount_paid || inv.total || inv.amount_due || 0) / 100,
+                            inv.currency || 'USD'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
+
+                    <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">
+                        Documento (Stripe)
+                      </p>
+                      <InvoicePrimaryAccess
+                        inv={inv}
+                        resolving={resolvingInvoiceId === inv.id}
+                        onResolve={() => resolveInvoiceUrls(inv.id)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
       </section>
     </main>
   );
