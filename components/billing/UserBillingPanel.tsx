@@ -60,11 +60,59 @@ interface InvoiceRow {
   hosted_invoice_url: string | null;
   invoice_pdf: string | null;
   receipt_url: string | null;
+  /** Céntimos (Stripe / BD); trazabilidad fiscal cuando Stripe Tax está activo. */
+  subtotal_cents?: number;
+  tax_cents?: number;
+  total_cents?: number;
+  customer_tax_ids?: unknown[];
+  tax_breakdown?: unknown[];
 }
 
 function openStripeUrl(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
+
+/** Resumen subtotal / impuestos / total (céntimos API). */
+const InvoiceFiscalSummary: React.FC<{ inv: InvoiceRow; formatCurrency: (n: number, c?: string) => string }> = ({
+  inv,
+  formatCurrency,
+}) => {
+  const cur = inv.currency || 'USD';
+  const sub = typeof inv.subtotal_cents === 'number' && inv.subtotal_cents >= 0 ? inv.subtotal_cents : null;
+  const tax = typeof inv.tax_cents === 'number' ? inv.tax_cents : null;
+  const tot =
+    typeof inv.total_cents === 'number' && inv.total_cents > 0
+      ? inv.total_cents
+      : inv.amount_paid || inv.total || inv.amount_due || 0;
+
+  const showTaxLine = tax != null && tax > 0;
+  const showSubLine = sub != null && sub > 0 && (showTaxLine || sub !== tot);
+
+  if (!showSubLine && !showTaxLine) return null;
+
+  return (
+    <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/80 p-2.5 space-y-1 text-[11px]">
+      {showSubLine && (
+        <div className="flex justify-between gap-2 text-slate-600 dark:text-slate-400">
+          <span className="font-bold uppercase tracking-wide">Subtotal</span>
+          <span className="font-black text-slate-800 dark:text-slate-200">{formatCurrency(sub! / 100, cur)}</span>
+        </div>
+      )}
+      {showTaxLine && (
+        <div className="flex justify-between gap-2 text-slate-600 dark:text-slate-400">
+          <span className="font-bold uppercase tracking-wide">Impuestos</span>
+          <span className="font-black text-slate-800 dark:text-slate-200">{formatCurrency(tax! / 100, cur)}</span>
+        </div>
+      )}
+      {(showSubLine || showTaxLine) && (
+        <div className="flex justify-between gap-2 pt-1 border-t border-slate-200/80 dark:border-slate-600/50 text-slate-800 dark:text-slate-100">
+          <span className="font-black uppercase tracking-wide">Total</span>
+          <span className="font-black">{formatCurrency(tot / 100, cur)}</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** Botones: enlaces oficiales Stripe (PDF, hosted page, charge receipt) + sync puntual. */
 const InvoiceDocActions: React.FC<{
@@ -96,21 +144,21 @@ const InvoiceDocActions: React.FC<{
         type="button"
         disabled={!hasPdf}
         className={btn}
-        title="PDF oficial generado por Stripe"
+        title="Descargar PDF oficial generado por Stripe"
         onClick={() => inv.invoice_pdf && openStripeUrl(inv.invoice_pdf)}
       >
         <FileDown className="size-3.5" />
-        PDF
+        <span className="hidden min-[380px]:inline">Descargar </span>PDF
       </button>
       <button
         type="button"
         disabled={!hasHosted}
         className={primary}
-        title="Página de factura alojada en Stripe"
+        title="Ver invoice oficial en Stripe (hosted)"
         onClick={() => inv.hosted_invoice_url && openStripeUrl(inv.hosted_invoice_url)}
       >
         <ExternalLink className="size-3.5" />
-        Ver factura
+        Ver invoice
       </button>
       <button
         type="button"
@@ -561,9 +609,12 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                         {formatFriendlyDate(getNextBillingDateIso(sub))}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2 sm:col-span-2">
                       <p className="text-[10px] uppercase font-black text-slate-400">Invoice</p>
                       <p className="font-bold text-slate-700 dark:text-slate-200">{latestInvoice?.number || '—'}</p>
+                      {latestInvoice ? (
+                        <InvoiceFiscalSummary inv={latestInvoice} formatCurrency={formatCurrency} />
+                      ) : null}
                     </div>
                   </div>
 
@@ -648,6 +699,8 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                     </p>
                   </div>
                 </div>
+
+                <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
 
                 <div className="mt-3">
                   <InvoiceDocActions
@@ -736,6 +789,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
               <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Documentos (Stripe)</p>
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Factura {li.number || li.id}</p>
+                <InvoiceFiscalSummary inv={li} formatCurrency={formatCurrency} />
                 <InvoiceDocActions
                   inv={li}
                   resolving={resolvingInvoiceId === li.id}
