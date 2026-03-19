@@ -7,6 +7,10 @@ import {
   invoiceTaxBreakdownForDb,
   invoiceTaxCents,
 } from '../_helpers/stripeInvoice.js';
+import {
+  isSupportedOnboardingCountryCode,
+  slotCountryMatchesOnboardingIso,
+} from '../_helpers/slotCountryMapping.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -520,7 +524,12 @@ export default async function handler(req: any, res: any) {
     const transactionType = sessionMeta.transactionType;
     const isAnnual = sessionMeta.isAnnual;
     const phoneFromMeta = (sessionMeta.phoneNumber ?? sessionMeta.phone_number ?? '') as string;
-    const expectedRegion = (sessionMeta.region ?? sessionMeta.regionCode ?? '') as string;
+    /** Código ISO país onboarding (metadata.region); mismo criterio que checkout + slots.country */
+    const onboardingCountryIso = String(
+      sessionMeta.region ?? sessionMeta.regionCode ?? ''
+    )
+      .trim()
+      .toUpperCase();
 
     console.log('[WEBHOOK] metadata:', JSON.stringify(session.metadata));
     console.log(
@@ -633,7 +642,9 @@ export default async function handler(req: any, res: any) {
 
       const { data: slot, error: slotError } = await supabaseAdmin
         .from('slots')
-        .select('phone_number, region, status, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id')
+        .select(
+          'phone_number, country, status, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id'
+        )
         .eq('slot_id', slotId)
         .maybeSingle();
 
@@ -653,13 +664,31 @@ export default async function handler(req: any, res: any) {
       let reservationValid = !enforceReservationValidation;
 
       if (enforceReservationValidation) {
+        const countryOk =
+          !onboardingCountryIso || slotCountryMatchesOnboardingIso(slot?.country, onboardingCountryIso);
+
+        if (onboardingCountryIso && !isSupportedOnboardingCountryCode(onboardingCountryIso)) {
+          console.warn('[WEBHOOK] reservation: código país en metadata no está en slotCountryMapping', {
+            slotId,
+            onboardingCountryIso,
+          });
+        }
+
+        if (!countryOk && slot && onboardingCountryIso) {
+          console.warn('[WEBHOOK] reservation country mismatch (slots.country vs metadata.region)', {
+            slotId,
+            onboardingCountryIso,
+            slot_country: slot.country,
+          });
+        }
+
         reservationValid = !!slot &&
           slot.status === 'reserved' &&
           slot.reservation_token === reservationTokenFromMeta &&
           !!slot.reservation_expires_at &&
           new Date(slot.reservation_expires_at as any).getTime() > nowForReservationMs &&
           String(slot.reservation_user_id || '') === String(userId) &&
-          (!expectedRegion || String(slot.region || '').toUpperCase() === String(expectedRegion || '').toUpperCase()) &&
+          countryOk &&
           (!slot.reservation_stripe_session_id || slot.reservation_stripe_session_id === session.id);
 
         // Si la reserva caducó, liberamos el slot solo si el token coincide (evita tocar reservas ajenas).
@@ -686,7 +715,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, activation_state')
+        .select('id, activation_state, stripe_session_id, stripe_subscription_id')
         .eq('stripe_session_id', session.id)
         .maybeSingle();
 
@@ -699,6 +728,13 @@ export default async function handler(req: any, res: any) {
         console.log(
           `[WEBHOOK DEBUG] planName: ${planName}, isAnnual(meta): ${isAnnual}, billingType: ${billingType}, amount(unit_amount): ${amount}, correctAmount: ${correctAmount}`
         );
+
+        if (!stripeSubscriptionId) {
+          console.warn('[WEBHOOK] checkout.session.completed: falta subscription de Stripe en la sesión', {
+            sessionId: session.id,
+            slotId,
+          });
+        }
 
         const insertData = {
           user_id: userId,
@@ -732,7 +768,36 @@ export default async function handler(req: any, res: any) {
 
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
         subscriptionId = (insertedData as { id?: string } | null)?.id ?? subscriptionId;
-
+      } else if (exists && stripeSubscriptionId) {
+        const row = exists as {
+          id: string;
+          stripe_session_id?: string | null;
+          stripe_subscription_id?: string | null;
+        };
+        const patch: Record<string, string> = {};
+        if (row.stripe_session_id !== session.id) {
+          patch.stripe_session_id = session.id;
+        }
+        if (!row.stripe_subscription_id || row.stripe_subscription_id !== stripeSubscriptionId) {
+          patch.stripe_subscription_id = stripeSubscriptionId;
+        }
+        const sid = row.stripe_session_id;
+        if ((!row.stripe_subscription_id || !String(row.stripe_subscription_id).startsWith('sub_')) &&
+          typeof sid === 'string' &&
+          sid.startsWith('sub_')) {
+          patch.stripe_subscription_id = sid;
+          patch.stripe_session_id = session.id;
+          console.warn('[WEBHOOK] subscriptions: corrigiendo IDs mezclados (sub_ estaba en stripe_session_id)', {
+            subscription_id: row.id,
+          });
+        }
+        if (Object.keys(patch).length > 0) {
+          console.log('[WEBHOOK] subscriptions: alineación Stripe IDs (idempotencia checkout.session.completed)', {
+            subscription_id: row.id,
+            patch_keys: Object.keys(patch),
+          });
+          await supabaseAdmin.from('subscriptions').update(patch).eq('id', row.id);
+        }
       }
 
       // Fase 4 (ledger-first): registrar booked_revenue por checkout.session.completed (idempotente por stripe_event_id).
@@ -1319,18 +1384,50 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
-      const { data: sub } = await supabaseAdmin
+      const { data: sub, error: subLookupErr } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency')
-        .eq('stripe_subscription_id', stripeSubId)
+        .select(
+          'id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency, stripe_session_id, stripe_subscription_id'
+        )
+        .or(`stripe_subscription_id.eq.${stripeSubId},stripe_session_id.eq.${stripeSubId}`)
         .maybeSingle();
 
+      if (subLookupErr) {
+        console.error('[WEBHOOK] invoice.payment_succeeded: error lookup subscription', {
+          message: subLookupErr.message,
+          code: subLookupErr.code,
+          stripeSubId,
+        });
+      }
+
       if (!sub) {
+        console.warn('[WEBHOOK] invoice.payment_succeeded: sin fila en subscriptions (stripe_subscription_id ni stripe_session_id)', {
+          stripeSubId,
+        });
         await markWebhookFailed(
           'Stripe webhook: subscription not found in Supabase (allow retry)',
           undefined
         );
         return res.status(500).json({ received: false, error: 'subscription not found' });
+      }
+
+      const subRow = sub as {
+        id: string;
+        stripe_session_id?: string | null;
+        stripe_subscription_id?: string | null;
+      };
+      if (
+        stripeSubId.startsWith('sub_') &&
+        (!subRow.stripe_subscription_id || subRow.stripe_subscription_id !== stripeSubId)
+      ) {
+        console.warn('[WEBHOOK] invoice.payment_succeeded: alineando stripe_subscription_id en fila existente', {
+          subscription_id: subRow.id,
+          stripeSubId,
+        });
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ stripe_subscription_id: stripeSubId })
+          .eq('id', subRow.id);
       }
 
       const fullInv = await persistSubscriptionInvoiceFromWebhook({

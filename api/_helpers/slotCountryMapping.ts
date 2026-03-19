@@ -40,3 +40,20 @@ export function applySlotCountryFilter(query: { or: (expr: string) => unknown },
   const orExpr = patterns.map(countryIlikeOrFragment).join(',');
   return query.or(orExpr);
 }
+
+/**
+ * Misma semántica que el filtro de checkout: el valor en BD `slots.country` debe coincidir
+ * (tras trim + lower) con algún patrón del código ISO de onboarding (metadata.region, etc.).
+ */
+export function slotCountryMatchesOnboardingIso(
+  slotCountryRaw: string | null | undefined,
+  onboardingIsoUpper: string
+): boolean {
+  const iso = String(onboardingIsoUpper ?? '').trim().toUpperCase();
+  if (!iso) return true;
+  const patterns = ONBOARDING_ISO_TO_SLOT_COUNTRY_PATTERNS[iso];
+  if (!patterns?.length) return false;
+  const s = String(slotCountryRaw ?? '').trim().toLowerCase();
+  if (!s) return false;
+  return patterns.some((p) => s === p.trim().toLowerCase());
+}

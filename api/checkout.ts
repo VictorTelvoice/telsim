@@ -254,7 +254,9 @@ export default async function handler(req: any, res: any) {
                   user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
                   plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
                   status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
-                  stripe_session_id: stripeSub.id,
+                  /* No hay Checkout Session (cs_): solo suscripción creada vía API */
+                  stripe_session_id: null,
+                  stripe_subscription_id: stripeSub.id,
                   amount: isAnnual ? (PLAN_PRICES[planName]?.annual ?? correctAmount) : (PLAN_PRICES[planName]?.monthly ?? correctAmount),
                   billing_type: isAnnual ? 'annual' : 'monthly',
                   currency: priceData.currency || 'usd',
