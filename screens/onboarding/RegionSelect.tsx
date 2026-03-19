@@ -73,6 +73,9 @@ const RegionSelect: React.FC = () => {
   const planLabel = planId.charAt(0).toUpperCase() + planId.slice(1);
 
   const handleContinue = () => {
+    // Persistimos para que Payment.tsx pueda reconstruir la región si se pierde location.state.
+    try { localStorage.setItem('selected_region', selected); } catch {}
+
     const isAnnual = localStorage.getItem('selected_plan_annual') === 'true';
     const planNames: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
     const limits: Record<string, number> = { starter: 150, pro: 400, power: 1400 };

@@ -97,7 +97,15 @@ const Summary: React.FC = () => {
     // ⚠️  Do NOT clear localStorage here — if user returns from Stripe (browser back)
     //     the state needs to survive. Cleanup happens in Processing.tsx on success.
     navigate('/onboarding/payment', {
-      state: { planName, price: planDetails.price, monthlyLimit: planDetails.limit, stripePriceId, isAnnual }
+      state: {
+        planName,
+        price: planDetails.price,
+        monthlyLimit: planDetails.limit,
+        stripePriceId,
+        isAnnual,
+        // Propagamos la región seleccionada para que la reserva de slot sea consistente.
+        region: (planData as any).region,
+      }
     });
   };
 

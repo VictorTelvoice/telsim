@@ -43,6 +43,10 @@ const Payment: React.FC = () => {
   const price = _state.price || _lsPrice || 19.90;
   const monthlyLimit = _state.monthlyLimit || (({ Starter: 150, Pro: 400, Power: 1400 } as Record<string, number>)[planName] ?? 150);
   const stripePriceId = _state.stripePriceId || _lsPriceId || '';
+  const region =
+    (typeof _state.region === 'string' ? _state.region : undefined) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('selected_region') || undefined : undefined) ||
+    undefined;
 
   const handleCheckout = async () => {
     if (!user) return;
@@ -59,7 +63,8 @@ const Payment: React.FC = () => {
           planName: planName,
           monthlyLimit: monthlyLimit,
           isUpgrade: false,
-          isAnnual: isAnnual
+          isAnnual: isAnnual,
+          region
         }),
       });
 

@@ -65,7 +65,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // action === 'session'
-    let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual } = req.body || {};
+    let { priceId, userId, phoneNumber, planName, isUpgrade, monthlyLimit, slot_id, forceManual, isAnnual, region } = req.body || {};
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: 'Parámetros insuficientes.' });
@@ -95,6 +95,9 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     const customerId = profileData?.stripe_customer_id;
+
+    const regionCode =
+      typeof region === 'string' && region.trim().length > 0 ? region.trim().toUpperCase() : '';
 
     if (customerId && !forceManual) {
       try {
@@ -163,16 +166,25 @@ export default async function handler(req: any, res: any) {
           }
 
           if (!isUpgrade) {
-            const { data: freeSlot } = await supabaseAdmin
+            let freeQ: any = supabaseAdmin
               .from('slots')
               .select('slot_id, phone_number')
               .eq('status', 'libre')
+              .is('assigned_to', null);
+            if (regionCode) freeQ = freeQ.ilike('region', regionCode);
+
+            const { data: freeSlot } = await freeQ
               .order('slot_id', { ascending: true })
               .limit(1)
               .maybeSingle();
 
             if (freeSlot) {
-              await supabaseAdmin.from('slots').update({ status: 'ocupado', assigned_to: userId, plan_type: planName }).eq('slot_id', freeSlot.slot_id);
+              let updQ: any = supabaseAdmin
+                .from('slots')
+                .update({ status: 'ocupado', assigned_to: userId, plan_type: planName })
+                .eq('slot_id', freeSlot.slot_id);
+              if (regionCode) updQ = updQ.ilike('region', regionCode);
+              await updQ;
 
               const priceData = await stripe.prices.retrieve(priceId);
               const planPrices = PLAN_PRICES[planName] || { monthly: (priceData.unit_amount || 0) / 100, annual: (priceData.unit_amount || 0) / 100 };
@@ -243,26 +255,27 @@ export default async function handler(req: any, res: any) {
 
       for (let attempt = 0; attempt < 3; attempt++) {
         // 1) Prefer truly free slots
-        const { data: freeSlot } = await supabaseAdmin
+        let freeQ: any = supabaseAdmin
           .from('slots')
           .select('slot_id, phone_number')
           .eq('status', 'libre')
-          .is('assigned_to', null)
-          .limit(1)
-          .maybeSingle();
+          .is('assigned_to', null);
+        if (regionCode) freeQ = freeQ.ilike('region', regionCode);
+        const { data: freeSlot } = await freeQ.limit(1).maybeSingle();
 
         // 2) Fallback: expired reservations treated as "free"
         let expiredReservedSlot:
           | { slot_id: string; phone_number?: string | null }
           | null = null;
         if (!freeSlot) {
-          const { data } = await supabaseAdmin
+          let expiredQ: any = supabaseAdmin
             .from('slots')
             .select('slot_id, phone_number')
             .eq('status', 'reserved')
-            .lt('reservation_expires_at', nowIso)
-            .limit(1)
-            .maybeSingle();
+            .is('assigned_to', null)
+            .lt('reservation_expires_at', nowIso);
+          if (regionCode) expiredQ = expiredQ.ilike('region', regionCode);
+          const { data } = await expiredQ.limit(1).maybeSingle();
           expiredReservedSlot = data;
         }
 
@@ -288,7 +301,7 @@ export default async function handler(req: any, res: any) {
         const expiresAtIso = new Date(nowMs + RESERVATION_TTL_MS).toISOString();
 
         // Atomic-ish: aseguramos que el slot no cambie entre "select" y "update" con condición de estado.
-        const { data: reservedSlot, error: reserveErr } = await supabaseAdmin
+        let updateQ: any = supabaseAdmin
           .from('slots')
           .update({
             status: 'reserved',
@@ -300,7 +313,10 @@ export default async function handler(req: any, res: any) {
             plan_type: planName,
           })
           .eq('slot_id', slotToReserve.slot_id)
-          .eq('status', candidateStatus)
+          .eq('status', candidateStatus);
+        if (regionCode) updateQ = updateQ.ilike('region', regionCode);
+
+        const { data: reservedSlot, error: reserveErr } = await updateQ
           .select('slot_id, phone_number')
           .maybeSingle();
 
@@ -366,6 +382,7 @@ export default async function handler(req: any, res: any) {
         slot_id: targetSlotId,
         phoneNumber: targetPhoneNumber,
         planName,
+        region: regionCode,
         limit: String(monthlyLimit ?? ''),
         transactionType: isUpgrade ? 'UPGRADE' : 'NEW_SUB',
         isAnnual: isAnnual ? 'true' : 'false'
