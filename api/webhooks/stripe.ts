@@ -1361,20 +1361,158 @@ export default async function handler(req: any, res: any) {
     const prevStatus = previousAttributes.status;
 
     try {
-      const { data: sub } = await supabaseAdmin
+      const { data: primaryCandidates, error: primaryErr } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, slot_id')
+        .select('id, user_id, plan_name, slot_id, phone_number, status, created_at')
         .eq('stripe_subscription_id', stripeSubId)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      if (!sub) {
-        console.log('[WEBHOOK] customer.subscription.updated: sin fila local, ignorando', stripeSubId);
-        await markWebhookProcessed();
-        return res.status(200).json({
-          received: true,
-          ignored: true,
-          reason: 'subscription_updated_no_local_row',
+      if (primaryErr) {
+        await logEvent(
+          'cancel_failed_no_live_subscription',
+          'error',
+          primaryErr.message,
+          undefined,
+          { phase: 'customer.subscription.updated', stripeSubId, error_code: primaryErr.code },
+          'stripe'
+        );
+        await markWebhookFailed(primaryErr.message);
+        return res.status(500).json({ received: false, error: primaryErr.message, phase: 'customer.subscription.updated' });
+      }
+
+      await logEvent(
+        'cancel_lookup_primary',
+        'info',
+        'cancel: lookup primario customer.subscription.updated',
+        undefined,
+        { phase: 'customer.subscription.updated', stripeSubId, found_candidates: (primaryCandidates ?? []).length },
+        'stripe'
+      );
+
+      let sub: any = null;
+      if (primaryCandidates && primaryCandidates.length > 1) {
+        await logEvent(
+          'cancel_failed_multiple_live_candidates',
+          'error',
+          'cancel: múltiples suscripciones locales candidatas por stripe_subscription_id',
+          undefined,
+          { phase: 'customer.subscription.updated', stripeSubId, candidate_ids: primaryCandidates.map((r: any) => r.id) },
+          'stripe'
+        );
+        await markWebhookFailed('multiple_local_candidates_by_stripe_subscription_id');
+        return res.status(409).json({
+          received: false,
+          error: 'Cancelación bloqueada: hay múltiples suscripciones locales candidatas para el mismo `stripe_subscription_id`.',
+          phase: 'customer.subscription.updated',
         });
+      }
+
+      if (primaryCandidates && primaryCandidates.length === 1) {
+        sub = primaryCandidates[0] as Record<string, unknown>;
+      } else {
+        // Fallback: slot_id / phone_number desde metadata Stripe
+        const hints: { userId?: string; slotId?: string; phoneNumber?: string } = {};
+        mergeMetadataRecord(hints, subscription.metadata);
+
+        if (hints.slotId) {
+          const { data: slotCandidates, error: slotErr } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id, user_id, plan_name, slot_id, phone_number, status, created_at')
+            .eq('slot_id', hints.slotId)
+            .in('status', ['active', 'trialing', 'past_due'])
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (!slotErr) {
+            await logEvent(
+              'cancel_lookup_fallback_slot',
+              'info',
+              'cancel: fallback por slot_id',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, slotId: hints.slotId, found_candidates: (slotCandidates ?? []).length },
+              'stripe'
+            );
+
+            if (slotCandidates && slotCandidates.length > 1) {
+              await logEvent(
+                'cancel_failed_multiple_live_candidates',
+                'error',
+                'cancel: múltiples candidatas en fallback_slot',
+                undefined,
+                { phase: 'customer.subscription.updated', stripeSubId, slotId: hints.slotId, candidate_ids: slotCandidates.map((r: any) => r.id) },
+                'stripe'
+              );
+              await markWebhookFailed('multiple_candidates_by_slot_id_fallback');
+              return res.status(409).json({
+                received: false,
+                error: 'Cancelación bloqueada: hay múltiples suscripciones vivas candidatas para el `slot_id` (fallback).',
+                phase: 'customer.subscription.updated',
+              });
+            }
+            sub = (slotCandidates?.[0] as any) ?? null;
+          }
+        }
+
+        if (!sub && hints.phoneNumber) {
+          const hintDigits = digitsOnly(hints.phoneNumber);
+          const variants = [...new Set([hints.phoneNumber, hintDigits, `+${hintDigits}`].filter(Boolean))];
+
+          const { data: phoneCandidates, error: phoneErr } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id, user_id, plan_name, slot_id, phone_number, status, created_at')
+            .in('phone_number', variants)
+            .in('status', ['active', 'trialing', 'past_due'])
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (!phoneErr) {
+            await logEvent(
+              'cancel_lookup_fallback_phone',
+              'info',
+              'cancel: fallback por phone_number',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, phoneHintDigits: hintDigits, found_candidates: (phoneCandidates ?? []).length },
+              'stripe'
+            );
+
+            if (phoneCandidates && phoneCandidates.length > 1) {
+              await logEvent(
+                'cancel_failed_multiple_live_candidates',
+                'error',
+                'cancel: múltiples candidatas en fallback_phone',
+                undefined,
+                { phase: 'customer.subscription.updated', stripeSubId, phoneHintDigits: hintDigits, candidate_ids: phoneCandidates.map((r: any) => r.id) },
+                'stripe'
+              );
+              await markWebhookFailed('multiple_candidates_by_phone_fallback');
+              return res.status(409).json({
+                received: false,
+                error: 'Cancelación bloqueada: hay múltiples suscripciones vivas candidatas para el `phone_number` (fallback).',
+                phase: 'customer.subscription.updated',
+              });
+            }
+            sub = (phoneCandidates?.[0] as any) ?? null;
+          }
+        }
+
+        if (!sub) {
+          console.log('[WEBHOOK] customer.subscription.updated: sin fila local, ignorando', stripeSubId);
+          await logEvent(
+            'cancel_failed_no_live_subscription',
+            'error',
+            'cancel: no se encontró fila local para customer.subscription.updated',
+            undefined,
+            { phase: 'customer.subscription.updated', stripeSubId, hints },
+            'stripe'
+          );
+          await markWebhookProcessed();
+          return res.status(200).json({
+            received: true,
+            ignored: true,
+            reason: 'subscription_updated_no_local_row',
+          });
+        }
       }
 
       // Detectar cambio de plan (upgrade/downgrade)
@@ -1419,10 +1557,25 @@ export default async function handler(req: any, res: any) {
         paused: 'canceled',
       };
 
-      await supabaseAdmin
-        .from('subscriptions')
-        .update({ status: statusMap[newStatus] || 'active' })
-        .eq('id', sub.id);
+      const existingLocalStatus = String(sub.status ?? '').toLowerCase();
+      const shouldMarkCanceled = newStatus === 'canceled' || subscription.cancel_at_period_end === true;
+      let nextLocalStatus = statusMap[newStatus] || 'active';
+      if (shouldMarkCanceled) nextLocalStatus = 'canceled';
+      // No permitir "re-abrir" suscripciones canceladas vía webhooks posteriores.
+      if (existingLocalStatus === 'canceled' || existingLocalStatus === 'cancelled') nextLocalStatus = 'canceled';
+
+      await supabaseAdmin.from('subscriptions').update({ status: nextLocalStatus }).eq('id', sub.id);
+
+      if (nextLocalStatus === 'canceled' && existingLocalStatus !== 'canceled' && existingLocalStatus !== 'cancelled') {
+        await logEvent(
+          'cancel_local_subscription_updated',
+          'info',
+          'cancel: subscriptions local status actualizado a canceled',
+          undefined,
+          { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id },
+          'stripe'
+        );
+      }
 
       const periodEndForBilling = subscription.current_period_end ?? 0;
       if (periodEndForBilling && periodEndForBilling > 0) {
@@ -1445,18 +1598,49 @@ export default async function handler(req: any, res: any) {
       const isCanceledAtPeriodEnd = cancelAtPeriodEndChanged;
 
       if (isCanceledNow || isCanceledAtPeriodEnd) {
-        if (isCanceledNow) {
-          const { data: otherActiveSub } = await supabaseAdmin
-            .from('subscriptions').select('id')
+        if (sub.slot_id) {
+          const { data: otherLiveSubs, error: otherErr } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id')
             .eq('slot_id', sub.slot_id)
             .in('status', ['active', 'trialing', 'past_due'])
             .neq('id', sub.id)
-            .maybeSingle();
+            .limit(6);
 
-          if (!otherActiveSub) {
+          if (otherErr) {
+            await logEvent(
+              'cancel_failed_multiple_live_candidates',
+              'error',
+              'cancel: fallo pre-check de conflicto de slot',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, error_code: otherErr.code, error_message: otherErr.message },
+              'stripe'
+            );
+          } else if ((otherLiveSubs ?? []).length === 0) {
             await supabaseAdmin.from('slots').update({
-              status: 'libre', assigned_to: null, plan_type: null, sms_limit: null,
+              status: 'libre',
+              assigned_to: null,
+              plan_type: null,
+              sms_limit: null,
             }).eq('slot_id', sub.slot_id);
+
+            await logEvent(
+              'cancel_slot_released',
+              'info',
+              'cancel: slot liberado tras customer.subscription.updated',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id, phone_number: sub.phone_number },
+              'stripe'
+            );
+          } else {
+            await logEvent(
+              'cancel_failed_multiple_live_candidates',
+              'error',
+              'cancel: conflicto - hay otras suscripciones vivas en el slot, no se libera',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, local_subscription_id: sub.id, other_candidates_count: (otherLiveSubs ?? []).length, other_candidate_ids: (otherLiveSubs ?? []).map((r: any) => r.id) },
+              'stripe'
+            );
           }
         }
 
@@ -2367,16 +2551,44 @@ export default async function handler(req: any, res: any) {
     const subId = subscription.id;
 
     try {
-      const { data: sub } = await supabaseAdmin
+      const { data: primaryCandidates, error: primaryErr } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, plan_name, slot_id, billing_type, currency')
+        .select('id, user_id, plan_name, slot_id, billing_type, currency, status, phone_number, created_at')
         .eq('stripe_subscription_id', subId)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      if (!sub) {
-        console.log(
-          '[WEBHOOK] customer.subscription.deleted: sin fila local; idempotente, no reintento',
-          subId
+      await logEvent(
+        'cancel_lookup_primary',
+        'info',
+        'cancel: lookup primario customer.subscription.deleted',
+        undefined,
+        { phase: 'customer.subscription.deleted', stripeSubId: subId, found_candidates: (primaryCandidates ?? []).length },
+        'stripe'
+      );
+
+      if (primaryErr) {
+        await logEvent(
+          'cancel_failed_no_live_subscription',
+          'error',
+          primaryErr.message,
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, error_code: primaryErr.code },
+          'stripe'
+        );
+        await markWebhookFailed(primaryErr.message);
+        return res.status(500).json({ received: false, error: primaryErr.message, phase: 'customer.subscription.deleted' });
+      }
+
+      if (!primaryCandidates || primaryCandidates.length === 0) {
+        console.log('[WEBHOOK] customer.subscription.deleted: sin fila local; idempotente, no reintento', subId);
+        await logEvent(
+          'cancel_failed_no_live_subscription',
+          'error',
+          'cancel: customer.subscription.deleted sin fila local',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId },
+          'stripe'
         );
         await markWebhookProcessed();
         return res.status(200).json({
@@ -2385,6 +2597,25 @@ export default async function handler(req: any, res: any) {
           reason: 'subscription_deleted_no_local_row',
         });
       }
+
+      if (primaryCandidates.length > 1) {
+        await logEvent(
+          'cancel_failed_multiple_live_candidates',
+          'error',
+          'cancel: múltiples suscripciones locales candidatas por stripe_subscription_id (deleted)',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, candidate_ids: primaryCandidates.map((r: any) => r.id) },
+          'stripe'
+        );
+        await markWebhookFailed('multiple_local_candidates_by_stripe_subscription_id (deleted)');
+        return res.status(409).json({
+          received: false,
+          error: 'Cancelación bloqueada: hay múltiples suscripciones locales candidatas para el mismo `stripe_subscription_id`.',
+          phase: 'customer.subscription.deleted',
+        });
+      }
+
+      const sub = primaryCandidates[0] as any;
 
       // Si hay una sub activa más reciente para el mismo slot, fue upgrade — no notificar cancelación
       const { data: activeSub } = await supabaseAdmin
@@ -2431,23 +2662,89 @@ export default async function handler(req: any, res: any) {
         console.error('[FINANCE_EVENTS] churn_event insert failed:', finErr?.message ?? finErr);
       }
 
-      await supabaseAdmin
+      const { error: updateErr } = await supabaseAdmin
         .from('subscriptions')
         .update({ status: 'canceled' })
         .eq('id', sub.id);
 
+      if (updateErr) {
+        await logEvent(
+          'cancel_failed_no_live_subscription',
+          'error',
+          updateErr.message,
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, error_code: updateErr.code },
+          'stripe'
+        );
+        await markWebhookFailed(updateErr.message);
+        return res.status(500).json({ received: false, error: updateErr.message, phase: 'customer.subscription.deleted' });
+      }
+
+      await logEvent(
+        'cancel_local_subscription_updated',
+        'info',
+        'cancel: subscriptions local status actualizado a canceled (deleted)',
+        undefined,
+        { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: sub.slot_id },
+        'stripe'
+      );
+
       // No liberar el slot si ya tiene otra suscripción activa (p. ej. del upgrade)
-      const { data: otherActiveSub } = await supabaseAdmin
-        .from('subscriptions').select('id')
+      const { data: otherLiveSubs, error: otherErr } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id')
         .eq('slot_id', sub.slot_id)
         .in('status', ['active', 'trialing', 'past_due'])
         .neq('id', sub.id)
-        .maybeSingle();
+        .limit(6);
 
-      if (!otherActiveSub) {
-        await supabaseAdmin.from('slots').update({
-          status: 'libre', assigned_to: null, plan_type: null, sms_limit: null,
+      if (otherErr) {
+        await logEvent(
+          'cancel_failed_multiple_live_candidates',
+          'error',
+          'cancel: fallo pre-check de conflicto de slot (deleted)',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_id: sub.slot_id, error_code: otherErr.code, error_message: otherErr.message },
+          'stripe'
+        );
+      } else if ((otherLiveSubs ?? []).length === 0) {
+        const { error: slotUpdateErr } = await supabaseAdmin.from('slots').update({
+          status: 'libre',
+          assigned_to: null,
+          plan_type: null,
+          sms_limit: null,
         }).eq('slot_id', sub.slot_id);
+
+        if (slotUpdateErr) {
+          await logEvent(
+            'cancel_failed_no_live_subscription',
+            'error',
+            slotUpdateErr.message,
+            undefined,
+            { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: sub.slot_id, error_code: slotUpdateErr.code },
+            'stripe'
+          );
+          await markWebhookFailed(slotUpdateErr.message);
+          return res.status(500).json({ received: false, error: slotUpdateErr.message, phase: 'customer.subscription.deleted' });
+        }
+
+        await logEvent(
+          'cancel_slot_released',
+          'info',
+          'cancel: slot liberado tras customer.subscription.deleted',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: sub.slot_id, phone_number: sub.phone_number },
+          'stripe'
+        );
+      } else {
+        await logEvent(
+          'cancel_failed_multiple_live_candidates',
+          'error',
+          'cancel: conflicto - hay otras suscripciones vivas en el slot (deleted), no se libera',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_id: sub.slot_id, local_subscription_id: sub.id, other_candidates_count: (otherLiveSubs ?? []).length, other_candidate_ids: (otherLiveSubs ?? []).map((r: any) => r.id) },
+          'stripe'
+        );
       }
 
       await createNotification(
