@@ -124,8 +124,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .maybeSingle();
 
-      // Error => undefined (no tocar caché)
-      if (error) return undefined;
+      if (error) {
+        console.error('[AuthContext] getProfile public.users', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return undefined;
+      }
 
       // Sin fila => null real "no perfil"
       return (data as ProfileData) ?? null;
@@ -143,11 +149,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(syncKey, String(Date.now()));
 
       try {
-        const { data: existing } = await supabase
+        const { data: existing, error: existingErr } = await supabase
           .from('users')
           .select('avatar_url')
           .eq('id', currentUser.id)
           .maybeSingle();
+        if (existingErr) {
+          console.error('[AuthContext] syncUserToPublicTable read avatar', {
+            code: existingErr.code,
+            message: existingErr.message,
+          });
+        }
 
         const raw = existing?.avatar_url != null ? String(existing.avatar_url).trim() : '';
         const hasSupabaseAvatar = raw !== '' && raw.includes('supabase.co');
@@ -167,7 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ? (existing!.avatar_url as string)
               : metadataAvatar;
 
-        await supabase
+        const { error: upErr } = await supabase
           .from('users')
           .upsert(
             {
@@ -181,6 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             },
             { onConflict: 'id', ignoreDuplicates: false }
           );
+        if (upErr) {
+          console.error('[AuthContext] syncUserToPublicTable upsert', {
+            code: upErr.code,
+            message: upErr.message,
+            details: upErr.details,
+          });
+        }
 
         await registerOrUpdateSession(currentUser.id);
       } catch (err) {
