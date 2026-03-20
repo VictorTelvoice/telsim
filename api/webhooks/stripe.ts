@@ -161,14 +161,71 @@ async function persistSubscriptionInvoiceFromWebhook(params: {
 const SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT =
   'id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency, stripe_session_id, stripe_subscription_id, created_at';
 
-/**
- * Busca la fila de subscriptions de forma estable:
- * - Evita `.or(stripe_subscription_id.eq.X,stripe_session_id.eq.X).maybeSingle()` que con 0 o >1 fila rompe (PGRST116 / ambigüedad).
- * - Prioriza stripe_subscription_id; solo usa stripe_session_id si el id parece cs_* (checkout legacy).
- */
-async function findSubscriptionRowForInvoicePayment(
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, '');
+}
+
+/** UUID en metadata (userId / user_id). */
+function parseUserIdFromMetadata(raw: string | undefined): string | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const t = raw.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return undefined;
+  return t;
+}
+
+/** Unifica metadata Stripe (invoice, líneas, subscription_details) en userId / slotId / phoneNumber. */
+function mergeMetadataRecord(
+  target: { userId?: string; slotId?: string; phoneNumber?: string },
+  meta: Stripe.Metadata | null | undefined
+): void {
+  if (!meta || typeof meta !== 'object') return;
+  const o = meta as Record<string, string>;
+  for (const [k, raw] of Object.entries(o)) {
+    if (raw == null || String(raw).trim() === '') continue;
+    const key = k.toLowerCase().replace(/-/g, '_');
+    const v = String(raw).trim();
+    if (key === 'user_id' || key === 'userid') {
+      const u = parseUserIdFromMetadata(v);
+      if (u) target.userId = u;
+    } else if (key === 'slot_id' || key === 'slotid') {
+      target.slotId = v;
+    } else if (key === 'phone_number' || key === 'phonenumber' || key === 'phone') {
+      target.phoneNumber = v;
+    }
+  }
+}
+
+async function extractInvoiceLinkageHints(
+  invoice: Stripe.Invoice,
   stripeSubId: string
-): Promise<{
+): Promise<{ userId?: string; slotId?: string; phoneNumber?: string }> {
+  const hints: { userId?: string; slotId?: string; phoneNumber?: string } = {};
+  mergeMetadataRecord(hints, invoice.metadata);
+
+  for (const line of invoice.lines?.data ?? []) {
+    mergeMetadataRecord(hints, line.metadata);
+    const parent = (line as { parent?: { subscription_details?: { metadata?: Stripe.Metadata } } }).parent;
+    if (parent?.subscription_details?.metadata) {
+      mergeMetadataRecord(hints, parent.subscription_details.metadata);
+    }
+  }
+
+  if (stripeSubId.startsWith('sub_') && (!hints.userId || !hints.slotId)) {
+    try {
+      const stSub = await stripe.subscriptions.retrieve(stripeSubId);
+      mergeMetadataRecord(hints, stSub.metadata);
+    } catch (e: any) {
+      console.warn('[WEBHOOK] extractInvoiceLinkageHints: subscription.retrieve failed', stripeSubId, e?.message);
+    }
+  }
+
+  return hints;
+}
+
+/**
+ * Lookup principal: stripe_subscription_id estable; checkout legacy cs_* por stripe_session_id.
+ */
+async function findSubscriptionRowByStripeSubscriptionId(stripeSubId: string): Promise<{
   data: Record<string, unknown> | null;
   error: { message: string; code?: string } | null;
 }> {
@@ -208,6 +265,198 @@ async function findSubscriptionRowForInvoicePayment(
   }
 
   return { data: null, error: null };
+}
+
+const FALLBACK_CANDIDATE_LIMIT = 25;
+const PHONE_FALLBACK_ROW_CAP = 40;
+
+function isCanceledSubscriptionStatus(status: string | null | undefined): boolean {
+  const s = String(status ?? '').toLowerCase();
+  return s === 'canceled' || s === 'cancelled';
+}
+
+type PickLiveCandidateMode = 'exact_sub_match' | 'repair_missing_sub' | 'none';
+
+/**
+ * Entre filas ordenadas por created_at desc, elige una fila “viva” para vincular al sub_ actual,
+ * o indica que hay que reparar stripe_subscription_id (null). No usa filas canceladas como patch target.
+ */
+function pickLiveSubscriptionCandidate(
+  rows: Record<string, unknown>[],
+  stripeSubId: string
+): { mode: PickLiveCandidateMode; row: Record<string, unknown> | null } {
+  const live = rows.filter((r) => !isCanceledSubscriptionStatus(String(r.status ?? '')));
+  const exact = live.find((r) => String(r.stripe_subscription_id ?? '') === stripeSubId);
+  if (exact) {
+    return { mode: 'exact_sub_match', row: exact };
+  }
+  const repair = live.find(
+    (r) =>
+      r.stripe_subscription_id == null ||
+      String(r.stripe_subscription_id).trim() === ''
+  );
+  if (repair) {
+    return { mode: 'repair_missing_sub', row: repair };
+  }
+  return { mode: 'none', row: null };
+}
+
+async function listSubscriptionRowsByUserAndSlot(
+  userId: string,
+  slotId: string,
+  limit = FALLBACK_CANDIDATE_LIMIT
+): Promise<{ data: Record<string, unknown>[]; error: { message: string; code?: string } | null }> {
+  const { data, error } = await supabaseAdmin
+    .from('subscriptions')
+    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+    .eq('user_id', userId)
+    .eq('slot_id', slotId.trim())
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { data: [], error: { message: error.message, code: error.code } };
+  }
+  return { data: (data as Record<string, unknown>[]) ?? [], error: null };
+}
+
+async function listSubscriptionRowsByUserAndPhone(
+  userId: string,
+  phoneHint: string,
+  limit = PHONE_FALLBACK_ROW_CAP
+): Promise<{ data: Record<string, unknown>[]; error: { message: string; code?: string } | null }> {
+  const hintDigits = digitsOnly(phoneHint);
+  if (!hintDigits) {
+    return { data: [], error: null };
+  }
+
+  const variants = [...new Set([phoneHint.trim(), hintDigits, `+${hintDigits}`].filter(Boolean))];
+  const { data: byVariants, error: errVariants } = await supabaseAdmin
+    .from('subscriptions')
+    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+    .eq('user_id', userId)
+    .in('phone_number', variants)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (errVariants) {
+    return { data: [], error: { message: errVariants.message, code: errVariants.code } };
+  }
+  if (byVariants?.length) {
+    return { data: byVariants as Record<string, unknown>[], error: null };
+  }
+
+  const { data: rows, error: errRows } = await supabaseAdmin
+    .from('subscriptions')
+    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+    .eq('user_id', userId)
+    .not('phone_number', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (errRows) {
+    return { data: [], error: { message: errRows.message, code: errRows.code } };
+  }
+
+  const list = (rows ?? []) as Record<string, unknown>[];
+  const matches = list.filter((r) => digitsOnly(String(r.phone_number ?? '')) === hintDigits);
+  return { data: matches, error: null };
+}
+
+const RECOVERY_PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
+
+/** Nueva fila subscriptions cuando solo hay historial cancelado y el pago es de un sub_ nuevo (no tocar filas canceled). */
+async function insertSubscriptionRecoveryFromInvoice(params: {
+  userId: string;
+  slotId: string;
+  phoneNumber: string | null | undefined;
+  stripeSubId: string;
+  invoice: Stripe.Invoice;
+  templateRow: Record<string, unknown> | null;
+}): Promise<{ data: Record<string, unknown> | null; error: { message: string; code?: string } | null }> {
+  const { userId, slotId, phoneNumber, stripeSubId, invoice, templateRow } = params;
+
+  const periodEndSec = invoice.period_end ?? invoice.lines?.data?.[0]?.period?.end ?? null;
+  let nextBillingIso =
+    periodEndSec != null && periodEndSec > 0
+      ? new Date(Number(periodEndSec) * 1000).toISOString()
+      : new Date().toISOString();
+
+  let billingType: 'annual' | 'monthly' =
+    String(templateRow?.billing_type ?? '') === 'annual' ? 'annual' : 'monthly';
+  let amount =
+    typeof templateRow?.amount === 'number' ? templateRow.amount : 0;
+  let planName =
+    (typeof templateRow?.plan_name === 'string' && templateRow.plan_name.trim() !== ''
+      ? templateRow.plan_name
+      : null) || 'Starter';
+  let monthlyLimit =
+    typeof templateRow?.monthly_limit === 'number' ? templateRow.monthly_limit : RECOVERY_PLAN_LIMITS[planName] ?? 150;
+  let currency = String(invoice.currency ?? templateRow?.currency ?? 'usd').toLowerCase();
+
+  try {
+    const stSub = await stripe.subscriptions.retrieve(stripeSubId, {
+      expand: ['items.data.price.product'],
+    });
+    const price = stSub.items.data[0]?.price as Stripe.Price | undefined;
+    const product = price?.product;
+    if (price?.recurring?.interval === 'year') billingType = 'annual';
+    else if (price?.recurring?.interval === 'month') billingType = 'monthly';
+    if (price?.unit_amount != null) amount = price.unit_amount / 100;
+    if (product && typeof product === 'object' && 'name' in product) {
+      const n = String((product as Stripe.Product).name ?? '');
+      if (n.includes('Power')) planName = 'Power';
+      else if (n.includes('Pro')) planName = 'Pro';
+      else if (n.includes('Starter')) planName = 'Starter';
+    }
+    monthlyLimit = RECOVERY_PLAN_LIMITS[planName] ?? monthlyLimit;
+    if (stSub.current_period_end) {
+      nextBillingIso = new Date(stSub.current_period_end * 1000).toISOString();
+    }
+  } catch (e: any) {
+    console.warn('[WEBHOOK] recovery insert: subscription.retrieve failed', stripeSubId, e?.message);
+  }
+
+  const phoneResolved =
+    (phoneNumber && String(phoneNumber).trim()) ||
+    (typeof templateRow?.phone_number === 'string' ? templateRow.phone_number.trim() : '') ||
+    null;
+
+  const insertPayload = {
+    user_id: userId,
+    slot_id: slotId,
+    phone_number: phoneResolved || null,
+    plan_name: planName,
+    monthly_limit: monthlyLimit,
+    status: 'active' as const,
+    stripe_session_id: null as string | null,
+    stripe_subscription_id: stripeSubId,
+    trial_end: null as string | null,
+    amount,
+    billing_type: billingType,
+    currency,
+    next_billing_date: nextBillingIso,
+    activation_state: 'on_air' as const,
+    created_at: new Date().toISOString(),
+  };
+
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from('subscriptions')
+    .insert(insertPayload)
+    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+    .single();
+
+  if (insertErr) {
+    return {
+      data: null,
+      error: { message: insertErr.message, code: insertErr.code },
+    };
+  }
+
+  return {
+    data: (inserted as Record<string, unknown>) ?? null,
+    error: null,
+  };
 }
 
 async function triggerEmail(
@@ -1448,15 +1697,20 @@ export default async function handler(req: any, res: any) {
     }
 
     let invoicePaymentPhase:
-      | 'subscription_lookup'
+      | 'subscription_lookup_primary'
+      | 'subscription_lookup_fallback_slot'
+      | 'subscription_lookup_fallback_phone'
+      | 'subscription_lookup_recovery_insert'
+      | 'subscription_lookup_repair'
+      | 'subscription_lookup_exhausted'
       | 'subscription_patch'
       | 'invoice_persist'
       | 'next_billing_update'
       | 'status_transition'
-      | 'notification_email' = 'subscription_lookup';
+      | 'notification_email' = 'subscription_lookup_primary';
 
     try {
-      invoicePaymentPhase = 'subscription_lookup';
+      invoicePaymentPhase = 'subscription_lookup_primary';
       console.log('[WEBHOOK] invoice.payment_succeeded', {
         phase: invoicePaymentPhase,
         stripeSubId,
@@ -1464,17 +1718,17 @@ export default async function handler(req: any, res: any) {
         billing_reason: invoice.billing_reason ?? null,
       });
 
-      const { data: subFound, error: subLookupErr } = await findSubscriptionRowForInvoicePayment(stripeSubId);
+      const primaryResult = await findSubscriptionRowByStripeSubscriptionId(stripeSubId);
 
-      if (subLookupErr) {
+      if (primaryResult.error) {
         console.error('[WEBHOOK] invoice.payment_succeeded', {
           phase: invoicePaymentPhase,
-          message: subLookupErr.message,
-          code: subLookupErr.code,
+          message: primaryResult.error.message,
+          code: primaryResult.error.code,
           stripeSubId,
         });
         await markWebhookFailed(
-          `invoice.payment_succeeded: subscription lookup error (${subLookupErr.code ?? 'n/a'}): ${subLookupErr.message}`,
+          `invoice.payment_succeeded: subscription lookup error (${primaryResult.error.code ?? 'n/a'}): ${primaryResult.error.message}`,
           undefined
         );
         return res.status(500).json({
@@ -1482,6 +1736,143 @@ export default async function handler(req: any, res: any) {
           error: 'subscription lookup failed',
           phase: invoicePaymentPhase,
         });
+      }
+
+      let subFound: Record<string, unknown> | null = primaryResult.data;
+      let subscriptionLookupSource: 'primary' | 'fallback_slot' | 'fallback_phone' | 'recovery_insert' | null =
+        subFound ? 'primary' : null;
+      let subscriptionLookupRepairNeeded = false;
+      /** Fila más reciente (p. ej. cancelada) para plantilla de recovery insert sin mutar historial. */
+      let recoveryTemplateRow: Record<string, unknown> | null = null;
+
+      const hints = !subFound ? await extractInvoiceLinkageHints(invoice, stripeSubId) : null;
+
+      if (!subFound && hints?.userId && hints.slotId) {
+        invoicePaymentPhase = 'subscription_lookup_fallback_slot';
+        console.log('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          user_id: hints.userId,
+          slot_id: hints.slotId,
+          stripeSubId,
+          invoice_id: invoice.id,
+        });
+        const { data: slotRows, error: slotErr } = await listSubscriptionRowsByUserAndSlot(
+          hints.userId,
+          hints.slotId
+        );
+        if (slotErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            message: slotErr.message,
+            code: slotErr.code,
+          });
+          await markWebhookFailed(
+            `invoice.payment_succeeded: ${invoicePaymentPhase} (${slotErr.code ?? 'n/a'}): ${slotErr.message}`,
+            undefined
+          );
+          return res.status(500).json({
+            received: false,
+            error: 'subscription lookup failed',
+            phase: invoicePaymentPhase,
+          });
+        }
+        if (slotRows.length) {
+          recoveryTemplateRow = slotRows[0];
+        }
+        const pickSlot = pickLiveSubscriptionCandidate(slotRows, stripeSubId);
+        if (pickSlot.mode === 'exact_sub_match' || pickSlot.mode === 'repair_missing_sub') {
+          subFound = pickSlot.row;
+          subscriptionLookupSource = 'fallback_slot';
+          subscriptionLookupRepairNeeded = pickSlot.mode === 'repair_missing_sub';
+        }
+      }
+
+      if (!subFound && hints?.userId && hints.phoneNumber) {
+        invoicePaymentPhase = 'subscription_lookup_fallback_phone';
+        console.log('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          user_id: hints.userId,
+          phone_hint: digitsOnly(hints.phoneNumber),
+          stripeSubId,
+          invoice_id: invoice.id,
+        });
+        const { data: phoneRows, error: phoneErr } = await listSubscriptionRowsByUserAndPhone(
+          hints.userId,
+          hints.phoneNumber
+        );
+        if (phoneErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            message: phoneErr.message,
+            code: phoneErr.code,
+          });
+          await markWebhookFailed(
+            `invoice.payment_succeeded: ${invoicePaymentPhase} (${phoneErr.code ?? 'n/a'}): ${phoneErr.message}`,
+            undefined
+          );
+          return res.status(500).json({
+            received: false,
+            error: 'subscription lookup failed',
+            phase: invoicePaymentPhase,
+          });
+        }
+        if (phoneRows.length && !recoveryTemplateRow) {
+          recoveryTemplateRow = phoneRows[0];
+        }
+        const pickPhone = pickLiveSubscriptionCandidate(phoneRows, stripeSubId);
+        if (pickPhone.mode === 'exact_sub_match' || pickPhone.mode === 'repair_missing_sub') {
+          subFound = pickPhone.row;
+          subscriptionLookupSource = 'fallback_phone';
+          subscriptionLookupRepairNeeded = pickPhone.mode === 'repair_missing_sub';
+        }
+      }
+
+      if (!subFound && stripeSubId.startsWith('sub_') && hints?.userId) {
+        const slotIdFinal =
+          (hints.slotId && hints.slotId.trim()) ||
+          (typeof recoveryTemplateRow?.slot_id === 'string'
+            ? String(recoveryTemplateRow.slot_id).trim()
+            : '') ||
+          null;
+        if (slotIdFinal) {
+          invoicePaymentPhase = 'subscription_lookup_recovery_insert';
+          console.warn('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            message: 'recovery insert from invoice webhook (sin fila viva; no se mutan filas canceladas)',
+            user_id: hints.userId,
+            slot_id: slotIdFinal,
+            stripeSubId,
+            invoice_id: invoice.id,
+            template_subscription_id: recoveryTemplateRow?.id ?? null,
+          });
+          const ins = await insertSubscriptionRecoveryFromInvoice({
+            userId: hints.userId,
+            slotId: slotIdFinal,
+            phoneNumber: hints.phoneNumber,
+            stripeSubId,
+            invoice,
+            templateRow: recoveryTemplateRow,
+          });
+          if (ins.error) {
+            console.error('[WEBHOOK] invoice.payment_succeeded', {
+              phase: invoicePaymentPhase,
+              error: ins.error.message,
+              code: ins.error.code,
+            });
+            await markWebhookFailed(
+              `subscription_lookup_recovery_insert: ${ins.error.message}`,
+              undefined
+            );
+            return res.status(500).json({
+              received: false,
+              error: ins.error.message,
+              phase: invoicePaymentPhase,
+            });
+          }
+          subFound = ins.data;
+          subscriptionLookupSource = 'recovery_insert';
+          subscriptionLookupRepairNeeded = false;
+        }
       }
 
       const sub = subFound as {
@@ -1499,19 +1890,68 @@ export default async function handler(req: any, res: any) {
       } | null;
 
       if (!sub) {
+        invoicePaymentPhase = 'subscription_lookup_exhausted';
         console.warn('[WEBHOOK] invoice.payment_succeeded', {
           phase: invoicePaymentPhase,
-          message: 'sin fila en subscriptions para stripe_subscription_id (ni cs_ en stripe_session_id)',
+          message:
+            'sin fila viva ni recovery insert: primary vacío, fallbacks sin match, o sin slot_id para INSERT (ni en hints ni en plantilla histórica)',
           stripeSubId,
+          hints_summary: hints
+            ? {
+                has_user_id: Boolean(hints.userId),
+                has_slot_id: Boolean(hints.slotId),
+                has_phone: Boolean(hints.phoneNumber),
+              }
+            : null,
         });
         await markWebhookFailed(
           'Stripe webhook: subscription not found in Supabase (allow retry)',
           undefined
         );
-        return res.status(500).json({ received: false, error: 'subscription not found', phase: invoicePaymentPhase });
+        return res.status(500).json({
+          received: false,
+          error: 'subscription not found',
+          phase: invoicePaymentPhase,
+        });
       }
 
       const subRow = sub;
+      if (
+        subscriptionLookupRepairNeeded &&
+        subscriptionLookupSource !== 'primary' &&
+        subscriptionLookupSource !== 'recovery_insert' &&
+        stripeSubId.startsWith('sub_') &&
+        subRow.id
+      ) {
+        invoicePaymentPhase = 'subscription_lookup_repair';
+        console.warn('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          message: 'backfill/repair stripe_subscription_id (fila viva por fallback; faltaba sub_)',
+          subscription_id: subRow.id,
+          previous_stripe_subscription_id: subRow.stripe_subscription_id ?? null,
+          stripe_subscription_id_new: stripeSubId,
+          lookup_source: subscriptionLookupSource,
+        });
+        const { error: repairErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update({ stripe_subscription_id: stripeSubId })
+          .eq('id', subRow.id);
+        if (repairErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            error: repairErr.message,
+            code: repairErr.code,
+          });
+          await markWebhookFailed(`subscription_lookup_repair: ${repairErr.message}`, undefined);
+          return res.status(500).json({
+            received: false,
+            error: repairErr.message,
+            phase: invoicePaymentPhase,
+          });
+        }
+        subRow.stripe_subscription_id = stripeSubId;
+      }
+
       if (
         stripeSubId.startsWith('sub_') &&
         (!subRow.stripe_subscription_id || subRow.stripe_subscription_id !== stripeSubId)
