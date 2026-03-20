@@ -1555,56 +1555,70 @@ export default async function handler(req: any, res: any) {
       const isCanceledAtPeriodEnd = cancelAtPeriodEndChanged;
 
       if (isCanceledNow || isCanceledAtPeriodEnd) {
+        let slotReleased = false;
         if (sub.slot_id) {
-          const { data: otherLiveSubs, error: otherErr } = await supabaseAdmin
-            .from('subscriptions')
-            .select('id')
+          // Regla: liberar el slot basándonos SOLO en la fila local encontrada (por stripe_subscription_id),
+          // sin consultar subscriptions por slot_id. Solo tocamos `slots` para reflejar el estado operativo.
+          const { data: slotRow, error: slotErr } = await supabaseAdmin
+            .from('slots')
+            .select('status, assigned_to')
             .eq('slot_id', sub.slot_id)
-            .in('status', ['active', 'trialing', 'past_due'])
-            .neq('id', sub.id)
-            .limit(6);
+            .maybeSingle();
 
-          if (otherErr) {
+          if (slotErr) {
             await logEvent(
-              'cancel_failed_multiple_live_candidates',
+              'cancel_failed_no_live_subscription',
               'error',
-              'cancel: fallo pre-check de conflicto de slot',
+              'cancel: fallo consultando slots para liberar',
               undefined,
-              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, error_code: otherErr.code, error_message: otherErr.message },
-              'stripe'
-            );
-          } else if ((otherLiveSubs ?? []).length === 0) {
-            await supabaseAdmin.from('slots').update({
-              status: 'libre',
-              assigned_to: null,
-              plan_type: null,
-              sms_limit: null,
-            }).eq('slot_id', sub.slot_id);
-
-            await logEvent(
-              'cancel_slot_released',
-              'info',
-              'cancel: slot liberado tras customer.subscription.updated',
-              undefined,
-              { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id, phone_number: sub.phone_number },
+              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, error_code: slotErr.code, error_message: slotErr.message },
               'stripe'
             );
           } else {
-            await logEvent(
-              'cancel_failed_multiple_live_candidates',
-              'error',
-              'cancel: conflicto - hay otras suscripciones vivas en el slot, no se libera',
-              undefined,
-              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, local_subscription_id: sub.id, other_candidates_count: (otherLiveSubs ?? []).length, other_candidate_ids: (otherLiveSubs ?? []).map((r: any) => r.id) },
-              'stripe'
-            );
+            const slotStatus = String(slotRow?.status ?? '').toLowerCase();
+            const slotAssignedTo = slotRow?.assigned_to ?? null;
+
+            // Liberar si el slot no está libre y/o si está asignado a la misma entidad.
+            // (Evita liberar si otro sistema ya cambió la asignación del slot entre eventos.)
+            const shouldRelease =
+              slotStatus !== 'libre' && (slotAssignedTo == null || String(slotAssignedTo) === String(sub.user_id));
+
+            if (shouldRelease) {
+              await supabaseAdmin.from('slots').update({
+                status: 'libre',
+                assigned_to: null,
+                plan_type: null,
+                sms_limit: null,
+              }).eq('slot_id', sub.slot_id);
+
+              slotReleased = true;
+              await logEvent(
+                'cancel_slot_released',
+                'info',
+                'cancel: slot liberado tras customer.subscription.updated',
+                undefined,
+                { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id },
+                'stripe'
+              );
+            } else {
+              await logEvent(
+                'cancel_slot_release_skipped',
+                'info',
+                'cancel: liberación omitida porque slots ya cambió (sin consultar subscriptions)',
+                undefined,
+                { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, slot_status: slotStatus, slot_assigned_to: slotAssignedTo },
+                'stripe'
+              );
+            }
           }
         }
 
         await createNotification(
           sub.user_id,
           '⚠️ Suscripción cancelada',
-          `Tu plan ${sub.plan_name} fue cancelado. Tu número ha sido liberado. Puedes activar un nuevo plan cuando quieras.`,
+          slotReleased
+            ? `Tu plan ${sub.plan_name} fue cancelado. Tu número ha sido liberado. Puedes activar un nuevo plan cuando quieras.`
+            : `Tu plan ${sub.plan_name} fue cancelado. (El slot asociado pudo no haberse liberado por consistencia operativa).`,
           'warning'
         );
 
