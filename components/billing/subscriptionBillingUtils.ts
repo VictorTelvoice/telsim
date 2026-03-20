@@ -21,10 +21,19 @@ export function normalizeSubscriptionStatus(status: string | null | undefined): 
 }
 
 /**
- * Sigue operativa en Stripe (no terminada): se muestra en el filtro “Activas”.
+ * Sigue operativa en Stripe (no terminada): próximos cobros / KPI de billing.
  * Incluye `past_due` porque la suscripción sigue viva hasta cancelación.
  */
 export function isLiveOperationalStatus(status: string | null | undefined): boolean {
+  const n = normalizeSubscriptionStatus(status);
+  return n === 'active' || n === 'trialing' || n === 'past_due';
+}
+
+/**
+ * Pestaña “Todas” del panel usuario: líneas vigentes (active, trialing, past_due).
+ * `past_due` se lista aquí explícitamente; no entra en “Activas” ni “Trialing”.
+ */
+export function isTodasTabStatus(status: string | null | undefined): boolean {
   const n = normalizeSubscriptionStatus(status);
   return n === 'active' || n === 'trialing' || n === 'past_due';
 }
@@ -121,4 +130,59 @@ export function getSubscriptionBadgeLabel(status: string | null | undefined): st
 
 export function subscriptionBadgeClassName(status: string | null | undefined): string {
   return BADGE_STYLES[getSubscriptionBadgeVariant(status)];
+}
+
+const STRIP_INVISIBLE = /[\u200B-\u200D\uFEFF]/g;
+
+/**
+ * Normaliza códigos ISO 4217 sucios (histórico, ZWSP, fullwidth NFKC, basura alrededor).
+ * Valida con Intl; nunca lanza.
+ */
+export function sanitizeCurrencyCode(raw: string | null | undefined, fallback = 'USD'): string {
+  const base =
+    String(raw ?? '')
+      .normalize('NFKC')
+      .replace(STRIP_INVISIBLE, '')
+      .trim() || fallback;
+
+  const lettersOnly = base.toUpperCase().replace(/[^A-Z]/g, '');
+  const candidates: string[] = [];
+  if (lettersOnly.length >= 3) {
+    for (let i = 0; i <= lettersOnly.length - 3; i++) {
+      candidates.push(lettersOnly.slice(i, i + 3));
+    }
+  }
+  const tryCodes = [...new Set([...(lettersOnly.length === 3 ? [lettersOnly] : []), ...candidates, fallback, 'USD'])];
+  for (const code of tryCodes) {
+    if (!/^[A-Z]{3}$/.test(code)) continue;
+    try {
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(0);
+      return code;
+    } catch {
+      /* siguiente candidato */
+    }
+  }
+  return 'USD';
+}
+
+/**
+ * Formato monetario seguro (datos sucios de Stripe/BD). No lanza; último recurso: "USD 0.00".
+ */
+export function formatCurrencyAmount(
+  value: number,
+  currencyRaw?: string | null,
+  locale = 'en-US'
+): string {
+  const safeN = Number.isFinite(Number(value)) ? Number(value) : 0;
+  let code = sanitizeCurrencyCode(currencyRaw, 'USD');
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(safeN);
+  } catch {
+    code = 'USD';
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(safeN);
+    } catch {
+      return `${code} ${safeN.toFixed(2)}`;
+    }
+  }
 }

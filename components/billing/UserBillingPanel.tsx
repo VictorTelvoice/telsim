@@ -18,10 +18,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
   dedupeLatestSubscriptionPerLine,
+  formatCurrencyAmount,
   getSubscriptionBadgeLabel,
   isCanceledBucketStatus,
   isLiveOperationalStatus,
   isStrictKpiActiveStatus,
+  isTodasTabStatus,
   normalizeSubscriptionStatus,
   subscriptionBadgeClassName,
 } from './subscriptionBillingUtils';
@@ -239,9 +241,11 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
-  type SubscriptionFilterTab = 'activas' | 'canceladas' | 'todas';
+  type SubscriptionFilterTab = 'activas' | 'trialing' | 'todas';
   const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>('activas');
   const [billingHistoryOpen, setBillingHistoryOpen] = useState(false);
+  /** Suscripciones terminadas: sección secundaria, colapsada por defecto. */
+  const [canceledSectionOpen, setCanceledSectionOpen] = useState(false);
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
@@ -273,33 +277,36 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   );
 
   /**
-   * Activas: active + trialing + past_due (dedupe por línea). past_due sigue con badge “Past Due”.
-   * Canceladas: canceled, expired, unpaid, incomplete, incomplete_expired (todas las filas, sin dedupe).
-   * Todas: historial completo ordenado por created_at.
+   * Pestañas principales (siempre dedupe por línea / slot / stripe_subscription_id):
+   * - Activas: solo status active
+   * - Trialing: solo trialing
+   * - Todas: active + trialing + past_due (past_due explícito; no mezclado con Activas/Trialing)
    */
   const displayedSubscriptions = useMemo(() => {
-    const sortedAll = [...subscriptions].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
     if (subscriptionFilter === 'activas') {
-      return subscriptionsDedupedByLine.filter((s) => isLiveOperationalStatus(s.status));
+      return subscriptionsDedupedByLine.filter((s) => normalizeSubscriptionStatus(s.status) === 'active');
     }
-    if (subscriptionFilter === 'canceladas') {
-      return sortedAll.filter((s) => isCanceledBucketStatus(s.status));
+    if (subscriptionFilter === 'trialing') {
+      return subscriptionsDedupedByLine.filter((s) => normalizeSubscriptionStatus(s.status) === 'trialing');
     }
-    return sortedAll;
-  }, [subscriptions, subscriptionsDedupedByLine, subscriptionFilter]);
+    return subscriptionsDedupedByLine.filter((s) => isTodasTabStatus(s.status));
+  }, [subscriptionsDedupedByLine, subscriptionFilter]);
 
   const subscriptionFilterCounts = useMemo(() => {
-    const sortedAll = [...subscriptions].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    const dl = subscriptionsDedupedByLine;
     return {
-      activas: subscriptionsDedupedByLine.filter((s) => isLiveOperationalStatus(s.status)).length,
-      canceladas: sortedAll.filter((s) => isCanceledBucketStatus(s.status)).length,
-      todas: subscriptions.length,
+      activas: dl.filter((s) => normalizeSubscriptionStatus(s.status) === 'active').length,
+      trialing: dl.filter((s) => normalizeSubscriptionStatus(s.status) === 'trialing').length,
+      todas: dl.filter((s) => isTodasTabStatus(s.status)).length,
     };
-  }, [subscriptions, subscriptionsDedupedByLine]);
+  }, [subscriptionsDedupedByLine]);
+
+  /** Terminadas / no vigentes: una fila por línea (evita conteo 120 vs 47 por duplicados históricos). */
+  const canceledSubscriptionsDeduped = useMemo(() => {
+    return subscriptionsDedupedByLine
+      .filter((s) => isCanceledBucketStatus(s.status))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [subscriptionsDedupedByLine]);
 
   const planNameByStripeSubscriptionId = useMemo(() => {
     const m = new Map<string, string>();
@@ -532,11 +539,9 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     return <CreditCard className="size-5 text-slate-400" />;
   };
 
-  const formatCurrency = (value: number, currency = 'USD') =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: (currency || 'USD').toUpperCase(),
-    }).format(Number(value || 0));
+  const moneyLocale = language === 'es' ? 'es-ES' : 'en-US';
+  const formatCurrency = (value: number, currency?: string | null) =>
+    formatCurrencyAmount(Number(value || 0), currency, moneyLocale);
 
   const formatFriendlyDate = (dateStr?: string | null) => {
     if (!dateStr) return '—';
@@ -657,19 +662,19 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                     key: 'activas' as const,
                     label: 'Activas',
                     count: subscriptionFilterCounts.activas,
-                    hint: 'Activas + trialing + past due (una por línea)',
+                    hint: 'Solo estado active (una fila por línea)',
                   },
                   {
-                    key: 'canceladas' as const,
-                    label: 'Canceladas',
-                    count: subscriptionFilterCounts.canceladas,
-                    hint: 'Cancelada, expirada, impaga o incompleta',
+                    key: 'trialing' as const,
+                    label: 'Trialing',
+                    count: subscriptionFilterCounts.trialing,
+                    hint: 'Solo en periodo de prueba (una fila por línea)',
                   },
                   {
                     key: 'todas' as const,
                     label: 'Todas',
                     count: subscriptionFilterCounts.todas,
-                    hint: 'Todas las filas de suscripción',
+                    hint: 'Active + trialing + past due (operativas; una fila por línea)',
                   },
                 ] satisfies {
                   key: SubscriptionFilterTab;
@@ -709,8 +714,8 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-400 italic">
               {subscriptionFilter === 'activas' && t('billing.no_services')}
-              {subscriptionFilter === 'canceladas' && 'No hay suscripciones canceladas en el historial.'}
-              {subscriptionFilter === 'todas' && 'No hay suscripciones para este usuario.'}
+              {subscriptionFilter === 'trialing' && 'No hay suscripciones en periodo de prueba.'}
+              {subscriptionFilter === 'todas' && 'No hay suscripciones operativas (active / trialing / past due) en tu cuenta.'}
             </p>
           </div>
         ) : (
@@ -805,6 +810,112 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             })}
           </div>
         )}
+
+        {canceledSubscriptionsDeduped.length > 0 ? (
+          <div className="pt-2 space-y-2">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-4 py-3 text-left hover:bg-slate-100/90 dark:hover:bg-slate-800/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              onClick={() => setCanceledSectionOpen((o) => !o)}
+              aria-expanded={canceledSectionOpen}
+            >
+              <div className="min-w-0">
+                <span className="block text-[11px] font-black uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
+                  Suscripciones terminadas
+                </span>
+                <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                  {canceledSubscriptionsDeduped.length} en historial (una por línea)
+                  {canceledSectionOpen ? ' · Ocultar' : ' · Ver'}
+                </span>
+              </div>
+              {canceledSectionOpen ? (
+                <ChevronUp className="size-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+              ) : (
+                <ChevronDown className="size-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+              )}
+            </button>
+
+            {canceledSectionOpen ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {canceledSubscriptionsDeduped.map((sub) => {
+                  const subInvoices = sub.stripe_subscription_id
+                    ? invoicesByStripeSubscription.get(sub.stripe_subscription_id) || []
+                    : [];
+                  const latestInvoice = subInvoices[0] || null;
+                  return (
+                    <div
+                      key={sub.id}
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 min-w-0 opacity-95"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-900 dark:text-white truncate">{sub.plan_name || 'Plan'}</p>
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                            <Smartphone className="size-3.5 shrink-0" />
+                            {sub.phone_number || sub.slot_id || 'Sin línea asociada'}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-full ${subscriptionBadgeClassName(sub.status)}`}
+                        >
+                          {getSubscriptionBadgeLabel(sub.status)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[12px]">
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                          <p className="text-[10px] uppercase font-black text-slate-400">Billing</p>
+                          <p className="font-bold text-slate-700 dark:text-slate-200">
+                            {sub.billing_type === 'annual' ? 'Anual' : 'Mensual'}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                          <p className="text-[10px] uppercase font-black text-slate-400">Monto</p>
+                          <p className="font-bold text-slate-700 dark:text-slate-200">
+                            {formatCurrency(Number(sub.amount || 0), sub.currency)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2 sm:col-span-2">
+                          <p className="text-[10px] uppercase font-black text-slate-400">Contratación</p>
+                          <p className="font-bold text-slate-700 dark:text-slate-200">{formatFriendlyDate(sub.created_at)}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 pt-1">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSub(sub)}
+                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          >
+                            Ver detalle
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenStripePortal}
+                            className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center gap-1"
+                          >
+                            <ExternalLink className="size-3.5" />
+                            Gestionar pago
+                          </button>
+                        </div>
+                        {latestInvoice ? (
+                          <InvoicePrimaryAccess
+                            inv={latestInvoice}
+                            resolving={resolvingInvoiceId === latestInvoice.id}
+                            onResolve={() => resolveInvoiceUrls(latestInvoice.id)}
+                          />
+                        ) : (
+                          <p className="text-[10px] font-bold text-slate-400 italic">Sin factura reciente para esta línea.</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-3" aria-labelledby="billing-history-toggle">
