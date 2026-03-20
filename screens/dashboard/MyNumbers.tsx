@@ -117,8 +117,8 @@ const MyNumbers: React.FC = () => {
     const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
     const [isAnnualUpgrade, setIsAnnualUpgrade] = useState(false);
 
-    const fetchSlots = async () => {
-        if (!user?.id) return;
+    const fetchSlots = async (): Promise<SlotWithPlan[]> => {
+        if (!user?.id) return [];
         setLoading(true);
         try {
             const { data: slotsData } = await supabase
@@ -146,8 +146,10 @@ const MyNumbers: React.FC = () => {
             });
 
             setSlots(enrichedSlots);
+            return enrichedSlots;
         } catch (err) {
             console.error(err);
+            return [];
         } finally {
             setLoading(false);
         }
@@ -191,6 +193,38 @@ const MyNumbers: React.FC = () => {
             toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
             setTimeout(() => toast.remove(), 300);
         }, 3500);
+    };
+
+    const showCancelToast = (payload: { title: string; description: string; type: 'success' | 'error' }) => {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${
+            payload.type === 'success' ? 'bg-slate-900/95' : 'bg-rose-600'
+        } backdrop-blur-md text-white px-8 py-4 rounded-2xl shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10`;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex items-start gap-3';
+
+        const titleEl = document.createElement('p');
+        titleEl.className = 'text-[12px] font-black uppercase tracking-widest';
+        titleEl.textContent = payload.title;
+
+        const descEl = document.createElement('p');
+        descEl.className = 'text-[11px] opacity-90 mt-0.5';
+        descEl.textContent = payload.description;
+
+        const textWrap = document.createElement('div');
+        textWrap.className = 'flex flex-col';
+        textWrap.appendChild(titleEl);
+        textWrap.appendChild(descEl);
+
+        wrapper.appendChild(textWrap);
+        toast.appendChild(wrapper);
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-4');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     };
 
     const { getAppTemplate } = useSettings();
@@ -238,6 +272,8 @@ const MyNumbers: React.FC = () => {
     const handleReleaseSlot = async () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
+        const slotId = slotToRelease.slot_id;
+        let releasedFromBackend = false;
         try {
             // 1. Obtener stripe_subscription_id
             const { data: subData } = await supabase
@@ -257,8 +293,11 @@ const MyNumbers: React.FC = () => {
                 });
                 if (!res.ok) {
                     const errBody = await res.json().catch(() => ({}));
-                    throw new Error(errBody.error || 'Error al cancelar en Stripe');
+                    throw new Error(errBody.error || 'Intenta nuevamente.');
                 }
+
+                const okBody = await res.json().catch(() => ({}));
+                releasedFromBackend = Boolean(okBody?.released_number);
             } else {
                 // Fallback: sin stripe_subscription_id, cancelar directo en Supabase
                 await supabase
@@ -271,17 +310,37 @@ const MyNumbers: React.FC = () => {
                     .from('slots')
                     .update({ assigned_to: null, status: 'libre', plan_type: null, label: null, forwarding_active: false })
                     .eq('slot_id', slotToRelease.slot_id);
+
+                releasedFromBackend = true;
             }
 
             refreshUnreadCount();
-            showToast(getAppTemplate('subscription_cancelled', 'Suscripción cancelada · Número liberado exitosamente'));
+            const updatedSlots = await fetchSlots();
+            const releasedDetected =
+                releasedFromBackend ||
+                !updatedSlots.some((s) => s.slot_id === slotId);
+
+            showCancelToast({
+                type: 'success',
+                title: 'Suscripción cancelada',
+                description: releasedDetected
+                    ? 'La suscripción fue cancelada y el número fue liberado del sistema.'
+                    : 'La suscripción fue cancelada correctamente.',
+            });
             setIsReleaseModalOpen(false);
             setSlotToRelease(null);
             setConfirmReleaseCheck(false);
-            fetchSlots();
+            setTimeout(() => {
+                void fetchSlots();
+            }, 3500);
         } catch (err: any) {
             console.error("[RELEASE ERROR]", err);
-            showToast(getAppTemplate('common_error', err.message || t('common.error')), "error");
+            const msg = typeof err?.message === 'string' ? err.message.trim() : '';
+            showCancelToast({
+                type: 'error',
+                title: 'No se pudo cancelar',
+                description: msg && msg.length > 0 ? msg : 'Intenta nuevamente.',
+            });
         } finally {
             setReleasing(false);
         }

@@ -942,35 +942,77 @@ export default async function handler(req: any, res: any) {
       case 'cancel': {
         const { subscriptionId } = req.body;
         if (!subscriptionId) return res.status(400).json({ error: 'Missing subscriptionId' });
-        await stripe.subscriptions.cancel(subscriptionId);
+        try {
+          await stripe.subscriptions.cancel(subscriptionId);
+        } catch (err: any) {
+          const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
+          return res.status(500).json({ error: msg });
+        }
+
         const { data: sub } = await supabaseAdmin
           .from('subscriptions')
           .select('id, user_id, slot_id, plan_name')
           .eq('stripe_subscription_id', subscriptionId)
           .maybeSingle();
 
-        if (sub) {
-          await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', sub.id);
-          const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', sub.user_id).maybeSingle();
-          const { data: slotData } = await supabaseAdmin.from('slots').select('phone_number, plan_type').eq('slot_id', sub.slot_id).maybeSingle();
-          const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-          if (userData?.email) {
-            await triggerEmail('subscription_cancelled', sub.user_id, {
-              plan: sub.plan_name ?? '',
-              plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
-              end_date: new Date().toLocaleDateString('es-CL'),
-              slot_id: sub.slot_id,
-              phone_number: slotData?.phone_number ?? sub.slot_id ?? '',
-              email: userData.email,
-              to_email: userData.email,
-            });
-          }
-          await sendTelegramNotification(
-            `❌ *CANCELACIÓN*\n📱 Número: +${slotData?.phone_number || sub.slot_id}\n📦 Plan: ${slotData?.plan_type ?? sub.plan_name ?? ''}\n📅 Fecha: ${now}\n🔴 Estado: Cancelado`,
-            sub.user_id
-          );
+        if (!sub?.id) {
+          return res.status(404).json({
+            error: 'Suscripción no encontrada en el sistema',
+            subscriptionId,
+          });
         }
-        return res.status(200).json({ ok: true });
+
+        await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', sub.id);
+
+        const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', sub.user_id).maybeSingle();
+        const { data: slotData } = await supabaseAdmin
+          .from('slots')
+          .select('phone_number, plan_type')
+          .eq('slot_id', sub.slot_id)
+          .maybeSingle();
+
+        // Libera el número solo si no existe otra suscripción activa/trialing en el mismo slot.
+        let released_number = false;
+        if (sub.slot_id) {
+          const { data: otherActiveSub } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id')
+            .eq('slot_id', sub.slot_id)
+            .in('status', ['active', 'trialing'])
+            .neq('id', sub.id)
+            .maybeSingle();
+
+          if (!otherActiveSub) {
+            await supabaseAdmin.from('slots').update({
+              assigned_to: null,
+              status: 'libre',
+              plan_type: null,
+              label: null,
+              forwarding_active: false,
+            }).eq('slot_id', sub.slot_id);
+            released_number = true;
+          }
+        }
+
+        const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        if (userData?.email) {
+          await triggerEmail('subscription_cancelled', sub.user_id, {
+            plan: sub.plan_name ?? '',
+            plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
+            end_date: new Date().toLocaleDateString('es-CL'),
+            slot_id: sub.slot_id,
+            phone_number: slotData?.phone_number ?? sub.slot_id ?? '',
+            email: userData.email,
+            to_email: userData.email,
+          });
+        }
+
+        await sendTelegramNotification(
+          `❌ *CANCELACIÓN*\n📱 Número: +${slotData?.phone_number || sub.slot_id}\n📦 Plan: ${slotData?.plan_type ?? sub.plan_name ?? ''}\n📅 Fecha: ${now}\n🔴 Estado: Cancelado`,
+          sub.user_id
+        );
+
+        return res.status(200).json({ ok: true, released_number });
       }
 
       case 'upgrade': {

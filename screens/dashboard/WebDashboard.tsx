@@ -287,9 +287,8 @@ type AutomationLogRow = {
 };
 
 const ReleaseSuccessToastMessage: React.FC<{ isDark: boolean }> = ({ isDark }) => {
-  const { getAppTemplate } = useSettings();
-  const title = getAppTemplate('release_success', 'Suscripción cancelada exitosamente');
-  const sub = getAppTemplate('release_success_sub', 'El número ha sido liberado del sistema');
+  const title = 'Suscripción cancelada';
+  const sub = 'La suscripción fue cancelada y el número fue liberado del sistema.';
   return (
     <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
       <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
