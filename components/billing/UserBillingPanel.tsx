@@ -258,7 +258,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [bootPrefs] = useState(() => loadBillingPanelPreferences());
   const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>(bootPrefs.subscriptionFilter);
   const [billingHistoryOpen, setBillingHistoryOpen] = useState(bootPrefs.billingHistoryOpen);
-  /** Suscripciones terminadas: sección secundaria (persistida). */
+  /** Suscripciones terminadas: sección secundaria; estado abierto/cerrado persistido en `telsim.billingPanel.v1`. */
   const [canceledSectionOpen, setCanceledSectionOpen] = useState(bootPrefs.canceledSectionOpen);
   /** Tope de cards visibles en la pestaña principal (persistido). */
   const [subscriptionVisibleCount, setSubscriptionVisibleCount] = useState(bootPrefs.subscriptionVisibleCount);

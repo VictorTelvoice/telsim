@@ -7,9 +7,12 @@ import { safeReadLocalStorageJson, safeWriteLocalStorageJson } from '../../lib/l
  * - `BILLING_PAGE_INITIAL` = primer pintado (evita montar decenas de cards de golpe).
  * - `BILLING_PAGE_STEP` = **6** cards por clic (ritmo uniforme con grid responsive 1 / md:2 / xl:3).
  *
- * Preferencias core (persistidas, ver `BillingPanelPreferences`):
- * filtro de pestaña, tope visible en lista principal, historial abierto/cerrado.
- * Se guardan también tope en terminadas e historial de invoices para no perder UX al volver.
+ * Preferencias persistidas (ver `BillingPanelPreferences`):
+ * 1) filtro de pestaña (activas / trialing / todas)
+ * 2) tope visible lista principal
+ * 3) historial de facturación abierto/cerrado
+ * 4) **sección “suscripciones terminadas” abierta/cerrada** (`canceledSectionOpen`)
+ * Además: topes de paginación en terminadas y en grid de invoices, y `subscriptionSort` reservado.
  */
 export const BILLING_PANEL_STORAGE_KEY = 'telsim.billingPanel.v1';
 
