@@ -1112,7 +1112,25 @@ export default async function handler(req: any, res: any) {
         // - liberar el slot
         const slotId = targetSub.slot_id;
 
-        // (Regla 6) Cancelar en Stripe de forma inmediata si hay stripe_subscription_id
+        // Antes de liberar el slot: guardar slot_id + old phone_number
+        const { data: slotBefore, error: slotBeforeErr } = await supabaseAdmin
+          .from('slots')
+          .select('phone_number')
+          .eq('slot_id', slotId)
+          .maybeSingle();
+
+        if (slotBeforeErr) {
+          await logCancel('cancel_failed_no_live_subscription', 'error', {
+            subscriptionId,
+            slot_id: slotId,
+            error_code: slotBeforeErr.code,
+            error_message: slotBeforeErr.message,
+          }, 'cancel: fallo lookup phone_number del slot antes de liberar');
+        }
+
+        const oldPhoneNumber = (slotBefore?.phone_number ?? null) as string | null;
+
+        // Construir lista de stripe_subscription_id vivas (best-effort) antes de cancelar localmente.
         const { data: liveStripeSubs, error: liveStripeSubsErr } = await supabaseAdmin
           .from('subscriptions')
           .select('stripe_subscription_id')
@@ -1126,8 +1144,7 @@ export default async function handler(req: any, res: any) {
             slot_id: slotId,
             error_code: liveStripeSubsErr.code,
             error_message: liveStripeSubsErr.message,
-          }, 'cancel: fallo lookup stripe_subscription_id en slot');
-          return res.status(500).json({ error: liveStripeSubsErr.message, subscriptionId });
+          }, 'cancel: fallo lookup stripe_subscription_id en slot (continuar con cancelación local)');
         }
 
         const stripeSubIdsSet = new Set<string>();
@@ -1138,35 +1155,54 @@ export default async function handler(req: any, res: any) {
         }
 
         const stripeSubIds = [...stripeSubIdsSet];
-        for (const sid of stripeSubIds) {
-          try {
-            await stripe.subscriptions.cancel(sid);
-          } catch (err: any) {
-            const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
-            await logCancel('cancel_failed_no_live_subscription', 'error', { subscriptionId, stripe_error: msg, stripe_subscription_id: sid }, 'cancel: fallo Stripe');
-            return res.status(500).json({ error: msg });
-          }
-        }
 
-        // (Reglas 1-4) Actualizar local con un RPC atómico (1 transacción BD):
-        // - Todas las live del slot => status=canceled, next_billing_date=NULL
-        // - canceled con next_billing_date!=NULL => next_billing_date=NULL
-        // - Slot => libre
-        const { error: rpcErr } = await supabaseAdmin.rpc('cancel_slot_and_subscriptions_atomic', { p_slot_id: slotId });
+        // 2) Cancelar localmente en subscriptions (sin tocar `slots`)
+        const { error: rpcErr } = await supabaseAdmin.rpc('cancel_subscriptions_atomic', {
+          p_slot_id: slotId,
+          p_old_phone_number: oldPhoneNumber,
+        });
         if (rpcErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
             subscriptionId,
             slot_id: slotId,
             error_code: rpcErr.code,
             error_message: rpcErr.message,
-          }, 'cancel: fallo RPC cancel_slot_and_subscriptions_atomic');
+          }, 'cancel: fallo RPC cancel_subscriptions_atomic');
           return res.status(500).json({ error: rpcErr.message, subscriptionId });
         }
 
         await logCancel('cancel_local_subscription_updated', 'info', {
           subscriptionId,
           slot_id: slotId,
-        }, 'cancel: subscriptions/slots actualizados atómicamente');
+        }, 'cancel: subscriptions actualizadas atómicamente');
+
+        // 3) Liberar slot en slots (ya sin depender de Stripe)
+        const { error: slotRpcErr } = await supabaseAdmin.rpc('release_slot_atomic', { p_slot_id: slotId });
+        if (slotRpcErr) {
+          await logCancel('cancel_failed_no_live_subscription', 'error', {
+            subscriptionId,
+            slot_id: slotId,
+            error_code: slotRpcErr.code,
+            error_message: slotRpcErr.message,
+          }, 'cancel: fallo RPC release_slot_atomic');
+          return res.status(500).json({ error: slotRpcErr.message, subscriptionId });
+        }
+
+        // 4) Intentar cancelación en Stripe (best-effort): si falla, solo loguear
+        //    (no revertir local ni volver a poner active, y no depender del webhook).
+        for (const sid of stripeSubIds) {
+          try {
+            await stripe.subscriptions.cancel(sid);
+          } catch (err: any) {
+            const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
+            await logCancel(
+              'cancel_failed_no_live_subscription',
+              'error',
+              { subscriptionId, stripe_error: msg, stripe_subscription_id: sid },
+              'cancel: fallo Stripe (ignorado; cancelación local ya realizada)'
+            );
+          }
+        }
 
         const { data: userData } = await supabaseAdmin
           .from('users')
