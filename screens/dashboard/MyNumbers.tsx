@@ -275,7 +275,6 @@ const MyNumbers: React.FC = () => {
         const slotId = slotToRelease.slot_id;
         let releasedFromBackend = false;
         try {
-            // 1. Obtener stripe_subscription_id
             const { data: subData } = await supabase
                 .from('subscriptions')
                 .select('stripe_subscription_id')
@@ -284,28 +283,26 @@ const MyNumbers: React.FC = () => {
                 .in('status', ['active', 'trialing'])
                 .maybeSingle();
 
-            // 2. Cancelar en Stripe (genera el webhook → correo + Telegram)
-            if (subData?.stripe_subscription_id) {
-                const res = await fetch('/api/manage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'cancel', subscriptionId: subData.stripe_subscription_id }),
-                });
-                if (!res.ok) {
-                    const errBody = await res.json().catch(() => ({}));
-                    throw new Error(errBody.error || 'Intenta nuevamente.');
-                }
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-                const okBody = await res.json().catch(() => ({}));
-                releasedFromBackend = Boolean(okBody?.released_number);
-            } else {
-                const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
-                    p_slot_id: slotId,
-                });
-                if (releaseErr) throw releaseErr;
+            const body: Record<string, string> = { action: 'cancel' };
+            if (subData?.stripe_subscription_id) body.subscriptionId = subData.stripe_subscription_id;
+            else body.slot_id = slotId;
 
-                releasedFromBackend = true;
+            const res = await fetch('/api/manage', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                throw new Error((errBody as { error?: string }).error || 'Intenta nuevamente.');
             }
+
+            const okBody = await res.json().catch(() => ({}));
+            releasedFromBackend = Boolean(okBody?.released_number);
 
             refreshUnreadCount();
             const updatedSlots = await fetchSlots();

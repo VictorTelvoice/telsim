@@ -12,6 +12,7 @@ import {
   slotCountryMatchesOnboardingIso,
 } from '../_helpers/slotCountryMapping.js';
 import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
+import { releaseSlotAtomicForCancelPolicy } from '../manage.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -1557,9 +1558,7 @@ export default async function handler(req: any, res: any) {
             (slotAssignedToPre == null || String(slotAssignedToPre) === String(sub.user_id));
 
           if (shouldReleasePre) {
-            const { error: rpcReleaseErr } = await supabaseAdmin.rpc('release_slot_atomic', {
-              p_slot_id: sub.slot_id,
-            });
+            const { error: rpcReleaseErr } = await releaseSlotAtomicForCancelPolicy(supabaseAdmin, sub.slot_id);
             if (rpcReleaseErr) {
               await logEvent(
                 'cancel_failed_no_live_subscription',
@@ -2370,9 +2369,7 @@ export default async function handler(req: any, res: any) {
 
       // release_slot_atomic embebe cancel_subscriptions_atomic (orden garantizado en SQL).
       for (const slotIdToRelease of primarySlotIds) {
-        const { error: rpcReleaseErr } = await supabaseAdmin.rpc('release_slot_atomic', {
-          p_slot_id: slotIdToRelease,
-        });
+        const { error: rpcReleaseErr } = await releaseSlotAtomicForCancelPolicy(supabaseAdmin, slotIdToRelease);
 
         if (rpcReleaseErr) {
           await logEvent(

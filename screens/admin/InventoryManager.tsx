@@ -142,17 +142,22 @@ const InventoryManager: React.FC = () => {
     }
   };
 
-  /** `release_slot_atomic` (cancel embebido en SQL + liberar slot). */
+  /** Liberación vía POST /api/manage action=cancel (único camino autorizado). */
   const liberarSlot = async (slotId: string) => {
     if (!confirm('¿Liberar este slot? Se pondrá estado libre y se quitará la asignación de usuario.')) return;
     setFreeing(slotId);
     try {
-      const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
-        p_slot_id: slotId,
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'cancel', slot_id: slotId }),
       });
-
-      if (releaseErr) {
-        alert(`Error al liberar el slot: ${releaseErr.message}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Error al liberar el slot: ${(data as { error?: string }).error || res.statusText}`);
         return;
       }
 

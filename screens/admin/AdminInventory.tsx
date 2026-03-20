@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { Loader2, Trash2 } from 'lucide-react';
-
-/** Misma regla que `api/manage.ts` (cancel): suscripciones “vivas” antes de cancelar localmente. */
-const LIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due'] as const;
-
-const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
 export type SlotRow = {
   slot_id: string;
@@ -18,7 +12,6 @@ export type SlotRow = {
 };
 
 const AdminInventory: React.FC = () => {
-  const { user: authUser } = useAuth();
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState<string | null>(null);
@@ -51,52 +44,23 @@ const AdminInventory: React.FC = () => {
     fetchSlots().finally(() => setLoading(false));
   }, [fetchSlots]);
 
-  /**
-   * Liberar slot: `release_slot_atomic` (en BD: cancel_subscriptions_atomic + UPDATE slots).
-   * Best-effort Stripe: IDs de subs vivas antes del RPC (para no depender del webhook).
-   */
+  /** Liberación vía POST /api/manage action=cancel (único camino autorizado). */
   const clearSlot = async (slotId: string) => {
     if (!confirm('¿Limpiar este slot? La SIM quedará libre. El cliente perderá la asignación.')) return;
     setClearing(slotId);
     try {
-      const { data: liveSubs, error: liveSubsErr } = await supabase
-        .from('subscriptions')
-        .select('stripe_subscription_id')
-        .eq('slot_id', slotId)
-        .in('status', [...LIVE_SUBSCRIPTION_STATUSES])
-        .not('stripe_subscription_id', 'is', null);
-
-      const stripeSubscriptionIds = liveSubsErr
-        ? []
-        : [
-            ...new Set(
-              (liveSubs ?? [])
-                .map((r) => r.stripe_subscription_id)
-                .filter((s): s is string => typeof s === 'string' && s.trim() !== '')
-                .map((s) => s.trim())
-            ),
-          ];
-
-      const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
-        p_slot_id: slotId,
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'cancel', slot_id: slotId }),
       });
-
-      if (releaseErr) {
-        alert(`Error al liberar el slot: ${releaseErr.message}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Error al liberar el slot: ${(data as { error?: string }).error || res.statusText}`);
         return;
-      }
-
-      const adminUid = (authUser?.id || '').toLowerCase() === ADMIN_UID.toLowerCase();
-      if (stripeSubscriptionIds.length > 0 && adminUid && authUser?.id) {
-        void fetch('/api/manage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'admin-stripe-cancel-subscriptions',
-            userId: authUser.id,
-            stripeSubscriptionIds,
-          }),
-        }).catch(() => {});
       }
 
       await fetchSlots();

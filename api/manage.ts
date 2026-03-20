@@ -25,6 +25,17 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Única política de liberación de número en servidor (RPC `release_slot_atomic`).
+ * Usar solo desde `case 'cancel'` y desde procesos server-side que deban alinearse con manage.
+ */
+export async function releaseSlotAtomicForCancelPolicy(
+  client: ReturnType<typeof createClient>,
+  p_slot_id: string
+) {
+  return client.rpc('release_slot_atomic', { p_slot_id });
+}
+
 /** Valida Bearer de Supabase y devuelve el user id autenticado (o null). */
 async function getRequestAuthUserId(req: any): Promise<string | null> {
   const authHeader = req.headers?.authorization;
@@ -40,6 +51,35 @@ async function getRequestAuthUserId(req: any): Promise<string | null> {
   } = await supabaseAuth.auth.getUser(token);
   if (error || !user?.id) return null;
   return user.id;
+}
+
+async function assertSlotCancelAllowed(
+  req: any,
+  slotId: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const authUid = await getRequestAuthUserId(req);
+  if (!authUid) {
+    return { ok: false, status: 401, error: 'Se requiere sesión para liberar por slot_id.' };
+  }
+  if ((authUid || '').toLowerCase() === ADMIN_UID.toLowerCase()) {
+    return { ok: true };
+  }
+  const { data: slotRow, error } = await supabaseAdmin
+    .from('slots')
+    .select('assigned_to')
+    .eq('slot_id', slotId)
+    .maybeSingle();
+  if (error) {
+    return { ok: false, status: 500, error: error.message };
+  }
+  if (!slotRow) {
+    return { ok: false, status: 404, error: 'Slot no encontrado.' };
+  }
+  const assigned = slotRow.assigned_to;
+  if (assigned != null && String(assigned) === String(authUid)) {
+    return { ok: true };
+  }
+  return { ok: false, status: 403, error: 'No autorizado para liberar este slot.' };
 }
 
 /** Fila API para el panel de facturación del cliente (fuentes oficiales Stripe). */
@@ -940,8 +980,11 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'cancel': {
-        const { subscriptionId } = req.body;
-        if (!subscriptionId) return res.status(400).json({ error: 'Missing subscriptionId' });
+        const rawSubId = typeof req.body?.subscriptionId === 'string' ? req.body.subscriptionId.trim() : '';
+        const rawSlotId = typeof req.body?.slot_id === 'string' ? req.body.slot_id.trim() : '';
+        if (!rawSubId && !rawSlotId) {
+          return res.status(400).json({ error: 'Se requiere subscriptionId o slot_id.' });
+        }
 
         const LIVE_STATUSES = ['active', 'trialing', 'past_due'] as const;
 
@@ -964,7 +1007,81 @@ export default async function handler(req: any, res: any) {
 
         let targetSub: SubscriptionRow | null = null;
 
+        if (!rawSubId && rawSlotId) {
+          const gate = await assertSlotCancelAllowed(req, rawSlotId);
+          if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+
+          const { data: slotOnlyCandidates, error: slotOnlyErr } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
+            .eq('slot_id', rawSlotId)
+            .in('status', [...LIVE_STATUSES])
+            .order('created_at', { ascending: false })
+            .limit(2);
+
+          if (slotOnlyErr) {
+            await logCancel('cancel_failed_no_live_subscription', 'error', {
+              slot_id: rawSlotId,
+              error_code: slotOnlyErr.code,
+              error_message: slotOnlyErr.message,
+            }, 'DB error en cancel: lookup por slot_id');
+            return res.status(500).json({ error: slotOnlyErr.message, slot_id: rawSlotId });
+          }
+
+          if (slotOnlyCandidates && slotOnlyCandidates.length > 1) {
+            await logCancel('cancel_failed_multiple_live_candidates', 'error', {
+              lookup: 'slot_id_body',
+              slot_id: rawSlotId,
+              candidate_ids: slotOnlyCandidates.map((r: any) => r.id),
+            }, 'cancel: múltiples candidatos vivos (slot_id en body)');
+            return res.status(409).json({
+              error: 'Cancelación bloqueada: hay múltiples suscripciones vivas para este slot.',
+              slot_id: rawSlotId,
+            });
+          }
+
+          if (slotOnlyCandidates && slotOnlyCandidates.length === 1) {
+            targetSub = slotOnlyCandidates[0] as SubscriptionRow;
+          } else {
+            const { error: orphanReleaseErr } = await releaseSlotAtomicForCancelPolicy(supabaseAdmin, rawSlotId);
+            if (orphanReleaseErr) {
+              await logCancel('cancel_failed_no_live_subscription', 'error', {
+                slot_id: rawSlotId,
+                error_code: orphanReleaseErr.code,
+                error_message: orphanReleaseErr.message,
+              }, 'cancel: fallo RPC release_slot_atomic (huérfano)');
+              return res.status(500).json({ error: orphanReleaseErr.message, slot_id: rawSlotId });
+            }
+
+            const { data: releasedOrphan, error: orphanSelErr } = await supabaseAdmin
+              .from('slots')
+              .select('status, assigned_to, plan_type, sms_limit')
+              .eq('slot_id', rawSlotId)
+              .maybeSingle();
+            if (orphanSelErr || !releasedOrphan) {
+              return res.status(500).json({
+                error: orphanSelErr?.message ?? 'Slot verification failed',
+                slot_id: rawSlotId,
+              });
+            }
+            const releasedOk =
+              String((releasedOrphan as any).status ?? '').toLowerCase() === 'libre' &&
+              (releasedOrphan as any).assigned_to == null &&
+              (releasedOrphan as any).plan_type == null &&
+              (releasedOrphan as any).sms_limit == null;
+            if (!releasedOk) {
+              return res.status(500).json({ error: 'El slot no quedó liberado correctamente', slot_id: rawSlotId });
+            }
+
+            await logCancel('cancel_slot_released', 'info', { slot_id: rawSlotId }, 'cancel: slot huérfano liberado');
+            return res.status(200).json({ ok: true, released_number: true });
+          }
+        }
+
+        const subscriptionId = rawSubId;
+
         // 1) Lookup primario (stripe_subscription_id) - únicamente filas locales "vivas".
+        if (subscriptionId) {
         const { data: primaryCandidates, error: primaryErr } = await supabaseAdmin
           .from('subscriptions')
           .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
@@ -1089,10 +1206,14 @@ export default async function handler(req: any, res: any) {
             });
           }
         }
+        }
 
         if (!targetSub?.id) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', { subscriptionId }, 'cancel: targetSub vacío');
-          return res.status(404).json({ error: 'No hay fila local a cancelar.', subscriptionId });
+          await logCancel('cancel_failed_no_live_subscription', 'error', { subscriptionId, slot_id: rawSlotId || null }, 'cancel: targetSub vacío');
+          return res.status(404).json({
+            error: 'No hay fila local a cancelar.',
+            ...(subscriptionId ? { subscriptionId } : { slot_id: rawSlotId }),
+          });
         }
 
         if (!targetSub.slot_id) {
@@ -1131,16 +1252,16 @@ export default async function handler(req: any, res: any) {
         }
 
         const stripeSubIdsSet = new Set<string>();
-        stripeSubIdsSet.add(subscriptionId);
+        if (subscriptionId) stripeSubIdsSet.add(subscriptionId);
         for (const r of liveStripeSubs ?? []) {
           const sid = (r as { stripe_subscription_id?: string | null }).stripe_subscription_id;
           if (typeof sid === 'string' && sid.trim()) stripeSubIdsSet.add(sid.trim());
         }
 
-        const stripeSubIds = [...stripeSubIdsSet];
+        const stripeSubIds = [...stripeSubIdsSet].filter((s) => s.length > 0);
 
         // 2) Cancelar subs locales + liberar slot (una sola RPC; cancel va antes que UPDATE slots en SQL)
-        const { error: slotRpcErr } = await supabaseAdmin.rpc('release_slot_atomic', { p_slot_id: slotId });
+        const { error: slotRpcErr } = await releaseSlotAtomicForCancelPolicy(supabaseAdmin, slotId);
         if (slotRpcErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
             subscriptionId,

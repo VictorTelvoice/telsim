@@ -1151,10 +1151,16 @@ const WebDashboard: React.FC = () => {
     setReleasing(true);
     try {
       const slotId = slotToRelease.slot_id;
-      const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
-        p_slot_id: slotId,
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'cancel', slot_id: slotId }),
       });
-      if (releaseErr) throw releaseErr;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || 'Error al dar de baja la SIM.');
 
       setSlots(prev => prev.filter(s => s.slot_id !== slotToRelease.slot_id));
       setIsReleaseModalOpen(false);
