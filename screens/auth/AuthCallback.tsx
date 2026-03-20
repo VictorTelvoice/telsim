@@ -19,6 +19,20 @@ function logAuthCallback(stage: string, payload?: Record<string, unknown>) {
   }
 }
 
+/** PostgREST: columnas ausentes suelen devolver 400 con "does not exist" / "schema cache". */
+function logIfUsersOnboardingColumnsMissing(
+  context: string,
+  err: { message?: string | null; details?: string | null; hint?: string | null }
+) {
+  const blob = `${err.message ?? ''} ${err.details ?? ''} ${err.hint ?? ''}`;
+  if (!/does not exist|schema cache|could not find.*column/i.test(blob)) return;
+  console.error(
+    `[${context}] DIAGNÓSTICO: faltan columnas de onboarding en public.users. ` +
+      'Aplicar SQL idempotente: docs/sql/production_public_users_onboarding_columns.sql\n' +
+      '  (equivale a migraciones 20260320000002_users_onboarding_completed + 20260321000000_users_onboarding_step)'
+  );
+}
+
 const AuthCallback: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -111,6 +125,7 @@ const AuthCallback: React.FC = () => {
         );
 
         if (upsertErr) {
+          logIfUsersOnboardingColumnsMissing('AuthCallback', upsertErr);
           logAuthCallback('public.users upsert failed (auth OK — continuar con rutas seguras)', {
             code: upsertErr.code,
             message: upsertErr.message,
@@ -131,6 +146,7 @@ const AuthCallback: React.FC = () => {
         let effectiveProfile = profileRow;
 
         if (profileErr) {
+          logIfUsersOnboardingColumnsMissing('AuthCallback', profileErr);
           logAuthCallback('public.users profile select failed (400 suele ser columnas, RLS o migración pendiente)', {
             code: profileErr.code,
             message: profileErr.message,
@@ -159,6 +175,7 @@ const AuthCallback: React.FC = () => {
             .update({ onboarding_completed: true, onboarding_checkout_session_id: null })
             .eq('id', u.id);
           if (patchErr) {
+            logIfUsersOnboardingColumnsMissing('AuthCallback', patchErr);
             logAuthCallback('users update COMPLETED→done failed', { message: patchErr.message });
           }
           safeNavigate('/web');
@@ -182,6 +199,7 @@ const AuthCallback: React.FC = () => {
             })
             .eq('id', u.id);
           if (subPatchErr) {
+            logIfUsersOnboardingColumnsMissing('AuthCallback', subPatchErr);
             logAuthCallback('users update from existing subscription failed', { message: subPatchErr.message });
           }
           safeNavigate('/web');
