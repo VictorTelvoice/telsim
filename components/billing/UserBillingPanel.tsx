@@ -88,6 +88,9 @@ interface InvoiceRow {
   tax_breakdown?: unknown[];
 }
 
+/** Stable empty list: evita nuevos arrays en useMemo cuando el historial está colapsado. */
+const EMPTY_INVOICE_ROWS: InvoiceRow[] = [];
+
 function openStripeUrl(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
@@ -363,11 +366,12 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     sortedCanceledSubscriptions.length > paginatedCanceledSubscriptions.length;
 
   const paginatedInvoiceRows = useMemo(() => {
+    if (!billingHistoryOpen) return EMPTY_INVOICE_ROWS;
     const total = invoices.length;
-    if (total === 0) return [];
+    if (total === 0) return EMPTY_INVOICE_ROWS;
     const cap = Math.min(Math.max(invoiceHistoryVisibleCount, BILLING_PAGE_INITIAL), total);
     return invoices.slice(0, cap);
-  }, [invoices, invoiceHistoryVisibleCount]);
+  }, [billingHistoryOpen, invoices, invoiceHistoryVisibleCount]);
 
   const canLoadMoreInvoices = invoices.length > paginatedInvoiceRows.length;
 
@@ -695,10 +699,13 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   };
 
   const moneyLocale = language === 'es' ? 'es-ES' : 'en-US';
-  const formatCurrency = (value: number, currency?: string | null) =>
-    formatCurrencyAmount(Number(value || 0), currency, moneyLocale);
+  const formatCurrency = useCallback(
+    (value: number, currency?: string | null) =>
+      formatCurrencyAmount(Number(value || 0), currency, moneyLocale),
+    [moneyLocale]
+  );
 
-  const formatFriendlyDate = (dateStr?: string | null) => {
+  const formatFriendlyDate = useCallback((dateStr?: string | null) => {
     if (!dateStr) return '—';
     const date = new Date(dateStr);
     if (Number.isNaN(date.getTime())) return '—';
@@ -707,7 +714,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       month: 'long',
       year: 'numeric',
     });
-  };
+  }, [language]);
 
   if (loading || loadingPM) {
     return (

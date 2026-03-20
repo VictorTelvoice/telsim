@@ -153,6 +153,10 @@ export function subscriptionBusinessStatusRank(status: string | null | undefined
   return 50;
 }
 
+/**
+ * Fecha de “próximo hito” para ordenar dentro del mismo estado:
+ * **next_billing_date** si existe; si no, **trial_end** (útil en trialing / cobro próximo sin period end en BD).
+ */
 function billingProximityTimestamp(s: SubscriptionSortable): number | null {
   const tryParse = (iso: string | null | undefined) => {
     if (!iso) return null;
@@ -163,13 +167,16 @@ function billingProximityTimestamp(s: SubscriptionSortable): number | null {
 }
 
 /**
- * Orden de negocio para listas de suscripción en Facturación (documentado para producto / soporte):
+ * Orden de negocio para listas de suscripción en Facturación (solo presentación; no cambia filtros):
  *
- * 1. Estados en este orden: **active** → **trialing** → **past_due** → otros no cancelados → **canceladas**
- *    (si comparten lista con “Todas” u otra vista combinada).
- * 2. Mismo estado: primero las que tienen **next_billing_date** o **trial_end** válido; entre ellas,
- *    fecha **ascendente** (cobro / fin de prueba más **próximo** primero).
- * 3. Sin fecha de cobro ni trial_end: **created_at** descendente (alta más reciente primero).
+ * 1. **active** primero, luego **trialing**.
+ * 2. Dentro de cada estado: más cercanas al próximo cobro / fin de prueba
+ *    (ver `billingProximityTimestamp`: next_billing_date, fallback trial_end), fecha **ascendente**.
+ * 3. Sin esas fechas: **created_at** descendente (alta más reciente primero).
+ * 4. En **Todas** (active + trialing + past_due): **past_due** va **después** de todos los active y trialing
+ *    (rango 2) y **antes** de canceladas si alguna vez compartieran la misma lista; hoy las **terminadas**
+ *    viven solo en la sección colapsable aparte, no en “Todas”.
+ * 5. Canceladas / bucket cancelado: rango al **final** (p. ej. sección terminadas).
  */
 export function compareSubscriptionsBusinessOrder(a: SubscriptionSortable, b: SubscriptionSortable): number {
   const ra = subscriptionBusinessStatusRank(a.status);

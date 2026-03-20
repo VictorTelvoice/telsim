@@ -1,6 +1,16 @@
 import { safeReadLocalStorageJson, safeWriteLocalStorageJson } from '../../lib/localStoragePreferences';
 
-/** Clave dedicada al panel de facturación usuario (web + móvil comparten UserBillingPanel). */
+/**
+ * Clave dedicada al panel de facturación usuario (web + móvil comparten UserBillingPanel).
+ *
+ * Paginación “Ver más”:
+ * - `BILLING_PAGE_INITIAL` = primer pintado (evita montar decenas de cards de golpe).
+ * - `BILLING_PAGE_STEP` = **6** cards por clic (ritmo uniforme con grid responsive 1 / md:2 / xl:3).
+ *
+ * Preferencias core (persistidas, ver `BillingPanelPreferences`):
+ * filtro de pestaña, tope visible en lista principal, historial abierto/cerrado.
+ * Se guardan también tope en terminadas e historial de invoices para no perder UX al volver.
+ */
 export const BILLING_PANEL_STORAGE_KEY = 'telsim.billingPanel.v1';
 
 export type SubscriptionFilterTabPersisted = 'activas' | 'trialing' | 'todas';
