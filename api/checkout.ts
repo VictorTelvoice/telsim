@@ -264,6 +264,55 @@ export default async function handler(req: any, res: any) {
                 : null;
               const activationTs = new Date().toISOString();
 
+              // Evitar duplicar subscriptions vivas para el mismo slot.
+              // Si ya existe status in ('active','trialing','past_due') para este slot_id,
+              // no insertamos otra fila viva (y cancelamos la suscripción recién creada en Stripe).
+              const LIVE_STATUSES = ['active', 'trialing', 'past_due'];
+              const { data: existingLiveSub } = await supabaseAdmin
+                .from('subscriptions')
+                .select('id, status, stripe_subscription_id')
+                .eq('slot_id', freeSlot.slot_id)
+                .in('status', LIVE_STATUSES)
+                .limit(1)
+                .maybeSingle();
+
+              if (existingLiveSub) {
+                console.warn('[ONE-CLICK] Existe subscription viva para slot_id; se evita duplicación', {
+                  slot_id: freeSlot.slot_id,
+                  existing_subscription_id: existingLiveSub.id,
+                  existing_status: existingLiveSub.status,
+                  new_stripe_subscription_id: stripeSub.id,
+                });
+                try {
+                  await stripe.subscriptions.cancel(stripeSub.id);
+                } catch (cancelErr: any) {
+                  console.error('[ONE-CLICK] Cancel Stripe subscription falló tras detectar duplicación', cancelErr?.message ?? cancelErr);
+                }
+
+                // Liberar el slot en BD para no dejarlo ocupando sin fila local de subscription.
+                const { error: revertSlotErr } = await supabaseAdmin
+                  .from('slots')
+                  .update({
+                    status: 'libre',
+                    assigned_to: null,
+                    plan_type: null,
+                    sms_limit: null,
+                    label: null,
+                    forwarding_active: false,
+                  })
+                  .eq('slot_id', freeSlot.slot_id);
+
+                if (revertSlotErr) {
+                  console.error('[ONE-CLICK] Revert slot failed:', revertSlotErr.message);
+                }
+
+                throw new CheckoutHttpError(
+                  409,
+                  'LIVE_SUBSCRIPTION_EXISTS_FOR_SLOT',
+                  'No se insertó una nueva subscription viva porque el slot ya tiene otra viva.'
+                );
+              }
+
               const { data: newSub } = await supabaseAdmin
                 .from('subscriptions')
                 .insert({

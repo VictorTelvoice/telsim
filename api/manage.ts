@@ -943,8 +943,7 @@ export default async function handler(req: any, res: any) {
         const { subscriptionId } = req.body;
         if (!subscriptionId) return res.status(400).json({ error: 'Missing subscriptionId' });
 
-        const LIVE_STATUSES = ['active', 'trialing'] as const;
-        const OTHER_LIVE_STATUSES = ['active', 'trialing', 'past_due'] as const;
+        const LIVE_STATUSES = ['active', 'trialing', 'past_due'] as const;
 
         const digitsOnly = (s: string): string => s.replace(/\D/g, '');
 
@@ -970,9 +969,8 @@ export default async function handler(req: any, res: any) {
           .from('subscriptions')
           .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
           .eq('stripe_subscription_id', subscriptionId)
-          .in('status', [...LIVE_STATUSES])
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(2);
 
         if (primaryErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
@@ -1040,10 +1038,6 @@ export default async function handler(req: any, res: any) {
                     hintSlotId,
                     candidate_ids: slotCandidates.map((r: any) => r.id),
                   }, 'cancel: múltiples candidatos vivos en fallback_slot');
-                  return res.status(409).json({
-                    error: 'Cancelación bloqueada: múltiples suscripciones locales vivas candidatas para el mismo `slot_id` (fallback).',
-                    subscriptionId,
-                  });
                 }
                 targetSub = slotCandidates[0] as SubscriptionRow;
               }
@@ -1076,10 +1070,6 @@ export default async function handler(req: any, res: any) {
                     hintPhoneDigits: hintDigits,
                     candidate_ids: phoneCandidates.map((r: any) => r.id),
                   }, 'cancel: múltiples candidatos vivos en fallback_phone');
-                  return res.status(409).json({
-                    error: 'Cancelación bloqueada: múltiples suscripciones locales vivas candidatas para el mismo `phone_number` (fallback).',
-                    subscriptionId,
-                  });
                 }
                 targetSub = phoneCandidates[0] as SubscriptionRow;
               }
@@ -1116,86 +1106,67 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        // 3) Pre-check de conflictos: no liberar slot si hay otras suscripciones vivas en el mismo slot.
-        const { data: otherLiveSubs, error: otherErr } = await supabaseAdmin
+        // 3) Cancelación consistente del slot:
+        // - cancelar Stripe (si aplica)
+        // - actualizar TODAS las subscriptions del slot dentro de una sola transacción DB
+        // - liberar el slot
+        const slotId = targetSub.slot_id;
+
+        // (Regla 6) Cancelar en Stripe de forma inmediata si hay stripe_subscription_id
+        const { data: liveStripeSubs, error: liveStripeSubsErr } = await supabaseAdmin
           .from('subscriptions')
-          .select('id')
-          .eq('slot_id', targetSub.slot_id)
-          .in('status', [...OTHER_LIVE_STATUSES])
-          .neq('id', targetSub.id)
-          .limit(5);
+          .select('stripe_subscription_id')
+          .eq('slot_id', slotId)
+          .in('status', [...LIVE_STATUSES])
+          .not('stripe_subscription_id', 'is', null);
 
-        if (otherErr) {
+        if (liveStripeSubsErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
             subscriptionId,
-            slot_id: targetSub.slot_id,
-            error_code: otherErr.code,
-            error_message: otherErr.message,
-          }, 'DB error en pre-check de conflictos');
-          return res.status(500).json({ error: otherErr.message, subscriptionId });
+            slot_id: slotId,
+            error_code: liveStripeSubsErr.code,
+            error_message: liveStripeSubsErr.message,
+          }, 'cancel: fallo lookup stripe_subscription_id en slot');
+          return res.status(500).json({ error: liveStripeSubsErr.message, subscriptionId });
         }
 
-        if ((otherLiveSubs ?? []).length > 0) {
-          await logCancel('cancel_failed_multiple_live_candidates', 'error', {
-            subscriptionId,
-            slot_id: targetSub.slot_id,
-            other_live_candidates_count: (otherLiveSubs ?? []).length,
-            other_live_candidate_ids: (otherLiveSubs ?? []).map((r: any) => r.id),
-            local_subscription_id_being_canceled: targetSub.id,
-          }, 'cancel: conflicto - hay otras suscripciones vivas para el slot');
-          return res.status(409).json({
-            error: 'Cancelación bloqueada: existen otras suscripciones vivas en el mismo `slot_id`. No se puede liberar el slot de forma consistente.',
-            subscriptionId,
-          });
+        const stripeSubIdsSet = new Set<string>();
+        stripeSubIdsSet.add(subscriptionId);
+        for (const r of liveStripeSubs ?? []) {
+          const sid = (r as { stripe_subscription_id?: string | null }).stripe_subscription_id;
+          if (typeof sid === 'string' && sid.trim()) stripeSubIdsSet.add(sid.trim());
         }
 
-        // 4) Solo si encontramos la fila viva local correcta:
-        // - cancelar Stripe
-        // - actualizar suscripción local a canceled
-        // - liberar slot
-        try {
-          await stripe.subscriptions.cancel(subscriptionId);
-        } catch (err: any) {
-          const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
-          await logCancel('cancel_failed_no_live_subscription', 'error', { subscriptionId, stripe_error: msg }, 'cancel: fallo Stripe');
-          return res.status(500).json({ error: msg });
+        const stripeSubIds = [...stripeSubIdsSet];
+        for (const sid of stripeSubIds) {
+          try {
+            await stripe.subscriptions.cancel(sid);
+          } catch (err: any) {
+            const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
+            await logCancel('cancel_failed_no_live_subscription', 'error', { subscriptionId, stripe_error: msg, stripe_subscription_id: sid }, 'cancel: fallo Stripe');
+            return res.status(500).json({ error: msg });
+          }
         }
 
-        const { error: updateErr } = await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', targetSub.id);
-        if (updateErr) {
+        // (Reglas 1-4) Actualizar local con un RPC atómico (1 transacción BD):
+        // - Todas las live del slot => status=canceled, next_billing_date=NULL
+        // - canceled con next_billing_date!=NULL => next_billing_date=NULL
+        // - Slot => libre
+        const { error: rpcErr } = await supabaseAdmin.rpc('cancel_slot_and_subscriptions_atomic', { p_slot_id: slotId });
+        if (rpcErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
             subscriptionId,
-            local_subscription_id: targetSub.id,
-            error_code: updateErr.code,
-            error_message: updateErr.message,
-          }, 'cancel: falla update local subscriptions');
-          return res.status(500).json({ error: updateErr.message, subscriptionId });
-        }
-
-        // Verificar estado local antes de liberar el slot.
-        const { data: updatedLocal, error: updatedSelErr } = await supabaseAdmin
-          .from('subscriptions')
-          .select('status, slot_id')
-          .eq('id', targetSub.id)
-          .maybeSingle();
-        if (updatedSelErr || !updatedLocal || String(updatedLocal.status).toLowerCase() !== 'canceled') {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            local_subscription_id: targetSub.id,
-            status_after_update: updatedLocal?.status ?? null,
-            error: updatedSelErr?.message ?? null,
-          }, 'cancel: no se confirmó status=canceled en subscriptions');
-          return res.status(500).json({
-            error: 'Error al confirmar cancelación local de la suscripción. No se liberará el slot para evitar inconsistencia.',
-            subscriptionId,
-          });
+            slot_id: slotId,
+            error_code: rpcErr.code,
+            error_message: rpcErr.message,
+          }, 'cancel: fallo RPC cancel_slot_and_subscriptions_atomic');
+          return res.status(500).json({ error: rpcErr.message, subscriptionId });
         }
 
         await logCancel('cancel_local_subscription_updated', 'info', {
           subscriptionId,
-          local_subscription_id: targetSub.id,
-          slot_id: targetSub.slot_id,
-        }, 'cancel: subscriptions actualizado a canceled');
+          slot_id: slotId,
+        }, 'cancel: subscriptions/slots actualizados atómicamente');
 
         const { data: userData } = await supabaseAdmin
           .from('users')
@@ -1208,25 +1179,6 @@ export default async function handler(req: any, res: any) {
           .select('phone_number, plan_type')
           .eq('slot_id', targetSub.slot_id)
           .maybeSingle();
-
-        const { error: slotUpdateErr } = await supabaseAdmin.from('slots').update({
-          assigned_to: null,
-          status: 'libre',
-          plan_type: null,
-          sms_limit: null,
-          label: null,
-          forwarding_active: false,
-        }).eq('slot_id', targetSub.slot_id);
-        if (slotUpdateErr) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            local_subscription_id: targetSub.id,
-            slot_id: targetSub.slot_id,
-            error_code: slotUpdateErr.code,
-            error_message: slotUpdateErr.message,
-          }, 'cancel: falla update slots');
-          return res.status(500).json({ error: slotUpdateErr.message, subscriptionId });
-        }
 
         // Verificar estado del slot antes de marcar éxito.
         const { data: releasedSlot, error: slotSelErr } = await supabaseAdmin
