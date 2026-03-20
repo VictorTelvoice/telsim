@@ -157,6 +157,59 @@ async function persistSubscriptionInvoiceFromWebhook(params: {
   return fullInv;
 }
 
+/** Columnas necesarias para invoice.payment_succeeded + ledger + email. */
+const SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT =
+  'id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency, stripe_session_id, stripe_subscription_id, created_at';
+
+/**
+ * Busca la fila de subscriptions de forma estable:
+ * - Evita `.or(stripe_subscription_id.eq.X,stripe_session_id.eq.X).maybeSingle()` que con 0 o >1 fila rompe (PGRST116 / ambigüedad).
+ * - Prioriza stripe_subscription_id; solo usa stripe_session_id si el id parece cs_* (checkout legacy).
+ */
+async function findSubscriptionRowForInvoicePayment(
+  stripeSubId: string
+): Promise<{
+  data: Record<string, unknown> | null;
+  error: { message: string; code?: string } | null;
+}> {
+  const { data: byStripeSub, error: errStripeSub } = await supabaseAdmin
+    .from('subscriptions')
+    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+    .eq('stripe_subscription_id', stripeSubId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (errStripeSub) {
+    return {
+      data: null,
+      error: { message: errStripeSub.message, code: errStripeSub.code },
+    };
+  }
+  if (byStripeSub) {
+    return { data: byStripeSub as Record<string, unknown>, error: null };
+  }
+
+  if (stripeSubId.startsWith('cs_')) {
+    const { data: bySession, error: errSession } = await supabaseAdmin
+      .from('subscriptions')
+      .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
+      .eq('stripe_session_id', stripeSubId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (errSession) {
+      return {
+        data: null,
+        error: { message: errSession.message, code: errSession.code },
+      };
+    }
+    return { data: (bySession as Record<string, unknown>) ?? null, error: null };
+  }
+
+  return { data: null, error: null };
+}
+
 async function triggerEmail(
   event: string,
   userId: string,
@@ -1394,56 +1447,111 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ received: true });
     }
 
+    let invoicePaymentPhase:
+      | 'subscription_lookup'
+      | 'subscription_patch'
+      | 'invoice_persist'
+      | 'next_billing_update'
+      | 'status_transition'
+      | 'notification_email' = 'subscription_lookup';
+
     try {
-      const { data: sub, error: subLookupErr } = await supabaseAdmin
-        .from('subscriptions')
-        .select(
-          'id, user_id, plan_name, status, slot_id, phone_number, monthly_limit, billing_type, currency, stripe_session_id, stripe_subscription_id'
-        )
-        .or(`stripe_subscription_id.eq.${stripeSubId},stripe_session_id.eq.${stripeSubId}`)
-        .maybeSingle();
+      invoicePaymentPhase = 'subscription_lookup';
+      console.log('[WEBHOOK] invoice.payment_succeeded', {
+        phase: invoicePaymentPhase,
+        stripeSubId,
+        invoice_id: invoice.id,
+        billing_reason: invoice.billing_reason ?? null,
+      });
+
+      const { data: subFound, error: subLookupErr } = await findSubscriptionRowForInvoicePayment(stripeSubId);
 
       if (subLookupErr) {
-        console.error('[WEBHOOK] invoice.payment_succeeded: error lookup subscription', {
+        console.error('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
           message: subLookupErr.message,
           code: subLookupErr.code,
           stripeSubId,
         });
+        await markWebhookFailed(
+          `invoice.payment_succeeded: subscription lookup error (${subLookupErr.code ?? 'n/a'}): ${subLookupErr.message}`,
+          undefined
+        );
+        return res.status(500).json({
+          received: false,
+          error: 'subscription lookup failed',
+          phase: invoicePaymentPhase,
+        });
       }
 
+      const sub = subFound as {
+        id: string;
+        user_id: string;
+        plan_name: string | null;
+        status: string;
+        slot_id: string | null;
+        phone_number: string | null;
+        monthly_limit: number | null;
+        billing_type: string | null;
+        currency: string | null;
+        stripe_session_id?: string | null;
+        stripe_subscription_id?: string | null;
+      } | null;
+
       if (!sub) {
-        console.warn('[WEBHOOK] invoice.payment_succeeded: sin fila en subscriptions (stripe_subscription_id ni stripe_session_id)', {
+        console.warn('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          message: 'sin fila en subscriptions para stripe_subscription_id (ni cs_ en stripe_session_id)',
           stripeSubId,
         });
         await markWebhookFailed(
           'Stripe webhook: subscription not found in Supabase (allow retry)',
           undefined
         );
-        return res.status(500).json({ received: false, error: 'subscription not found' });
+        return res.status(500).json({ received: false, error: 'subscription not found', phase: invoicePaymentPhase });
       }
 
-      const subRow = sub as {
-        id: string;
-        stripe_session_id?: string | null;
-        stripe_subscription_id?: string | null;
-      };
+      const subRow = sub;
       if (
         stripeSubId.startsWith('sub_') &&
         (!subRow.stripe_subscription_id || subRow.stripe_subscription_id !== stripeSubId)
       ) {
-        console.warn('[WEBHOOK] invoice.payment_succeeded: alineando stripe_subscription_id en fila existente', {
+        invoicePaymentPhase = 'subscription_patch';
+        console.warn('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          message: 'alineando stripe_subscription_id en fila existente',
           subscription_id: subRow.id,
           stripeSubId,
         });
-        await supabaseAdmin
+        const { error: alignErr } = await supabaseAdmin
           .from('subscriptions')
           .update({ stripe_subscription_id: stripeSubId })
           .eq('id', subRow.id);
+        if (alignErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            error: alignErr.message,
+            code: alignErr.code,
+          });
+          await markWebhookFailed(`subscription_patch: ${alignErr.message}`, undefined);
+          return res.status(500).json({
+            received: false,
+            error: alignErr.message,
+            phase: invoicePaymentPhase,
+          });
+        }
       }
+
+      invoicePaymentPhase = 'invoice_persist';
+      console.log('[WEBHOOK] invoice.payment_succeeded', {
+        phase: invoicePaymentPhase,
+        invoice_id: invoice.id,
+        subscription_id: sub.id,
+      });
 
       const fullInv = await persistSubscriptionInvoiceFromWebhook({
         invoice,
-        sub: sub as { id: string; user_id: string },
+        sub: { id: sub.id, user_id: sub.user_id },
         stripeSubId,
       });
 
@@ -1530,11 +1638,57 @@ export default async function handler(req: any, res: any) {
         phoneNumber = slotRow?.phone_number ?? '';
       }
 
+      const periodEndMs = (fullInv.period_end ?? invoice.period_end ?? 0) * 1000;
+      const next_date = new Date(periodEndMs).toLocaleDateString('es-CL');
+
+      if (periodEndMs && periodEndMs > 0) {
+        invoicePaymentPhase = 'next_billing_update';
+        console.log('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          subscription_id: sub.id,
+          next_billing_iso: new Date(periodEndMs).toISOString(),
+        });
+        const { error: nbErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update({ next_billing_date: new Date(periodEndMs).toISOString() })
+          .eq('id', sub.id);
+        if (nbErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', { phase: invoicePaymentPhase, error: nbErr.message, code: nbErr.code });
+          await markWebhookFailed(`next_billing_update: ${nbErr.message}`, undefined);
+          return res.status(500).json({
+            received: false,
+            error: nbErr.message,
+            phase: invoicePaymentPhase,
+          });
+        }
+      }
+
+      invoicePaymentPhase = 'status_transition';
+      console.log('[WEBHOOK] invoice.payment_succeeded', {
+        phase: invoicePaymentPhase,
+        subscription_id: sub.id,
+        prior_status: sub.status,
+        billing_reason: invoice.billing_reason ?? null,
+      });
+
       if (sub.status === 'past_due') {
-        await supabaseAdmin
+        const { error: pastDueErr } = await supabaseAdmin
           .from('subscriptions')
           .update({ status: 'active' })
           .eq('id', sub.id);
+        if (pastDueErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            past_due_to_active: pastDueErr.message,
+            code: pastDueErr.code,
+          });
+          await markWebhookFailed(`status_transition past_due→active: ${pastDueErr.message}`, undefined);
+          return res.status(500).json({
+            received: false,
+            error: pastDueErr.message,
+            phase: invoicePaymentPhase,
+          });
+        }
 
         await createNotification(
           sub.user_id,
@@ -1542,17 +1696,33 @@ export default async function handler(req: any, res: any) {
           `El pago de tu plan ${sub.plan_name} fue exitoso. Tu servicio continúa activo.`,
           'success'
         );
-      }
-
-      const periodEndMs = (fullInv.period_end ?? invoice.period_end ?? 0) * 1000;
-      const next_date = new Date(periodEndMs).toLocaleDateString('es-CL');
-
-      if (periodEndMs && periodEndMs > 0) {
-        await supabaseAdmin
+      } else if (sub.status === 'trialing') {
+        const { error: trialErr } = await supabaseAdmin
           .from('subscriptions')
-          .update({ next_billing_date: new Date(periodEndMs).toISOString() })
+          .update({ status: 'active' })
           .eq('id', sub.id);
+        if (trialErr) {
+          console.error('[WEBHOOK] invoice.payment_succeeded', {
+            phase: invoicePaymentPhase,
+            trialing_to_active: trialErr.message,
+            code: trialErr.code,
+          });
+          await markWebhookFailed(`status_transition trialing→active: ${trialErr.message}`, undefined);
+          return res.status(500).json({
+            received: false,
+            error: trialErr.message,
+            phase: invoicePaymentPhase,
+          });
+        }
+        console.log('[WEBHOOK] invoice.payment_succeeded', {
+          phase: invoicePaymentPhase,
+          trialing_to_active: 'ok',
+          subscription_id: sub.id,
+        });
       }
+
+      invoicePaymentPhase = 'notification_email';
+      console.log('[WEBHOOK] invoice.payment_succeeded', { phase: invoicePaymentPhase, user_id: sub.user_id });
 
       const receiptUrl = extractReceiptUrlFromInvoice(fullInv);
       await triggerEmail('invoice_paid', sub.user_id, {
@@ -1570,23 +1740,25 @@ export default async function handler(req: any, res: any) {
         to: invoice.customer_email ?? '',
       });
     } catch (err: any) {
-      console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', err.message);
+      const msg = String(err?.message ?? 'unknown error');
+      console.error('[WEBHOOK ERROR] invoice.payment_succeeded:', {
+        phase: invoicePaymentPhase,
+        message: msg,
+      });
       const stripeSubId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
       await logEvent('WEBHOOK_ERROR', 'error', err?.message, invoice.customer_email ?? undefined, {
         stack: err?.stack,
         context: 'invoice.payment_succeeded',
+        phase: invoicePaymentPhase,
         subscription_id: stripeSubId ?? undefined,
         customer_email: invoice.customer_email ?? undefined,
       }, 'stripe');
-      const msg = String(err?.message ?? '');
-      if (msg.includes('[subscription_invoices]')) {
-        await markWebhookFailed(msg, err?.stack);
-        return res.status(500).json({
-          received: false,
-          error: msg,
-          phase: 'subscription_invoices',
-        });
-      }
+      await markWebhookFailed(`invoice.payment_succeeded (${invoicePaymentPhase}): ${msg}`, err?.stack);
+      return res.status(500).json({
+        received: false,
+        error: msg,
+        phase: invoicePaymentPhase,
+      });
     }
   }
 
