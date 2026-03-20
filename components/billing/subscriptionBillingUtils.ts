@@ -132,6 +132,88 @@ export function subscriptionBadgeClassName(status: string | null | undefined): s
   return BADGE_STYLES[getSubscriptionBadgeVariant(status)];
 }
 
+/** Campos mínimos para ordenar suscripciones en el panel de facturación. */
+export interface SubscriptionSortable {
+  status?: string | null;
+  next_billing_date?: string | null;
+  trial_end?: string | null;
+  created_at: string;
+}
+
+/**
+ * Prioridad de estado para orden de negocio:
+ * active (0) → trialing (1) → past_due (2) → otros no cancelados → canceladas / bucket cancelado al final (100).
+ */
+export function subscriptionBusinessStatusRank(status: string | null | undefined): number {
+  const n = normalizeSubscriptionStatus(status);
+  if (n === 'active') return 0;
+  if (n === 'trialing') return 1;
+  if (n === 'past_due') return 2;
+  if (isCanceledBucketStatus(status)) return 100;
+  return 50;
+}
+
+function billingProximityTimestamp(s: SubscriptionSortable): number | null {
+  const tryParse = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    return Number.isNaN(t) ? null : t;
+  };
+  return tryParse(s.next_billing_date) ?? tryParse(s.trial_end);
+}
+
+/**
+ * Orden de negocio para listas de suscripción en Facturación (documentado para producto / soporte):
+ *
+ * 1. Estados en este orden: **active** → **trialing** → **past_due** → otros no cancelados → **canceladas**
+ *    (si comparten lista con “Todas” u otra vista combinada).
+ * 2. Mismo estado: primero las que tienen **next_billing_date** o **trial_end** válido; entre ellas,
+ *    fecha **ascendente** (cobro / fin de prueba más **próximo** primero).
+ * 3. Sin fecha de cobro ni trial_end: **created_at** descendente (alta más reciente primero).
+ */
+export function compareSubscriptionsBusinessOrder(a: SubscriptionSortable, b: SubscriptionSortable): number {
+  const ra = subscriptionBusinessStatusRank(a.status);
+  const rb = subscriptionBusinessStatusRank(b.status);
+  if (ra !== rb) return ra - rb;
+
+  const ta = billingProximityTimestamp(a);
+  const tb = billingProximityTimestamp(b);
+  const aHas = ta != null;
+  const bHas = tb != null;
+  if (aHas && bHas && ta !== tb) return (ta as number) - (tb as number);
+  if (aHas && !bHas) return -1;
+  if (!aHas && bHas) return 1;
+
+  const ca = new Date(a.created_at).getTime();
+  const cb = new Date(b.created_at).getTime();
+  if (Number.isNaN(ca) && Number.isNaN(cb)) return 0;
+  if (Number.isNaN(ca)) return 1;
+  if (Number.isNaN(cb)) return -1;
+  return cb - ca;
+}
+
+export function sortSubscriptionsBusinessOrder<T extends SubscriptionSortable>(subs: T[]): T[] {
+  return [...subs].sort(compareSubscriptionsBusinessOrder);
+}
+
+/** Futuro selector de orden; hoy el panel persiste `business` por defecto. */
+export function sortSubscriptionsByPreference<T extends SubscriptionSortable>(
+  subs: T[],
+  mode: 'business' | 'created_desc'
+): T[] {
+  if (mode === 'created_desc') {
+    return [...subs].sort((a, b) => {
+      const ca = new Date(a.created_at).getTime();
+      const cb = new Date(b.created_at).getTime();
+      if (Number.isNaN(ca) && Number.isNaN(cb)) return 0;
+      if (Number.isNaN(ca)) return 1;
+      if (Number.isNaN(cb)) return -1;
+      return cb - ca;
+    });
+  }
+  return sortSubscriptionsBusinessOrder(subs);
+}
+
 const STRIP_INVISIBLE = /[\u200B-\u200D\uFEFF]/g;
 
 /**

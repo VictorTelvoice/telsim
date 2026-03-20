@@ -17,6 +17,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
+  BILLING_PAGE_INITIAL,
+  BILLING_PAGE_STEP,
+  loadBillingPanelPreferences,
+  persistBillingPanelPreferences,
+} from './billingPanelPreferences';
+import {
   dedupeLatestSubscriptionPerLine,
   formatCurrencyAmount,
   getSubscriptionBadgeLabel,
@@ -25,6 +31,7 @@ import {
   isStrictKpiActiveStatus,
   isTodasTabStatus,
   normalizeSubscriptionStatus,
+  sortSubscriptionsByPreference,
   subscriptionBadgeClassName,
 } from './subscriptionBillingUtils';
 
@@ -238,14 +245,30 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const [loading, setLoading] = useState(true);
   const [loadingPM, setLoadingPM] = useState(true);
-  const [loadingInvoices, setLoadingInvoices] = useState(true);
+  /** Solo afecta al historial de invoices / cards de facturas; no bloquea el panel inicial. */
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [invoicesReady, setInvoicesReady] = useState(false);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
   type SubscriptionFilterTab = 'activas' | 'trialing' | 'todas';
-  const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>('activas');
-  const [billingHistoryOpen, setBillingHistoryOpen] = useState(false);
-  /** Suscripciones terminadas: sección secundaria, colapsada por defecto. */
-  const [canceledSectionOpen, setCanceledSectionOpen] = useState(false);
+
+  const [bootPrefs] = useState(() => loadBillingPanelPreferences());
+  const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>(bootPrefs.subscriptionFilter);
+  const [billingHistoryOpen, setBillingHistoryOpen] = useState(bootPrefs.billingHistoryOpen);
+  /** Suscripciones terminadas: sección secundaria (persistida). */
+  const [canceledSectionOpen, setCanceledSectionOpen] = useState(bootPrefs.canceledSectionOpen);
+  /** Tope de cards visibles en la pestaña principal (persistido). */
+  const [subscriptionVisibleCount, setSubscriptionVisibleCount] = useState(bootPrefs.subscriptionVisibleCount);
+  /** Paginación en “terminadas” (persistida). */
+  const [canceledVisibleCount, setCanceledVisibleCount] = useState(bootPrefs.canceledVisibleCount);
+  /** Paginación del grid de historial de invoices tras expandir (persistida). */
+  const [invoiceHistoryVisibleCount, setInvoiceHistoryVisibleCount] = useState(
+    bootPrefs.invoiceHistoryVisibleCount
+  );
+  /** Reservado para futuro selector; hoy solo `business`. */
+  const [subscriptionSortMode] = useState<'business' | 'created_desc'>(bootPrefs.subscriptionSort);
+
+  const invoiceFetchPhaseRef = useRef<'idle' | 'loading' | 'done'>('idle');
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
@@ -292,6 +315,14 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     return subscriptionsDedupedByLine.filter((s) => isTodasTabStatus(s.status));
   }, [subscriptionsDedupedByLine, subscriptionFilter]);
 
+  /**
+   * Lista filtrada ordenada por negocio (ver `sortSubscriptionsByPreference` / JSDoc en util).
+   */
+  const sortedDisplayedSubscriptions = useMemo(
+    () => sortSubscriptionsByPreference(displayedSubscriptions, subscriptionSortMode),
+    [displayedSubscriptions, subscriptionSortMode]
+  );
+
   const subscriptionFilterCounts = useMemo(() => {
     const dl = subscriptionsDedupedByLine;
     return {
@@ -303,10 +334,100 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   /** Terminadas / no vigentes: una fila por línea (evita conteo 120 vs 47 por duplicados históricos). */
   const canceledSubscriptionsDeduped = useMemo(() => {
-    return subscriptionsDedupedByLine
-      .filter((s) => isCanceledBucketStatus(s.status))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return subscriptionsDedupedByLine.filter((s) => isCanceledBucketStatus(s.status));
   }, [subscriptionsDedupedByLine]);
+
+  const sortedCanceledSubscriptions = useMemo(
+    () => sortSubscriptionsByPreference(canceledSubscriptionsDeduped, subscriptionSortMode),
+    [canceledSubscriptionsDeduped, subscriptionSortMode]
+  );
+
+  /** Cards mostradas en la pestaña principal (paginación incremental). */
+  const paginatedMainSubscriptions = useMemo(() => {
+    const total = sortedDisplayedSubscriptions.length;
+    if (total === 0) return [];
+    const cap = Math.min(Math.max(subscriptionVisibleCount, BILLING_PAGE_INITIAL), total);
+    return sortedDisplayedSubscriptions.slice(0, cap);
+  }, [sortedDisplayedSubscriptions, subscriptionVisibleCount]);
+
+  const paginatedCanceledSubscriptions = useMemo(() => {
+    const total = sortedCanceledSubscriptions.length;
+    if (total === 0) return [];
+    const cap = Math.min(Math.max(canceledVisibleCount, BILLING_PAGE_INITIAL), total);
+    return sortedCanceledSubscriptions.slice(0, cap);
+  }, [sortedCanceledSubscriptions, canceledVisibleCount]);
+
+  const canLoadMoreMain =
+    sortedDisplayedSubscriptions.length > paginatedMainSubscriptions.length;
+  const canLoadMoreCanceled =
+    sortedCanceledSubscriptions.length > paginatedCanceledSubscriptions.length;
+
+  const paginatedInvoiceRows = useMemo(() => {
+    const total = invoices.length;
+    if (total === 0) return [];
+    const cap = Math.min(Math.max(invoiceHistoryVisibleCount, BILLING_PAGE_INITIAL), total);
+    return invoices.slice(0, cap);
+  }, [invoices, invoiceHistoryVisibleCount]);
+
+  const canLoadMoreInvoices = invoices.length > paginatedInvoiceRows.length;
+
+  /** Ajusta el tope visible al total real al cambiar filtros o datos. */
+  useEffect(() => {
+    const n = sortedDisplayedSubscriptions.length;
+    setSubscriptionVisibleCount((prev) => {
+      if (n === 0) return prev;
+      return Math.min(Math.max(prev, BILLING_PAGE_INITIAL), n);
+    });
+  }, [sortedDisplayedSubscriptions.length, subscriptionFilter]);
+
+  useEffect(() => {
+    const n = sortedCanceledSubscriptions.length;
+    setCanceledVisibleCount((prev) => {
+      if (n === 0) return prev;
+      return Math.min(Math.max(prev, BILLING_PAGE_INITIAL), n);
+    });
+  }, [sortedCanceledSubscriptions.length]);
+
+  useEffect(() => {
+    const n = invoices.length;
+    setInvoiceHistoryVisibleCount((prev) => {
+      if (n === 0) return prev;
+      return Math.min(Math.max(prev, BILLING_PAGE_INITIAL), n);
+    });
+  }, [invoices.length]);
+
+  useEffect(() => {
+    persistBillingPanelPreferences({
+      subscriptionFilter,
+      subscriptionVisibleCount,
+      canceledVisibleCount,
+      invoiceHistoryVisibleCount,
+      billingHistoryOpen,
+      canceledSectionOpen,
+      subscriptionSort: subscriptionSortMode,
+    });
+  }, [
+    subscriptionFilter,
+    subscriptionVisibleCount,
+    canceledVisibleCount,
+    invoiceHistoryVisibleCount,
+    billingHistoryOpen,
+    canceledSectionOpen,
+    subscriptionSortMode,
+  ]);
+
+  const prevBillingUserIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const id = user?.id;
+    if (id === prevBillingUserIdRef.current) return;
+    const previous = prevBillingUserIdRef.current;
+    prevBillingUserIdRef.current = id;
+    if (previous !== undefined && previous !== id) {
+      invoiceFetchPhaseRef.current = 'idle';
+      setInvoices([]);
+      setInvoicesReady(false);
+    }
+  }, [user?.id]);
 
   const planNameByStripeSubscriptionId = useMemo(() => {
     const m = new Map<string, string>();
@@ -418,27 +539,41 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     }
   };
 
-  const fetchInvoices = async (userId: string, signal: AbortSignal, alive: { current: boolean }) => {
-    setLoadingInvoices(true);
-    try {
-      const response = await fetch('/api/manage', {
-        method: 'POST',
-        headers: manageAuthHeaders,
-        body: JSON.stringify({ action: 'invoice-history', userId, limit: 50 }),
-        signal,
-      });
-      const data = await response.json();
-      if (!alive.current) return;
-      setInvoices((data?.invoices ?? []) as InvoiceRow[]);
-    } catch (err: any) {
-      if (!alive.current) return;
-      if (err?.name === 'AbortError') return;
-      console.error('Error fetching invoice history:', err);
-    } finally {
-      if (!alive.current) return;
-      setLoadingInvoices(false);
-    }
-  };
+  const fetchInvoices = useCallback(
+    async (userId: string, signal: AbortSignal, alive: { current: boolean }) => {
+      if (invoiceFetchPhaseRef.current === 'loading' || invoiceFetchPhaseRef.current === 'done') return;
+      invoiceFetchPhaseRef.current = 'loading';
+      setLoadingInvoices(true);
+      try {
+        const response = await fetch('/api/manage', {
+          method: 'POST',
+          headers: manageAuthHeaders,
+          body: JSON.stringify({ action: 'invoice-history', userId, limit: 50 }),
+          signal,
+        });
+        const data = await response.json();
+        if (!alive.current) return;
+        setInvoices((data?.invoices ?? []) as InvoiceRow[]);
+        invoiceFetchPhaseRef.current = 'done';
+        setInvoicesReady(true);
+      } catch (err: any) {
+        if (!alive.current) return;
+        if (err?.name === 'AbortError') {
+          invoiceFetchPhaseRef.current = 'idle';
+          return;
+        }
+        console.error('Error fetching invoice history:', err);
+        invoiceFetchPhaseRef.current = 'idle';
+        setInvoicesReady(true);
+      } finally {
+        if (!alive.current && invoiceFetchPhaseRef.current === 'loading') {
+          invoiceFetchPhaseRef.current = 'idle';
+        }
+        setLoadingInvoices(false);
+      }
+    },
+    [manageAuthHeaders]
+  );
 
   useEffect(() => {
     const userId = user?.id;
@@ -449,7 +584,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
     void fetchSubscriptions(userId, controller.signal, reqId, alive);
     void fetchPaymentMethod(userId, controller.signal, alive);
-    void fetchInvoices(userId, controller.signal, alive);
 
     return () => {
       alive.current = false;
@@ -460,6 +594,27 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       }
     };
   }, [user?.id, manageAuthHeaders]);
+
+  /** Facturas: un solo fetch bajo demanda (expandir historial, modal o sección terminadas). */
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId) return;
+    if (!billingHistoryOpen && !selectedSub && !canceledSectionOpen) return;
+    if (invoiceFetchPhaseRef.current === 'done') return;
+
+    const controller = new AbortController();
+    const alive = { current: true };
+    void fetchInvoices(userId, controller.signal, alive);
+
+    return () => {
+      alive.current = false;
+      try {
+        controller.abort();
+      } catch {
+        /* noop */
+      }
+    };
+  }, [user?.id, billingHistoryOpen, selectedSub, canceledSectionOpen, fetchInvoices]);
 
   const mergeResolvedInvoice = useCallback((updated: InvoiceRow) => {
     setInvoices((prev) => prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i)));
@@ -554,7 +709,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     });
   };
 
-  if (loading || loadingPM || loadingInvoices) {
+  if (loading || loadingPM) {
     return (
       <div
         className={
@@ -703,14 +858,14 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                   </button>
                 );
               })}
-            </div>
+            </div>          
             <span className="text-[9px] font-black bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full uppercase dark:bg-slate-700 dark:text-slate-200">
-              {displayedSubscriptions.length} en vista
+              {paginatedMainSubscriptions.length} de {sortedDisplayedSubscriptions.length} en vista
             </span>
           </div>
         </div>
 
-        {displayedSubscriptions.length === 0 ? (
+        {sortedDisplayedSubscriptions.length === 0 ? (
           <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-400 italic">
               {subscriptionFilter === 'activas' && t('billing.no_services')}
@@ -719,8 +874,9 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             </p>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {displayedSubscriptions.map((sub) => {
+            {paginatedMainSubscriptions.map((sub) => {
               const subInvoices = sub.stripe_subscription_id
                 ? invoicesByStripeSubscription.get(sub.stripe_subscription_id) || []
                 : [];
@@ -809,6 +965,22 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
               );
             })}
           </div>
+          {canLoadMoreMain ? (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-[11px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors w-full sm:w-auto min-h-[44px]"
+                onClick={() =>
+                  setSubscriptionVisibleCount((c) =>
+                    Math.min(c + BILLING_PAGE_STEP, sortedDisplayedSubscriptions.length)
+                  )
+                }
+              >
+                Ver más ({BILLING_PAGE_STEP} más)
+              </button>
+            </div>
+          ) : null}
+          </>
         )}
 
         {canceledSubscriptionsDeduped.length > 0 ? (
@@ -836,8 +1008,9 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             </button>
 
             {canceledSectionOpen ? (
+              <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {canceledSubscriptionsDeduped.map((sub) => {
+                {paginatedCanceledSubscriptions.map((sub) => {
                   const subInvoices = sub.stripe_subscription_id
                     ? invoicesByStripeSubscription.get(sub.stripe_subscription_id) || []
                     : [];
@@ -913,6 +1086,22 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                   );
                 })}
               </div>
+              {canLoadMoreCanceled ? (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-[11px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors w-full sm:w-auto min-h-[44px]"
+                    onClick={() =>
+                      setCanceledVisibleCount((c) =>
+                        Math.min(c + BILLING_PAGE_STEP, sortedCanceledSubscriptions.length)
+                      )
+                    }
+                  >
+                    Ver más terminadas ({BILLING_PAGE_STEP})
+                  </button>
+                </div>
+              ) : null}
+              </>
             ) : null}
           </div>
         ) : null}
@@ -935,7 +1124,10 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                 Historial de facturación
               </span>
               <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                {invoices.length} factura{invoices.length === 1 ? '' : 's'} ·{' '}
+                {invoicesReady
+                  ? `${invoices.length} factura${invoices.length === 1 ? '' : 's'}`
+                  : 'Las facturas se cargan al abrir (más rápido al entrar)'}
+                {' · '}
                 {billingHistoryOpen ? 'Ocultar historial' : 'Ver historial'}
               </span>
             </div>
@@ -950,66 +1142,86 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         </button>
 
         {billingHistoryOpen &&
-          (invoices.length === 0 ? (
+          (loadingInvoices && !invoicesReady ? (
+            <div className="py-14 flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+              <RefreshCw className="size-7 text-primary animate-spin" aria-hidden />
+              <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Cargando historial…</p>
+            </div>
+          ) : invoices.length === 0 ? (
             <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
               <p className="text-xs font-bold text-slate-400 italic">No hay facturas disponibles.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {invoices.map((inv) => {
-                const planLabel =
-                  (inv.subscription_id && planNameByStripeSubscriptionId.get(inv.subscription_id)) || '—';
-                return (
-                  <div
-                    key={inv.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 min-w-0"
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {paginatedInvoiceRows.map((inv) => {
+                  const planLabel =
+                    (inv.subscription_id && planNameByStripeSubscriptionId.get(inv.subscription_id)) || '—';
+                  return (
+                    <div
+                      key={inv.id}
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 min-w-0"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-900 dark:text-white truncate">
+                            {inv.number || inv.id}
+                          </p>
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                            {formatFriendlyDate(inv.created)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {inv.status || '—'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[12px]">
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                          <p className="text-[10px] uppercase font-black text-slate-400">Plan</p>
+                          <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{planLabel}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                          <p className="text-[10px] uppercase font-black text-slate-400">Monto</p>
+                          <p className="font-bold text-slate-700 dark:text-slate-200">
+                            {formatCurrency(
+                              (inv.amount_paid || inv.total || inv.amount_due || 0) / 100,
+                              inv.currency || 'USD'
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
+
+                      <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">
+                          Documento (Stripe)
+                        </p>
+                        <InvoicePrimaryAccess
+                          inv={inv}
+                          resolving={resolvingInvoiceId === inv.id}
+                          onResolve={() => resolveInvoiceUrls(inv.id)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {canLoadMoreInvoices ? (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-[11px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors w-full sm:w-auto min-h-[44px]"
+                    onClick={() =>
+                      setInvoiceHistoryVisibleCount((c) => Math.min(c + BILLING_PAGE_STEP, invoices.length))
+                    }
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-900 dark:text-white truncate">
-                          {inv.number || inv.id}
-                        </p>
-                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                          {formatFriendlyDate(inv.created)}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {inv.status || '—'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[12px]">
-                      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
-                        <p className="text-[10px] uppercase font-black text-slate-400">Plan</p>
-                        <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{planLabel}</p>
-                      </div>
-                      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
-                        <p className="text-[10px] uppercase font-black text-slate-400">Monto</p>
-                        <p className="font-bold text-slate-700 dark:text-slate-200">
-                          {formatCurrency(
-                            (inv.amount_paid || inv.total || inv.amount_due || 0) / 100,
-                            inv.currency || 'USD'
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <InvoiceFiscalSummary inv={inv} formatCurrency={formatCurrency} />
-
-                    <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">
-                        Documento (Stripe)
-                      </p>
-                      <InvoicePrimaryAccess
-                        inv={inv}
-                        resolving={resolvingInvoiceId === inv.id}
-                        onResolve={() => resolveInvoiceUrls(inv.id)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    Ver más facturas ({BILLING_PAGE_STEP})
+                  </button>
+                </div>
+              ) : null}
+            </>
           ))}
       </section>
     </main>
@@ -1076,6 +1288,14 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         </div>
         {selectedSub.stripe_subscription_id &&
           (() => {
+            if (loadingInvoices && !invoicesReady) {
+              return (
+                <div className="mt-4 flex flex-col items-center gap-2 py-6 text-slate-500">
+                  <Loader2 className="size-6 animate-spin text-primary" aria-hidden />
+                  <p className="text-[11px] font-bold">Cargando facturas…</p>
+                </div>
+              );
+            }
             const subs =
               invoicesByStripeSubscription.get(selectedSub.stripe_subscription_id!) || [];
             const li = subs[0];
