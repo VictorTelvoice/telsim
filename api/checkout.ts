@@ -13,6 +13,7 @@ import {
   applySlotCountryFilter,
   isSupportedOnboardingCountryCode,
 } from './_helpers/slotCountryMapping.js';
+import { monthlySmsLimitForPlan } from './_helpers/subscriptionPlanLimits.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
@@ -219,9 +220,15 @@ export default async function handler(req: any, res: any) {
             }
 
             if (freeSlot) {
+              const oneClickSmsLimit = monthlySmsLimitForPlan(planName, monthlyLimit);
               const { error: oneClickOccupyErr } = await supabaseAdmin
                 .from('slots')
-                .update({ status: 'ocupado', assigned_to: userId, plan_type: planName })
+                .update({
+                  status: 'ocupado',
+                  assigned_to: userId,
+                  plan_type: planName,
+                  sms_limit: oneClickSmsLimit,
+                })
                 .eq('slot_id', freeSlot.slot_id);
               if (oneClickOccupyErr) {
                 console.error('[CHECKOUT][slots] one-click UPDATE ocupado failed:', {
@@ -261,7 +268,7 @@ export default async function handler(req: any, res: any) {
                 .from('subscriptions')
                 .insert({
                   user_id: userId, slot_id: freeSlot.slot_id, phone_number: freeSlot.phone_number,
-                  plan_name: planName, monthly_limit: monthlyLimit, credits_used: 0,
+                  plan_name: planName, monthly_limit: oneClickSmsLimit, credits_used: 0,
                   status: stripeSub.status === 'trialing' ? 'trialing' : 'active',
                   /* No hay Checkout Session (cs_): solo suscripción creada vía API */
                   stripe_session_id: null,
@@ -395,6 +402,7 @@ export default async function handler(req: any, res: any) {
 
         const reservationTokenCandidate = crypto.randomBytes(16).toString('hex');
         const expiresAtIso = new Date(nowMs + RESERVATION_TTL_MS).toISOString();
+        const reserveSmsLimit = monthlySmsLimitForPlan(planName, monthlyLimit);
 
         // Atomic-ish: aseguramos que el slot no cambie entre "select" y "update" con condición de estado.
         let updateQ: any = supabaseAdmin
@@ -407,6 +415,7 @@ export default async function handler(req: any, res: any) {
             reservation_stripe_session_id: null,
             assigned_to: null,
             plan_type: planName,
+            sms_limit: reserveSmsLimit,
           })
           .eq('slot_id', slotToReserve.slot_id)
           .eq('status', candidateStatus);
@@ -502,7 +511,8 @@ export default async function handler(req: any, res: any) {
 
     // Asociamos el checkout session id a la reserva (para validación fuerte).
     if (!isUpgrade) {
-      const tokenToWrite = (sessionConfig.metadata.reservation_token || '') as string;
+      const meta = sessionConfig.metadata as Record<string, string>;
+      const tokenToWrite = (meta.reservation_token || '') as string;
       await supabaseAdmin
         .from('slots')
         .update({ reservation_stripe_session_id: session.id })

@@ -80,7 +80,7 @@ function mapStripeInvoiceToRow(inv: Stripe.Invoice, dbRow?: Record<string, unkno
     subscription_id,
     hosted_invoice_url: inv.hosted_invoice_url ?? (dbRow?.hosted_invoice_url as string) ?? null,
     invoice_pdf: inv.invoice_pdf ?? (dbRow?.invoice_pdf as string) ?? null,
-    receipt_url: receiptUrl || (dbRow?.receipt_url as string) ?? null,
+    receipt_url: receiptUrl || ((dbRow?.receipt_url as string) ?? null),
     subtotal_cents: subtotalStripe || subDb || 0,
     tax_cents: taxFromStripe || taxDb || 0,
     total_cents: totalStripe || totalDb || 0,
@@ -942,24 +942,35 @@ export default async function handler(req: any, res: any) {
       case 'cancel': {
         const { subscriptionId } = req.body;
         if (!subscriptionId) return res.status(400).json({ error: 'Missing subscriptionId' });
-        try {
-          await stripe.subscriptions.cancel(subscriptionId);
-        } catch (err: any) {
-          const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
-          return res.status(500).json({ error: msg });
-        }
 
         const { data: sub } = await supabaseAdmin
           .from('subscriptions')
-          .select('id, user_id, slot_id, plan_name')
+          .select('id, user_id, slot_id, plan_name, status')
           .eq('stripe_subscription_id', subscriptionId)
           .maybeSingle();
 
         if (!sub?.id) {
           return res.status(404).json({
-            error: 'Suscripción no encontrada en el sistema',
+            error:
+              'No hay suscripción local viva vinculada a este ID de Stripe. No se llamó a Stripe para evitar estado inconsistente.',
             subscriptionId,
           });
+        }
+
+        const localStatus = String((sub as { status?: string }).status ?? '').toLowerCase();
+        if (localStatus !== 'active' && localStatus !== 'trialing') {
+          return res.status(409).json({
+            error: 'La suscripción local no está activa ni en periodo de prueba; no se puede cancelar de nuevo.',
+            subscriptionId,
+            status: (sub as { status?: string }).status ?? null,
+          });
+        }
+
+        try {
+          await stripe.subscriptions.cancel(subscriptionId);
+        } catch (err: any) {
+          const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
+          return res.status(500).json({ error: msg });
         }
 
         await supabaseAdmin.from('subscriptions').update({ status: 'canceled' }).eq('id', sub.id);
@@ -978,7 +989,7 @@ export default async function handler(req: any, res: any) {
             .from('subscriptions')
             .select('id')
             .eq('slot_id', sub.slot_id)
-            .in('status', ['active', 'trialing'])
+            .in('status', ['active', 'trialing', 'past_due'])
             .neq('id', sub.id)
             .maybeSingle();
 
@@ -987,6 +998,7 @@ export default async function handler(req: any, res: any) {
               assigned_to: null,
               status: 'libre',
               plan_type: null,
+              sms_limit: null,
               label: null,
               forwarding_active: false,
             }).eq('slot_id', sub.slot_id);

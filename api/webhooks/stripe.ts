@@ -11,6 +11,7 @@ import {
   isSupportedOnboardingCountryCode,
   slotCountryMatchesOnboardingIso,
 } from '../_helpers/slotCountryMapping.js';
+import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -224,7 +225,7 @@ async function extractInvoiceLinkageHints(
 
 /**
  * Lookup principal: stripe_subscription_id estable; checkout legacy cs_* por stripe_session_id.
- * No devuelve filas canceladas: esas no son el vínculo operativo para un pago nuevo (→ fallback/recovery).
+ * No devuelve filas canceladas: esas no son el vínculo operativo para un pago nuevo (→ fallback sin INSERT).
  */
 async function findSubscriptionRowByStripeSubscriptionId(stripeSubId: string): Promise<{
   data: Record<string, unknown> | null;
@@ -384,217 +385,6 @@ async function listSubscriptionRowsByUserAndPhone(
   const list = (rows ?? []) as Record<string, unknown>[];
   const matches = list.filter((r) => digitsOnly(String(r.phone_number ?? '')) === hintDigits);
   return { data: matches, error: null };
-}
-
-const RECOVERY_PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
-
-/** Ventana solo para auditar checkout “stale” vs recovery en subscription_create (no desbloquea ciclos). */
-const STALE_CHECKOUT_AUDIT_HOURS = 72;
-
-/**
- * Antes de recovery insert en subscription_create: el slot debe ser del usuario (assigned_to vacío o igual).
- * Falso positivo histórico: hasRecentCheckoutOrReservationEvidence devolvía true en ciclos porque
- * cualquier fila subscriptions reciente (cs_*) para user_id+slot_id dentro de 72h activaba recovery
- * incluso en subscription_cycle (renovaciones de Test con metadata), sin garantizar que fuera “esta” compra.
- */
-async function slotOwnershipAllowsRecoveryInsert(
-  userId: string,
-  slotId: string
-): Promise<boolean> {
-  const sid = slotId.trim();
-  const { data: slotRow, error } = await supabaseAdmin
-    .from('slots')
-    .select('assigned_to')
-    .eq('slot_id', sid)
-    .maybeSingle();
-
-  if (error || !slotRow) {
-    return true;
-  }
-  const assigned = slotRow.assigned_to != null ? String(slotRow.assigned_to).trim() : '';
-  if (assigned === '' || assigned === String(userId)) {
-    return true;
-  }
-  console.warn('[WEBHOOK] invoice.payment_succeeded', {
-    log_event: 'evidence_rejected_wrong_slot',
-    user_id: userId,
-    slot_id: sid,
-    slot_assigned_to: assigned,
-  });
-  return false;
-}
-
-/** Audita si existe checkout (cs_*) antiguo para el par user+slot (solo log; no aplica a subscription_cycle). */
-async function logStaleCheckoutAuditIfPresent(userId: string, slotId: string): Promise<void> {
-  const sid = slotId.trim();
-  const staleBeforeIso = new Date(Date.now() - STALE_CHECKOUT_AUDIT_HOURS * 60 * 60 * 1000).toISOString();
-  const { data: staleRow } = await supabaseAdmin
-    .from('subscriptions')
-    .select('id, stripe_session_id, created_at')
-    .eq('user_id', userId)
-    .eq('slot_id', sid)
-    .not('stripe_session_id', 'is', null)
-    .like('stripe_session_id', 'cs_%')
-    .lt('created_at', staleBeforeIso)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (staleRow?.id) {
-    console.warn('[WEBHOOK] invoice.payment_succeeded', {
-      log_event: 'evidence_rejected_stale_checkout',
-      user_id: userId,
-      slot_id: sid,
-      subscription_id: staleRow.id,
-      stripe_session_id: staleRow.stripe_session_id ?? null,
-      created_at: staleRow.created_at ?? null,
-      stale_before_iso: staleBeforeIso,
-    });
-  }
-}
-
-/** Nueva fila subscriptions cuando solo hay historial cancelado y el pago es de un sub_ nuevo (no tocar filas canceled). */
-async function insertSubscriptionRecoveryFromInvoice(params: {
-  userId: string;
-  slotId: string;
-  phoneNumber: string | null | undefined;
-  stripeSubId: string;
-  invoice: Stripe.Invoice;
-  templateRow: Record<string, unknown> | null;
-  recovery_insert_reason: string;
-  source_event_type: string;
-}): Promise<{ data: Record<string, unknown> | null; error: { message: string; code?: string } | null }> {
-  const { userId, slotId, phoneNumber, stripeSubId, invoice, templateRow, recovery_insert_reason, source_event_type } =
-    params;
-
-  // Política dura: solo subscription_create puede materializar una fila nueva mediante recovery insert.
-  if (invoice.billing_reason !== 'subscription_create') {
-    console.error('[WEBHOOK] forbidden_recovery_insert_non_create', {
-      log_event: 'forbidden_recovery_insert_non_create',
-      billing_reason: invoice.billing_reason ?? null,
-      source_event_type,
-      stripe_subscription_id: stripeSubId,
-      slot_id: slotId ?? null,
-      user_id: userId ?? null,
-      phone_number: phoneNumber ? String(phoneNumber).trim() : null,
-      recovery_insert_reason,
-    });
-
-    return {
-      data: null,
-      error: {
-        message: `recovery insert forbidden for billing_reason=${invoice.billing_reason ?? 'null'}`,
-        code: 'FORBIDDEN_RECOVERY_INSERT_NON_CREATE',
-      },
-    };
-  }
-
-  const periodEndSec = invoice.period_end ?? invoice.lines?.data?.[0]?.period?.end ?? null;
-  let nextBillingIso =
-    periodEndSec != null && periodEndSec > 0
-      ? new Date(Number(periodEndSec) * 1000).toISOString()
-      : new Date().toISOString();
-
-  let billingType: 'annual' | 'monthly' =
-    String(templateRow?.billing_type ?? '') === 'annual' ? 'annual' : 'monthly';
-  let amount =
-    typeof templateRow?.amount === 'number' ? templateRow.amount : 0;
-  let planName =
-    (typeof templateRow?.plan_name === 'string' && templateRow.plan_name.trim() !== ''
-      ? templateRow.plan_name
-      : null) || 'Starter';
-  let monthlyLimit =
-    typeof templateRow?.monthly_limit === 'number' ? templateRow.monthly_limit : RECOVERY_PLAN_LIMITS[planName] ?? 150;
-  let currency = String(invoice.currency ?? templateRow?.currency ?? 'usd').toLowerCase();
-
-  try {
-    const stSub = await stripe.subscriptions.retrieve(stripeSubId, {
-      expand: ['items.data.price.product'],
-    });
-    const price = stSub.items.data[0]?.price as Stripe.Price | undefined;
-    const product = price?.product;
-    if (price?.recurring?.interval === 'year') billingType = 'annual';
-    else if (price?.recurring?.interval === 'month') billingType = 'monthly';
-    if (price?.unit_amount != null) amount = price.unit_amount / 100;
-    if (product && typeof product === 'object' && 'name' in product) {
-      const n = String((product as Stripe.Product).name ?? '');
-      if (n.includes('Power')) planName = 'Power';
-      else if (n.includes('Pro')) planName = 'Pro';
-      else if (n.includes('Starter')) planName = 'Starter';
-    }
-    monthlyLimit = RECOVERY_PLAN_LIMITS[planName] ?? monthlyLimit;
-    if (stSub.current_period_end) {
-      nextBillingIso = new Date(stSub.current_period_end * 1000).toISOString();
-    }
-  } catch (e: any) {
-    console.warn('[WEBHOOK] recovery insert: subscription.retrieve failed', stripeSubId, e?.message);
-  }
-
-  const phoneResolved =
-    (phoneNumber && String(phoneNumber).trim()) ||
-    (typeof templateRow?.phone_number === 'string' ? templateRow.phone_number.trim() : '') ||
-    null;
-
-  const insertPayload = {
-    user_id: userId,
-    slot_id: slotId,
-    phone_number: phoneResolved || null,
-    plan_name: planName,
-    monthly_limit: monthlyLimit,
-    status: 'active' as const,
-    stripe_session_id: null as string | null,
-    stripe_subscription_id: stripeSubId,
-    trial_end: null as string | null,
-    amount,
-    billing_type: billingType,
-    currency,
-    next_billing_date: nextBillingIso,
-    activation_state: 'on_air' as const,
-    created_at: new Date().toISOString(),
-  };
-
-  const { data: inserted, error: insertErr } = await supabaseAdmin
-    .from('subscriptions')
-    .insert(insertPayload)
-    .select(SUBSCRIPTION_ROW_FOR_INVOICE_PAYMENT)
-    .single();
-
-  if (insertErr) {
-    console.error('[WEBHOOK] invoice.payment_succeeded', {
-      phase: 'recovery_insert',
-      recovery_insert_from_invoice: false,
-      recovery_insert_reason,
-      source_event_type,
-      billing_reason: invoice.billing_reason ?? null,
-      stripe_subscription_id: stripeSubId,
-      slot_id: slotId,
-      user_id: userId,
-      phone_number: phoneResolved || null,
-      error: insertErr.message,
-      code: insertErr.code,
-    });
-    return {
-      data: null,
-      error: { message: insertErr.message, code: insertErr.code },
-    };
-  }
-
-  console.warn('[WEBHOOK] invoice.payment_succeeded', {
-    phase: 'recovery_insert',
-    recovery_insert_from_invoice: true,
-    recovery_insert_reason,
-    source_event_type,
-    billing_reason: invoice.billing_reason ?? null,
-    stripe_subscription_id: stripeSubId,
-    slot_id: slotId,
-    user_id: userId,
-    phone_number: phoneResolved || null,
-  });
-
-  return {
-    data: (inserted as Record<string, unknown>) ?? null,
-    error: null,
-  };
 }
 
 async function triggerEmail(
@@ -868,23 +658,22 @@ export default async function handler(req: any, res: any) {
           .eq('stripe_subscription_id', oldSub.stripe_subscription_id);
       }
 
-      const PLAN_LIMITS: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
-      const SMS_BY_PLAN: Record<string, number> = { Starter: 150, Pro: 400, Power: 1400 };
-
       // Monto y billing desde el price de Stripe (no session.amount_total que puede ser 0)
       const newSub = await stripe.subscriptions.retrieve(newSubId, { expand: ['items.data.price'] });
       const firstPrice = newSub.items.data[0]?.price;
       const amount = (firstPrice?.unit_amount ?? 0) / 100;
       const billingTypeFromStripe = firstPrice?.recurring?.interval === 'year' ? 'annual' : 'monthly';
+      const upgradeMonthlyLimit = monthlySmsLimitForPlan(upgradeMeta.new_plan_name, null);
 
       await supabaseAdmin.from('subscriptions').insert({
         user_id: upgradeMeta.user_id,
         slot_id: upgradeMeta.slot_id,
         stripe_subscription_id: newSubId,
         plan_name: upgradeMeta.new_plan_name,
-        monthly_limit: PLAN_LIMITS[upgradeMeta.new_plan_name as string] ?? 150,
+        monthly_limit: upgradeMonthlyLimit,
         billing_type: billingTypeFromStripe,
         amount,
+        currency: (newSub.currency ?? 'usd') as string,
         status: 'active',
         activation_state: 'on_air',
       });
@@ -922,7 +711,7 @@ export default async function handler(req: any, res: any) {
         .from('slots')
         .update({
           plan_type: upgradeMeta.new_plan_name,
-          sms_limit: SMS_BY_PLAN[upgradeMeta.new_plan_name as string] ?? 150,
+          sms_limit: upgradeMonthlyLimit,
         })
         .eq('slot_id', upgradeMeta.slot_id);
 
@@ -1152,6 +941,7 @@ export default async function handler(req: any, res: any) {
               status: 'libre',
               assigned_to: null,
               plan_type: null,
+              sms_limit: null,
               reservation_token: null,
               reservation_expires_at: null,
               reservation_user_id: null,
@@ -1163,10 +953,11 @@ export default async function handler(req: any, res: any) {
 
       // phone_number para correo y Telegram: metadata primero, luego tabla slots (vital si metadata no lo trajo)
       const resolvedPhoneForNotifications = (phoneFromMeta && String(phoneFromMeta).trim()) || slot?.phone_number || '';
+      const resolvedMonthlyLimit = monthlySmsLimitForPlan(planName, limit);
 
       const { data: exists } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, activation_state, stripe_session_id, stripe_subscription_id')
+        .select('id, activation_state, stripe_session_id, stripe_subscription_id, monthly_limit, plan_name')
         .eq('stripe_session_id', session.id)
         .maybeSingle();
 
@@ -1187,12 +978,36 @@ export default async function handler(req: any, res: any) {
           });
         }
 
+        if (stripeSubscriptionId) {
+          const { data: slotConflict } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id')
+            .eq('slot_id', slotId)
+            .in('status', ['active', 'trialing', 'past_due'])
+            .neq('stripe_subscription_id', stripeSubscriptionId)
+            .maybeSingle();
+          if (slotConflict?.id) {
+            console.warn('[WEBHOOK] checkout.session.completed', {
+              log_event: 'checkout_insert_blocked_slot_has_other_live_sub',
+              slot_id: slotId,
+              conflicting_subscription_id: slotConflict.id,
+              stripe_subscription_id: stripeSubscriptionId,
+            });
+            await markWebhookProcessed();
+            return res.status(200).json({
+              received: true,
+              ignored: true,
+              reason: 'slot_has_other_live_subscription',
+            });
+          }
+        }
+
         const insertData = {
           user_id: userId,
           slot_id: slotId,
           phone_number: resolvedPhoneForNotifications || slot?.phone_number,
           plan_name: planName,
-          monthly_limit: Number(limit),
+          monthly_limit: resolvedMonthlyLimit,
           status: subscriptionStatus,
           stripe_session_id: session.id,
           stripe_subscription_id: stripeSubscriptionId,
@@ -1224,8 +1039,10 @@ export default async function handler(req: any, res: any) {
           id: string;
           stripe_session_id?: string | null;
           stripe_subscription_id?: string | null;
+          monthly_limit?: number | null;
+          plan_name?: string | null;
         };
-        const patch: Record<string, string> = {};
+        const patch: Record<string, string | number> = {};
         if (row.stripe_session_id !== session.id) {
           patch.stripe_session_id = session.id;
         }
@@ -1241,6 +1058,13 @@ export default async function handler(req: any, res: any) {
           console.warn('[WEBHOOK] subscriptions: corrigiendo IDs mezclados (sub_ estaba en stripe_session_id)', {
             subscription_id: row.id,
           });
+        }
+        const priorMl = row.monthly_limit;
+        if (
+          priorMl == null ||
+          (typeof priorMl === 'number' && (Number.isNaN(priorMl) || priorMl <= 0))
+        ) {
+          patch.monthly_limit = resolvedMonthlyLimit;
         }
         if (Object.keys(patch).length > 0) {
           console.log('[WEBHOOK] subscriptions: alineación Stripe IDs (idempotencia checkout.session.completed)', {
@@ -1300,6 +1124,7 @@ export default async function handler(req: any, res: any) {
           status: 'ocupado',
           assigned_to: userId,
           plan_type: planName,
+          sms_limit: resolvedMonthlyLimit,
           reservation_token: null,
           reservation_expires_at: null,
           reservation_user_id: null,
@@ -1543,11 +1368,13 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        await markWebhookFailed(
-          'Stripe webhook: subscription not found in Supabase (allow retry)',
-          undefined
-        );
-        return res.status(500).json({ received: false, error: 'subscription not found' });
+        console.log('[WEBHOOK] customer.subscription.updated: sin fila local, ignorando', stripeSubId);
+        await markWebhookProcessed();
+        return res.status(200).json({
+          received: true,
+          ignored: true,
+          reason: 'subscription_updated_no_local_row',
+        });
       }
 
       // Detectar cambio de plan (upgrade/downgrade)
@@ -1559,7 +1386,7 @@ export default async function handler(req: any, res: any) {
         const subscriptionMeta = subscription.metadata || {};
         const slotId = subscriptionMeta.slot_id;
         const newPlanName = subscriptionMeta.planName;
-        const newMonthlyLimit = subscriptionMeta.monthlyLimit ? parseInt(subscriptionMeta.monthlyLimit) : undefined;
+        const newMonthlyLimit = monthlySmsLimitForPlan(newPlanName, subscriptionMeta.monthlyLimit ?? null);
 
         if (slotId && newPlanName) {
           await supabaseAdmin
@@ -1575,7 +1402,7 @@ export default async function handler(req: any, res: any) {
 
           await supabaseAdmin
             .from('slots')
-            .update({ plan_type: newPlanName })
+            .update({ plan_type: newPlanName, sms_limit: newMonthlyLimit })
             .eq('slot_id', slotId);
 
           // Notificación de upgrade (opcional)
@@ -1622,13 +1449,13 @@ export default async function handler(req: any, res: any) {
           const { data: otherActiveSub } = await supabaseAdmin
             .from('subscriptions').select('id')
             .eq('slot_id', sub.slot_id)
-            .in('status', ['active', 'trialing'])
+            .in('status', ['active', 'trialing', 'past_due'])
             .neq('id', sub.id)
             .maybeSingle();
 
           if (!otherActiveSub) {
             await supabaseAdmin.from('slots').update({
-              status: 'libre', assigned_to: null, plan_type: null,
+              status: 'libre', assigned_to: null, plan_type: null, sms_limit: null,
             }).eq('slot_id', sub.slot_id);
           }
         }
@@ -1712,11 +1539,13 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        await markWebhookFailed(
-          'Stripe webhook: subscription not found in Supabase (allow retry)',
-          undefined
-        );
-        return res.status(500).json({ received: false, error: 'subscription not found' });
+        console.log('[WEBHOOK] invoice.payment_failed: sin fila local, ignorando', stripeSubId);
+        await markWebhookProcessed();
+        return res.status(200).json({
+          received: true,
+          ignored: true,
+          reason: 'invoice_payment_failed_no_local_row',
+        });
       }
 
       // Fase 4 (ledger-first): registrar payment_failed_attempt (riesgo, no revenue negativo).
@@ -1838,11 +1667,10 @@ export default async function handler(req: any, res: any) {
       | 'subscription_lookup_primary'
       | 'subscription_lookup_fallback_slot'
       | 'subscription_lookup_fallback_phone'
-      | 'subscription_lookup_recovery_insert'
+      | 'subscription_lookup_repair'
       | 'subscription_lookup_repair_existing'
       | 'subscription_lookup_abort_canceled_candidate'
       | 'subscription_lookup_exhausted'
-      | 'subscription_lookup_recovery_skipped_policy'
       | 'subscription_patch'
       | 'invoice_persist'
       | 'next_billing_update'
@@ -1880,16 +1708,11 @@ export default async function handler(req: any, res: any) {
 
       let subFound: Record<string, unknown> | null = discardCanceledSubscriptionRowForInvoicePayment(
         primaryResult.data,
-        'lookup primario devolvió fila cancelada; se descarta para permitir hints + fallback + recovery',
+        'lookup primario devolvió fila cancelada; se descarta para permitir hints + fallback (sin INSERT desde invoice)',
         stripeSubId
       );
-      let subscriptionLookupSource: 'primary' | 'fallback_slot' | 'fallback_phone' | 'recovery_insert' | null =
-        subFound ? 'primary' : null;
+      let subscriptionLookupSource: 'primary' | 'fallback_slot' | 'fallback_phone' | null = subFound ? 'primary' : null;
       let subscriptionLookupRepairNeeded = false;
-      /** Fila más reciente (p. ej. cancelada) para plantilla de recovery insert sin mutar historial. */
-      let recoveryTemplateRow: Record<string, unknown> | null = null;
-      /** true si hubo candidato a recovery pero la política bloqueó el INSERT (p. ej. subscription_cycle sin evidencia). */
-      let recoveryInsertSkippedByPolicy = false;
 
       const hints = !subFound ? await extractInvoiceLinkageHints(invoice, stripeSubId) : null;
 
@@ -1921,9 +1744,6 @@ export default async function handler(req: any, res: any) {
             error: 'subscription lookup failed',
             phase: invoicePaymentPhase,
           });
-        }
-        if (slotRows.length) {
-          recoveryTemplateRow = slotRows[0];
         }
         const pickSlot = pickLiveSubscriptionCandidate(slotRows, stripeSubId);
         if (pickSlot.mode === 'exact_sub_match' || pickSlot.mode === 'repair_missing_sub') {
@@ -1962,9 +1782,6 @@ export default async function handler(req: any, res: any) {
             phase: invoicePaymentPhase,
           });
         }
-        if (phoneRows.length && !recoveryTemplateRow) {
-          recoveryTemplateRow = phoneRows[0];
-        }
         const pickPhone = pickLiveSubscriptionCandidate(phoneRows, stripeSubId);
         if (pickPhone.mode === 'exact_sub_match' || pickPhone.mode === 'repair_missing_sub') {
           subFound = pickPhone.row;
@@ -1979,116 +1796,8 @@ export default async function handler(req: any, res: any) {
           stripeSubId,
           invoice_id: invoice.id,
           user_id: hints?.userId ?? null,
-          slot_id:
-            (hints?.slotId && String(hints.slotId).trim()) ||
-            (typeof recoveryTemplateRow?.slot_id === 'string' ? String(recoveryTemplateRow.slot_id).trim() : null),
+          slot_id: (hints?.slotId && String(hints.slotId).trim()) || null,
         });
-      }
-
-      if (!subFound && stripeSubId.startsWith('sub_') && hints?.userId) {
-        const slotIdFinal =
-          (hints.slotId && hints.slotId.trim()) ||
-          (typeof recoveryTemplateRow?.slot_id === 'string'
-            ? String(recoveryTemplateRow.slot_id).trim()
-            : '') ||
-          null;
-        if (slotIdFinal) {
-          invoicePaymentPhase = 'subscription_lookup_recovery_insert';
-          const br = invoice.billing_reason ?? '';
-
-          let allowRecovery = false;
-
-          if (br === 'subscription_create') {
-            await logStaleCheckoutAuditIfPresent(hints.userId, slotIdFinal);
-            const slotOk = await slotOwnershipAllowsRecoveryInsert(hints.userId, slotIdFinal);
-            if (slotOk) {
-              allowRecovery = true;
-              console.warn('[WEBHOOK] invoice.payment_succeeded', {
-                log_event: 'recovery_insert_allowed_subscription_create',
-                stripeSubId,
-                invoice_id: invoice.id,
-                user_id: hints.userId,
-                slot_id: slotIdFinal,
-                billing_reason: br,
-              });
-            } else {
-              recoveryInsertSkippedByPolicy = true;
-            }
-          } else if (br === 'subscription_cycle') {
-            recoveryInsertSkippedByPolicy = true;
-            console.warn('[WEBHOOK] invoice.payment_succeeded', {
-              log_event: 'recovery_insert_blocked_subscription_cycle',
-              stripeSubId,
-              invoice_id: invoice.id,
-              user_id: hints.userId,
-              slot_id: slotIdFinal,
-              billing_reason: br,
-            });
-          } else if (br === 'subscription_update') {
-            recoveryInsertSkippedByPolicy = true;
-            console.warn('[WEBHOOK] invoice.payment_succeeded', {
-              log_event: 'recovery_insert_blocked_subscription_update',
-              stripeSubId,
-              invoice_id: invoice.id,
-              user_id: hints.userId,
-              slot_id: slotIdFinal,
-              billing_reason: br,
-            });
-          } else {
-            recoveryInsertSkippedByPolicy = true;
-          }
-
-          if (allowRecovery) {
-            const recoveryInsertReason = [
-              'policy:subscription_create',
-              'no_live_subscription_row_for_stripe_id',
-              'fallbacks_exhausted_no_exact_or_repair_candidate',
-              recoveryTemplateRow ? 'template_from_historical_subscription_row' : 'slot_id_from_invoice_or_sub_metadata_only',
-            ].join(' | ');
-            const ins = await insertSubscriptionRecoveryFromInvoice({
-              userId: hints.userId,
-              slotId: slotIdFinal,
-              phoneNumber: hints.phoneNumber,
-              stripeSubId,
-              invoice,
-              templateRow: recoveryTemplateRow,
-              recovery_insert_reason: recoveryInsertReason,
-              source_event_type: event.type,
-            });
-            if (ins.error) {
-              console.error('[WEBHOOK] invoice.payment_succeeded', {
-                phase: invoicePaymentPhase,
-                error: ins.error.message,
-                code: ins.error.code,
-              });
-              if (ins.error.code === 'FORBIDDEN_RECOVERY_INSERT_NON_CREATE') {
-                recoveryInsertSkippedByPolicy = true;
-                invoicePaymentPhase = 'subscription_lookup_recovery_skipped_policy';
-                console.warn('[WEBHOOK] invoice.payment_succeeded', {
-                  phase: invoicePaymentPhase,
-                  log_event: 'forbidden_recovery_insert_non_create',
-                  stripeSubId,
-                  invoice_id: invoice.id,
-                  billing_reason: invoice.billing_reason ?? null,
-                });
-                await markWebhookProcessed();
-                return res.status(200).json({ received: true, recovery_insert_skipped: true });
-              }
-              await markWebhookFailed(
-                `subscription_lookup_recovery_insert: ${ins.error.message}`,
-                undefined
-              );
-              return res.status(500).json({
-                received: false,
-                error: ins.error.message,
-                phase: invoicePaymentPhase,
-              });
-            }
-            subFound = ins.data;
-            subscriptionLookupSource = 'recovery_insert';
-            subscriptionLookupRepairNeeded = false;
-          }
-        }
       }
 
       const sub = subFound as {
@@ -2106,29 +1815,11 @@ export default async function handler(req: any, res: any) {
       } | null;
 
       if (!sub) {
-        if (recoveryInsertSkippedByPolicy) {
-          invoicePaymentPhase = 'subscription_lookup_recovery_skipped_policy';
-          console.warn('[WEBHOOK] invoice.payment_succeeded', {
-            phase: invoicePaymentPhase,
-            stripeSubId,
-            invoice_id: invoice.id,
-            billing_reason: invoice.billing_reason ?? null,
-            message:
-              'recovery insert omitido: subscription_cycle/subscription_update nunca insertan; o subscription_create rechazado por slot ajeno',
-          });
-          await markWebhookProcessed();
-          return res.status(200).json({ received: true, recovery_insert_skipped: true });
-        }
-
-        // Huérfano: ciclo/actualización sin metadata útil.
-        // En este caso no hay fila viva local y el retry no puede "aparecer mágicamente" info que ya no viene.
+        invoicePaymentPhase = 'subscription_lookup_exhausted';
         const br = invoice.billing_reason ?? null;
         const noUsefulHints = !hints?.userId && !hints?.slotId && !hints?.phoneNumber;
-        if (
-          (br === 'subscription_cycle' || br === 'subscription_update') &&
-          noUsefulHints
-        ) {
-          invoicePaymentPhase = 'subscription_lookup_exhausted';
+
+        if ((br === 'subscription_cycle' || br === 'subscription_update') && noUsefulHints) {
           console.warn('[WEBHOOK] invoice.payment_succeeded', {
             log_event: 'orphan_subscription_cycle_without_metadata',
             stripe_subscription_id: stripeSubId,
@@ -2136,45 +1827,86 @@ export default async function handler(req: any, res: any) {
             billing_reason: br,
             phase: invoicePaymentPhase,
           });
+        } else {
+          console.warn('[WEBHOOK] invoice.payment_succeeded', {
+            log_event: 'invoice_payment_succeeded_no_local_subscription',
+            stripe_subscription_id: stripeSubId,
+            stripe_invoice_id: invoice.id,
+            billing_reason: br,
+            phase: invoicePaymentPhase,
+            policy: 'no_insert_from_invoice_webhook',
+            hints_summary: hints
+              ? {
+                  has_user_id: Boolean(hints.userId),
+                  has_slot_id: Boolean(hints.slotId),
+                  has_phone: Boolean(hints.phoneNumber),
+                }
+              : null,
+          });
+        }
+
+        await markWebhookProcessed();
+        return res.status(200).json({
+          received: true,
+          ignored: true,
+          reason:
+            (br === 'subscription_cycle' || br === 'subscription_update') && noUsefulHints
+              ? 'orphan_subscription_cycle_without_metadata'
+              : 'invoice_payment_succeeded_no_local_subscription',
+          phase: invoicePaymentPhase,
+        });
+      }
+
+      if (sub.slot_id) {
+        const { data: slotPolicy } = await supabaseAdmin
+          .from('slots')
+          .select('status')
+          .eq('slot_id', sub.slot_id)
+          .maybeSingle();
+        if (String(slotPolicy?.status ?? '').toLowerCase() === 'libre') {
+          invoicePaymentPhase = 'subscription_lookup_exhausted';
+          console.warn('[WEBHOOK] invoice.payment_succeeded', {
+            log_event: 'invoice_skipped_slot_released',
+            subscription_id: sub.id,
+            slot_id: sub.slot_id,
+            billing_reason: invoice.billing_reason ?? null,
+            policy: 'no_invoice_processing_when_slot_libre',
+          });
           await markWebhookProcessed();
           return res.status(200).json({
             received: true,
             ignored: true,
-            reason: 'orphan_subscription_cycle_without_metadata',
-            phase: 'subscription_lookup_exhausted',
+            reason: 'invoice_skipped_slot_released',
+            phase: invoicePaymentPhase,
           });
         }
+      }
 
-        invoicePaymentPhase = 'subscription_lookup_exhausted';
-        console.warn('[WEBHOOK] invoice.payment_succeeded', {
-          phase: invoicePaymentPhase,
-          message:
-            'sin fila viva ni recovery insert: primary vacío, fallbacks sin match, o sin slot_id para INSERT (ni en hints ni en plantilla histórica)',
-          stripeSubId,
-          hints_summary: hints
-            ? {
-                has_user_id: Boolean(hints.userId),
-                has_slot_id: Boolean(hints.slotId),
-                has_phone: Boolean(hints.phoneNumber),
-              }
-            : null,
-        });
-        await markWebhookFailed(
-          'Stripe webhook: subscription not found in Supabase (allow retry)',
-          undefined
-        );
-        return res.status(500).json({
-          received: false,
-          error: 'subscription not found',
-          phase: invoicePaymentPhase,
-        });
+      const priorMlInv = sub.monthly_limit;
+      if (
+        priorMlInv == null ||
+        (typeof priorMlInv === 'number' && (Number.isNaN(priorMlInv) || priorMlInv <= 0))
+      ) {
+        const fillMl = monthlySmsLimitForPlan(sub.plan_name, null);
+        const { error: mlFillErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update({ monthly_limit: fillMl })
+          .eq('id', sub.id);
+        if (!mlFillErr) {
+          (sub as { monthly_limit: number | null }).monthly_limit = fillMl;
+        } else {
+          console.warn('[WEBHOOK] invoice.payment_succeeded', {
+            log_event: 'monthly_limit_backfill_failed',
+            subscription_id: sub.id,
+            error: mlFillErr.message,
+          });
+        }
       }
 
       const subRow = sub;
       if (
         subscriptionLookupRepairNeeded &&
         subscriptionLookupSource !== 'primary' &&
-        subscriptionLookupSource !== 'recovery_insert' &&
         stripeSubId.startsWith('sub_') &&
         subRow.id
       ) {
@@ -2642,12 +2374,16 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (!sub) {
-        console.log('[WEBHOOK] Sub deleted no encontrada en Supabase, ignorando');
-        await markWebhookFailed(
-          'Stripe webhook: subscription not found in Supabase (allow retry)',
-          undefined
+        console.log(
+          '[WEBHOOK] customer.subscription.deleted: sin fila local; idempotente, no reintento',
+          subId
         );
-        return res.status(500).json({ received: false, error: 'subscription not found' });
+        await markWebhookProcessed();
+        return res.status(200).json({
+          received: true,
+          ignored: true,
+          reason: 'subscription_deleted_no_local_row',
+        });
       }
 
       // Si hay una sub activa más reciente para el mismo slot, fue upgrade — no notificar cancelación
@@ -2704,13 +2440,13 @@ export default async function handler(req: any, res: any) {
       const { data: otherActiveSub } = await supabaseAdmin
         .from('subscriptions').select('id')
         .eq('slot_id', sub.slot_id)
-        .in('status', ['active', 'trialing'])
+        .in('status', ['active', 'trialing', 'past_due'])
         .neq('id', sub.id)
         .maybeSingle();
 
       if (!otherActiveSub) {
         await supabaseAdmin.from('slots').update({
-          status: 'libre', assigned_to: null, plan_type: null,
+          status: 'libre', assigned_to: null, plan_type: null, sms_limit: null,
         }).eq('slot_id', sub.slot_id);
       }
 
@@ -2824,7 +2560,21 @@ export default async function handler(req: any, res: any) {
       }
     }
     // No ocultar fallos: marcamos el evento como failed para permitir retries seguros.
-    await markWebhookFailed(errMsg, errStack);
+    const failedEventId = (event as Stripe.Event).id;
+    if (failedEventId) {
+      try {
+        await supabaseAdmin
+          .from('stripe_webhook_events')
+          .update({
+            status: 'failed',
+            failed_at: new Date().toISOString(),
+            error_message: errMsg ?? errStack ?? null,
+          })
+          .eq('event_id', failedEventId);
+      } catch {
+        // no bloquear respuesta 500 por fallo del registro de dedupe
+      }
+    }
     return res.status(500).json({ received: false, error: errMsg });
   }
 }
