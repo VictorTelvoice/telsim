@@ -142,14 +142,20 @@ const InventoryManager: React.FC = () => {
     }
   };
 
+  /** `release_slot_atomic` (cancel embebido en SQL + liberar slot). */
   const liberarSlot = async (slotId: string) => {
     if (!confirm('¿Liberar este slot? Se pondrá estado libre y se quitará la asignación de usuario.')) return;
     setFreeing(slotId);
     try {
-      await supabase
-        .from('slots')
-        .update({ status: 'libre', assigned_to: null, plan_type: null })
-        .eq('slot_id', slotId);
+      const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
+        p_slot_id: slotId,
+      });
+
+      if (releaseErr) {
+        alert(`Error al liberar el slot: ${releaseErr.message}`);
+        return;
+      }
+
       await fetchSlots();
       setSelectedSlot(null);
     } finally {

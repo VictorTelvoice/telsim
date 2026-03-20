@@ -1150,24 +1150,11 @@ const WebDashboard: React.FC = () => {
     if (!slotToRelease || !user || !confirmReleaseCheck) return;
     setReleasing(true);
     try {
-      await supabase
-        .from('subscriptions')
-        .update({ status: 'canceled' })
-        .eq('slot_id', slotToRelease.slot_id)
-        .eq('user_id', user.id);
-
-      const { error: slotError } = await supabase
-        .from('slots')
-        .update({
-          assigned_to: null,
-          status: 'libre',
-          plan_type: null,
-          label: null,
-          forwarding_active: false,
-        })
-        .eq('slot_id', slotToRelease.slot_id);
-
-      if (slotError) throw slotError;
+      const slotId = slotToRelease.slot_id;
+      const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
+        p_slot_id: slotId,
+      });
+      if (releaseErr) throw releaseErr;
 
       setSlots(prev => prev.filter(s => s.slot_id !== slotToRelease.slot_id));
       setIsReleaseModalOpen(false);

@@ -1112,25 +1112,8 @@ export default async function handler(req: any, res: any) {
         // - liberar el slot
         const slotId = targetSub.slot_id;
 
-        // Antes de liberar el slot: guardar slot_id + old phone_number
-        const { data: slotBefore, error: slotBeforeErr } = await supabaseAdmin
-          .from('slots')
-          .select('phone_number')
-          .eq('slot_id', slotId)
-          .maybeSingle();
-
-        if (slotBeforeErr) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            slot_id: slotId,
-            error_code: slotBeforeErr.code,
-            error_message: slotBeforeErr.message,
-          }, 'cancel: fallo lookup phone_number del slot antes de liberar');
-        }
-
-        const oldPhoneNumber = (slotBefore?.phone_number ?? null) as string | null;
-
-        // Construir lista de stripe_subscription_id vivas (best-effort) antes de cancelar localmente.
+        // Construir lista de stripe_subscription_id vivas (best-effort) antes de liberar en BD.
+        // `release_slot_atomic` ejecuta dentro cancel_subscriptions_atomic + liberación (orden garantizado en SQL).
         const { data: liveStripeSubs, error: liveStripeSubsErr } = await supabaseAdmin
           .from('subscriptions')
           .select('stripe_subscription_id')
@@ -1156,27 +1139,7 @@ export default async function handler(req: any, res: any) {
 
         const stripeSubIds = [...stripeSubIdsSet];
 
-        // 2) Cancelar localmente en subscriptions (sin tocar `slots`)
-        const { error: rpcErr } = await supabaseAdmin.rpc('cancel_subscriptions_atomic', {
-          p_slot_id: slotId,
-          p_old_phone_number: oldPhoneNumber,
-        });
-        if (rpcErr) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            slot_id: slotId,
-            error_code: rpcErr.code,
-            error_message: rpcErr.message,
-          }, 'cancel: fallo RPC cancel_subscriptions_atomic');
-          return res.status(500).json({ error: rpcErr.message, subscriptionId });
-        }
-
-        await logCancel('cancel_local_subscription_updated', 'info', {
-          subscriptionId,
-          slot_id: slotId,
-        }, 'cancel: subscriptions actualizadas atómicamente');
-
-        // 3) Liberar slot en slots (ya sin depender de Stripe)
+        // 2) Cancelar subs locales + liberar slot (una sola RPC; cancel va antes que UPDATE slots en SQL)
         const { error: slotRpcErr } = await supabaseAdmin.rpc('release_slot_atomic', { p_slot_id: slotId });
         if (slotRpcErr) {
           await logCancel('cancel_failed_no_live_subscription', 'error', {
@@ -1187,6 +1150,11 @@ export default async function handler(req: any, res: any) {
           }, 'cancel: fallo RPC release_slot_atomic');
           return res.status(500).json({ error: slotRpcErr.message, subscriptionId });
         }
+
+        await logCancel('cancel_local_subscription_updated', 'info', {
+          subscriptionId,
+          slot_id: slotId,
+        }, 'cancel: release_slot_atomic OK (cancel_subscriptions_atomic embebido en SQL)');
 
         // 4) Intentar cancelación en Stripe (best-effort): si falla, solo loguear
         //    (no revertir local ni volver a poner active, y no depender del webhook).
@@ -1677,9 +1645,37 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ sent: true, message: 'Alerta de prueba enviada a tu Telegram.' });
       }
 
+      /** Solo admin: cancelar suscripciones en Stripe por ID (best-effort; no toca DB; no revierte cancelación local). */
+      case 'admin-stripe-cancel-subscriptions': {
+        const { userId: reqUserId, stripeSubscriptionIds } = req.body || {};
+        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+          return res.status(403).json({ error: 'Solo el administrador.' });
+        }
+        const ids = Array.isArray(stripeSubscriptionIds) ? stripeSubscriptionIds : [];
+        const seen = new Set<string>();
+        for (const raw of ids) {
+          const sid = typeof raw === 'string' ? raw.trim() : '';
+          if (!sid || seen.has(sid)) continue;
+          seen.add(sid);
+          try {
+            await stripe.subscriptions.cancel(sid);
+          } catch (err: any) {
+            await logEvent(
+              'admin_stripe_cancel_failed',
+              'warning',
+              String(err?.message ?? err),
+              null,
+              { stripe_subscription_id: sid },
+              'manage'
+            );
+          }
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert.',
+          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert, admin-stripe-cancel-subscriptions.',
         });
     }
   } catch (err: any) {

@@ -1517,6 +1517,84 @@ export default async function handler(req: any, res: any) {
         statusUpdatePayload.next_billing_date = null;
       }
 
+      const isCanceledNowEarly = newStatus === 'canceled' && prevStatus !== 'canceled';
+      const isCanceledAtPeriodEndEarly = cancelAtPeriodEndChanged;
+
+      let slotReleasedViaRpc = false;
+
+      // Antes de persistir status local: release_slot_atomic (embebe cancel_subscriptions_atomic en SQL; misma política que manage).
+      if (
+        sub.slot_id &&
+        (nextLocalStatus === 'canceled' || nextLocalStatus === 'cancelled') &&
+        (isCanceledNowEarly || isCanceledAtPeriodEndEarly)
+      ) {
+        const { data: slotRowPre, error: slotPreErr } = await supabaseAdmin
+          .from('slots')
+          .select('status, assigned_to')
+          .eq('slot_id', sub.slot_id)
+          .maybeSingle();
+
+        if (slotPreErr) {
+          await logEvent(
+            'cancel_failed_no_live_subscription',
+            'error',
+            'cancel: fallo consultando slots (pre-RPC updated)',
+            undefined,
+            {
+              phase: 'customer.subscription.updated',
+              stripeSubId,
+              slot_id: sub.slot_id,
+              error_code: slotPreErr.code,
+              error_message: slotPreErr.message,
+            },
+            'stripe'
+          );
+        } else if (slotRowPre) {
+          const slotStatusPre = String(slotRowPre.status ?? '').toLowerCase();
+          const slotAssignedToPre = slotRowPre.assigned_to ?? null;
+          const shouldReleasePre =
+            slotStatusPre !== 'libre' &&
+            (slotAssignedToPre == null || String(slotAssignedToPre) === String(sub.user_id));
+
+          if (shouldReleasePre) {
+            const { error: rpcReleaseErr } = await supabaseAdmin.rpc('release_slot_atomic', {
+              p_slot_id: sub.slot_id,
+            });
+            if (rpcReleaseErr) {
+              await logEvent(
+                'cancel_failed_no_live_subscription',
+                'error',
+                rpcReleaseErr.message,
+                undefined,
+                {
+                  phase: 'customer.subscription.updated',
+                  stripeSubId,
+                  slot_id: sub.slot_id,
+                  error_code: rpcReleaseErr.code,
+                },
+                'stripe'
+              );
+              await markWebhookFailed(rpcReleaseErr.message);
+              return res.status(500).json({
+                received: false,
+                error: rpcReleaseErr.message,
+                phase: 'customer.subscription.updated',
+              });
+            }
+
+            slotReleasedViaRpc = true;
+            await logEvent(
+              'cancel_slot_released',
+              'info',
+              'cancel: slot liberado tras customer.subscription.updated (release_slot_atomic)',
+              undefined,
+              { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id },
+              'stripe'
+            );
+          }
+        }
+      }
+
       await supabaseAdmin.from('subscriptions').update(statusUpdatePayload).eq('id', sub.id);
 
       if (nextLocalStatus === 'canceled' && existingLocalStatus !== 'canceled' && existingLocalStatus !== 'cancelled') {
@@ -1555,61 +1633,32 @@ export default async function handler(req: any, res: any) {
       const isCanceledAtPeriodEnd = cancelAtPeriodEndChanged;
 
       if (isCanceledNow || isCanceledAtPeriodEnd) {
-        let slotReleased = false;
-        if (sub.slot_id) {
-          // Regla: liberar el slot basándonos SOLO en la fila local encontrada (por stripe_subscription_id),
-          // sin consultar subscriptions por slot_id. Solo tocamos `slots` para reflejar el estado operativo.
-          const { data: slotRow, error: slotErr } = await supabaseAdmin
+        const slotReleased = slotReleasedViaRpc;
+
+        if (!slotReleased && sub.slot_id) {
+          const { data: slotRowAfter, error: slotErrAfter } = await supabaseAdmin
             .from('slots')
             .select('status, assigned_to')
             .eq('slot_id', sub.slot_id)
             .maybeSingle();
 
-          if (slotErr) {
+          if (!slotErrAfter && slotRowAfter) {
+            const slotStatus = String(slotRowAfter.status ?? '').toLowerCase();
+            const slotAssignedTo = slotRowAfter.assigned_to ?? null;
             await logEvent(
-              'cancel_failed_no_live_subscription',
-              'error',
-              'cancel: fallo consultando slots para liberar',
+              'cancel_slot_release_skipped',
+              'info',
+              'cancel: liberación vía RPC no aplicada; estado slot tras updated',
               undefined,
-              { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, error_code: slotErr.code, error_message: slotErr.message },
+              {
+                phase: 'customer.subscription.updated',
+                stripeSubId,
+                slot_id: sub.slot_id,
+                slot_status: slotStatus,
+                slot_assigned_to: slotAssignedTo,
+              },
               'stripe'
             );
-          } else {
-            const slotStatus = String(slotRow?.status ?? '').toLowerCase();
-            const slotAssignedTo = slotRow?.assigned_to ?? null;
-
-            // Liberar si el slot no está libre y/o si está asignado a la misma entidad.
-            // (Evita liberar si otro sistema ya cambió la asignación del slot entre eventos.)
-            const shouldRelease =
-              slotStatus !== 'libre' && (slotAssignedTo == null || String(slotAssignedTo) === String(sub.user_id));
-
-            if (shouldRelease) {
-              await supabaseAdmin.from('slots').update({
-                status: 'libre',
-                assigned_to: null,
-                plan_type: null,
-                sms_limit: null,
-              }).eq('slot_id', sub.slot_id);
-
-              slotReleased = true;
-              await logEvent(
-                'cancel_slot_released',
-                'info',
-                'cancel: slot liberado tras customer.subscription.updated',
-                undefined,
-                { phase: 'customer.subscription.updated', stripeSubId, local_subscription_id: sub.id, slot_id: sub.slot_id },
-                'stripe'
-              );
-            } else {
-              await logEvent(
-                'cancel_slot_release_skipped',
-                'info',
-                'cancel: liberación omitida porque slots ya cambió (sin consultar subscriptions)',
-                undefined,
-                { phase: 'customer.subscription.updated', stripeSubId, slot_id: sub.slot_id, slot_status: slotStatus, slot_assigned_to: slotAssignedTo },
-                'stripe'
-              );
-            }
           }
         }
 
@@ -2313,6 +2362,41 @@ export default async function handler(req: any, res: any) {
         console.error('[FINANCE_EVENTS] churn_event insert failed:', finErr?.message ?? finErr);
       }
 
+      const primarySlotIds = Array.from(
+        new Set((primaryCandidates ?? [])
+          .map((c: any) => c.slot_id)
+          .filter((v: any) => v != null && String(v).trim().length > 0))
+      ) as string[];
+
+      // release_slot_atomic embebe cancel_subscriptions_atomic (orden garantizado en SQL).
+      for (const slotIdToRelease of primarySlotIds) {
+        const { error: rpcReleaseErr } = await supabaseAdmin.rpc('release_slot_atomic', {
+          p_slot_id: slotIdToRelease,
+        });
+
+        if (rpcReleaseErr) {
+          await logEvent(
+            'cancel_failed_no_live_subscription',
+            'error',
+            rpcReleaseErr.message,
+            undefined,
+            { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_id: slotIdToRelease, error_code: rpcReleaseErr.code },
+            'stripe'
+          );
+          await markWebhookFailed(rpcReleaseErr.message);
+          return res.status(500).json({ received: false, error: rpcReleaseErr.message, phase: 'customer.subscription.deleted' });
+        }
+
+        await logEvent(
+          'cancel_slot_released',
+          'info',
+          'cancel: slot liberado tras customer.subscription.deleted (RPC)',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: slotIdToRelease },
+          'stripe'
+        );
+      }
+
       const nowIso = new Date().toISOString();
       const { error: updateErr } = await supabaseAdmin
         .from('subscriptions')
@@ -2350,45 +2434,6 @@ export default async function handler(req: any, res: any) {
         },
         'stripe'
       );
-
-      // Liberar el/los slot(s) asociado(s) a la(s) fila(s) local(es) encontrada(s)
-      // sin consultar subscriptions por slot_id.
-      const primarySlotIds = Array.from(
-        new Set((primaryCandidates ?? [])
-          .map((c: any) => c.slot_id)
-          .filter((v: any) => v != null && String(v).trim().length > 0))
-      ) as string[];
-
-      for (const slotIdToRelease of primarySlotIds) {
-        const { error: slotUpdateErr } = await supabaseAdmin.from('slots').update({
-          status: 'libre',
-          assigned_to: null,
-          plan_type: null,
-          sms_limit: null,
-        }).eq('slot_id', slotIdToRelease);
-
-        if (slotUpdateErr) {
-          await logEvent(
-            'cancel_failed_no_live_subscription',
-            'error',
-            slotUpdateErr.message,
-            undefined,
-            { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: slotIdToRelease, error_code: slotUpdateErr.code },
-            'stripe'
-          );
-          await markWebhookFailed(slotUpdateErr.message);
-          return res.status(500).json({ received: false, error: slotUpdateErr.message, phase: 'customer.subscription.deleted' });
-        }
-
-        await logEvent(
-          'cancel_slot_released',
-          'info',
-          'cancel: slot liberado tras customer.subscription.deleted',
-          undefined,
-          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: slotIdToRelease },
-          'stripe'
-        );
-      }
 
       await createNotification(
         sub.user_id,

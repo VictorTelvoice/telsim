@@ -299,17 +299,10 @@ const MyNumbers: React.FC = () => {
                 const okBody = await res.json().catch(() => ({}));
                 releasedFromBackend = Boolean(okBody?.released_number);
             } else {
-                // Fallback: sin stripe_subscription_id, cancelar directo en Supabase
-                await supabase
-                    .from('subscriptions')
-                    .update({ status: 'canceled' })
-                    .eq('slot_id', slotToRelease.slot_id)
-                    .eq('user_id', user.id);
-
-                await supabase
-                    .from('slots')
-                    .update({ assigned_to: null, status: 'libre', plan_type: null, label: null, forwarding_active: false })
-                    .eq('slot_id', slotToRelease.slot_id);
+                const { error: releaseErr } = await supabase.rpc('release_slot_atomic', {
+                    p_slot_id: slotId,
+                });
+                if (releaseErr) throw releaseErr;
 
                 releasedFromBackend = true;
             }
