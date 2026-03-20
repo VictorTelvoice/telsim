@@ -2273,25 +2273,6 @@ export default async function handler(req: any, res: any) {
 
       const sub = primaryCandidates[0] as any;
 
-      // Si hay una sub activa más reciente para el mismo slot, fue upgrade — no notificar cancelación
-      const { data: activeSub } = await supabaseAdmin
-        .from('subscriptions')
-        .select('id, created_at')
-        .eq('slot_id', sub.slot_id)
-        .eq('status', 'active')
-        .neq('stripe_subscription_id', subId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      console.log('[CANCEL] Sub deleted recibida:', subId, 'slot:', sub?.slot_id, 'activeSub:', activeSub?.id);
-
-      if (activeSub) {
-        console.log('[WEBHOOK] Sub deleted es parte de un upgrade, omitiendo notificación de cancelación');
-        await markWebhookProcessed();
-        return res.status(200).json({ received: true });
-      }
-
       // Fase 4 (ledger-first): registrar churn_event (solo cuando NO es parte de upgrade).
       try {
         const occurredAtIso = event.created ? new Date(event.created * 1000).toISOString() : new Date().toISOString();
@@ -2356,31 +2337,21 @@ export default async function handler(req: any, res: any) {
         'stripe'
       );
 
-      // No liberar el slot si ya tiene otra suscripción activa (p. ej. del upgrade)
-      const { data: otherLiveSubs, error: otherErr } = await supabaseAdmin
-        .from('subscriptions')
-        .select('id')
-        .eq('slot_id', sub.slot_id)
-        .in('status', ['active', 'trialing', 'past_due'])
-        .neq('stripe_subscription_id', subId)
-        .limit(6);
+      // Liberar el/los slot(s) asociado(s) a la(s) fila(s) local(es) encontrada(s)
+      // sin consultar subscriptions por slot_id.
+      const primarySlotIds = Array.from(
+        new Set((primaryCandidates ?? [])
+          .map((c: any) => c.slot_id)
+          .filter((v: any) => v != null && String(v).trim().length > 0))
+      ) as string[];
 
-      if (otherErr) {
-        await logEvent(
-          'cancel_failed_multiple_live_candidates',
-          'error',
-          'cancel: fallo pre-check de conflicto de slot (deleted)',
-          undefined,
-          { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_id: sub.slot_id, error_code: otherErr.code, error_message: otherErr.message },
-          'stripe'
-        );
-      } else if ((otherLiveSubs ?? []).length === 0) {
+      for (const slotIdToRelease of primarySlotIds) {
         const { error: slotUpdateErr } = await supabaseAdmin.from('slots').update({
           status: 'libre',
           assigned_to: null,
           plan_type: null,
           sms_limit: null,
-        }).eq('slot_id', sub.slot_id);
+        }).eq('slot_id', slotIdToRelease);
 
         if (slotUpdateErr) {
           await logEvent(
@@ -2388,7 +2359,7 @@ export default async function handler(req: any, res: any) {
             'error',
             slotUpdateErr.message,
             undefined,
-            { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: sub.slot_id, error_code: slotUpdateErr.code },
+            { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: slotIdToRelease, error_code: slotUpdateErr.code },
             'stripe'
           );
           await markWebhookFailed(slotUpdateErr.message);
@@ -2400,16 +2371,7 @@ export default async function handler(req: any, res: any) {
           'info',
           'cancel: slot liberado tras customer.subscription.deleted',
           undefined,
-          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: sub.slot_id, phone_number: sub.phone_number },
-          'stripe'
-        );
-      } else {
-        await logEvent(
-          'cancel_failed_multiple_live_candidates',
-          'error',
-          'cancel: conflicto - hay otras suscripciones vivas en el slot (deleted), no se libera',
-          undefined,
-          { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_id: sub.slot_id, local_subscription_id: sub.id, other_candidates_count: (otherLiveSubs ?? []).length, other_candidate_ids: (otherLiveSubs ?? []).map((r: any) => r.id) },
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, local_subscription_id: sub.id, slot_id: slotIdToRelease },
           'stripe'
         );
       }
