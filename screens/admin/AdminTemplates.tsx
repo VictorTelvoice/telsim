@@ -5,9 +5,24 @@ import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Li
 import { renderTransactionalEmail } from '../../supabase/functions/_shared/transactionalEmailRenderer';
 import { getDefaultAdminEmailTestDataForEvent } from '../../lib/transactionalEmailTestDefaults';
 
+const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
 const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
 const PREFIX_APP = 'template_app_';
+
+type NotificationHistoryRow = {
+  id: string;
+  created_at: string;
+  recipient: string;
+  channel: string;
+  event: string;
+  status: string;
+  error_message?: string | null;
+  content_preview?: string | null;
+  user_email?: string;
+  user_id?: string | null;
+};
 
 /** Contrato canónico: cada templateId con su event (webhook / notificaciones). El resto usa sufijo tras el prefijo. */
 const CANONICAL_BLOCK_META: Record<string, { channel: 'email' | 'telegram' | 'app'; event: string }> = {
@@ -268,12 +283,18 @@ const AdminTemplates: React.FC = () => {
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [successTestId, setSuccessTestId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [historyList, setHistoryList] = useState<Array<{ id: string; created_at: string; recipient: string; channel: string; event: string; status: string; error_message?: string | null; user_email?: string }>>([]);
+  const [historyList, setHistoryList] = useState<NotificationHistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyEmailSearch, setHistoryEmailSearch] = useState('');
   const [historyEventSearch, setHistoryEventSearch] = useState('');
+  const [historyDetail, setHistoryDetail] = useState<NotificationHistoryRow | null>(null);
   const [retryingLogId, setRetryingLogId] = useState<string | null>(null);
+  const historyEmailRef = useRef('');
+  const historyEventRef = useRef('');
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
+  historyEmailRef.current = historyEmailSearch;
+  historyEventRef.current = historyEventSearch;
 
   const insertAtCursor = useCallback((id: string, before: string, after?: string) => {
     const ta = textareaRefs.current[id];
@@ -345,6 +366,11 @@ const AdminTemplates: React.FC = () => {
 
   const fetchHistory = useCallback(async () => {
     if (!user?.id) return;
+    if ((user.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+      setHistoryList([]);
+      showLocalToast('Solo el administrador puede consultar el historial.', 'error');
+      return;
+    }
     setHistoryLoading(true);
     try {
       const res = await fetch('/api/manage', {
@@ -352,25 +378,30 @@ const AdminTemplates: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'list-notification-history',
-          userId: user.id,
-          emailSearch: historyEmailSearch.trim() || undefined,
-          eventSearch: historyEventSearch.trim() || undefined,
+          userId: ADMIN_UID,
+          emailSearch: historyEmailRef.current.trim() || undefined,
+          eventSearch: historyEventRef.current.trim() || undefined,
           limit: 200,
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(data.list)) setHistoryList(data.list);
-      else setHistoryList([]);
+      if (res.ok && Array.isArray(data.list)) {
+        setHistoryList(data.list as NotificationHistoryRow[]);
+      } else {
+        setHistoryList([]);
+        showLocalToast(typeof data.error === 'string' ? data.error : 'No se pudo cargar el historial.', 'error');
+      }
     } catch {
       setHistoryList([]);
+      showLocalToast('Error de red al cargar el historial.', 'error');
     } finally {
       setHistoryLoading(false);
     }
-  }, [user?.id, historyEmailSearch, historyEventSearch]);
+  }, [user?.id, showLocalToast]);
 
   useEffect(() => {
-    if (activeTab === 'history') fetchHistory();
-  }, [activeTab, fetchHistory]);
+    if (activeTab === 'history' && user?.id) fetchHistory();
+  }, [activeTab, user?.id, fetchHistory]);
 
   const handleRetryNotification = useCallback(
     async (logId: string) => {
@@ -647,7 +678,7 @@ const AdminTemplates: React.FC = () => {
                     <th className="px-5 py-3">Tipo</th>
                     <th className="px-5 py-3">Evento</th>
                     <th className="px-5 py-3">Estado</th>
-                    <th className="px-5 py-3 w-20">Acciones</th>
+                    <th className="px-5 py-3 w-36">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -662,7 +693,7 @@ const AdminTemplates: React.FC = () => {
                           {new Date(row.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}
                         </td>
                         <td className="px-5 py-3 text-slate-800">
-                          {(row as { user_email?: string }).user_email || row.recipient}
+                          {row.user_email || row.recipient}
                         </td>
                         <td className="px-5 py-3 text-slate-600">{row.channel}</td>
                         <td className="px-5 py-3 text-slate-700">{row.event}</td>
@@ -677,23 +708,30 @@ const AdminTemplates: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-5 py-3">
-                          {row.status === 'error' && (row.channel === 'telegram' || row.channel === 'email') ? (
+                          <div className="flex items-center gap-1 flex-wrap">
                             <button
                               type="button"
-                              onClick={() => handleRetryNotification(row.id)}
-                              disabled={retryingLogId !== null}
-                              title="Reintentar envío"
-                              className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                              onClick={() => setHistoryDetail(row)}
+                              className="text-xs font-semibold text-blue-600 hover:underline px-1"
                             >
-                              {retryingLogId === row.id ? (
-                                <Loader2 size={18} className="animate-spin" />
-                              ) : (
-                                <RotateCcw size={18} />
-                              )}
+                              Ver
                             </button>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
+                            {row.status === 'error' && (row.channel === 'telegram' || row.channel === 'email') ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRetryNotification(row.id)}
+                                disabled={retryingLogId !== null}
+                                title="Reintentar envío"
+                                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                              >
+                                {retryingLogId === row.id ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <RotateCcw size={18} />
+                                )}
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -701,6 +739,73 @@ const AdminTemplates: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            {historyDetail ? (
+              <div
+                className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/50"
+                role="dialog"
+                aria-modal="true"
+                onClick={() => setHistoryDetail(null)}
+              >
+                <div
+                  className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 border border-slate-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-slate-800">Detalle del envío</h3>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryDetail(null)}
+                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"
+                      aria-label="Cerrar"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <dl className="space-y-3 text-sm text-slate-800">
+                    <div>
+                      <dt className="text-slate-500 font-medium">Asunto</dt>
+                      <dd className="mt-0.5">No almacenado en historial</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500 font-medium">Destinatario</dt>
+                      <dd className="mt-0.5 break-all">{historyDetail.recipient}</dd>
+                    </div>
+                    {historyDetail.user_email ? (
+                      <div>
+                        <dt className="text-slate-500 font-medium">Usuario (email)</dt>
+                        <dd className="mt-0.5 break-all">{historyDetail.user_email}</dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-slate-500 font-medium">Evento</dt>
+                      <dd className="mt-0.5">{historyDetail.event}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500 font-medium">Estado</dt>
+                      <dd className="mt-0.5">{historyDetail.status === 'sent' ? 'Enviado' : 'Error'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500 font-medium">Vista previa / snippet</dt>
+                      <dd className="mt-0.5 whitespace-pre-wrap break-words text-slate-700">
+                        {historyDetail.content_preview?.trim() ? historyDetail.content_preview : '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500 font-medium">Fecha</dt>
+                      <dd className="mt-0.5">
+                        {new Date(historyDetail.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'medium' })}
+                      </dd>
+                    </div>
+                    {historyDetail.error_message ? (
+                      <div>
+                        <dt className="text-slate-500 font-medium">Mensaje de error</dt>
+                        <dd className="mt-0.5 text-red-700 whitespace-pre-wrap break-words">{historyDetail.error_message}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">

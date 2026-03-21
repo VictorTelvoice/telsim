@@ -43,16 +43,18 @@ function escapeHtml(s: unknown): string {
 }
 
 /** Opcional en contentHtml de admin: texto debajo del cuadro de detalles (p. ej. cancelación). */
-const EMAIL_BODY_BELOW_DETAILS_MARKER = '[[BELOW_DETAILS]]';
+const BELOW_DETAILS_SPLIT_RE = /\[\[\s*BELOW_DETAILS\s*\]\]/i;
 
 function splitEmailBodySections(contentHtml: string): { topHtml: string; bottomHtml: string } {
-  if (!contentHtml.includes(EMAIL_BODY_BELOW_DETAILS_MARKER)) {
-    return { topHtml: contentHtml, bottomHtml: '' };
+  const m = BELOW_DETAILS_SPLIT_RE.exec(contentHtml);
+  if (!m || m.index === undefined) {
+    return { topHtml: contentHtml.trim(), bottomHtml: '' };
   }
-  const i = contentHtml.indexOf(EMAIL_BODY_BELOW_DETAILS_MARKER);
-  const topHtml = contentHtml.slice(0, i);
-  const bottomHtml = contentHtml.slice(i + EMAIL_BODY_BELOW_DETAILS_MARKER.length);
-  return { topHtml: topHtml.trim(), bottomHtml: bottomHtml.trim() };
+
+  const topHtml = contentHtml.slice(0, m.index).trim();
+  const bottomHtml = contentHtml.slice(m.index + m[0].length).trim();
+
+  return { topHtml, bottomHtml };
 }
 
 function billingLabel(d: Record<string, unknown>, lang: 'es' | 'en'): string {
