@@ -279,7 +279,7 @@ async function internalSendEmail(options: {
   custom_content?: string;
   /** Passthrough a Edge Function send-email (p. ej. tests desde Admin Templates). */
   template_id?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; httpStatus?: number; rawBodySnippet?: string }> {
   const category = options.category ?? 'operational';
   const preview = (options.content ?? options.html ?? options.custom_content ?? '').slice(0, 500) || null;
   try {
@@ -292,19 +292,26 @@ async function internalSendEmail(options: {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceKey) return { success: false, error: 'Configuración de email faltante.' };
-    const body = JSON.stringify({
-      event: options.event,
-      user_id: options.userId,
-      to_email: email,
-      data: options.data ?? {},
-      content: options.content ?? undefined,
-      from: options.from ?? undefined,
-      subject: options.subject ?? undefined,
-      html: options.html ?? undefined,
-      is_test: options.is_test ?? undefined,
-      custom_content: options.custom_content ?? undefined,
-      template_id: options.template_id ?? undefined,
-    });
+    let body: string;
+    try {
+      body = JSON.stringify({
+        event: options.event,
+        user_id: options.userId,
+        to_email: email,
+        data: options.data ?? {},
+        content: options.content ?? undefined,
+        from: options.from ?? undefined,
+        subject: options.subject ?? undefined,
+        html: options.html ?? undefined,
+        is_test: options.is_test ?? undefined,
+        custom_content: options.custom_content ?? undefined,
+        template_id: options.template_id ?? undefined,
+      });
+    } catch (serializeErr) {
+      const msg = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
+      console.error('[internalSendEmail] JSON.stringify failed', { event: options.event, userId: options.userId, msg });
+      return { success: false, error: `Payload inválido (no serializable): ${msg}` };
+    }
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
@@ -335,10 +342,19 @@ async function internalSendEmail(options: {
       error_message: res.ok ? null : errorDetail,
       metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
     });
-    if (!res.ok) return { success: false, error: errorDetail || 'Error enviando email' };
+    const snippet = rawBody.slice(0, 4000);
+    if (!res.ok) {
+      return {
+        success: false,
+        error: errorDetail || 'Error enviando email',
+        httpStatus: res.status,
+        rawBodySnippet: snippet,
+      };
+    }
     return { success: true };
   } catch (err) {
     const msg = (err as Error)?.message || 'Error enviando email';
+    console.error('[internalSendEmail] fetch/network failed', { event: options.event, userId: options.userId, msg });
     await insertNotificationLog({
       user_id: options.userId,
       channel: 'email',
@@ -1327,18 +1343,47 @@ export default async function handler(req: any, res: any) {
           event: eventIn,
         } = req.body || {};
 
-        if (
-          !userId ||
-          typeof channel !== 'string' ||
-          typeof content !== 'string' ||
-          typeof templateIdIn !== 'string' ||
-          !templateIdIn.trim() ||
-          typeof eventIn !== 'string' ||
-          !eventIn.trim()
-        ) {
+        console.log('[MANAGE send-notification-test] start', {
+          channel,
+          event: eventIn,
+          templateId: templateIdIn,
+          userId,
+          hasSubject: typeof subjectIn === 'string' && subjectIn.trim() !== '',
+          hasContent: typeof content === 'string' && content.trim() !== '',
+        });
+
+        if (channel === 'email') {
+          if (!userId || typeof userId !== 'string' || !String(userId).trim()) {
+            return res.status(400).json({ error: 'Falta userId para el envío de email de prueba.', code: 'MISSING_USER_ID' });
+          }
+          if (!eventIn || typeof eventIn !== 'string' || !eventIn.trim()) {
+            return res.status(400).json({ error: 'Falta event para email.', code: 'MISSING_EVENT' });
+          }
+          if (!templateIdIn || typeof templateIdIn !== 'string' || !templateIdIn.trim()) {
+            return res.status(400).json({ error: 'Falta templateId para email.', code: 'MISSING_TEMPLATE_ID' });
+          }
+          if (typeof content !== 'string' || !content.trim()) {
+            return res.status(400).json({ error: 'Falta content (HTML) para la plantilla de email.', code: 'MISSING_CONTENT' });
+          }
+        } else if (channel === 'telegram' || channel === 'sms_product') {
+          if (
+            !userId ||
+            typeof channel !== 'string' ||
+            typeof content !== 'string' ||
+            typeof templateIdIn !== 'string' ||
+            !templateIdIn.trim() ||
+            typeof eventIn !== 'string' ||
+            !eventIn.trim()
+          ) {
+            return res.status(400).json({
+              error: 'Faltan parámetros (channel, content, userId, templateId, event).',
+              code: 'MISSING_PARAMS',
+            });
+          }
+        } else {
           return res.status(400).json({
-            error: 'Faltan parámetros (channel, content, userId, templateId, event).',
-            code: 'MISSING_PARAMS',
+            error: 'Canal no soportado. Use telegram, email o sms_product.',
+            code: 'INVALID_CHANNEL',
           });
         }
 
@@ -1351,16 +1396,6 @@ export default async function handler(req: any, res: any) {
             code: 'INVALID_TEMPLATE_ID',
           });
         }
-        const subjectPreview =
-          typeof subjectIn === 'string' ? subjectIn.trim().slice(0, 120) : '';
-        const contentPreview = String(content).slice(0, 200);
-        console.log('[TEMPLATE TEST]', {
-          channel,
-          templateId,
-          event,
-          subjectPreview,
-          contentPreview,
-        });
 
         try {
           const { data: userRow, error: userError } = await supabaseAdmin
@@ -1418,6 +1453,13 @@ export default async function handler(req: any, res: any) {
               typeof subjectIn === 'string' && subjectIn.trim() !== ''
                 ? subjectIn.trim()
                 : 'Prueba de plantilla TELSIM';
+            console.log('[MANAGE send-notification-test] email payload', {
+              event,
+              templateId,
+              toEmail,
+              subjectPreview: subjectLine.slice(0, 120),
+              contentLength: content.length,
+            });
             const out = await internalSendEmail({
               userId,
               toEmail,
@@ -1437,9 +1479,28 @@ export default async function handler(req: any, res: any) {
               },
             });
             if (!out.success) {
+              const st = out.httpStatus;
+              const bodySnippet = out.rawBodySnippet;
+              if (st != null) {
+                console.error('[MANAGE send-notification-test] edge error', { status: st, body: bodySnippet });
+              } else {
+                console.error('[MANAGE send-notification-test] email send failed (no HTTP status)', {
+                  error: out.error,
+                });
+              }
+              if (st != null && st >= 500) {
+                return res.status(502).json({
+                  error: out.error || 'El servicio de email devolvió un error.',
+                  code: 'EMAIL_EDGE_UPSTREAM',
+                  upstreamStatus: st,
+                  details: bodySnippet,
+                });
+              }
               return res.status(400).json({
                 error: out.error || 'Error al enviar email',
                 code: 'EMAIL_ERROR',
+                upstreamStatus: st,
+                details: bodySnippet,
               });
             }
             return res.status(200).json({ success: true, message: '✅ Test enviado con tu texto personalizado.' });
@@ -1448,7 +1509,7 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: 'Canal no soportado.' });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Error en el servidor';
-          console.error('[MANAGE send-notification-test]', err);
+          console.error('[MANAGE send-notification-test] unhandled', err);
           return res.status(500).json({ error: msg, code: 'SERVER_ERROR' });
         }
       }
