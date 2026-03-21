@@ -519,6 +519,7 @@ const AdminTemplates: React.FC = () => {
         );
       }
       await fetchSettings();
+      showLocalToast('Guardado exitoso.', 'success');
     } finally {
       setSaving(false);
     }

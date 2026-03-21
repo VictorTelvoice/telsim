@@ -42,6 +42,19 @@ function escapeHtml(s: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Opcional en contentHtml de admin: texto debajo del cuadro de detalles (p. ej. cancelación). */
+const EMAIL_BODY_BELOW_DETAILS_MARKER = '[[BELOW_DETAILS]]';
+
+function splitEmailBodySections(contentHtml: string): { topHtml: string; bottomHtml: string } {
+  if (!contentHtml.includes(EMAIL_BODY_BELOW_DETAILS_MARKER)) {
+    return { topHtml: contentHtml, bottomHtml: '' };
+  }
+  const i = contentHtml.indexOf(EMAIL_BODY_BELOW_DETAILS_MARKER);
+  const topHtml = contentHtml.slice(0, i);
+  const bottomHtml = contentHtml.slice(i + EMAIL_BODY_BELOW_DETAILS_MARKER.length);
+  return { topHtml: topHtml.trim(), bottomHtml: bottomHtml.trim() };
+}
+
 function billingLabel(d: Record<string, unknown>, lang: 'es' | 'en'): string {
   const b = d.billing_type;
   if (b === 'Anual' || b === 'Annual' || b === 'annual') return lang === 'es' ? 'Anual' : 'Annual';
@@ -169,13 +182,17 @@ const ACCENT_PRIMARY = '#0074d4';
 
 function buildInnerBlock(params: {
   title: string;
-  introHtml: string;
+  topHtml: string;
+  bottomHtml: string;
   rows: { label: string; valueHtml: string }[];
+  /** Solo cancelación + data.reactivation_url; va debajo de bottomHtml y encima del CTA principal. */
+  secondaryCta?: { href: string; text: string };
   ctaText: string;
   ctaUrl: string;
 }): string {
   const cardBg = '#f1f5f9';
   const cardBorder = '#e2e8f0';
+  const bodyTextStyle = 'font-size:16px;color:#64748b;text-align:center;line-height:1.65;';
 
   const tableBody = params.rows
     .map((row, i) => {
@@ -189,13 +206,31 @@ function buildInnerBlock(params: {
     })
     .join('');
 
+  const topBlock =
+    params.topHtml.trim() !== ''
+      ? `<div style="margin:0 0 24px;${bodyTextStyle}">${params.topHtml}</div>`
+      : '';
+  const bottomBlock =
+    params.bottomHtml.trim() !== ''
+      ? `<div style="margin:24px 0 0 0;${bodyTextStyle}">${params.bottomHtml}</div>`
+      : '';
+
+  const secondaryOutline = '#2563eb';
+  const secondaryBlock =
+    params.secondaryCta != null
+      ? `<div style="text-align:center;margin:24px 0 20px 0;">
+            <a href="${escapeHtml(params.secondaryCta.href)}"
+               style="display:inline-block;background:#ffffff;color:${secondaryOutline} !important;font-size:16px;font-weight:700;padding:14px 36px;border-radius:10px;text-decoration:none;border:2px solid ${secondaryOutline};letter-spacing:0.02em;">
+              ${escapeHtml(params.secondaryCta.text)}
+            </a>
+          </div>`
+      : '';
+
   return `
           <h1 style="margin:0 0 12px;font-size:26px;font-weight:600;color:#0f172a;text-align:center;letter-spacing:-0.02em;line-height:1.25;">
             ${params.title}
           </h1>
-          <div style="margin:0 0 24px;font-size:16px;color:#64748b;text-align:center;line-height:1.65;">
-            ${params.introHtml}
-          </div>
+          ${topBlock}
 
           <table width="100%" cellpadding="0" cellspacing="0" style="background:${cardBg};border-radius:12px;border:1px solid ${cardBorder};margin-bottom:32px;">
             <tr><td style="padding:24px 28px;">
@@ -204,6 +239,8 @@ function buildInnerBlock(params: {
               </table>
             </td></tr>
           </table>
+          ${bottomBlock}
+          ${secondaryBlock}
 
           <div style="text-align:center;margin-bottom:4px;">
             <a href="${params.ctaUrl}" class="button"
@@ -286,16 +323,32 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
   const cta = CTAS[canonical][lang];
   const ctaUrl = CTA_URLS[canonical];
 
-  const intro =
+  const rawBody =
     params.contentHtml != null && String(params.contentHtml).trim() !== ''
       ? String(params.contentHtml)
       : `<p>${lang === 'es' ? 'Actualización de tu cuenta TELSIM.' : 'An update regarding your TELSIM account.'}</p>`;
 
+  const { topHtml, bottomHtml } = splitEmailBodySections(rawBody);
+
+  let secondaryCta: { href: string; text: string } | undefined;
+  if (canonical === 'cancellation') {
+    const rawUrl = d.reactivation_url;
+    const href = rawUrl != null ? String(rawUrl).trim() : '';
+    if (href !== '') {
+      secondaryCta = {
+        href,
+        text: lang === 'es' ? 'Reactivar mi servicio' : 'Reactivate my service',
+      };
+    }
+  }
+
   const rows = detailRows(canonical, d, lang);
   const inner = buildInnerBlock({
     title: escapeHtml(title),
-    introHtml: intro,
+    topHtml,
+    bottomHtml,
     rows,
+    secondaryCta,
     ctaText: escapeHtml(cta),
     ctaUrl: String(ctaUrl),
   });
