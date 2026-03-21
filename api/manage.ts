@@ -210,7 +210,7 @@ function escapeHtml(s: string) {
 type NotificationChannel = 'email' | 'telegram' | 'sms_product';
 type NotificationCategory = 'product_delivery' | 'operational';
 
-/** Inserta en notification_history sin bloquear el flujo. category: product_delivery = SMS/producto; operational = tests, avisos. metadata: slot_id, phone_number para producto. */
+/** Inserta en notification_history sin bloquear el flujo (columnas: type, event_name, content). */
 async function insertNotificationLog(params: {
   user_id: string;
   channel: NotificationChannel;
@@ -224,9 +224,13 @@ async function insertNotificationLog(params: {
 }): Promise<void> {
   try {
     await supabaseAdmin.from('notification_history').insert({
-      ...params,
-      category: params.category ?? 'operational',
-      metadata: params.metadata ?? {},
+      user_id: params.user_id,
+      type: params.channel,
+      event_name: params.event,
+      recipient: params.recipient,
+      content: params.content_preview ?? null,
+      status: params.status,
+      error_message: params.error_message ?? null,
     });
   } catch {
     // no bloquear por fallo de historial
@@ -1558,16 +1562,16 @@ export default async function handler(req: any, res: any) {
         }
         const { data: logRow, error: logError } = await supabaseAdmin
           .from('notification_history')
-          .select('id, user_id, channel, event, recipient, content_preview')
+          .select('id, user_id, type, event_name, recipient, content')
           .eq('id', logId.trim())
           .maybeSingle();
         if (logError || !logRow) {
           return res.status(404).json({ error: 'Registro no encontrado.', code: 'NOT_FOUND' });
         }
         const userId = (logRow as { user_id?: string }).user_id;
-        const channel = (logRow as { channel: string }).channel;
-        const event = (logRow as { event: string }).event;
-        const content = (logRow as { content_preview?: string | null }).content_preview ?? '';
+        const channel = (logRow as { type: string }).type;
+        const event = (logRow as { event_name: string }).event_name;
+        const content = (logRow as { content?: string | null }).content ?? '';
         const recipient = (logRow as { recipient: string }).recipient;
         if (!userId) {
           return res.status(400).json({ error: 'El registro no tiene user_id.', code: 'INVALID_LOG' });
@@ -1624,7 +1628,7 @@ export default async function handler(req: any, res: any) {
         const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
         let query = supabaseAdmin
           .from('notification_history')
-          .select('id, created_at, user_id, recipient, channel, event, status, error_message, content_preview')
+          .select('id, created_at, user_id, recipient, type, event_name, status, error_message, content')
           .order('created_at', { ascending: false })
           .limit(limit);
         if (filterUserId && String(filterUserId).trim()) {
@@ -1635,13 +1639,23 @@ export default async function handler(req: any, res: any) {
           query = query.ilike('recipient', `%${term}%`);
         }
         if (eventSearch && String(eventSearch).trim()) {
-          query = query.ilike('event', `%${String(eventSearch).trim()}%`);
+          query = query.ilike('event_name', `%${String(eventSearch).trim()}%`);
         }
         const { data: rows, error } = await query;
         if (error) {
           return res.status(500).json({ error: error.message, code: 'DB_ERROR' });
         }
-        const withUserEmail = (rows || []).map((r: { user_id?: string; recipient: string }) => ({ ...r }));
+        const withUserEmail = (rows || []).map((r: Record<string, unknown>) => ({
+          id: r.id,
+          created_at: r.created_at,
+          user_id: r.user_id,
+          recipient: r.recipient,
+          channel: r.type,
+          event: r.event_name,
+          status: r.status,
+          error_message: r.error_message,
+          content_preview: r.content,
+        }));
         if (withUserEmail.length > 0) {
           const userIds = [...new Set((withUserEmail as { user_id?: string }[]).map((r) => r.user_id).filter(Boolean))] as string[];
           const { data: users } = await supabaseAdmin.from('users').select('id, email').in('id', userIds);

@@ -631,12 +631,12 @@ Deno.serve(async (req) => {
       const contentPreview = (bodyStr?.slice(0, 500) ?? subject ?? '') || null;
       await supabase.from('notification_history').insert({
         user_id: user_id ?? null,
+        type: 'email',
+        event_name: payloadIsTest === true ? 'test' : rawEvent,
         recipient: email,
-        channel: 'email',
-        event: payloadIsTest === true ? 'test' : rawEvent,
+        content: contentPreview,
         status: ok ? 'sent' : 'error',
         error_message: ok ? null : (resendData?.message ?? JSON.stringify(resendData)),
-        content_preview: contentPreview,
       });
     } catch (histErr) {
       console.warn('[send-email] notification_history insert failed:', histErr);

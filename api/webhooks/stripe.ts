@@ -542,12 +542,12 @@ async function triggerEmail(
     try {
       await supabaseAdmin.from('notification_history').insert({
         user_id: userId,
+        type: 'email',
+        event_name: event,
         recipient: email,
-        channel: 'email',
-        event,
+        content: bodyOverride.slice(0, 500) || null,
         status: res.ok ? 'sent' : 'error',
         error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
-        content_preview: bodyOverride.slice(0, 500) || null,
       });
     } catch {
       // no bloquear
@@ -589,12 +589,12 @@ async function sendTelegramNotification(
       try {
         await supabaseAdmin.from('notification_history').insert({
           user_id: userId,
+          type: 'telegram',
+          event_name: typeof data !== 'undefined' ? messageOrEvent : 'notification',
           recipient: `Telegram:${tgChatId}`,
-          channel: 'telegram',
-          event: typeof data !== 'undefined' ? messageOrEvent : 'notification',
+          content: (message || '').slice(0, 500) || null,
           status: tgRes.ok ? 'sent' : 'error',
           error_message: tgRes.ok ? null : (tgData?.description ?? null),
-          content_preview: (message || '').slice(0, 500) || null,
         });
       } catch {
         // no bloquear

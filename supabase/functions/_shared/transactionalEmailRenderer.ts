@@ -44,17 +44,23 @@ function escapeHtml(s: unknown): string {
 
 /** Opcional en contentHtml de admin: texto debajo del cuadro de detalles (p. ej. cancelación). */
 const BELOW_DETAILS_SPLIT_RE = /\[\[\s*BELOW_DETAILS\s*\]\]/i;
+const BELOW_DETAILS_STRIP_ALL_RE = /\[\[\s*BELOW_DETAILS\s*\]\]/gi;
 
 function splitEmailBodySections(contentHtml: string): { topHtml: string; bottomHtml: string } {
-  const m = BELOW_DETAILS_SPLIT_RE.exec(contentHtml);
-  if (!m || m.index === undefined) {
-    return { topHtml: contentHtml.trim(), bottomHtml: '' };
+  const raw = String(contentHtml ?? '');
+  const parts = raw.split(BELOW_DETAILS_SPLIT_RE);
+
+  if (parts.length <= 1) {
+    return {
+      topHtml: raw.replace(BELOW_DETAILS_STRIP_ALL_RE, '').trim(),
+      bottomHtml: '',
+    };
   }
 
-  const topHtml = contentHtml.slice(0, m.index).trim();
-  const bottomHtml = contentHtml.slice(m.index + m[0].length).trim();
-
-  return { topHtml, bottomHtml };
+  return {
+    topHtml: String(parts[0] ?? '').replace(BELOW_DETAILS_STRIP_ALL_RE, '').trim(),
+    bottomHtml: parts.slice(1).join(' ').replace(BELOW_DETAILS_STRIP_ALL_RE, '').trim(),
+  };
 }
 
 function billingLabel(d: Record<string, unknown>, lang: 'es' | 'en'): string {

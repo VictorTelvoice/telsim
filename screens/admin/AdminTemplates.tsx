@@ -695,7 +695,7 @@ const AdminTemplates: React.FC = () => {
                         <td className="px-5 py-3 text-slate-800">
                           {row.user_email || row.recipient}
                         </td>
-                        <td className="px-5 py-3 text-slate-600">{row.channel}</td>
+                        <td className="px-5 py-3 text-slate-600">{row.channel ?? '—'}</td>
                         <td className="px-5 py-3 text-slate-700">{row.event}</td>
                         <td className="px-5 py-3">
                           <span
