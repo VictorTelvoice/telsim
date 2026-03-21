@@ -14,9 +14,42 @@ import {
   invoiceTaxBreakdownForDb,
   invoiceTaxCents,
 } from './_helpers/stripeInvoice.js';
-import { getDefaultAdminEmailTestDataForEvent } from '../lib/transactionalEmailTestDefaults';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
+/** Datos de prueba solo para send-notification-test (email); inline para evitar imports fuera de /api en Vercel. */
+function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unknown> {
+  const base = {
+    nombre: 'CEO Test',
+    email: 'noreply@telsim.io',
+    to_email: 'noreply@telsim.io',
+    phone: '+56900000000',
+    phone_number: '+56900000000',
+    plan: 'Plan Pro',
+    plan_name: 'Plan Pro',
+    amount: '$39.90',
+    monto: '$39.90',
+    currency: 'USD',
+    billing_type: 'Mensual',
+    next_date: '31/12/2026',
+    end_date: '31/12/2026',
+    slot_id: 'A1',
+    limit: '400',
+    monthly_limit: '400',
+  };
+
+  switch (event) {
+    case 'cancellation':
+      return { ...base, status: 'Cancelado' };
+    case 'invoice_paid':
+      return { ...base, status: 'Pagado' };
+    case 'upgrade_success':
+      return { ...base, status: 'Activo' };
+    case 'new_purchase':
+    default:
+      return { ...base, status: 'Activo' };
+  }
+}
 
 type StripeClient = InstanceType<(typeof import('stripe'))['default']>;
 let stripeClientPromise: Promise<StripeClient> | null = null;
@@ -1460,6 +1493,7 @@ export default async function handler(req: any, res: any) {
               subjectPreview: subjectLine.slice(0, 120),
               contentLength: content.length,
             });
+            const testData = getLocalAdminEmailTestDataForEvent(event);
             const out = await internalSendEmail({
               userId,
               toEmail,
@@ -1471,7 +1505,7 @@ export default async function handler(req: any, res: any) {
               is_test: true,
               template_id: templateId,
               data: {
-                ...getDefaultAdminEmailTestDataForEvent(event),
+                ...testData,
                 to_email: toEmail,
                 email: toEmail,
                 template_id: templateId,
