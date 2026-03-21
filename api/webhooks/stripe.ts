@@ -12,7 +12,7 @@ import {
   slotCountryMatchesOnboardingIso,
 } from '../_helpers/slotCountryMapping.js';
 import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
-import { releaseSlotAtomicForCancelPolicy, type SupabaseAdminForRpc } from '../manage.js';
+import { releaseSlotAtomicForCancelPolicy, type SupabaseAdminForRpc } from '../_helpers/releaseSlotAtomicForCancelPolicy.js';
 
 export const config = { api: { bodyParser: false } };
 

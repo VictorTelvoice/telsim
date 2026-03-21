@@ -4,9 +4,10 @@
  * Único punto de entrada para la API de administración (100% independiente, sin _helpers).
  * Body: { action: 'portal' | 'payment-method' | 'notify-ticket-reply' | 'upgrade' | 'cancel' | 'send-test' | 'verify-bot' | 'send-notification-test' | ... }
  */
-import Stripe from 'stripe';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
+import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
 import {
   extractReceiptUrlFromInvoice,
   invoiceCustomerTaxIdsForDb,
@@ -16,29 +17,25 @@ import {
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-01-28.clover' as any,
-});
+type StripeClient = InstanceType<(typeof import('stripe'))['default']>;
+let stripeClientPromise: Promise<StripeClient> | null = null;
+
+/** Instancia única del SDK; carga el paquete `stripe` solo en la primera llamada (no al importar este módulo). */
+async function getStripeClient(): Promise<StripeClient> {
+  if (!stripeClientPromise) {
+    stripeClientPromise = import('stripe').then(({ default: Stripe }) => {
+      return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: '2026-01-28.clover' as any,
+      });
+    });
+  }
+  return stripeClientPromise;
+}
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-/**
- * Cliente Supabase sin `Database` generado: permite `rpc('release_slot_atomic', …)`.
- * `ReturnType<typeof createClient>` sin genéricos infiere `rpc` con args `never` / `undefined`.
- */
-/** Tercer genérico = nombre de schema (`'public'`); encaja con `createClient()` por defecto. */
-export type SupabaseAdminForRpc = SupabaseClient<any, 'public', 'public'>;
-
-/**
- * Única política de liberación de número en servidor (RPC `release_slot_atomic`).
- * Usar solo desde `case 'cancel'` y desde procesos server-side que deban alinearse con manage.
- */
-export async function releaseSlotAtomicForCancelPolicy(client: SupabaseAdminForRpc, p_slot_id: string) {
-  return client.rpc('release_slot_atomic', { p_slot_id });
-}
 
 /** Valida Bearer de Supabase y devuelve el user id autenticado (o null). */
 async function getRequestAuthUserId(req: any): Promise<string | null> {
@@ -745,6 +742,7 @@ export default async function handler(req: any, res: any) {
   try {
     switch (action) {
       case 'portal': {
+        const stripe = await getStripeClient();
         const { customerId, userId, returnUrl } = req.body;
         if (userId) {
           const authUid = await getRequestAuthUserId(req);
@@ -778,6 +776,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'payment-method': {
+        const stripe = await getStripeClient();
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido.' });
         const authUid = await getRequestAuthUserId(req);
@@ -812,6 +811,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'invoice-history': {
+        const stripe = await getStripeClient();
         const { userId, limit } = req.body || {};
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido.' });
         const authUid = await getRequestAuthUserId(req);
@@ -893,6 +893,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'invoice-resolve': {
+        const stripe = await getStripeClient();
         const { userId, invoiceId } = req.body || {};
         if (!userId || !invoiceId || typeof invoiceId !== 'string') {
           return res.status(400).json({ error: 'userId e invoiceId requeridos.' });
@@ -984,6 +985,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'cancel': {
+        const stripe = await getStripeClient();
         const rawSubId = typeof req.body?.subscriptionId === 'string' ? req.body.subscriptionId.trim() : '';
         const rawSlotId = typeof req.body?.slot_id === 'string' ? req.body.slot_id.trim() : '';
         if (!rawSubId && !rawSlotId) {
@@ -1368,6 +1370,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'upgrade': {
+        const stripe = await getStripeClient();
         const { userId, slotId, newPriceId, newPlanName, isAnnual } = req.body;
         if (!userId || !slotId || !newPriceId || !newPlanName) {
           return res.status(400).json({ error: 'Faltan parámetros requeridos' });
@@ -1769,6 +1772,7 @@ export default async function handler(req: any, res: any) {
 
       /** Solo admin: cancelar suscripciones en Stripe por ID (best-effort; no toca DB; no revierte cancelación local). */
       case 'admin-stripe-cancel-subscriptions': {
+        const stripe = await getStripeClient();
         const { userId: reqUserId, stripeSubscriptionIds } = req.body || {};
         if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
           return res.status(403).json({ error: 'Solo el administrador.' });
