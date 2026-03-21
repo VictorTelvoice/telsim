@@ -1365,7 +1365,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'send-notification-test': {
-        const { channel, content, userId } = req.body || {};
+        const { channel, content, userId, subject: subjectTest } = req.body || {};
 
         if (!userId || !channel || typeof content !== 'string') {
           return res.status(400).json({ error: 'Faltan parámetros (channel, content, userId).', code: 'MISSING_PARAMS' });
@@ -1435,7 +1435,10 @@ export default async function handler(req: any, res: any) {
               content: personalText,
               category: 'operational',
               from: 'Telsim <noreply@telsim.io>',
-              subject: 'Prueba de Plantilla TELSIM',
+              subject:
+                typeof subjectTest === 'string' && subjectTest.trim()
+                  ? subjectTest.trim()
+                  : 'Prueba de Plantilla TELSIM',
               is_test: true,
               html: finalHtml,
               data: {

@@ -48,6 +48,23 @@ async function getTemplateContent(templateId: string): Promise<string | null> {
   }
 }
 
+/** Solo plantillas email: cuerpo + asunto opcional en `admin_settings`. */
+async function getEmailTemplateParts(templateId: string): Promise<{ content: string | null; subject: string | null }> {
+  try {
+    const { data: row } = await supabaseAdmin
+      .from('admin_settings')
+      .select('content, subject')
+      .eq('id', templateId)
+      .maybeSingle();
+    const r = row as { content?: string | null; subject?: string | null } | null;
+    const content = r?.content != null && String(r.content).trim() !== '' ? String(r.content).trim() : null;
+    const subject = r?.subject != null && String(r.subject).trim() !== '' ? String(r.subject).trim() : null;
+    return { content, subject };
+  } catch {
+    return { content: null, subject: null };
+  }
+}
+
 /** Eventos canónicos compartidos: `template_email_*`, `template_telegram_*`, `template_app_*`. */
 const CANONICAL_TEMPLATE_EVENTS = {
   NEW_PURCHASE: 'new_purchase',
@@ -79,6 +96,14 @@ const DEFAULT_EMAIL_BY_EVENT: Record<string, string> = {
     '<p>Hola <strong>{{nombre}}</strong>,</p><p>Registramos el pago de tu factura. Plan: {{plan}}. Próximo ciclo: {{end_date}}.</p>',
 };
 
+/** Asuntos por defecto si `admin_settings.subject` está vacío (eventos canónicos). */
+const DEFAULT_EMAIL_SUBJECT_BY_EVENT: Record<string, string> = {
+  new_purchase: '[Telsim] Tu línea {{phone}} ya está activa',
+  cancellation: '[Telsim] Confirmación de cancelación de tu línea {{phone}}',
+  upgrade_success: '[Telsim] Tu plan fue actualizado a {{plan}}',
+  invoice_paid: '[Telsim] Pago confirmado de tu plan {{plan}}',
+};
+
 const DEFAULT_APP_BY_EVENT: Record<string, string> = {
   new_purchase: 'Tu plan {{plan}} está activo. Número {{phone}}.',
   cancellation: 'Tu plan {{plan}} quedó cancelado. Podrás reactivar cuando quieras.',
@@ -101,7 +126,10 @@ async function renderTemplateOrDefault(
   const prefix =
     kind === 'email' ? 'template_email_' : kind === 'telegram' ? 'template_telegram_' : 'template_app_';
   const templateId = `${prefix}${event}`;
-  const raw = await getTemplateContent(templateId);
+  const raw =
+    kind === 'email'
+      ? (await getEmailTemplateParts(templateId)).content
+      : await getTemplateContent(templateId);
   if (raw && raw.trim()) {
     return { text: replaceVariables(raw, data), usedFallback: false };
   }
@@ -122,6 +150,21 @@ async function renderTemplateOrDefault(
       ? 'TELSIM · {{plan}} · {{phone}} · {{status}}'
       : '<p>Actualización de tu cuenta TELSIM ({{plan}}).</p>');
   return { text: replaceVariables(fallback, data), usedFallback: true };
+}
+
+const GENERIC_EMAIL_SUBJECT_FALLBACK = '[Telsim] Actualización de tu cuenta • {{plan}}';
+
+async function resolveEmailSubject(event: string, data: Record<string, unknown>): Promise<string> {
+  const templateId = `template_email_${event}`;
+  const { subject: dbSubject } = await getEmailTemplateParts(templateId);
+  if (dbSubject && dbSubject.trim()) {
+    return replaceVariables(dbSubject.trim(), data);
+  }
+  const def = DEFAULT_EMAIL_SUBJECT_BY_EVENT[event];
+  if (def) {
+    return replaceVariables(def, data);
+  }
+  return replaceVariables(GENERIC_EMAIL_SUBJECT_FALLBACK, data);
 }
 
 const FINANCE_COST_PER_SLOT_MONTH_CENTS_ID = 'finance_cost_per_slot_month_cents';
@@ -471,6 +514,7 @@ async function triggerEmail(
 ): Promise<void> {
   const templateId = `template_email_${event}`;
   const { text: bodyOverride } = await renderTemplateOrDefault('email', event, data);
+  const subjectResolved = await resolveEmailSubject(event, data);
   try {
     let email = (data?.to_email as string) ?? (data?.email as string) ?? (data?.to as string) ?? undefined;
     if (!email) {
@@ -484,7 +528,15 @@ async function triggerEmail(
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
-      body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride }),
+      body: JSON.stringify({
+        event,
+        user_id: userId,
+        to_email: email,
+        data,
+        template_id: templateId,
+        content: bodyOverride,
+        subject: subjectResolved,
+      }),
     });
     const result = await res.json().catch(() => ({}));
     try {

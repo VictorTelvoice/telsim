@@ -211,6 +211,8 @@ const AdminTemplates: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('email');
   const [settings, setSettings] = useState<Record<string, string>>({});
+  /** Solo plantillas email: asunto editable en BD (`admin_settings.subject`). */
+  const [emailSubjects, setEmailSubjects] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
@@ -245,6 +247,10 @@ const AdminTemplates: React.FC = () => {
     setSettings((s) => ({ ...s, [id]: value }));
   };
 
+  const handleEmailSubjectChange = (id: string, value: string) => {
+    setEmailSubjects((s) => ({ ...s, [id]: value }));
+  };
+
   const showLocalToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const toast = document.createElement('div');
     toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[300] animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10 max-w-[90vw]`;
@@ -257,21 +263,29 @@ const AdminTemplates: React.FC = () => {
   }, []);
 
   const fetchSettings = useCallback(async () => {
-    const { data } = await supabase.from('admin_settings').select('id, content');
+    const { data } = await supabase.from('admin_settings').select('id, content, subject');
     const map: Record<string, string> = {};
-    (data || []).forEach((r: { id: string; content: string | null }) => {
+    const subjects: Record<string, string> = {};
+    (data || []).forEach((r: { id: string; content: string | null; subject?: string | null }) => {
       if (
         r.id.startsWith(PREFIX_EMAIL) ||
         r.id.startsWith(PREFIX_TELEGRAM) ||
         r.id.startsWith(PREFIX_APP)
       ) {
         map[r.id] = r.content ?? '';
+        if (r.id.startsWith(PREFIX_EMAIL)) {
+          subjects[r.id] = r.subject ?? '';
+        }
       }
     });
     [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS].forEach((id) => {
       if (!(id in map)) map[id] = '';
     });
+    KNOWN_EMAIL_IDS.forEach((id) => {
+      if (!(id in subjects)) subjects[id] = '';
+    });
     setSettings(map);
+    setEmailSubjects(subjects);
   }, []);
 
   useEffect(() => {
@@ -359,11 +373,15 @@ const AdminTemplates: React.FC = () => {
     async (id: string) => {
       const { data } = await supabase
         .from('admin_settings')
-        .select('content')
+        .select('content, subject')
         .eq('id', id)
         .maybeSingle();
-      const content = (data as { content: string | null } | null)?.content ?? '';
+      const row = data as { content: string | null; subject?: string | null } | null;
+      const content = row?.content ?? '';
       setSettings((s) => ({ ...s, [id]: content }));
+      if (id.startsWith(PREFIX_EMAIL)) {
+        setEmailSubjects((s) => ({ ...s, [id]: row?.subject ?? '' }));
+      }
     },
     []
   );
@@ -388,13 +406,16 @@ const AdminTemplates: React.FC = () => {
       setSendingTestId(id);
       setSuccessTestId(null);
       try {
-        const body = {
+        const body: Record<string, unknown> = {
           action: 'send-notification-test',
           channel: activeTab === 'email' ? 'email' : 'telegram',
           content,
           userId: user.id, // user.id real del usuario autenticado
           isTest: true,
         };
+        if (activeTab === 'email') {
+          body.subject = replaceVariablesForTest(emailSubjects[id] ?? '');
+        }
         const response = await fetch('/api/manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -424,17 +445,25 @@ const AdminTemplates: React.FC = () => {
         setSendingTestId(null);
       }
     },
-    [activeTab, settings, user, showLocalToast]
+    [activeTab, settings, emailSubjects, user, showLocalToast]
   );
 
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      const ids = [...KNOWN_EMAIL_IDS, ...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS];
-      for (const id of ids) {
+      const updatedAt = new Date().toISOString();
+      for (const id of KNOWN_EMAIL_IDS) {
+        const content = settings[id] ?? '';
+        const subj = (emailSubjects[id] ?? '').trim();
+        await supabase.from('admin_settings').upsert(
+          { id, content, subject: subj || null, updated_at: updatedAt },
+          { onConflict: 'id' }
+        );
+      }
+      for (const id of [...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS]) {
         const content = settings[id] ?? '';
         await supabase.from('admin_settings').upsert(
-          { id, content, updated_at: new Date().toISOString() },
+          { id, content, subject: null, updated_at: updatedAt },
           { onConflict: 'id' }
         );
       }
@@ -655,6 +684,21 @@ const AdminTemplates: React.FC = () => {
                   </div>
                 )}
                 <div className="p-5">
+                  {activeTab === 'email' && (
+                    <div className="mb-4">
+                      <label htmlFor={`subject-${id}`} className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Asunto
+                      </label>
+                      <input
+                        id={`subject-${id}`}
+                        type="text"
+                        value={emailSubjects[id] ?? ''}
+                        onChange={(e) => handleEmailSubjectChange(id, e.target.value)}
+                        placeholder="Asunto del correo (opcional si el evento tiene predeterminado)"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                      />
+                    </div>
+                  )}
                   {/* Barra de formato: HTML para email (compatible con plantilla maestra), Markdown para resto */}
                   <div className="flex flex-wrap gap-1 mb-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 self-center">Formato:</span>
@@ -808,6 +852,12 @@ const AdminTemplates: React.FC = () => {
               <div className="flex-1 min-h-0 p-4 bg-slate-100 rounded-b-2xl">
                 {previewId.startsWith(PREFIX_EMAIL) ? (
                   <>
+                    <p className="text-sm text-slate-700 mb-2">
+                      <span className="font-semibold">Asunto:</span>{' '}
+                      {replaceVariablesForTest(emailSubjects[previewId] ?? '') || (
+                        <span className="text-slate-500 italic">(vacío — en producción puede usarse el predeterminado por evento)</span>
+                      )}
+                    </p>
                     <p className="text-xs text-slate-500 mb-2">
                       Vista previa con la plantilla maestra TELSIM. Se actualiza al editar.
                     </p>
@@ -815,7 +865,10 @@ const AdminTemplates: React.FC = () => {
                       <iframe
                         key={previewId}
                         title="Vista previa del correo"
-                        srcDoc={MASTER_TEMPLATE.replace('{{content}}', settings[previewId] ?? '')}
+                        srcDoc={MASTER_TEMPLATE.replace(
+                          '{{content}}',
+                          replaceVariablesForTest(settings[previewId] ?? '')
+                        )}
                         className="w-full h-full border-0"
                         sandbox="allow-same-origin"
                       />
