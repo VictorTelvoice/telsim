@@ -79,12 +79,14 @@ const Processing: React.FC = () => {
         .from('subscriptions')
         .select('id, slot_id, phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state');
 
+      // Orden: `stripe_session_id` antes que `slot_id` — el `session_id` de Stripe es la clave canónica
+      // del retorno desde Checkout; priorizar `slot_id` rompía el match si hubiera divergencia.
       if (subId) {
         query = query.eq('id', subId);
-      } else if (slotId) {
-        query = query.eq('slot_id', slotId).eq('user_id', user.id);
       } else if (sessionId) {
         query = query.eq('stripe_session_id', sessionId);
+      } else if (slotId) {
+        query = query.eq('slot_id', slotId).eq('user_id', user.id);
       } else {
         return;
       }
@@ -111,6 +113,7 @@ const Processing: React.FC = () => {
       const subscriptionLive = statusLower === 'active' || statusLower === 'trialing';
       const phoneOk = !!String(data.phone_number ?? '').trim();
 
+      // Sin `slot_id` en la fila no podemos comprobar el slot; no bloquear el branch (antes `slotNotLibre` quedaba false).
       let slotNotLibre = false;
       if (data.slot_id) {
         const { data: slotRow } = await supabase
@@ -121,11 +124,14 @@ const Processing: React.FC = () => {
           .maybeSingle();
         slotNotLibre =
           slotRow != null && String((slotRow as { status?: string | null }).status ?? '').toLowerCase() !== 'libre';
+      } else {
+        slotNotLibre = true;
       }
 
-      /** Listo: webhook dejó `on_air`, o hay fila viva + número + slot ocupado (no `libre`). */
+      /** Listo: webhook dejó `on_air` / `provisioned`, o fila viva + número + slot ocupado (no `libre`). */
       const activationReady =
         activationState === 'on_air' ||
+        activationState === 'provisioned' ||
         (subscriptionLive && phoneOk && slotNotLibre);
 
       if (activationReady) {

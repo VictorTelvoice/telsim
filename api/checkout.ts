@@ -36,7 +36,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const action = (req.query?.action || req.body?.action) as string;
+  const hostHeader = req.headers.host ?? 'localhost';
+  const currentUrl = new URL(req.url ?? '/', `https://${hostHeader}`);
+  const actionFromQuery = currentUrl.searchParams.get('action');
+  const action = (actionFromQuery || req.body?.action) as string;
   if (!action || !['session', 'verify'].includes(action)) {
     return res.status(400).json({ error: 'Se requiere action: "session" o "verify".' });
   }
