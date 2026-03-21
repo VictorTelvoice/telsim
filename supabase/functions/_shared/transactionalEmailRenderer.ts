@@ -1,6 +1,8 @@
 /**
  * Renderer único para emails transaccionales canónicos (producción, tests, preview).
  * Sin dependencias de Deno/React — importable desde send-email y Vite.
+ *
+ * Mismo HTML para: send-email (producción), preview en AdminTemplates, Enviar Test vía api/manage → Edge.
  */
 
 import {
@@ -57,6 +59,7 @@ const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = 
   invoice_paid: { es: 'Pago confirmado', en: 'Payment confirmed' },
 };
 
+/** ES: "Abrir app web" en los cuatro eventos; EN: equivalente. CTA → TELSIM_WEB_APP_URL. */
 const CTAS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
   new_purchase: { es: 'Abrir app web', en: 'Open web app' },
   cancellation: { es: 'Abrir app web', en: 'Open web app' },
@@ -195,20 +198,20 @@ function buildMasterHtml(innerHtml: string): string {
                 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);border:1px solid #e2e8f0;">
                     <tr>
                         <td style="padding:28px 32px 20px 32px;background:#ffffff;">
-                            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="width:100%;">
                                 <tr>
-                                    <td style="vertical-align:middle;width:1px;white-space:nowrap;padding-right:14px;">
-                                        <img src="${TELSIM_LOGO_URL}" width="40" height="40" alt="Telsim" style="display:block;height:40px;width:40px;border:0;outline:none;text-decoration:none;" />
+                                    <td width="40" style="width:40px;vertical-align:middle;padding:0 14px 0 0;line-height:0;font-size:0;">
+                                        <img src="${TELSIM_LOGO_URL}" width="40" height="40" alt="Telsim" style="display:block;width:40px;height:40px;max-width:40px;max-height:40px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
                                     </td>
-                                    <td style="vertical-align:middle;">
-                                        <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;line-height:1.2;">Telsim</span>
+                                    <td style="vertical-align:middle;padding:0;line-height:40px;mso-line-height-rule:exactly;">
+                                        <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;line-height:40px;display:inline-block;vertical-align:middle;">Telsim</span>
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
                     <tr>
-                        <td style="height:2px;background:${ACCENT_PRIMARY};line-height:2px;font-size:0;">&nbsp;</td>
+                        <td style="height:1px;background:${ACCENT_PRIMARY};line-height:1px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td>
                     </tr>
                     <tr>
                         <td style="padding:40px 36px 36px 36px;line-height:1.6;color:#334155;font-size:16px;">
