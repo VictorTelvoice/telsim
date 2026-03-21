@@ -14,6 +14,7 @@ import {
   invoiceTaxBreakdownForDb,
   invoiceTaxCents,
 } from './_helpers/stripeInvoice.js';
+import { DEFAULT_ADMIN_EMAIL_TEST_DATA } from '../supabase/functions/_shared/transactionalEmailRenderer';
 
 const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
 
@@ -172,37 +173,6 @@ function getBaseUrl(req: any): string {
 function escapeHtml(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-/** Plantilla maestra del correo: marco azul TELSIM con placeholder {{body_content}} para el mensaje. */
-const EMAIL_MASTER_TEMPLATE = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
-    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    .header { background-color: #0074d4; padding: 30px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 2px; }
-    .content { padding: 40px; color: #333333; line-height: 1.6; font-size: 16px; }
-    .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
-    .btn { display: inline-block; padding: 12px 24px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px; }
-    .highlight { color: #0074d4; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>TELSIM</h1></div>
-    <div class="content">
-      {{body_content}}
-    </div>
-    <div class="footer">
-      <p>© 2026 Telsim.io - Todos los derechos reservados.</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
 
 type NotificationChannel = 'email' | 'telegram' | 'sms_product';
 type NotificationCategory = 'product_delivery' | 'operational';
@@ -1444,8 +1414,6 @@ export default async function handler(req: any, res: any) {
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
-            // Contenido y asunto ya resueltos en el cliente; solo inyectar HTML en la misma maestra que el test.
-            const finalHtml = EMAIL_MASTER_TEMPLATE.replace('{{body_content}}', content);
             const subjectLine =
               typeof subjectIn === 'string' && subjectIn.trim() !== ''
                 ? subjectIn.trim()
@@ -1459,9 +1427,9 @@ export default async function handler(req: any, res: any) {
               from: 'Telsim <noreply@telsim.io>',
               subject: subjectLine,
               is_test: true,
-              html: finalHtml,
               template_id: templateId,
               data: {
+                ...DEFAULT_ADMIN_EMAIL_TEST_DATA,
                 to_email: toEmail,
                 email: toEmail,
                 template_id: templateId,

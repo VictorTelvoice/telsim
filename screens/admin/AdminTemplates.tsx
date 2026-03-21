@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Link, Palette, Underline, Eye, X, History } from 'lucide-react';
+import { renderTransactionalEmail, DEFAULT_ADMIN_EMAIL_TEST_DATA } from '../../supabase/functions/_shared/transactionalEmailRenderer';
 
 const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
@@ -539,6 +540,23 @@ const AdminTemplates: React.FC = () => {
   const previewResolved =
     previewId != null ? getResolvedTestPayload(previewId, settings, emailSubjects) : null;
 
+  const emailPreviewSrcDoc = useMemo(() => {
+    if (!previewId || !previewResolved || !previewId.startsWith(PREFIX_EMAIL)) return '';
+    const meta = getBlockMeta(previewId);
+    const data: Record<string, unknown> = { ...DEFAULT_ADMIN_EMAIL_TEST_DATA, ...TEST_VARS };
+    const rendered = renderTransactionalEmail({
+      event: meta.event,
+      data,
+      subject: previewResolved.subject || undefined,
+      contentHtml: previewResolved.content,
+      lang: 'es',
+    });
+    return (
+      rendered?.html ??
+      EMAIL_TEST_WRAPPER.replace('{{body_content}}', previewResolved.content)
+    );
+  }, [previewId, previewResolved]);
+
   return (
     <div className="w-full min-h-screen bg-slate-50 p-6">
       <div className="max-w-[1600px] mx-auto w-full">
@@ -910,13 +928,13 @@ const AdminTemplates: React.FC = () => {
                       )}
                     </p>
                     <p className="text-xs text-slate-500 mb-2">
-                      Misma envoltura HTML que el test en servidor (api/manage). Se actualiza al editar.
+                      Mismo renderer que send-email (eventos canónicos). Plantillas legacy: envoltura simple.
                     </p>
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-[60vh] min-h-[400px]">
                       <iframe
                         key={previewId}
                         title="Vista previa del correo"
-                        srcDoc={EMAIL_TEST_WRAPPER.replace('{{body_content}}', previewResolved.content)}
+                        srcDoc={emailPreviewSrcDoc}
                         className="w-full h-full border-0"
                         sandbox="allow-same-origin"
                       />

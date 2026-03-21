@@ -19,6 +19,7 @@
 // }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderTransactionalEmail } from '../_shared/transactionalEmailRenderer.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const RESEND_FROM = 'Telsim <noreply@telsim.io>';
@@ -440,7 +441,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, html: payloadHtml, is_test: payloadIsTest, custom_content: payloadCustomContent, html_body: payloadHtmlBody } = payload;
+    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, is_test: payloadIsTest, custom_content: payloadCustomContent, html_body: payloadHtmlBody } = payload;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
@@ -512,17 +513,11 @@ Deno.serve(async (req) => {
 
     const rawEvent = String(event);
     const ev = normalizeEmailEvent(rawEvent);
-    const htmlProvided = payloadHtml != null && String(payloadHtml).trim() !== '';
 
     let bodyStr: string;
     const isTest = payloadIsTest === true;
     const customBody = payloadCustomContent ?? payloadHtmlBody ?? (isTest ? (data?.message as string) ?? payloadContent : null);
-    if (htmlProvided) {
-      bodyStr =
-        payloadContent != null && String(payloadContent).trim() !== ''
-          ? renderBodyTemplate(String(payloadContent), data)
-          : ' ';
-    } else if (isTest && customBody != null && String(customBody).trim() !== '') {
+    if (isTest && customBody != null && String(customBody).trim() !== '') {
       bodyStr = renderBodyTemplate(String(customBody), data);
     } else if (payloadContent != null && String(payloadContent).trim() !== '') {
       bodyStr = renderBodyTemplate(String(payloadContent), data);
@@ -540,57 +535,73 @@ Deno.serve(async (req) => {
         : tBody.body(data);
     }
 
-    const t = i18nLang[ev];
-    const titleKey = t ? `email_${ev}_title_${lang}` : undefined;
-    const titleOverride = titleKey ? settingsOverrides[titleKey] : undefined;
-    const subjectKey = t ? `email_${ev}_subject_${lang}` : undefined;
-    const subjectOverride = subjectKey ? settingsOverrides[subjectKey] : undefined;
-    const subject = payloadSubject != null && String(payloadSubject).trim() !== ''
-      ? String(payloadSubject).trim()
-      : subjectOverride != null && subjectOverride !== ''
-      ? subjectOverride
-      : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || rawEvent;
-    const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
+    const langForRenderer: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
+    const canonicalRendered = renderTransactionalEmail({
+      event: rawEvent,
+      data,
+      subject: payloadSubject,
+      contentHtml: bodyStr,
+      lang: langForRenderer,
+    });
 
-    const tAny = (t || {}) as Record<string, unknown>;
-    const rowVal = (key: string) => {
-      const fn = tAny[key];
-      return typeof fn === 'function' ? String((fn as (d: Record<string, unknown>) => string)(data)) : String(fn ?? '');
-    };
+    let html: string;
+    let subject: string;
 
-    let tableRowsResolved: { label: string; value: string }[] | undefined;
-    if (!htmlProvided && tAny.useTableRows && Array.isArray(tAny.tableRows)) {
-      tableRowsResolved = (tAny.tableRows as Array<{ label: string; value: (d: Record<string, unknown>) => string }>).map(
-        (r) => ({ label: r.label, value: typeof r.value === 'function' ? r.value(data) : String(r.value ?? '') })
+    if (canonicalRendered) {
+      html = canonicalRendered.html;
+      subject = canonicalRendered.subject;
+    } else {
+      const t = i18nLang[ev];
+      const titleKey = t ? `email_${ev}_title_${lang}` : undefined;
+      const titleOverride = titleKey ? settingsOverrides[titleKey] : undefined;
+      const subjectKey = t ? `email_${ev}_subject_${lang}` : undefined;
+      const subjectOverride = subjectKey ? settingsOverrides[subjectKey] : undefined;
+      subject =
+        payloadSubject != null && String(payloadSubject).trim() !== ''
+          ? String(payloadSubject).trim()
+          : subjectOverride != null && subjectOverride !== ''
+          ? subjectOverride
+          : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || rawEvent;
+      const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
+
+      const tAny = (t || {}) as Record<string, unknown>;
+      const rowVal = (key: string) => {
+        const fn = tAny[key];
+        return typeof fn === 'function' ? String((fn as (d: Record<string, unknown>) => string)(data)) : String(fn ?? '');
+      };
+
+      let tableRowsResolved: { label: string; value: string }[] | undefined;
+      if (tAny.useTableRows && Array.isArray(tAny.tableRows)) {
+        tableRowsResolved = (tAny.tableRows as Array<{ label: string; value: (d: Record<string, unknown>) => string }>).map(
+          (r) => ({ label: r.label, value: typeof r.value === 'function' ? r.value(data) : String(r.value ?? '') })
+        );
+      }
+
+      html = MASTER_TEMPLATE.replace(
+        '{{content}}',
+        buildInnerContent({
+          icon: eventIcons[ev] ?? '📧',
+          title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? rawEvent,
+          body: bodyStr,
+          infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
+          infoLeftLabel: (t as { infoLeftLabel?: string })?.infoLeftLabel ?? '',
+          infoLeftValue: typeof t?.infoLeftValue === 'function' ? t.infoLeftValue(data) : String((t as { infoLeftValue?: string })?.infoLeftValue ?? ''),
+          infoRightLabel: (t as { infoRightLabel?: string })?.infoRightLabel ?? '',
+          infoRightValue: typeof t?.infoRightValue === 'function' ? t.infoRightValue(data) : String((t as { infoRightValue?: string })?.infoRightValue ?? ''),
+          infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
+          infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
+          infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
+          infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
+          infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
+          infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
+          tableRows: tableRowsResolved,
+          ctaText: (t as { cta?: string })?.cta ?? 'Ir al Dashboard',
+          ctaUrl: ctaUrls[ev] ?? 'https://www.telsim.io',
+          footerText,
+          year: new Date().getFullYear(),
+        })
       );
     }
-
-    const html = htmlProvided
-      ? String(payloadHtml).trim()
-      : MASTER_TEMPLATE.replace(
-          '{{content}}',
-          buildInnerContent({
-            icon: eventIcons[ev] ?? '📧',
-            title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? rawEvent,
-            body: bodyStr,
-            infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
-            infoLeftLabel: (t as { infoLeftLabel?: string })?.infoLeftLabel ?? '',
-            infoLeftValue: typeof t?.infoLeftValue === 'function' ? t.infoLeftValue(data) : String((t as { infoLeftValue?: string })?.infoLeftValue ?? ''),
-            infoRightLabel: (t as { infoRightLabel?: string })?.infoRightLabel ?? '',
-            infoRightValue: typeof t?.infoRightValue === 'function' ? t.infoRightValue(data) : String((t as { infoRightValue?: string })?.infoRightValue ?? ''),
-            infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
-            infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
-            infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
-            infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
-            infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
-            infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
-            tableRows: tableRowsResolved,
-            ctaText: (t as { cta?: string })?.cta ?? 'Ir al Dashboard',
-            ctaUrl: ctaUrls[ev] ?? 'https://www.telsim.io',
-            footerText,
-            year: new Date().getFullYear(),
-          })
-        );
 
     // Enviar via Resend (from/subject/html pueden venir del payload para tests)
     const resendRes = await fetch('https://api.resend.com/emails', {
