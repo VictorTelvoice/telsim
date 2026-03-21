@@ -1374,6 +1374,13 @@ export default async function handler(req: any, res: any) {
 
         const templateId = templateIdIn.trim();
         const event = eventIn.trim();
+        if (!/^template_(email|telegram|app)_[a-z0-9_]+$/i.test(templateId)) {
+          return res.status(400).json({
+            error:
+              'templateId inválido. Debe ser p. ej. template_email_cancellation, template_telegram_new_purchase.',
+            code: 'INVALID_TEMPLATE_ID',
+          });
+        }
         const subjectPreview =
           typeof subjectIn === 'string' ? subjectIn.trim().slice(0, 120) : '';
         const contentPreview = String(content).slice(0, 200);

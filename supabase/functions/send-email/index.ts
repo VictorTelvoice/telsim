@@ -398,6 +398,34 @@ const ctaUrls: Record<EventType, string> = {
   low_credit: 'https://www.telsim.io/dashboard#/login',
 };
 
+/**
+ * Eventos canónicos (webhook, admin templates) → claves internas de i18n.
+ * Legacy: se mantienen como identidad. Desconocidos → scheduled_event (evita 400).
+ */
+function normalizeEmailEvent(raw: string): EventType {
+  const k = String(raw ?? '').trim().toLowerCase();
+  const map: Record<string, EventType> = {
+    // canónicos
+    new_purchase: 'purchase_success',
+    cancellation: 'subscription_cancelled',
+    upgrade_success: 'subscription_activated',
+    invoice_paid: 'invoice_paid',
+    payment_failed: 'invoice_failed',
+    trial_ending: 'scheduled_event',
+    upcoming_invoice: 'scheduled_event',
+    support_reply: 'scheduled_event',
+    // legacy (identidad)
+    purchase_success: 'purchase_success',
+    subscription_cancelled: 'subscription_cancelled',
+    subscription_activated: 'subscription_activated',
+    invoice_failed: 'invoice_failed',
+    scheduled_event: 'scheduled_event',
+    low_credit: 'low_credit',
+  };
+  if (map[k]) return map[k];
+  return 'scheduled_event';
+}
+
 // ─── Handler principal ────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -448,6 +476,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'No email address resolved' }), { status: 400 });
     }
 
+    const i18nLang = i18n[lang] ?? i18n.es;
+
     // Contenido editable desde admin_settings (CMS)
     let settingsOverrides: Record<string, string> = {};
     let templateContentFromDb: string | null = null;
@@ -480,30 +510,37 @@ Deno.serve(async (req) => {
       return s;
     };
 
+    const rawEvent = String(event);
+    const ev = normalizeEmailEvent(rawEvent);
+    const htmlProvided = payloadHtml != null && String(payloadHtml).trim() !== '';
+
     let bodyStr: string;
     const isTest = payloadIsTest === true;
     const customBody = payloadCustomContent ?? payloadHtmlBody ?? (isTest ? (data?.message as string) ?? payloadContent : null);
-    if (isTest && customBody != null && String(customBody).trim() !== '') {
+    if (htmlProvided) {
+      bodyStr =
+        payloadContent != null && String(payloadContent).trim() !== ''
+          ? renderBodyTemplate(String(payloadContent), data)
+          : ' ';
+    } else if (isTest && customBody != null && String(customBody).trim() !== '') {
       bodyStr = renderBodyTemplate(String(customBody), data);
     } else if (payloadContent != null && String(payloadContent).trim() !== '') {
       bodyStr = renderBodyTemplate(String(payloadContent), data);
     } else if (templateContentFromDb && templateContentFromDb.trim() !== '') {
       bodyStr = renderBodyTemplate(templateContentFromDb, data);
     } else {
-      const ev = event as EventType;
-      const t = i18n[lang][ev];
-      if (!t) {
+      const tBody = i18nLang[ev];
+      if (!tBody) {
         return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
       }
       const bodyKey = `email_${ev}_body_${lang}`;
       const bodyOverrideRaw = settingsOverrides[bodyKey];
       bodyStr = bodyOverrideRaw != null && bodyOverrideRaw !== ''
         ? renderBodyTemplate(bodyOverrideRaw, data)
-        : t.body(data);
+        : tBody.body(data);
     }
 
-    const ev = event as EventType;
-    const t = i18n[lang]?.[ev];
+    const t = i18nLang[ev];
     const titleKey = t ? `email_${ev}_title_${lang}` : undefined;
     const titleOverride = titleKey ? settingsOverrides[titleKey] : undefined;
     const subjectKey = t ? `email_${ev}_subject_${lang}` : undefined;
@@ -512,7 +549,7 @@ Deno.serve(async (req) => {
       ? String(payloadSubject).trim()
       : subjectOverride != null && subjectOverride !== ''
       ? subjectOverride
-      : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || event;
+      : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || rawEvent;
     const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
 
     const tAny = (t || {}) as Record<string, unknown>;
@@ -522,36 +559,38 @@ Deno.serve(async (req) => {
     };
 
     let tableRowsResolved: { label: string; value: string }[] | undefined;
-    if (tAny.useTableRows && Array.isArray(tAny.tableRows)) {
+    if (!htmlProvided && tAny.useTableRows && Array.isArray(tAny.tableRows)) {
       tableRowsResolved = (tAny.tableRows as Array<{ label: string; value: (d: Record<string, unknown>) => string }>).map(
         (r) => ({ label: r.label, value: typeof r.value === 'function' ? r.value(data) : String(r.value ?? '') })
       );
     }
 
-    const innerContent = buildInnerContent({
-      icon: eventIcons[ev] ?? '📧',
-      title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? event,
-      body: bodyStr,
-      infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
-      infoLeftLabel: (t as { infoLeftLabel?: string })?.infoLeftLabel ?? '',
-      infoLeftValue: typeof t?.infoLeftValue === 'function' ? t.infoLeftValue(data) : String((t as { infoLeftValue?: string })?.infoLeftValue ?? ''),
-      infoRightLabel: (t as { infoRightLabel?: string })?.infoRightLabel ?? '',
-      infoRightValue: typeof t?.infoRightValue === 'function' ? t.infoRightValue(data) : String((t as { infoRightValue?: string })?.infoRightValue ?? ''),
-      infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
-      infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
-      infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
-      infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
-      infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
-      infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
-      tableRows: tableRowsResolved,
-      ctaText: (t as { cta?: string })?.cta ?? 'Ir al Dashboard',
-      ctaUrl: ctaUrls[ev] ?? 'https://www.telsim.io',
-      footerText,
-      year: new Date().getFullYear(),
-    });
-    const html = payloadHtml != null && String(payloadHtml).trim() !== ''
+    const html = htmlProvided
       ? String(payloadHtml).trim()
-      : MASTER_TEMPLATE.replace('{{content}}', innerContent);
+      : MASTER_TEMPLATE.replace(
+          '{{content}}',
+          buildInnerContent({
+            icon: eventIcons[ev] ?? '📧',
+            title: (titleOverride != null && titleOverride !== '' ? titleOverride : t?.title) ?? rawEvent,
+            body: bodyStr,
+            infoBoxBg: eventInfoBoxBg[ev] ?? DEFAULT_INFO_BG,
+            infoLeftLabel: (t as { infoLeftLabel?: string })?.infoLeftLabel ?? '',
+            infoLeftValue: typeof t?.infoLeftValue === 'function' ? t.infoLeftValue(data) : String((t as { infoLeftValue?: string })?.infoLeftValue ?? ''),
+            infoRightLabel: (t as { infoRightLabel?: string })?.infoRightLabel ?? '',
+            infoRightValue: typeof t?.infoRightValue === 'function' ? t.infoRightValue(data) : String((t as { infoRightValue?: string })?.infoRightValue ?? ''),
+            infoRow2Label: (tAny.infoRow2Label as string) ?? undefined,
+            infoRow2Value: tAny.infoRow2Value != null ? rowVal('infoRow2Value') : undefined,
+            infoRow3Label: (tAny.infoRow3Label as string) ?? undefined,
+            infoRow3Value: tAny.infoRow3Value != null ? rowVal('infoRow3Value') : undefined,
+            infoRow4Label: (tAny.infoRow4Label as string) ?? undefined,
+            infoRow4Value: tAny.infoRow4Value != null ? rowVal('infoRow4Value') : undefined,
+            tableRows: tableRowsResolved,
+            ctaText: (t as { cta?: string })?.cta ?? 'Ir al Dashboard',
+            ctaUrl: ctaUrls[ev] ?? 'https://www.telsim.io',
+            footerText,
+            year: new Date().getFullYear(),
+          })
+        );
 
     // Enviar via Resend (from/subject/html pueden venir del payload para tests)
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -583,7 +622,7 @@ Deno.serve(async (req) => {
         user_id: user_id ?? null,
         recipient: email,
         channel: 'email',
-        event: payload.is_test === true ? 'test' : event,
+        event: payloadIsTest === true ? 'test' : rawEvent,
         status: ok ? 'sent' : 'error',
         error_message: ok ? null : (resendData?.message ?? JSON.stringify(resendData)),
         content_preview: contentPreview,
