@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Save, Loader2, RotateCcw, Mail, Bot, Smartphone, Send, Bold, Italic, Link, Palette, Underline, Eye, X, History } from 'lucide-react';
-import { renderTransactionalEmail, DEFAULT_ADMIN_EMAIL_TEST_DATA } from '../../supabase/functions/_shared/transactionalEmailRenderer';
+import { renderTransactionalEmail } from '../../supabase/functions/_shared/transactionalEmailRenderer';
+import { getDefaultAdminEmailTestDataForEvent } from '../../lib/transactionalEmailTestDefaults';
 
 const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
@@ -535,7 +536,7 @@ const AdminTemplates: React.FC = () => {
     if (!previewId || !previewId.startsWith(PREFIX_EMAIL)) return '';
     const resolved = getResolvedTestPayload(previewId, settings, emailSubjects);
     const meta = getBlockMeta(previewId);
-    const data: Record<string, unknown> = { ...DEFAULT_ADMIN_EMAIL_TEST_DATA, ...TEST_VARS };
+    const data: Record<string, unknown> = { ...getDefaultAdminEmailTestDataForEvent(meta.event), ...TEST_VARS };
     const rendered = renderTransactionalEmail({
       event: meta.event,
       data,

@@ -3,7 +3,18 @@
  * Sin dependencias de Deno/React — importable desde send-email y Vite.
  */
 
+import {
+  DEFAULT_ADMIN_EMAIL_TEST_DATA,
+  getDefaultAdminEmailTestDataForEvent,
+} from './transactionalEmailTestDefaults.ts';
+
 export type CanonicalTransactionalEvent = 'new_purchase' | 'cancellation' | 'upgrade_success' | 'invoice_paid';
+
+/** Logo público absoluto (email-safe). */
+export const TELSIM_LOGO_URL = 'https://www.telsim.io/logo-192.png';
+
+/** CTA principal: app web (mismo destino para todos los eventos canónicos). */
+export const TELSIM_WEB_APP_URL = 'https://www.telsim.io/#/web';
 
 export function normalizeCanonicalTransactionalEvent(raw: string): CanonicalTransactionalEvent | null {
   const k = String(raw ?? '').trim().toLowerCase();
@@ -18,6 +29,8 @@ export function normalizeCanonicalTransactionalEvent(raw: string): CanonicalTran
   };
   return map[k] ?? null;
 }
+
+export { DEFAULT_ADMIN_EMAIL_TEST_DATA, getDefaultAdminEmailTestDataForEvent };
 
 function escapeHtml(s: unknown): string {
   return String(s ?? '')
@@ -37,25 +50,6 @@ function phoneVal(d: Record<string, unknown>): string {
   return String(d.phone_number ?? d.phone ?? '');
 }
 
-/** Datos de prueba alineados con AdminTemplates TEST_VARS (manage send-notification-test). */
-export const DEFAULT_ADMIN_EMAIL_TEST_DATA: Record<string, unknown> = {
-  nombre: 'CEO Test',
-  email: 'admin@telsim.io',
-  phone: '+56900000000',
-  phone_number: '+56900000000',
-  plan: 'Plan Pro',
-  plan_name: 'Plan Pro',
-  status: 'Activo',
-  end_date: '31/12/2026',
-  next_date: '01/04/2026',
-  billing_type: 'Mensual',
-  amount: '$39.90',
-  monto: '$39.90',
-  currency: 'USD',
-  slot_id: 'SLOT-TEST',
-  message: 'Mensaje de prueba',
-};
-
 const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
   new_purchase: { es: '¡Suscripción activada!', en: 'Subscription activated!' },
   cancellation: { es: 'Cancelación confirmada', en: 'Cancellation confirmed' },
@@ -64,17 +58,17 @@ const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = 
 };
 
 const CTAS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
-  new_purchase: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
-  cancellation: { es: 'Ver mis líneas', en: 'View my lines' },
-  upgrade_success: { es: 'Revisar mi plan', en: 'Review my plan' },
-  invoice_paid: { es: 'Ver facturación', en: 'View billing' },
+  new_purchase: { es: 'Abrir app web', en: 'Open web app' },
+  cancellation: { es: 'Abrir app web', en: 'Open web app' },
+  upgrade_success: { es: 'Abrir app web', en: 'Open web app' },
+  invoice_paid: { es: 'Abrir app web', en: 'Open web app' },
 };
 
 const CTA_URLS: Record<CanonicalTransactionalEvent, string> = {
-  new_purchase: 'https://www.telsim.io/dashboard#/dashboard',
-  cancellation: 'https://www.telsim.io/dashboard#/dashboard',
-  upgrade_success: 'https://www.telsim.io/#/web',
-  invoice_paid: 'https://www.telsim.io/dashboard#/login',
+  new_purchase: TELSIM_WEB_APP_URL,
+  cancellation: TELSIM_WEB_APP_URL,
+  upgrade_success: TELSIM_WEB_APP_URL,
+  invoice_paid: TELSIM_WEB_APP_URL,
 };
 
 const DEFAULT_SUBJECTS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
@@ -127,6 +121,7 @@ function detailRows(
     case 'invoice_paid':
       return [
         { label: L('Plan', 'Plan'), value: plan },
+        { label: L('Estado', 'Status'), value: status },
         { label: L('Monto pagado', 'Amount paid'), value: amount },
         { label: L('Moneda', 'Currency'), value: currency },
         { label: L('Número SIM', 'SIM number'), value: phone },
@@ -137,6 +132,8 @@ function detailRows(
   }
 }
 
+const ACCENT_PRIMARY = '#0074d4';
+
 function buildInnerBlock(params: {
   title: string;
   introHtml: string;
@@ -144,31 +141,30 @@ function buildInnerBlock(params: {
   ctaText: string;
   ctaUrl: string;
 }): string {
-  const primaryBlue = '#0074d4';
-  const valueColor = '#111827';
-  const labelStyle = 'font-size:11px;color:#6b7280;font-weight:700;padding:12px 0 4px 0;vertical-align:top;';
-  const valueStyle = `font-size:14px;font-weight:700;color:${valueColor};padding:4px 0 12px 0;text-align:right;vertical-align:top;`;
-  const infoBoxBg = '#f0f4ff';
+  const cardBg = '#f1f5f9';
+  const cardBorder = '#e2e8f0';
 
   const tableBody = params.rows
-    .map(
-      (row) => `
+    .map((row, i) => {
+      const isLast = i === params.rows.length - 1;
+      const borderBottom = isLast ? 'none' : '1px solid #e2e8f0';
+      return `
                 <tr>
-                  <td style="${labelStyle}">${row.label}</td>
-                  <td style="${valueStyle}">${row.value}</td>
-                </tr>`
-    )
+                  <td style="font-size:12px;color:#64748b;font-weight:600;padding:14px 12px 0 0;vertical-align:top;border-bottom:${borderBottom};">${row.label}</td>
+                  <td style="font-size:15px;color:#0f172a;font-weight:700;padding:14px 0 0 0;text-align:right;vertical-align:top;border-bottom:${borderBottom};">${row.value}</td>
+                </tr>`;
+    })
     .join('');
 
   return `
-          <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#111827;text-align:center;">
+          <h1 style="margin:0 0 12px;font-size:26px;font-weight:600;color:#0f172a;text-align:center;letter-spacing:-0.02em;line-height:1.25;">
             ${params.title}
           </h1>
-          <div style="margin:0 0 24px;font-size:16px;color:#6b7280;text-align:center;line-height:1.6;">
+          <div style="margin:0 0 24px;font-size:16px;color:#64748b;text-align:center;line-height:1.65;">
             ${params.introHtml}
           </div>
 
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:${infoBoxBg};border-radius:10px;margin-bottom:28px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:${cardBg};border-radius:12px;border:1px solid ${cardBorder};margin-bottom:32px;">
             <tr><td style="padding:24px 28px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 ${tableBody}
@@ -176,43 +172,62 @@ function buildInnerBlock(params: {
             </td></tr>
           </table>
 
-          <div style="text-align:center;margin-bottom:8px;">
+          <div style="text-align:center;margin-bottom:4px;">
             <a href="${params.ctaUrl}" class="button"
-               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(0,116,212,0.35);">
-              ${params.ctaText} →
+               style="display:inline-block;background:${ACCENT_PRIMARY};color:#ffffff !important;font-size:16px;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(0,116,212,0.28);">
+              ${params.ctaText}
             </a>
           </div>`;
 }
 
-const MASTER_HTML = `<!DOCTYPE html>
+function buildMasterHtml(innerHtml: string): string {
+  return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
-        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .header { background-color: #0074d4; padding: 30px; text-align: center; }
-        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: bold; }
-        .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
-        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
-    </style>
+    <title>Telsim</title>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>TELSIM</h1>
-        </div>
-        <div class="content">
-            {{INNER}}
-        </div>
-        <div class="footer">
-            <p>© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
-            <p>Has recibido este correo porque eres cliente de Telsim.io</p>
-        </div>
-    </div>
+<body style="margin:0;padding:0;background-color:#f4f7f9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f7f9;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);border:1px solid #e2e8f0;">
+                    <tr>
+                        <td style="padding:28px 32px 20px 32px;background:#ffffff;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
+                                <tr>
+                                    <td style="vertical-align:middle;width:1px;white-space:nowrap;padding-right:14px;">
+                                        <img src="${TELSIM_LOGO_URL}" width="40" height="40" alt="Telsim" style="display:block;height:40px;width:40px;border:0;outline:none;text-decoration:none;" />
+                                    </td>
+                                    <td style="vertical-align:middle;">
+                                        <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;line-height:1.2;">Telsim</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="height:2px;background:${ACCENT_PRIMARY};line-height:2px;font-size:0;">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:40px 36px 36px 36px;line-height:1.6;color:#334155;font-size:16px;">
+                            ${innerHtml}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color:#f8fafc;padding:22px 24px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+                            <p style="margin:0 0 8px 0;">© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
+                            <p style="margin:0;">Has recibido este correo porque eres cliente de Telsim.io</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>`;
+}
 
 export type RenderTransactionalEmailParams = {
   event: string;
@@ -252,7 +267,7 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
     ctaUrl: String(ctaUrl),
   });
 
-  const html = MASTER_HTML.replace('{{INNER}}', inner);
+  const html = buildMasterHtml(inner);
 
   const subj =
     params.subject != null && String(params.subject).trim() !== ''
