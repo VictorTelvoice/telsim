@@ -48,6 +48,82 @@ async function getTemplateContent(templateId: string): Promise<string | null> {
   }
 }
 
+/** Eventos canónicos compartidos: `template_email_*`, `template_telegram_*`, `template_app_*`. */
+const CANONICAL_TEMPLATE_EVENTS = {
+  NEW_PURCHASE: 'new_purchase',
+  CANCELLATION: 'cancellation',
+  UPGRADE_SUCCESS: 'upgrade_success',
+  INVOICE_PAID: 'invoice_paid',
+} as const;
+
+/** Fallbacks legibles si no hay plantilla en admin_settings (nunca mostrar "Evento: …" al usuario). */
+const DEFAULT_TELEGRAM_BY_EVENT: Record<string, string> = {
+  new_purchase:
+    '✅ *Compra TELSIM*\n\nPlan: *{{plan}}*\nNúmero: {{phone}}\nSlot: {{slot_id}}\nEstado: {{status}}',
+  cancellation:
+    '🔴 *Cancelación*\n\nPlan: {{plan}}\nNúmero: {{phone}}\nÚltimo período: {{end_date}}\nEstado: {{status}}',
+  upgrade_success:
+    '🚀 *Plan actualizado*\n\nPlan: *{{plan}}*\nNúmero: {{phone}}\n{{status}}',
+  invoice_paid:
+    '💳 *Factura pagada*\n\nPlan: {{plan}}\nPróxima renovación: {{end_date}}\nEstado: {{status}}',
+};
+
+const DEFAULT_EMAIL_BY_EVENT: Record<string, string> = {
+  new_purchase:
+    '<p>Hola <strong>{{nombre}}</strong>,</p><p>Tu plan <strong>{{plan}}</strong> quedó activo. Número: {{phone}} · slot {{slot_id}}.</p>',
+  cancellation:
+    '<p>Hola <strong>{{nombre}}</strong>,</p><p>Tu suscripción <strong>{{plan}}</strong> fue cancelada. Último período facturado hasta {{end_date}}.</p>',
+  upgrade_success:
+    '<p>Hola <strong>{{nombre}}</strong>,</p><p>Tu plan pasó a <strong>{{plan}}</strong>.</p>',
+  invoice_paid:
+    '<p>Hola <strong>{{nombre}}</strong>,</p><p>Registramos el pago de tu factura. Plan: {{plan}}. Próximo ciclo: {{end_date}}.</p>',
+};
+
+const DEFAULT_APP_BY_EVENT: Record<string, string> = {
+  new_purchase: 'Tu plan {{plan}} está activo. Número {{phone}}.',
+  cancellation: 'Tu plan {{plan}} quedó cancelado. Podrás reactivar cuando quieras.',
+  upgrade_success: 'Tu plan pasó a {{plan}}.',
+  invoice_paid: 'Pago de factura registrado para {{plan}}.',
+};
+
+const IN_APP_TITLE_BY_EVENT: Record<string, string> = {
+  new_purchase: '✅ Compra confirmada',
+  cancellation: '🔴 Suscripción terminada',
+  upgrade_success: '🚀 Plan actualizado',
+  invoice_paid: '💳 Pago registrado',
+};
+
+async function renderTemplateOrDefault(
+  kind: 'email' | 'telegram' | 'app',
+  event: string,
+  data: Record<string, unknown>
+): Promise<{ text: string; usedFallback: boolean }> {
+  const prefix =
+    kind === 'email' ? 'template_email_' : kind === 'telegram' ? 'template_telegram_' : 'template_app_';
+  const templateId = `${prefix}${event}`;
+  const raw = await getTemplateContent(templateId);
+  if (raw && raw.trim()) {
+    return { text: replaceVariables(raw, data), usedFallback: false };
+  }
+  void logEvent(
+    'TEMPLATE_MISSING',
+    'warning',
+    `Plantilla vacía o inexistente: ${templateId}`,
+    undefined,
+    { template_id: templateId, event, channel: kind },
+    'stripe'
+  );
+  const defaults =
+    kind === 'email' ? DEFAULT_EMAIL_BY_EVENT : kind === 'telegram' ? DEFAULT_TELEGRAM_BY_EVENT : DEFAULT_APP_BY_EVENT;
+  const def = defaults[event];
+  const fallback =
+    def ??
+    (kind === 'telegram'
+      ? 'TELSIM · {{plan}} · {{phone}} · {{status}}'
+      : '<p>Actualización de tu cuenta TELSIM ({{plan}}).</p>');
+  return { text: replaceVariables(fallback, data), usedFallback: true };
+}
+
 const FINANCE_COST_PER_SLOT_MONTH_CENTS_ID = 'finance_cost_per_slot_month_cents';
 const FINANCE_COST_PER_SMS_CENTS_ID = 'finance_cost_per_sms_cents';
 
@@ -394,9 +470,7 @@ async function triggerEmail(
   data: Record<string, unknown>
 ): Promise<void> {
   const templateId = `template_email_${event}`;
-  let bodyOverride: string | null = null;
-  const templateContent = await getTemplateContent(templateId);
-  if (templateContent) bodyOverride = replaceVariables(templateContent, data);
+  const { text: bodyOverride } = await renderTemplateOrDefault('email', event, data);
   try {
     let email = (data?.to_email as string) ?? (data?.email as string) ?? (data?.to as string) ?? undefined;
     if (!email) {
@@ -410,7 +484,7 @@ async function triggerEmail(
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
-      body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride ?? undefined }),
+      body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride }),
     });
     const result = await res.json().catch(() => ({}));
     try {
@@ -421,7 +495,7 @@ async function triggerEmail(
         event,
         status: res.ok ? 'sent' : 'error',
         error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
-        content_preview: (bodyOverride ?? '').slice(0, 500) || null,
+        content_preview: bodyOverride.slice(0, 500) || null,
       });
     } catch {
       // no bloquear
@@ -438,9 +512,8 @@ async function sendTelegramNotification(
 ): Promise<void> {
   let message: string;
   if (data != null) {
-    const templateId = `template_telegram_${messageOrEvent}`;
-    const templateContent = await getTemplateContent(templateId);
-    message = templateContent ? replaceVariables(templateContent, data) : replaceVariables('Evento: {{event}}', { event: messageOrEvent, ...data });
+    const { text } = await renderTemplateOrDefault('telegram', messageOrEvent, data);
+    message = text;
   } else {
     message = messageOrEvent;
   }
@@ -517,6 +590,19 @@ async function createNotification(
   } catch (e) {
     console.warn('[NOTIFICATION WARN]', e);
   }
+}
+
+/** In-app desde `template_app_<event>` (mismo evento canónico que email/Telegram). */
+async function createNotificationFromTemplate(
+  event: string,
+  userId: string,
+  data: Record<string, unknown>,
+  type: 'activation' | 'subscription' | 'error' | 'warning' | 'success',
+  sourceStripeEventId?: string
+): Promise<void> {
+  const { text: message } = await renderTemplateOrDefault('app', event, data);
+  const title = IN_APP_TITLE_BY_EVENT[event] ?? 'Telsim';
+  await createNotification(userId, title, message, type, sourceStripeEventId, event);
 }
 
 export default async function handler(req: any, res: any) {
@@ -762,29 +848,33 @@ export default async function handler(req: any, res: any) {
         .eq('id', upgradeMeta.user_id)
         .maybeSingle();
 
+      const phoneNumber = String(upgradeMeta.phone_number || upgradeMeta.slot_id || '');
+      const endDateUpgrade = new Date().toLocaleDateString('es-CL');
+      const upgradePayload = {
+        nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+        email: String(userData?.email ?? ''),
+        phone: phoneNumber.startsWith('+') ? phoneNumber : phoneNumber ? `+${phoneNumber}` : '',
+        plan: String(upgradeMeta.new_plan_name ?? ''),
+        end_date: endDateUpgrade,
+        status: 'Activo',
+        slot_id: String(upgradeMeta.slot_id ?? ''),
+      };
+
       if (userData?.email) {
-        await triggerEmail('subscription_activated', upgradeMeta.user_id as string, {
-          plan_name: upgradeMeta.new_plan_name,
-          billing_type: upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual',
-          slot_id: upgradeMeta.slot_id,
-          email: userData.email,
-        });
+        await triggerEmail(CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS, upgradeMeta.user_id as string, upgradePayload);
         console.log('[UPGRADE] Email enviado a:', userData.email);
       }
 
-      const phoneNumber = upgradeMeta.phone_number || upgradeMeta.slot_id;
       const now = new Date().toLocaleDateString('es-CL', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       });
       try {
         const billingLabel = upgradeMeta.is_annual === 'true' ? 'Anual' : 'Mensual';
-        await sendTelegramNotification('upgrade_success', upgradeMeta.user_id as string, {
-          phone: phoneNumber,
-          plan: upgradeMeta.new_plan_name || '',
+        await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS, upgradeMeta.user_id as string, {
+          ...upgradePayload,
           billing: billingLabel,
           now,
-          status: 'Activo',
         });
       } catch (tgErr: unknown) {
         console.warn('[WEBHOOK] Telegram upgrade notification skipped:', (tgErr as Error)?.message);
@@ -1357,30 +1447,55 @@ export default async function handler(req: any, res: any) {
     await logEvent('PAYMENT_RECEIVED', 'info', `Pago recibido: ${amountFormatted}`, customerEmail, { amount: amountFormatted, user_id: userId, slot_id: slotId }, 'stripe');
 
     if (activationSucceeded) {
+      let profileNombre = '';
+      let profileEmail = customerEmail;
+      try {
+        const { data: prof } = await supabaseAdmin.from('users').select('nombre, email').eq('id', userId).maybeSingle();
+        profileNombre = String((prof as { nombre?: string } | null)?.nombre ?? '').trim();
+        if (!profileEmail && (prof as { email?: string } | null)?.email) {
+          profileEmail = String((prof as { email?: string }).email);
+        }
+      } catch {
+        /* ignore */
+      }
+      const displayPhoneRaw = phoneForEmail || phoneFromMeta || '';
+      const displayPhone = displayPhoneRaw
+        ? displayPhoneRaw.startsWith('+')
+          ? displayPhoneRaw
+          : `+${displayPhoneRaw}`
+        : slotId || '';
+      const newPurchasePayload = {
+        nombre: profileNombre || 'Cliente',
+        email: profileEmail,
+        phone: displayPhone,
+        plan: planName ?? '',
+        end_date: nextDateForEmail,
+        status: 'Activo',
+        slot_id: slotId,
+        billing_type: billingTypeForEmail,
+        next_date: nextDateForEmail,
+        amount: amountFormatted,
+        to: profileEmail,
+        to_email: profileEmail,
+      };
+
       try {
         void logEvent(
           'EMAIL_DISPATCHED',
           'info',
-          'purchase_success',
+          CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE,
           null,
           {
             user_id: userId,
-            template: 'template_email_purchase_success',
+            template: `template_email_${CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE}`,
             channel: 'email',
           },
           'stripe'
         );
-        await triggerEmail('purchase_success', userId, {
-          plan: planName ?? '',
-          phone_number: phoneForEmail,
-          billing_type: billingTypeForEmail,
-          next_date: nextDateForEmail,
-          amount: amountFormatted,
-          to: customerEmail,
-        });
+        await triggerEmail(CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE, userId, newPurchasePayload);
       } catch (emailErr: any) {
         console.error('[WEBHOOK triggerEmail FAIL]', {
-          event: 'purchase_success',
+          event: CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE,
           userId,
           slotId,
           phone_number: phoneForEmail,
@@ -1390,21 +1505,19 @@ export default async function handler(req: any, res: any) {
       }
 
       try {
-        const telegramPhone = phoneForEmail || phoneFromMeta || '';
-        const displayPhone = telegramPhone ? (telegramPhone.startsWith('+') ? telegramPhone : `+${telegramPhone}`) : slotId || '';
         void logEvent(
           'TELEGRAM_DISPATCHED',
           'info',
-          'new_purchase',
+          CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE,
           null,
           {
             user_id: userId,
-            template: 'template_telegram_new_purchase',
+            template: `template_telegram_${CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE}`,
             channel: 'telegram',
           },
           'stripe'
         );
-        await sendTelegramNotification('new_purchase', userId, { phone: displayPhone, plan: planName || '' });
+        await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.NEW_PURCHASE, userId, newPurchasePayload);
       } catch (tgErr: unknown) {
         console.warn('[WEBHOOK] Telegram send skipped or failed:', (tgErr as Error)?.message);
       }
@@ -1711,26 +1824,7 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        await createNotification(
-          sub.user_id,
-          '⚠️ Suscripción cancelada',
-          slotReleased
-            ? `Tu plan ${sub.plan_name} fue cancelado. Tu número ha sido liberado. Puedes activar un nuevo plan cuando quieras.`
-            : `Tu plan ${sub.plan_name} fue cancelado. (El slot asociado pudo no haberse liberado por consistencia operativa).`,
-          'warning'
-        );
-
-        await triggerEmail('subscription_cancelled', sub.user_id, {
-          plan: sub.plan_name ?? '',
-          end_date: new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL'),
-        });
-
-        try {
-          const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
-          await sendTelegramNotification('subscription_cancelled', sub.user_id, { plan: sub.plan_name ?? '', end_date: endDate });
-        } catch (tgErr: unknown) {
-          console.warn('[WEBHOOK] Telegram cancelación skipped:', (tgErr as Error)?.message);
-        }
+        // Email, Telegram e in-app de cancelación: solo en `customer.subscription.deleted` (plantillas canónicas).
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);
@@ -1763,7 +1857,7 @@ export default async function handler(req: any, res: any) {
         void logEvent(
           'SUBSCRIPTION_CREATED_WEBHOOK_IGNORED',
           'info',
-          'subscription.created no envía purchase_success; se espera checkout.session.completed',
+          'subscription.created no envía new_purchase; se espera checkout.session.completed',
           null,
           {
             user_id: sub.user_id,
@@ -2150,9 +2244,27 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    const { data: invUser } = await supabaseAdmin
+      .from('users')
+      .select('email, nombre')
+      .eq('id', subTyped.user_id)
+      .maybeSingle();
     const receiptUrl = extractReceiptUrlFromInvoice(fullInv);
-    await triggerEmail('invoice_paid', subTyped.user_id, {
+    const phoneRawInv = phoneNumber || subTyped.slot_id || '';
+    const phoneFmtInv = phoneRawInv
+      ? String(phoneRawInv).startsWith('+')
+        ? String(phoneRawInv)
+        : `+${String(phoneRawInv).replace(/^\+/, '')}`
+      : '';
+    const emailInv = String((invUser as { email?: string } | null)?.email ?? invoice.customer_email ?? '');
+    await triggerEmail(CANONICAL_TEMPLATE_EVENTS.INVOICE_PAID, subTyped.user_id, {
+      nombre: String((invUser as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+      email: emailInv,
+      phone: phoneFmtInv,
       plan: subTyped.plan_name ?? '',
+      end_date: next_date,
+      status: 'Activo',
+      slot_id: subTyped.slot_id ?? '',
       amount: ((fullInv.amount_paid ?? invoice.amount_paid ?? 0) / 100).toFixed(2),
       subtotal: ((fullInv.subtotal ?? 0) / 100).toFixed(2),
       tax: (invoiceTaxCents(fullInv) / 100).toFixed(2),
@@ -2161,9 +2273,9 @@ export default async function handler(req: any, res: any) {
       hosted_invoice_url: fullInv.hosted_invoice_url ?? '',
       receipt_url: receiptUrl ?? '',
       next_date,
-      phone_number: phoneNumber || subTyped.slot_id || '',
-      slot_id: subTyped.slot_id ?? '',
-      to: invoice.customer_email ?? '',
+      phone_number: phoneRawInv,
+      to: emailInv,
+      to_email: emailInv,
     });
   }
 
@@ -2503,16 +2615,7 @@ export default async function handler(req: any, res: any) {
         'stripe'
       );
 
-      await createNotification(
-        sub.user_id,
-        '🔴 Suscripción terminada',
-        `Tu plan ${sub.plan_name} fue cancelado definitivamente. Reactiva tu suscripción cuando quieras.`,
-        'error',
-        stripeEventId,
-        'subscription_cancelled'
-      );
-
-      // ── NOTIFICACIONES CANCELACIÓN REAL ─────────────────────────
+      // ── Notificaciones canónicas (única fuente): template_email_cancellation, template_telegram_cancellation, template_app_cancellation
       const userId = sub.user_id;
       const slotId = sub.slot_id;
 
@@ -2524,7 +2627,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: userData } = await supabaseAdmin
         .from('users')
-        .select('email')
+        .select('email, nombre')
         .eq('id', userId)
         .maybeSingle();
 
@@ -2535,28 +2638,41 @@ export default async function handler(req: any, res: any) {
 
       const endDate = new Date((subscription.current_period_end ?? 0) * 1000).toLocaleDateString('es-CL');
 
-      console.log('[CANCEL] userData:', userData?.email, 'userId:', userId);
+      const phoneRaw = String(slotData?.phone_number ?? slotId ?? '');
+      const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
 
-      const phoneNumberCancelled = slotData?.phone_number ?? slotId ?? '';
+      const cancellationPayload = {
+        nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+        email: String(userData?.email ?? ''),
+        phone: phoneFormatted,
+        plan: String(sub.plan_name ?? ''),
+        end_date: endDate,
+        status: 'Cancelado',
+        slot_id: String(slotId ?? ''),
+        plan_name: String(slotData?.plan_type ?? sub.plan_name ?? ''),
+        phone_number: phoneRaw,
+        to_email: String(userData?.email ?? ''),
+        date: now,
+      };
+
+      await createNotificationFromTemplate(
+        CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+        userId,
+        cancellationPayload,
+        'error',
+        stripeEventId
+      );
 
       if (userData?.email && userId) {
         void logEvent(
           'EMAIL_DISPATCHED',
           'info',
-          'subscription_cancelled',
+          CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
           null,
-          { user_id: userId, template: 'template_email_subscription_cancelled', channel: 'email' },
+          { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
           'stripe'
         );
-        await triggerEmail('subscription_cancelled', userId, {
-          plan: sub.plan_name ?? '',
-          plan_name: slotData?.plan_type ?? sub.plan_name ?? '',
-          end_date: endDate,
-          slot_id: slotId,
-          phone_number: phoneNumberCancelled,
-          email: userData.email,
-          to_email: userData.email,
-        });
+        await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
         console.log('[CANCEL] Email enviado a:', userData.email);
       } else {
         console.error('[CANCEL] No se encontró email para userId:', userId);
@@ -2565,19 +2681,13 @@ export default async function handler(req: any, res: any) {
       void logEvent(
         'TELEGRAM_DISPATCHED',
         'info',
-        'cancellation',
+        CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
         null,
-        { user_id: userId, template: 'template_telegram_cancellation', channel: 'telegram' },
+        { user_id: userId, template: `template_telegram_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'telegram' },
         'stripe'
       );
-      await sendTelegramNotification('cancellation', userId, {
-        phone: String(slotData?.phone_number || slotId),
-        plan: String(slotData?.plan_type ?? sub.plan_name ?? ''),
-        date: now,
-        status: 'Cancelado',
-      });
+      await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
       console.log('[CANCEL] Telegram enviado OK');
-      // ────────────────────────────────────────────────────────────
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
       await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, {

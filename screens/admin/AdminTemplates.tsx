@@ -8,10 +8,15 @@ const PREFIX_TELEGRAM = 'template_telegram_';
 const PREFIX_APP = 'template_app_';
 
 const KNOWN_EMAIL_IDS = [
+  // Canónicos (webhook Stripe) — mismo sufijo que evento: new_purchase, cancellation, upgrade_success, invoice_paid
+  'template_email_new_purchase',
+  'template_email_cancellation',
+  'template_email_upgrade_success',
+  'template_email_invoice_paid',
+  // Legacy / otros
   'template_email_subscription_activated',
   'template_email_subscription_cancelled',
   'template_email_welcome_email',
-  'template_email_upgrade_success',
   'template_email_payment_reminder',
   'template_email_payment_failed',
   'template_email_invoice_failed',   // Pago fallido (webhook Stripe)
@@ -19,9 +24,9 @@ const KNOWN_EMAIL_IDS = [
 ];
 const KNOWN_TELEGRAM_IDS = [
   'template_telegram_new_purchase',
+  'template_telegram_cancellation',
   'template_telegram_upgrade_success',
   'template_telegram_subscription_cancelled',
-  'template_telegram_cancellation',
   'template_telegram_new_sms_forward',
   'template_telegram_ceo_daily_report',
   'template_telegram_sim_error_alert',
@@ -31,6 +36,10 @@ const KNOWN_TELEGRAM_IDS = [
   'template_telegram_scheduled_event', // Recordatorio
 ];
 const KNOWN_APP_IDS = [
+  'template_app_new_purchase',
+  'template_app_cancellation',
+  'template_app_upgrade_success',
+  'template_app_invoice_paid',
   'template_app_release_success',
   'template_app_release_success_sub',
   'template_app_number_copied',
@@ -39,7 +48,6 @@ const KNOWN_APP_IDS = [
   'template_app_automation_saved',
   'template_app_telegram_test_success',
   'template_app_telegram_test_error',
-  'template_app_upgrade_success',
   'template_app_reminder',
   'template_app_error_alert',
 ];
@@ -101,8 +109,73 @@ const VARIABLES_EMAIL_EXTRA = [
   { var: '{{amount}}', desc: 'Monto' },
   { var: '{{monto}}', desc: 'Monto (alias)' },
   { var: '{{next_date}}', desc: 'Próxima fecha de cobro' },
+  { var: '{{end_date}}', desc: 'Fecha fin de período / próximo ciclo' },
+  { var: '{{status}}', desc: 'Estado (Activo, Cancelado, …)' },
   { var: '{{billing_type}}', desc: 'Tipo de facturación' },
   { var: '{{phone_number}}', desc: 'Número de teléfono' },
+];
+
+/** Variables que el webhook envía por evento canónico (Telegram / email alineados). */
+const CANONICAL_STRIPE_BLOCKS: {
+  event: string;
+  title: string;
+  telegramId: string;
+  emailId: string;
+  vars: { var: string; desc: string }[];
+}[] = [
+  {
+    event: 'new_purchase',
+    title: 'Compra nueva',
+    telegramId: 'template_telegram_new_purchase',
+    emailId: 'template_email_new_purchase',
+    vars: [
+      { var: '{{nombre}}', desc: 'Nombre del usuario' },
+      { var: '{{email}}', desc: 'Correo' },
+      { var: '{{phone}}', desc: 'Número de línea' },
+      { var: '{{plan}}', desc: 'Plan contratado' },
+      { var: '{{end_date}}', desc: 'Próxima fecha relevante' },
+      { var: '{{status}}', desc: 'Estado' },
+      { var: '{{slot_id}}', desc: 'ID del slot' },
+      { var: '{{amount}}', desc: 'Monto cobrado (texto)' },
+      { var: '{{billing_type}}', desc: 'Mensual / Anual' },
+      { var: '{{next_date}}', desc: 'Próximo cobro' },
+    ],
+  },
+  {
+    event: 'cancellation',
+    title: 'Cancelación',
+    telegramId: 'template_telegram_cancellation',
+    emailId: 'template_email_cancellation',
+    vars: [
+      { var: '{{nombre}}', desc: 'Nombre del usuario' },
+      { var: '{{email}}', desc: 'Correo' },
+      { var: '{{phone}}', desc: 'Número' },
+      { var: '{{plan}}', desc: 'Plan' },
+      { var: '{{plan_name}}', desc: 'Plan en slot (alias)' },
+      { var: '{{end_date}}', desc: 'Fin del período facturado' },
+      { var: '{{status}}', desc: 'Estado' },
+      { var: '{{slot_id}}', desc: 'ID del slot' },
+      { var: '{{phone_number}}', desc: 'Teléfono (alias)' },
+      { var: '{{date}}', desc: 'Fecha/hora del aviso' },
+    ],
+  },
+  {
+    event: 'upgrade_success',
+    title: 'Upgrade exitoso',
+    telegramId: 'template_telegram_upgrade_success',
+    emailId: 'template_email_upgrade_success',
+    vars: [
+      { var: '{{nombre}}', desc: 'Nombre' },
+      { var: '{{email}}', desc: 'Correo' },
+      { var: '{{phone}}', desc: 'Número' },
+      { var: '{{plan}}', desc: 'Nuevo plan' },
+      { var: '{{end_date}}', desc: 'Fecha de referencia' },
+      { var: '{{status}}', desc: 'Estado' },
+      { var: '{{slot_id}}', desc: 'ID del slot' },
+      { var: '{{billing}}', desc: 'Mensual / Anual' },
+      { var: '{{now}}', desc: 'Marca de tiempo local' },
+    ],
+  },
 ];
 
 // Inyección de datos de prueba: reemplazo de variables antes de enviar al API (misma lógica que producción).
@@ -118,6 +191,10 @@ const TEST_VARS: Record<string, string> = {
   next_date: '01/04/2026',
   billing_type: 'Mensual',
   phone_number: '+56900000000',
+  end_date: '31/12/2026',
+  status: 'Activo',
+  date: '20/03/2026 12:00',
+  billing: 'Mensual',
 };
 
 function replaceVariablesForTest(text: string): string {
@@ -625,7 +702,61 @@ const AdminTemplates: React.FC = () => {
             ))}
           </div>
 
-          <div className="xl:sticky xl:top-6 h-fit">
+          <div className="xl:sticky xl:top-6 h-fit space-y-4">
+            {(activeTab === 'telegram' || activeTab === 'email') && (
+              <div className="bg-emerald-50/80 rounded-xl border border-emerald-200/80 shadow-sm p-4">
+                <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-2">
+                  Eventos Stripe (canónicos)
+                </h3>
+                <p className="text-[11px] text-emerald-800/90 mb-3">
+                  Webhook usa <code className="font-mono bg-white/80 px-1 rounded">template_{activeTab === 'email' ? 'email' : 'telegram'}_&lt;evento&gt;</code> con evento = new_purchase, cancellation, upgrade_success. Email de factura paga: template_email_invoice_paid.
+                </p>
+                <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                  {CANONICAL_STRIPE_BLOCKS.map((block) => {
+                    const tid = activeTab === 'email' ? block.emailId : block.telegramId;
+                    return (
+                      <div key={block.event} className="border border-emerald-100 rounded-lg p-2.5 bg-white/60">
+                        <p className="text-[11px] font-semibold text-slate-800">{block.title}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mb-1.5 break-all">{tid}</p>
+                        <ul className="space-y-1">
+                          {block.vars.map(({ var: v, desc }) => (
+                            <li key={`${block.event}-${v}`} className="flex flex-col gap-0.5">
+                              <code className="text-[10px] font-mono bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded">{v}</code>
+                              <span className="text-[10px] text-slate-500">{desc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                  {activeTab === 'email' && (
+                    <div className="border border-emerald-100 rounded-lg p-2.5 bg-white/60">
+                      <p className="text-[11px] font-semibold text-slate-800">Factura pagada</p>
+                      <p className="text-[10px] font-mono text-slate-500 mb-1.5">template_email_invoice_paid</p>
+                      <ul className="space-y-1">
+                        {[
+                          ['{{nombre}}', 'Nombre'],
+                          ['{{email}}', 'Correo'],
+                          ['{{phone}}', 'Número'],
+                          ['{{plan}}', 'Plan'],
+                          ['{{end_date}}', 'Próximo ciclo / renovación'],
+                          ['{{status}}', 'Estado'],
+                          ['{{slot_id}}', 'Slot'],
+                          ['{{amount}}', 'Importe'],
+                          ['{{total}}', 'Total'],
+                          ['{{receipt_url}}', 'Recibo'],
+                        ].map(([v, desc]) => (
+                          <li key={v} className="flex flex-col gap-0.5">
+                            <code className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded">{v}</code>
+                            <span className="text-[10px] text-slate-500">{desc}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">
                 Variables dinámicas
