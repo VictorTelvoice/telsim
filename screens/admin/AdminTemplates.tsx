@@ -527,6 +527,27 @@ const AdminTemplates: React.FC = () => {
     ? [...VARIABLES_COMMON, ...VARIABLES_EMAIL_EXTRA]
     : VARIABLES_COMMON;
 
+  /** Antes de cualquier return temprano: mismo orden de hooks en todos los renders. */
+  const previewResolved =
+    previewId != null ? getResolvedTestPayload(previewId, settings, emailSubjects) : null;
+
+  const emailPreviewSrcDoc = useMemo(() => {
+    if (!previewId || !previewId.startsWith(PREFIX_EMAIL)) return '';
+    const resolved = getResolvedTestPayload(previewId, settings, emailSubjects);
+    const meta = getBlockMeta(previewId);
+    const data: Record<string, unknown> = { ...DEFAULT_ADMIN_EMAIL_TEST_DATA, ...TEST_VARS };
+    const rendered = renderTransactionalEmail({
+      event: meta.event,
+      data,
+      subject: resolved.subject || undefined,
+      contentHtml: resolved.content,
+      lang: 'es',
+    });
+    return (
+      rendered?.html ?? EMAIL_TEST_WRAPPER.replace('{{body_content}}', resolved.content)
+    );
+  }, [previewId, settings, emailSubjects]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 bg-slate-50 min-h-screen">
@@ -537,25 +558,6 @@ const AdminTemplates: React.FC = () => {
 
   const prefix = getPrefixForTab(activeTab);
   const ids = getIdsForTab(activeTab);
-  const previewResolved =
-    previewId != null ? getResolvedTestPayload(previewId, settings, emailSubjects) : null;
-
-  const emailPreviewSrcDoc = useMemo(() => {
-    if (!previewId || !previewResolved || !previewId.startsWith(PREFIX_EMAIL)) return '';
-    const meta = getBlockMeta(previewId);
-    const data: Record<string, unknown> = { ...DEFAULT_ADMIN_EMAIL_TEST_DATA, ...TEST_VARS };
-    const rendered = renderTransactionalEmail({
-      event: meta.event,
-      data,
-      subject: previewResolved.subject || undefined,
-      contentHtml: previewResolved.content,
-      lang: 'es',
-    });
-    return (
-      rendered?.html ??
-      EMAIL_TEST_WRAPPER.replace('{{body_content}}', previewResolved.content)
-    );
-  }, [previewId, previewResolved]);
 
   return (
     <div className="w-full min-h-screen bg-slate-50 p-6">
