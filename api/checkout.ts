@@ -227,7 +227,6 @@ export default async function handler(req: any, res: any) {
                   status: 'ocupado',
                   assigned_to: userId,
                   plan_type: planName,
-                  sms_limit: oneClickSmsLimit,
                 })
                 .eq('slot_id', freeSlot.slot_id);
               if (oneClickOccupyErr) {
@@ -296,7 +295,6 @@ export default async function handler(req: any, res: any) {
                     status: 'libre',
                     assigned_to: null,
                     plan_type: null,
-                    sms_limit: null,
                     label: null,
                     forwarding_active: false,
                   })
@@ -451,7 +449,6 @@ export default async function handler(req: any, res: any) {
 
         const reservationTokenCandidate = crypto.randomBytes(16).toString('hex');
         const expiresAtIso = new Date(nowMs + RESERVATION_TTL_MS).toISOString();
-        const reserveSmsLimit = monthlySmsLimitForPlan(planName, monthlyLimit);
 
         // Atomic-ish: aseguramos que el slot no cambie entre "select" y "update" con condición de estado.
         let updateQ: any = supabaseAdmin
@@ -464,7 +461,6 @@ export default async function handler(req: any, res: any) {
             reservation_stripe_session_id: null,
             assigned_to: null,
             plan_type: planName,
-            sms_limit: reserveSmsLimit,
           })
           .eq('slot_id', slotToReserve.slot_id)
           .eq('status', candidateStatus);

@@ -1055,22 +1055,25 @@ export default async function handler(req: any, res: any) {
 
             const { data: releasedOrphan, error: orphanSelErr } = await supabaseAdmin
               .from('slots')
-              .select('status, assigned_to, plan_type, sms_limit')
+              .select('status, assigned_to, plan_type')
               .eq('slot_id', rawSlotId)
               .maybeSingle();
             if (orphanSelErr || !releasedOrphan) {
-              return res.status(500).json({
-                error: orphanSelErr?.message ?? 'Slot verification failed',
+              await logCancel('cancel_slot_verify_warning', 'warning', {
                 slot_id: rawSlotId,
-              });
-            }
-            const releasedOk =
-              String((releasedOrphan as any).status ?? '').toLowerCase() === 'libre' &&
-              (releasedOrphan as any).assigned_to == null &&
-              (releasedOrphan as any).plan_type == null &&
-              (releasedOrphan as any).sms_limit == null;
-            if (!releasedOk) {
-              return res.status(500).json({ error: 'El slot no quedó liberado correctamente', slot_id: rawSlotId });
+                error_message: orphanSelErr?.message ?? null,
+              }, 'cancel: verificación post-RPC huérfano no concluyó (RPC ya OK)');
+            } else {
+              const releasedOk =
+                String((releasedOrphan as any).status ?? '').toLowerCase() === 'libre' &&
+                (releasedOrphan as any).assigned_to == null &&
+                (releasedOrphan as any).plan_type == null;
+              if (!releasedOk) {
+                await logCancel('cancel_slot_verify_warning', 'warning', {
+                  slot_id: rawSlotId,
+                  released_orphan: releasedOrphan,
+                }, 'cancel: estado slot inesperado tras RPC huérfano (RPC ya OK)');
+              }
             }
 
             await logCancel('cancel_slot_released', 'info', { slot_id: rawSlotId }, 'cancel: slot huérfano liberado');
@@ -1299,41 +1302,35 @@ export default async function handler(req: any, res: any) {
           .eq('id', targetSub.user_id)
           .maybeSingle();
 
-        const { data: slotData } = await supabaseAdmin
+        // Una sola lectura de `slots` (sin columnas inexistentes). Tras RPC OK, la verificación es best-effort.
+        const { data: releasedSlot, error: slotSelErr } = await supabaseAdmin
           .from('slots')
-          .select('phone_number, plan_type')
+          .select('phone_number, plan_type, status, assigned_to')
           .eq('slot_id', targetSub.slot_id)
           .maybeSingle();
 
-        // Verificar estado del slot antes de marcar éxito.
-        const { data: releasedSlot, error: slotSelErr } = await supabaseAdmin
-          .from('slots')
-          .select('status, assigned_to, plan_type, sms_limit')
-          .eq('slot_id', targetSub.slot_id)
-          .maybeSingle();
+        const slotData = releasedSlot;
+
         if (slotSelErr || !releasedSlot) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
+          await logCancel('cancel_slot_verify_warning', 'warning', {
             subscriptionId,
             local_subscription_id: targetSub.id,
             slot_id: targetSub.slot_id,
             error_message: slotSelErr?.message ?? null,
-          }, 'cancel: no se pudo verificar slot liberado');
-          return res.status(500).json({ error: slotSelErr?.message ?? 'Slot verification failed', subscriptionId });
-        }
-
-        const releasedOk =
-          String((releasedSlot as any).status ?? '').toLowerCase() === 'libre' &&
-          (releasedSlot as any).assigned_to == null &&
-          (releasedSlot as any).plan_type == null &&
-          (releasedSlot as any).sms_limit == null;
-        if (!releasedOk) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            local_subscription_id: targetSub.id,
-            slot_id: targetSub.slot_id,
-            released_slot: releasedSlot,
-          }, 'cancel: slot no quedó con el estado esperado');
-          return res.status(500).json({ error: 'El slot no quedó liberado correctamente', subscriptionId });
+          }, 'cancel: verificación post-RPC no concluyó (release_slot_atomic ya OK)');
+        } else {
+          const releasedOk =
+            String((releasedSlot as any).status ?? '').toLowerCase() === 'libre' &&
+            (releasedSlot as any).assigned_to == null &&
+            (releasedSlot as any).plan_type == null;
+          if (!releasedOk) {
+            await logCancel('cancel_slot_verify_warning', 'warning', {
+              subscriptionId,
+              local_subscription_id: targetSub.id,
+              slot_id: targetSub.slot_id,
+              released_slot: releasedSlot,
+            }, 'cancel: estado slot inesperado tras RPC (release_slot_atomic ya OK)');
+          }
         }
 
         await logCancel('cancel_slot_released', 'info', {

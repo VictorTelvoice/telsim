@@ -732,7 +732,6 @@ export default async function handler(req: any, res: any) {
         .from('slots')
         .update({
           plan_type: upgradeMeta.new_plan_name,
-          sms_limit: upgradeMonthlyLimit,
         })
         .eq('slot_id', upgradeMeta.slot_id);
 
@@ -962,7 +961,6 @@ export default async function handler(req: any, res: any) {
               status: 'libre',
               assigned_to: null,
               plan_type: null,
-              sms_limit: null,
               reservation_token: null,
               reservation_expires_at: null,
               reservation_user_id: null,
@@ -1145,7 +1143,6 @@ export default async function handler(req: any, res: any) {
           status: 'ocupado',
           assigned_to: userId,
           plan_type: planName,
-          sms_limit: resolvedMonthlyLimit,
           reservation_token: null,
           reservation_expires_at: null,
           reservation_user_id: null,
@@ -1489,7 +1486,7 @@ export default async function handler(req: any, res: any) {
 
           await supabaseAdmin
             .from('slots')
-            .update({ plan_type: newPlanName, sms_limit: newMonthlyLimit })
+            .update({ plan_type: newPlanName })
             .eq('slot_id', slotId);
 
           // Notificación de upgrade (opcional)

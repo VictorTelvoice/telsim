@@ -24,7 +24,6 @@ begin
   set status = 'libre',
       assigned_to = null,
       plan_type = null,
-      sms_limit = null,
       label = null,
       forwarding_active = false
   where slot_id = p_slot_id;

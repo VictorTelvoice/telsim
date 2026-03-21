@@ -1,5 +1,5 @@
 /**
- * Límites mensuales de SMS por plan — fuente única para subscriptions.monthly_limit y slots.sms_limit.
+ * Límites mensuales de SMS por plan — fuente única para subscriptions.monthly_limit (y lógica de negocio que derive límites por plan).
  */
 
 export const PLAN_MONTHLY_SMS_LIMITS: Record<string, number> = {
