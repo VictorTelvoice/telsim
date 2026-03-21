@@ -52,6 +52,36 @@ function phoneVal(d: Record<string, unknown>): string {
   return String(d.phone_number ?? d.phone ?? '');
 }
 
+/** Colores semánticos email-safe para la columna Estado. */
+function getStatusColor(status: string): string {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'activo' || s === 'active') return '#16a34a';
+  if (s === 'cancelado' || s === 'cancelled' || s === 'canceled') return '#dc2626';
+  if (s === 'pagado' || s === 'paid') return '#16a34a';
+  return '#0f172a';
+}
+
+/** Colores semánticos email-safe para la columna Plan (orden: Power antes que Pro). */
+function getPlanColor(plan: string): string {
+  const p = String(plan ?? '').trim().toLowerCase();
+  if (p.includes('power')) return '#d97706';
+  if (p.includes('starter')) return '#6b7280';
+  if (p.includes('pro')) return '#2563eb';
+  return '#0f172a';
+}
+
+function renderColoredStatusValue(raw: string): string {
+  const esc = escapeHtml(raw);
+  if (!String(raw).trim()) return esc;
+  return `<span style="color:${getStatusColor(raw)};font-weight:700;">${esc}</span>`;
+}
+
+function renderColoredPlanValue(raw: string): string {
+  const esc = escapeHtml(raw);
+  if (!String(raw).trim()) return esc;
+  return `<span style="color:${getPlanColor(raw)};font-weight:700;">${esc}</span>`;
+}
+
 const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
   new_purchase: { es: '¡Suscripción activada!', en: 'Subscription activated!' },
   cancellation: { es: 'Cancelación confirmada', en: 'Cancellation confirmed' },
@@ -59,12 +89,12 @@ const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = 
   invoice_paid: { es: 'Pago confirmado', en: 'Payment confirmed' },
 };
 
-/** ES: "Abrir app web" en los cuatro eventos; EN: equivalente. CTA → TELSIM_WEB_APP_URL. */
+/** ES: "Ir al Dashboard"; EN: equivalente. CTA → TELSIM_WEB_APP_URL. */
 const CTAS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
-  new_purchase: { es: 'Abrir app web', en: 'Open web app' },
-  cancellation: { es: 'Abrir app web', en: 'Open web app' },
-  upgrade_success: { es: 'Abrir app web', en: 'Open web app' },
-  invoice_paid: { es: 'Abrir app web', en: 'Open web app' },
+  new_purchase: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
+  cancellation: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
+  upgrade_success: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
+  invoice_paid: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
 };
 
 const CTA_URLS: Record<CanonicalTransactionalEvent, string> = {
@@ -85,10 +115,10 @@ function detailRows(
   canonical: CanonicalTransactionalEvent,
   d: Record<string, unknown>,
   lang: 'es' | 'en'
-): { label: string; value: string }[] {
+): { label: string; valueHtml: string }[] {
   const L = (es: string, en: string) => (lang === 'es' ? es : en);
-  const plan = escapeHtml(d.plan ?? d.plan_name ?? '');
-  const status = escapeHtml(d.status ?? '');
+  const planRaw = String(d.plan ?? d.plan_name ?? '');
+  const statusRaw = String(d.status ?? '');
   const phone = escapeHtml(phoneVal(d));
   const billing = escapeHtml(billingLabel(d, lang));
   const next = escapeHtml(d.next_date ?? '');
@@ -99,36 +129,36 @@ function detailRows(
   switch (canonical) {
     case 'new_purchase':
       return [
-        { label: L('Plan', 'Plan'), value: plan },
-        { label: L('Estado', 'Status'), value: status },
-        { label: L('Número SIM', 'SIM number'), value: phone },
-        { label: L('Tipo de plan', 'Plan type'), value: billing },
-        { label: L('Próximo cobro', 'Next charge'), value: next },
+        { label: L('Plan', 'Plan'), valueHtml: renderColoredPlanValue(planRaw) },
+        { label: L('Estado', 'Status'), valueHtml: renderColoredStatusValue(statusRaw) },
+        { label: L('Número SIM', 'SIM number'), valueHtml: phone },
+        { label: L('Tipo de plan', 'Plan type'), valueHtml: billing },
+        { label: L('Próximo cobro', 'Next charge'), valueHtml: next },
       ];
     case 'cancellation':
       return [
-        { label: L('Plan', 'Plan'), value: plan },
-        { label: L('Estado', 'Status'), value: status },
-        { label: L('Número SIM', 'SIM number'), value: phone },
-        { label: L('Tipo de plan', 'Plan type'), value: billing },
-        { label: L('Fecha de cierre', 'End date'), value: end },
+        { label: L('Plan', 'Plan'), valueHtml: renderColoredPlanValue(planRaw) },
+        { label: L('Estado', 'Status'), valueHtml: renderColoredStatusValue(statusRaw) },
+        { label: L('Número SIM', 'SIM number'), valueHtml: phone },
+        { label: L('Tipo de plan', 'Plan type'), valueHtml: billing },
+        { label: L('Fecha de cierre', 'End date'), valueHtml: end },
       ];
     case 'upgrade_success':
       return [
-        { label: L('Nuevo plan', 'New plan'), value: plan },
-        { label: L('Estado', 'Status'), value: status },
-        { label: L('Número SIM', 'SIM number'), value: phone },
-        { label: L('Tipo de plan', 'Plan type'), value: billing },
-        { label: L('Próximo cobro', 'Next charge'), value: next },
+        { label: L('Nuevo plan', 'New plan'), valueHtml: renderColoredPlanValue(planRaw) },
+        { label: L('Estado', 'Status'), valueHtml: renderColoredStatusValue(statusRaw) },
+        { label: L('Número SIM', 'SIM number'), valueHtml: phone },
+        { label: L('Tipo de plan', 'Plan type'), valueHtml: billing },
+        { label: L('Próximo cobro', 'Next charge'), valueHtml: next },
       ];
     case 'invoice_paid':
       return [
-        { label: L('Plan', 'Plan'), value: plan },
-        { label: L('Estado', 'Status'), value: status },
-        { label: L('Monto pagado', 'Amount paid'), value: amount },
-        { label: L('Moneda', 'Currency'), value: currency },
-        { label: L('Número SIM', 'SIM number'), value: phone },
-        { label: L('Próximo cobro', 'Next charge'), value: next },
+        { label: L('Plan', 'Plan'), valueHtml: renderColoredPlanValue(planRaw) },
+        { label: L('Estado', 'Status'), valueHtml: renderColoredStatusValue(statusRaw) },
+        { label: L('Monto pagado', 'Amount paid'), valueHtml: amount },
+        { label: L('Moneda', 'Currency'), valueHtml: currency },
+        { label: L('Número SIM', 'SIM number'), valueHtml: phone },
+        { label: L('Próximo cobro', 'Next charge'), valueHtml: next },
       ];
     default:
       return [];
@@ -140,7 +170,7 @@ const ACCENT_PRIMARY = '#0074d4';
 function buildInnerBlock(params: {
   title: string;
   introHtml: string;
-  rows: { label: string; value: string }[];
+  rows: { label: string; valueHtml: string }[];
   ctaText: string;
   ctaUrl: string;
 }): string {
@@ -154,7 +184,7 @@ function buildInnerBlock(params: {
       return `
                 <tr>
                   <td style="font-size:12px;color:#64748b;font-weight:600;padding:14px 12px 0 0;vertical-align:top;border-bottom:${borderBottom};">${row.label}</td>
-                  <td style="font-size:15px;color:#0f172a;font-weight:700;padding:14px 0 0 0;text-align:right;vertical-align:top;border-bottom:${borderBottom};">${row.value}</td>
+                  <td style="font-size:15px;color:#0f172a;font-weight:700;padding:14px 0 0 0;text-align:right;vertical-align:top;border-bottom:${borderBottom};">${row.valueHtml}</td>
                 </tr>`;
     })
     .join('');
