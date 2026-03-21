@@ -536,131 +536,6 @@ async function sendUnified(options: {
   return { success: false, error: 'Canal no soportado.' };
 }
 
-function replaceVariables(text: string, data: Record<string, unknown>): string {
-  let out = text;
-  for (const [key, value] of Object.entries(data)) {
-    const val = value != null ? String(value) : '';
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val);
-  }
-  return out;
-}
-
-async function getTemplateContent(templateId: string): Promise<string | null> {
-  try {
-    const { data: row } = await supabaseAdmin
-      .from('admin_settings')
-      .select('content')
-      .eq('id', templateId)
-      .maybeSingle();
-    const content = (row as { content?: string | null } | null)?.content;
-    return content != null && content.trim() !== '' ? content.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Dispara un email vía la Edge Function send-email (Resend). El payload es compatible con lo que espera la Edge.
- * Asegurar que data incluya los campos que la plantilla espera (p. ej. purchase_success: nombre, email, phone, plan, monto).
- * El campo content/bodyOverride es el texto de la plantilla con variables reemplazadas.
- * Variables en Supabase Secrets: RESEND_API_KEY y RESEND_FROM_EMAIL.
- */
-async function triggerEmail(
-  event: string,
-  userId: string,
-  data: Record<string, unknown>
-): Promise<void> {
-  const templateId = `template_email_${event}`;
-  let bodyOverride: string | null = null;
-  const templateContent = await getTemplateContent(templateId);
-  if (templateContent) bodyOverride = replaceVariables(templateContent, data);
-
-  try {
-    let email = (data?.to_email as string) ?? (data?.email as string) ?? undefined;
-    if (!email) {
-      const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', userId).maybeSingle();
-      email = userData?.email;
-    }
-    if (!email) return;
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) return;
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
-      body: JSON.stringify({ event, user_id: userId, to_email: email, data, template_id: templateId, content: bodyOverride ?? undefined }),
-    });
-    const rawBody = await res.text();
-    let result: Record<string, unknown> = {};
-    try {
-      result = rawBody ? JSON.parse(rawBody) : {};
-    } catch {
-      // respuesta no JSON
-    }
-    const errorMessage: string | null = res.ok
-      ? null
-      : (typeof result?.message === 'string' ? result.message : typeof result?.error === 'string' ? result.error : null) ?? rawBody ?? `HTTP ${res.status}`;
-    await insertNotificationLog({
-      user_id: userId,
-      channel: 'email',
-      recipient: email,
-      event,
-      status: res.ok ? 'sent' : 'error',
-      category: 'operational',
-      error_message: errorMessage,
-      content_preview: (bodyOverride ?? '').slice(0, 500) || null,
-    });
-  } catch (err) {
-    console.error('[triggerEmail]', err);
-  }
-}
-
-async function sendTelegramNotification(
-  messageOrEvent: string,
-  userId: string,
-  data?: Record<string, unknown>
-): Promise<void> {
-  let message: string;
-  if (data != null) {
-    const templateId = `template_telegram_${messageOrEvent}`;
-    const templateContent = await getTemplateContent(templateId);
-    message = templateContent ? replaceVariables(templateContent, data) : replaceVariables('Evento: {{event}}', { event: messageOrEvent, ...data });
-  } else {
-    message = messageOrEvent;
-  }
-  try {
-    const { data: userRow } = await supabaseAdmin
-      .from('users')
-      .select('telegram_token, telegram_chat_id, notification_preferences')
-      .eq('id', userId)
-      .maybeSingle();
-    const tgToken = userRow?.telegram_token;
-    const tgChatId = userRow?.telegram_chat_id;
-    const prefs = userRow?.notification_preferences as { sim_expired?: { telegram?: boolean }; sim_activated?: { telegram?: boolean } } | null | undefined;
-    const sendTg = prefs?.sim_expired?.telegram === true || prefs?.sim_activated?.telegram === true;
-    if (tgToken && tgChatId && sendTg) {
-      const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: tgChatId, text: message, parse_mode: 'Markdown' }),
-      });
-      const tgData = await tgRes.json().catch(() => ({}));
-      await insertNotificationLog({
-        user_id: userId,
-        channel: 'telegram',
-        recipient: `Telegram:${tgChatId}`,
-        event: typeof data !== 'undefined' ? messageOrEvent : 'notification',
-        status: tgRes.ok ? 'sent' : 'error',
-        category: 'operational',
-        error_message: tgRes.ok ? null : (tgData?.description ?? null),
-        content_preview: (message || '').slice(0, 500) || null,
-      });
-    }
-  } catch (err) {
-    console.warn('[sendTelegramNotification]', (err as Error)?.message);
-  }
-}
-
 const CONFIG_ALERT_KEY = 'config_alert_telegram_admin_enabled';
 async function isAlertTelegramAdminEnabled(): Promise<boolean> {
   try {
@@ -1302,12 +1177,6 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        const { data: userData } = await supabaseAdmin
-          .from('users')
-          .select('email')
-          .eq('id', targetSub.user_id)
-          .maybeSingle();
-
         // Una sola lectura de `slots` (sin columnas inexistentes). Tras RPC OK, la verificación es best-effort.
         const { data: releasedSlot, error: slotSelErr } = await supabaseAdmin
           .from('slots')
@@ -1348,23 +1217,7 @@ export default async function handler(req: any, res: any) {
 
         let released_number = true;
 
-        const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        if (userData?.email) {
-          await triggerEmail('subscription_cancelled', targetSub.user_id, {
-            plan: targetSub.plan_name ?? '',
-            plan_name: slotData?.plan_type ?? targetSub.plan_name ?? '',
-            end_date: new Date().toLocaleDateString('es-CL'),
-            slot_id: targetSub.slot_id,
-            phone_number: slotData?.phone_number ?? targetSub.slot_id ?? '',
-            email: userData.email,
-            to_email: userData.email,
-          });
-        }
-
-        await sendTelegramNotification(
-          `❌ *CANCELACIÓN*\n📱 Número: +${slotData?.phone_number || targetSub.slot_id}\n📦 Plan: ${slotData?.plan_type ?? targetSub.plan_name ?? ''}\n📅 Fecha: ${now}\n🔴 Estado: Cancelado`,
-          targetSub.user_id
-        );
+        // Email, Telegram e in-app de cancelación: solo en `customer.subscription.deleted` (api/webhooks/stripe.ts).
 
         return res.status(200).json({ ok: true, released_number });
       }
