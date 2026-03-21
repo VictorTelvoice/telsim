@@ -7,6 +7,7 @@ import {
   ONBOARDING_STEPS,
   routeForOnboardingStep,
 } from '../../lib/onboardingSteps';
+import { getPostAuthRoute } from '../../lib/routing';
 
 const AUTH_CALLBACK_RESOLVE_MS = 14_000;
 const AUTH_CALLBACK_NO_SESSION_MS = 12_000;
@@ -164,7 +165,7 @@ const AuthCallback: React.FC = () => {
 
         const onboardingCompleted = !!effectiveProfile?.onboarding_completed;
         if (onboardingCompleted) {
-          safeNavigate('/web');
+          safeNavigate(getPostAuthRoute());
           return;
         }
 
@@ -178,7 +179,7 @@ const AuthCallback: React.FC = () => {
             logIfUsersOnboardingColumnsMissing('AuthCallback', patchErr);
             logAuthCallback('users update COMPLETED→done failed', { message: patchErr.message });
           }
-          safeNavigate('/web');
+          safeNavigate(getPostAuthRoute());
           return;
         }
 
@@ -202,7 +203,7 @@ const AuthCallback: React.FC = () => {
             logIfUsersOnboardingColumnsMissing('AuthCallback', subPatchErr);
             logAuthCallback('users update from existing subscription failed', { message: subPatchErr.message });
           }
-          safeNavigate('/web');
+          safeNavigate(getPostAuthRoute());
           return;
         }
 
