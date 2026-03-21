@@ -12,7 +12,7 @@ import {
   slotCountryMatchesOnboardingIso,
 } from '../_helpers/slotCountryMapping.js';
 import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
-import { releaseSlotAtomicForCancelPolicy } from '../manage.js';
+import { releaseSlotAtomicForCancelPolicy, type SupabaseAdminForRpc } from '../manage.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -20,7 +20,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover' as any,
 });
 
-const supabaseAdmin = createClient(
+const supabaseAdmin: SupabaseAdminForRpc = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );

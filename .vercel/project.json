@@ -1,1 +1,16 @@
-{"projectId":"prj_bEQrApVk2l92Gji98b08N5ffZwJY","orgId":"team_FuNG01fmclix4uuboUSGkQup","projectName":"telsim"}
+{
+  "projectId": "prj_bEQrApVk2l92Gji98b08N5ffZwJY",
+  "orgId": "team_FuNG01fmclix4uuboUSGkQup",
+  "projectName": "telsim",
+  "settings": {
+    "createdAt": 1770067801720,
+    "framework": "vite",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
