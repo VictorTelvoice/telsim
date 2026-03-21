@@ -1,5 +1,14 @@
 import Stripe from 'stripe';
 
+/** Charge expandido o objeto eliminado por Stripe (no está en `Stripe.Charge` tipado). */
+function receiptUrlFromChargeLike(ch: unknown): string | null {
+  if (!ch || typeof ch !== 'object') return null;
+  const o = ch as Record<string, unknown>;
+  if (o.deleted === true) return null;
+  const ru = o.receipt_url;
+  return typeof ru === 'string' && ru.length > 0 ? ru : null;
+}
+
 export function invoiceTaxCents(inv: Stripe.Invoice): number {
   if (inv.total_tax_amounts && inv.total_tax_amounts.length > 0) {
     return inv.total_tax_amounts.reduce((a, t) => a + (t.amount ?? 0), 0);
@@ -33,15 +42,15 @@ export function invoiceCustomerTaxIdsForDb(inv: Stripe.Invoice): unknown[] {
 export function extractReceiptUrlFromInvoice(inv: Stripe.Invoice): string | null {
   const ch = inv.charge;
   if (ch && typeof ch === 'object') {
-    const c = ch as Stripe.Charge;
-    if (!c.deleted && c.receipt_url) return c.receipt_url;
+    const url = receiptUrlFromChargeLike(ch);
+    if (url) return url;
   }
   const pi = inv.payment_intent;
   if (pi && typeof pi === 'object') {
     const lc = (pi as Stripe.PaymentIntent).latest_charge;
     if (lc && typeof lc === 'object') {
-      const c2 = lc as Stripe.Charge;
-      if (!c2.deleted && c2.receipt_url) return c2.receipt_url;
+      const url = receiptUrlFromChargeLike(lc);
+      if (url) return url;
     }
   }
   return null;

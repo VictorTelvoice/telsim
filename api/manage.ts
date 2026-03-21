@@ -5,7 +5,7 @@
  * Body: { action: 'portal' | 'payment-method' | 'notify-ticket-reply' | 'upgrade' | 'cancel' | 'send-test' | 'verify-bot' | 'send-notification-test' | ... }
  */
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
 import {
   extractReceiptUrlFromInvoice,
@@ -26,13 +26,16 @@ const supabaseAdmin = createClient(
 );
 
 /**
+ * Cliente Supabase sin `Database` generado: permite `rpc('release_slot_atomic', …)`.
+ * `ReturnType<typeof createClient>` sin genéricos infiere `rpc` con args `never` / `undefined`.
+ */
+export type SupabaseAdminForRpc = SupabaseClient<any, 'public', any>;
+
+/**
  * Única política de liberación de número en servidor (RPC `release_slot_atomic`).
  * Usar solo desde `case 'cancel'` y desde procesos server-side que deban alinearse con manage.
  */
-export async function releaseSlotAtomicForCancelPolicy(
-  client: ReturnType<typeof createClient>,
-  p_slot_id: string
-) {
+export async function releaseSlotAtomicForCancelPolicy(client: SupabaseAdminForRpc, p_slot_id: string) {
   return client.rpc('release_slot_atomic', { p_slot_id });
 }
 
