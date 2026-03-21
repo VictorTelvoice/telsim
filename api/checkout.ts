@@ -554,6 +554,13 @@ export default async function handler(req: any, res: any) {
 
     const session = await stripe.checkout.sessions.create(sessionConfig as Stripe.Checkout.SessionCreateParams);
 
+    console.log('[PURCHASE] checkout created', {
+      checkoutSessionId: session.id,
+      slotId: targetSlotId,
+      userId,
+      isUpgrade,
+    });
+
     // Asociamos el checkout session id a la reserva (para validación fuerte).
     if (!isUpgrade) {
       const meta = sessionConfig.metadata as Record<string, string>;

@@ -685,18 +685,32 @@ export default async function handler(req: any, res: any) {
           new_stripe_subscription_id: newSubId,
         });
       } else {
-        await supabaseAdmin.from('subscriptions').insert({
-          user_id: upgradeMeta.user_id,
-          slot_id: upgradeMeta.slot_id,
-          stripe_subscription_id: newSubId,
-          plan_name: upgradeMeta.new_plan_name,
-          monthly_limit: upgradeMonthlyLimit,
-          billing_type: billingTypeFromStripe,
-          amount,
-          currency: (newSub.currency ?? 'usd') as string,
-          status: 'active',
-          activation_state: 'on_air',
-        });
+        const { data: upInsRow, error: upInsErr } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id: upgradeMeta.user_id,
+            slot_id: upgradeMeta.slot_id,
+            stripe_subscription_id: newSubId,
+            plan_name: upgradeMeta.new_plan_name,
+            monthly_limit: upgradeMonthlyLimit,
+            billing_type: billingTypeFromStripe,
+            amount,
+            currency: (newSub.currency ?? 'usd') as string,
+            status: 'active',
+            activation_state: 'on_air',
+          })
+          .select('id')
+          .maybeSingle();
+        if (upInsErr) {
+          console.error('[PURCHASE] subscription upsert error (upgrade)', upInsErr);
+        } else {
+          console.log('[PURCHASE] subscription upsert OK', {
+            subscriptionId: (upInsRow as { id?: string } | null)?.id ?? null,
+            stage: 'upgrade_insert',
+            slotId: upgradeMeta.slot_id,
+            stripeSubscriptionId: newSubId,
+          });
+        }
       }
 
       // Fase 4 (ledger-first): registrar booked_revenue por checkout.session.completed (idempotente por stripe_event_id).
@@ -728,12 +742,17 @@ export default async function handler(req: any, res: any) {
         console.error('[FINANCE_EVENTS] booked_revenue (upgrade) insert failed:', finErr?.message ?? finErr);
       }
 
-      await supabaseAdmin
+      const { error: upgradeSlotErr } = await supabaseAdmin
         .from('slots')
         .update({
           plan_type: upgradeMeta.new_plan_name,
         })
         .eq('slot_id', upgradeMeta.slot_id);
+      if (upgradeSlotErr) {
+        console.error('[PURCHASE] slot occupied error (upgrade)', upgradeSlotErr);
+      } else {
+        console.log('[PURCHASE] slot occupied OK', { slotId: upgradeMeta.slot_id, stage: 'upgrade_plan_type' });
+      }
 
       console.log('[WEBHOOK] Upgrade complete for slot', upgradeMeta.slot_id);
 
@@ -1053,6 +1072,11 @@ export default async function handler(req: any, res: any) {
 
         console.log(`[WEBHOOK INSERT SUCCESS] Subscription inserted successfully:`, insertedData);
         subscriptionId = (insertedData as { id?: string } | null)?.id ?? subscriptionId;
+        console.log('[PURCHASE] subscription upsert OK', {
+          subscriptionId,
+          stage: 'checkout_insert',
+          stripeSessionId: session.id,
+        });
       } else if (exists && stripeSubscriptionId) {
         const row = exists as {
           id: string;
@@ -1091,6 +1115,11 @@ export default async function handler(req: any, res: any) {
             patch_keys: Object.keys(patch),
           });
           await supabaseAdmin.from('subscriptions').update(patch).eq('id', row.id);
+          console.log('[PURCHASE] subscription upsert OK', {
+            subscriptionId: row.id,
+            stage: 'checkout_stripe_ids_patch',
+            stripeSessionId: session.id,
+          });
         }
       }
 
@@ -1149,14 +1178,22 @@ export default async function handler(req: any, res: any) {
           reservation_stripe_session_id: null,
         };
 
+        let slotOccErr: { message: string } | null = null;
         if (enforceReservationValidation) {
-          await supabaseAdmin.from('slots').update(slotUpdatePayload)
+          const r = await supabaseAdmin.from('slots').update(slotUpdatePayload)
             .eq('slot_id', slotId)
             .eq('status', 'reserved')
             .eq('reservation_token', reservationTokenFromMeta);
+          slotOccErr = r.error;
         } else {
-          await supabaseAdmin.from('slots').update(slotUpdatePayload)
+          const r = await supabaseAdmin.from('slots').update(slotUpdatePayload)
             .eq('slot_id', slotId);
+          slotOccErr = r.error;
+        }
+        if (slotOccErr) {
+          console.error('[PURCHASE] slot occupied error', { slotId, userId, error: slotOccErr.message });
+        } else {
+          console.log('[PURCHASE] slot occupied OK', { slotId, userId });
         }
 
         // Activación operativa explícita:
@@ -1179,6 +1216,12 @@ export default async function handler(req: any, res: any) {
           if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
           await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_session_id', session.id);
         }
+
+        console.log('[PURCHASE] subscription upsert OK', {
+          subscriptionId: activeSubId ?? subscriptionId,
+          stage: 'provisioned',
+          stripeSessionId: session.id,
+        });
 
         // activation_state = provisioned
         if (existingActivationState !== 'provisioned' && existingActivationState !== 'on_air') {
@@ -1228,6 +1271,11 @@ export default async function handler(req: any, res: any) {
           if (nextBillingDateIso) payload.next_billing_date = nextBillingDateIso;
           await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_session_id', session.id);
         }
+        console.log('[PURCHASE] subscription upsert OK', {
+          subscriptionId: activeSubId ?? subscriptionId,
+          stage: 'on_air',
+          stripeSessionId: session.id,
+        });
         // Fuente de verdad para quick access post-login: onboarding ya completado.
         await supabaseAdmin
           .from('users')
@@ -1237,6 +1285,11 @@ export default async function handler(req: any, res: any) {
             onboarding_checkout_session_id: null,
           })
           .eq('id', userId);
+        console.log('[PURCHASE] onboarding ready', {
+          userId,
+          subscriptionId: activeSubId ?? subscriptionId,
+          stripeSessionId: session.id,
+        });
         activationSucceeded = true;
       } else {
         // Reserva inválida: marcamos como fallida (no ocupamos el slot).
@@ -1691,6 +1744,11 @@ export default async function handler(req: any, res: any) {
 
   else if (event.type === 'customer.subscription.created') {
     const subscription = event.data.object as Stripe.Subscription;
+    console.log('[PURCHASE] subscription created', {
+      stripe_subscription_id: subscription.id,
+      customer:
+        typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id ?? null,
+    });
     try {
       const { data: sub } = await supabaseAdmin
         .from('subscriptions')
@@ -1946,6 +2004,14 @@ export default async function handler(req: any, res: any) {
       currency: string | null;
     };
 
+    console.log('[PURCHASE] invoice paid', {
+      eventType: event.type,
+      invoiceId: invoice.id,
+      stripeSubscriptionId: stripeSubId,
+      billingReason: invoice.billing_reason ?? null,
+      amountPaid: invoice.amount_paid ?? null,
+    });
+
     // Si el slot ya está libre, saltar (misma política que antes).
     if (subTyped.slot_id) {
       const { data: slotPolicy } = await supabaseAdmin
@@ -2074,6 +2140,14 @@ export default async function handler(req: any, res: any) {
     } else if (subTyped.status === 'trialing') {
       const { error: trialErr } = await supabaseAdmin.from('subscriptions').update({ status: 'active' }).eq('id', subTyped.id);
       if (trialErr) throw trialErr;
+    }
+
+    if (invoice.billing_reason === 'subscription_create') {
+      console.log('[PURCHASE] subscription upsert OK', {
+        subscriptionId: subTyped.id,
+        stage: 'invoice_subscription_create',
+        invoiceId: invoice.id,
+      });
     }
 
     const receiptUrl = extractReceiptUrlFromInvoice(fullInv);

@@ -75,7 +75,9 @@ const Processing: React.FC = () => {
     }
 
     try {
-      let query = supabase.from('subscriptions').select('phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state');
+      let query = supabase
+        .from('subscriptions')
+        .select('id, slot_id, phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state');
 
       if (subId) {
         query = query.eq('id', subId);
@@ -95,9 +97,38 @@ const Processing: React.FC = () => {
         timeoutPromise
       ]) as { data: any };
 
-      const activationState = data?.activation_state as string | null | undefined;
+      if (!data) return;
 
-      if (activationState === 'on_air') {
+      const activationState = data.activation_state as string | null | undefined;
+
+      if (activationState === 'failed') {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setError('ACTIVATION_FAILED');
+        return;
+      }
+
+      const statusLower = String(data.status ?? '').toLowerCase();
+      const subscriptionLive = statusLower === 'active' || statusLower === 'trialing';
+      const phoneOk = !!String(data.phone_number ?? '').trim();
+
+      let slotNotLibre = false;
+      if (data.slot_id) {
+        const { data: slotRow } = await supabase
+          .from('slots')
+          .select('status, assigned_to')
+          .eq('slot_id', data.slot_id)
+          .abortSignal(abortControllerRef.current.signal)
+          .maybeSingle();
+        slotNotLibre =
+          slotRow != null && String((slotRow as { status?: string | null }).status ?? '').toLowerCase() !== 'libre';
+      }
+
+      /** Listo: webhook dejó `on_air`, o hay fila viva + número + slot ocupado (no `libre`). */
+      const activationReady =
+        activationState === 'on_air' ||
+        (subscriptionLive && phoneOk && slotNotLibre);
+
+      if (activationReady) {
         // ✅ Servicio operativo confirmado — safe to clean up onboarding localStorage
         const isAnnual = data.billing_type === 'annual';
         ['selected_plan', 'selected_plan_price', 'selected_plan_annual', 'selected_plan_price_id'].forEach(k => localStorage.removeItem(k));
@@ -130,10 +161,6 @@ const Processing: React.FC = () => {
             isAnnual,
           },
         });
-      } else if (activationState === 'failed') {
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        setError('ACTIVATION_FAILED');
-        return;
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
