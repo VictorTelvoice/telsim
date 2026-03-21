@@ -1,13 +1,16 @@
-/** Detecta si el dispositivo es realmente móvil (user agent o viewport muy estrecho). */
+/**
+ * Detecta si el dispositivo es realmente móvil usando SOLO el user-agent.
+ *
+ * ⚠️  NO usar window.innerWidth: en WebViews (apps nativas, PWA) el viewport
+ * puede renderizarse inicialmente con el ancho del escritorio (ej. 980 px)
+ * antes de que el navegador aplique el meta-viewport, lo que genera falsos
+ * negativos en la primera carga y muestra el dashboard de escritorio en móvil.
+ */
 export const isMobileDevice = (): boolean => {
-  if (typeof navigator !== 'undefined') {
-    const ua = navigator.userAgent || '';
-    if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
-  }
-  if (typeof window !== 'undefined') {
-    if (window.innerWidth < 480) return true;
-  }
-  return false;
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
 };
 
 /**

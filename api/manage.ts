@@ -204,26 +204,6 @@ const EMAIL_MASTER_TEMPLATE = `
 </html>
 `;
 
-/** Reemplaza variables {{...}} con datos de prueba y convierte saltos de línea en <br> para el HTML del correo. */
-function fillTestVariables(text: string): string {
-  const testData: Record<string, string> = {
-    plan: 'Plan Pro (Test)',
-    nombre: 'CEO Admin',
-    monto: '$39.90',
-    phone: '+56900000000',
-    email: 'noreply@telsim.io',
-    amount: '$39.90',
-    phone_number: '+56900000000',
-    next_date: new Date().toLocaleDateString('es-CL'),
-    billing_type: 'Mensual',
-  };
-  let processed = String(text ?? '');
-  Object.entries(testData).forEach(([key, value]) => {
-    processed = processed.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-  });
-  return processed.replace(/\n/g, '<br>');
-}
-
 type NotificationChannel = 'email' | 'telegram' | 'sms_product';
 type NotificationCategory = 'product_delivery' | 'operational';
 
@@ -327,6 +307,8 @@ async function internalSendEmail(options: {
   html?: string;
   is_test?: boolean;
   custom_content?: string;
+  /** Passthrough a Edge Function send-email (p. ej. tests desde Admin Templates). */
+  template_id?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const category = options.category ?? 'operational';
   const preview = (options.content ?? options.html ?? options.custom_content ?? '').slice(0, 500) || null;
@@ -351,6 +333,7 @@ async function internalSendEmail(options: {
       html: options.html ?? undefined,
       is_test: options.is_test ?? undefined,
       custom_content: options.custom_content ?? undefined,
+      template_id: options.template_id ?? undefined,
     });
     const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
@@ -1365,11 +1348,42 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'send-notification-test': {
-        const { channel, content, userId, subject: subjectTest } = req.body || {};
+        const {
+          channel,
+          content,
+          userId,
+          subject: subjectIn,
+          templateId: templateIdIn,
+          event: eventIn,
+        } = req.body || {};
 
-        if (!userId || !channel || typeof content !== 'string') {
-          return res.status(400).json({ error: 'Faltan parámetros (channel, content, userId).', code: 'MISSING_PARAMS' });
+        if (
+          !userId ||
+          typeof channel !== 'string' ||
+          typeof content !== 'string' ||
+          typeof templateIdIn !== 'string' ||
+          !templateIdIn.trim() ||
+          typeof eventIn !== 'string' ||
+          !eventIn.trim()
+        ) {
+          return res.status(400).json({
+            error: 'Faltan parámetros (channel, content, userId, templateId, event).',
+            code: 'MISSING_PARAMS',
+          });
         }
+
+        const templateId = templateIdIn.trim();
+        const event = eventIn.trim();
+        const subjectPreview =
+          typeof subjectIn === 'string' ? subjectIn.trim().slice(0, 120) : '';
+        const contentPreview = String(content).slice(0, 200);
+        console.log('[TEMPLATE TEST]', {
+          channel,
+          templateId,
+          event,
+          subjectPreview,
+          contentPreview,
+        });
 
         try {
           const { data: userRow, error: userError } = await supabaseAdmin
@@ -1392,7 +1406,7 @@ export default async function handler(req: any, res: any) {
               channel: 'sms_product',
               userId,
               category: 'product_delivery',
-              event: 'admin_test',
+              event: event || 'admin_test',
               content,
               recipient: (userRow as { email?: string }).email ?? '',
             });
@@ -1407,7 +1421,7 @@ export default async function handler(req: any, res: any) {
               userId,
               content,
               category: 'operational',
-              event: 'admin_test',
+              event,
             });
             if (!out.success) {
               return res.status(400).json({
@@ -1423,29 +1437,28 @@ export default async function handler(req: any, res: any) {
             if (!toEmail) {
               return res.status(400).json({ error: 'Tu usuario no tiene email configurado.', code: 'NO_EMAIL' });
             }
-            // 1. Procesar texto del editor: reemplazar {{variables}} y \n → <br>
-            const personalText = fillTestVariables(content);
-            // 2. Inyectar en la plantilla maestra (marco azul TELSIM)
-            const finalHtml = EMAIL_MASTER_TEMPLATE.replace('{{body_content}}', personalText);
-            // 3. Enviar vía Edge Function (Resend)
+            // Contenido y asunto ya resueltos en el cliente; solo inyectar HTML en la misma maestra que el test.
+            const finalHtml = EMAIL_MASTER_TEMPLATE.replace('{{body_content}}', content);
+            const subjectLine =
+              typeof subjectIn === 'string' && subjectIn.trim() !== ''
+                ? subjectIn.trim()
+                : 'Prueba de plantilla TELSIM';
             const out = await internalSendEmail({
               userId,
               toEmail,
-              event: 'purchase_success',
-              content: personalText,
+              event,
+              content,
               category: 'operational',
               from: 'Telsim <noreply@telsim.io>',
-              subject:
-                typeof subjectTest === 'string' && subjectTest.trim()
-                  ? subjectTest.trim()
-                  : 'Prueba de Plantilla TELSIM',
+              subject: subjectLine,
               is_test: true,
               html: finalHtml,
+              template_id: templateId,
               data: {
                 to_email: toEmail,
                 email: toEmail,
-                message: content,
-                content: personalText,
+                template_id: templateId,
+                admin_template_test: true,
               },
             });
             if (!out.success) {

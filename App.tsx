@@ -71,22 +71,20 @@ import WebDashboard from './screens/dashboard/WebDashboard';
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
 
-const isMobileDevice = (): boolean =>
-  /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
 const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
 
-  React.useEffect(() => {
-    if (loading) return;
-    if (user) {
-      const dest = isMobileDevice() ? '/dashboard' : '/web';
-      navigate(dest, { replace: true });
-    }
-  }, [user, loading, navigate]);
+  // Mientras el auth carga, no mostrar nada (evita flash de contenido incorrecto)
+  if (loading) return null;
 
-  if (loading || user) return null;
+  // Redirect SÍNCRONO: sin useEffect, sin navigate() — se resuelve en el mismo
+  // ciclo de render, eliminando la race condition que mostraba la versión
+  // de escritorio en móvil durante la primera carga.
+  if (user) {
+    const dest = isMobileDeviceUA() ? '/dashboard' : '/web';
+    return <Navigate to={dest} replace />;
+  }
+
   return <Landing />;
 };
 

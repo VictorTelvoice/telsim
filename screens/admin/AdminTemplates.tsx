@@ -7,6 +7,35 @@ const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
 const PREFIX_APP = 'template_app_';
 
+/** Contrato canónico: cada templateId con su event (webhook / notificaciones). El resto usa sufijo tras el prefijo. */
+const CANONICAL_BLOCK_META: Record<string, { channel: 'email' | 'telegram' | 'app'; event: string }> = {
+  'template_email_new_purchase': { channel: 'email', event: 'new_purchase' },
+  'template_email_cancellation': { channel: 'email', event: 'cancellation' },
+  'template_email_upgrade_success': { channel: 'email', event: 'upgrade_success' },
+  'template_email_invoice_paid': { channel: 'email', event: 'invoice_paid' },
+  'template_telegram_new_purchase': { channel: 'telegram', event: 'new_purchase' },
+  'template_telegram_cancellation': { channel: 'telegram', event: 'cancellation' },
+  'template_telegram_upgrade_success': { channel: 'telegram', event: 'upgrade_success' },
+  'template_app_new_purchase': { channel: 'app', event: 'new_purchase' },
+  'template_app_cancellation': { channel: 'app', event: 'cancellation' },
+  'template_app_upgrade_success': { channel: 'app', event: 'upgrade_success' },
+};
+
+function getBlockMeta(templateId: string): { channel: 'email' | 'telegram' | 'app'; event: string } {
+  const hit = CANONICAL_BLOCK_META[templateId];
+  if (hit) return hit;
+  if (templateId.startsWith(PREFIX_EMAIL)) {
+    return { channel: 'email', event: templateId.slice(PREFIX_EMAIL.length) };
+  }
+  if (templateId.startsWith(PREFIX_TELEGRAM)) {
+    return { channel: 'telegram', event: templateId.slice(PREFIX_TELEGRAM.length) };
+  }
+  if (templateId.startsWith(PREFIX_APP)) {
+    return { channel: 'app', event: templateId.slice(PREFIX_APP.length) };
+  }
+  return { channel: 'email', event: 'unknown' };
+}
+
 const KNOWN_EMAIL_IDS = [
   // Canónicos (webhook Stripe) — mismo sufijo que evento: new_purchase, cancellation, upgrade_success, invoice_paid
   'template_email_new_purchase',
@@ -56,38 +85,36 @@ const QUICK_EMOJIS = ['📱', '🚀', '⚠️', '✅', '⏰', '💳', '🛰️',
 // Variables rápidas para insertar en el cursor (orden: nombre, phone, monto, plan + extras)
 const QUICK_VARIABLES = ['{{nombre}}', '{{phone}}', '{{monto}}', '{{plan}}', '{{limit}}'];
 
-// Plantilla maestra de correo (misma que send-email): marco TELSIM para previsualización.
-const MASTER_TEMPLATE = `<!DOCTYPE html>
+// Misma plantilla maestra que api/manage.ts (EMAIL_MASTER_TEMPLATE) + placeholder {{body_content}} — Preview = Send Test.
+const EMAIL_TEST_WRAPPER = `
+<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
-        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .header { background-color: #0074d4; padding: 30px; text-align: center; }
-        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: bold; }
-        .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
-        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
-        .button { display: inline-block; padding: 12px 25px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
-        .highlight { color: #0074d4; font-weight: bold; }
-    </style>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .header { background-color: #0074d4; padding: 30px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 2px; }
+    .content { padding: 40px; color: #333333; line-height: 1.6; font-size: 16px; }
+    .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    .btn { display: inline-block; padding: 12px 24px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px; }
+    .highlight { color: #0074d4; font-weight: bold; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>TELSIM</h1>
-        </div>
-        <div class="content">
-            {{content}}
-        </div>
-        <div class="footer">
-            <p>© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
-            <p>Has recibido este correo porque eres cliente de Telsim.io</p>
-        </div>
+  <div class="container">
+    <div class="header"><h1>TELSIM</h1></div>
+    <div class="content">
+      {{body_content}}
     </div>
+    <div class="footer">
+      <p>© 2026 Telsim.io - Todos los derechos reservados.</p>
+    </div>
+  </div>
 </body>
-</html>`;
+</html>
+`;
 
 function idToLabel(id: string, prefix: string): string {
   const withoutPrefix = id.slice(prefix.length);
@@ -178,31 +205,52 @@ const CANONICAL_STRIPE_BLOCKS: {
   },
 ];
 
-// Inyección de datos de prueba: reemplazo de variables antes de enviar al API (misma lógica que producción).
+// Inyección de datos de prueba: reemplazo de variables antes de enviar al API (claves largas primero para alias).
 const TEST_VARS: Record<string, string> = {
   nombre: 'CEO Test',
   email: 'admin@telsim.io',
   phone: '+56900000000',
+  phone_number: '+56900000000',
   plan: 'Plan Pro',
+  plan_name: 'Plan Pro',
   message: 'Mensaje de prueba',
   slot_id: 'SLOT-TEST',
-  amount: '$39.90',
-  monto: '$39.90',
+  status: 'Activo',
+  end_date: '31/12/2026',
   next_date: '01/04/2026',
   billing_type: 'Mensual',
-  phone_number: '+56900000000',
-  end_date: '31/12/2026',
-  status: 'Activo',
+  amount: '$39.90',
+  monto: '$39.90',
+  currency: 'USD',
+  ticket_id: 'TKT-TEST-001',
+  used: '42',
+  limit: '1000',
+  remaining: '958',
   date: '20/03/2026 12:00',
   billing: 'Mensual',
+  now: '20/03/2026 12:00',
 };
 
 function replaceVariablesForTest(text: string): string {
   let out = text;
-  for (const [key, value] of Object.entries(TEST_VARS)) {
+  const keys = Object.keys(TEST_VARS).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const value = TEST_VARS[key];
     out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
   }
   return out;
+}
+
+/** Mismo subject/content que usa "Enviar Test" (variables ya sustituidas). */
+function getResolvedTestPayload(
+  templateId: string,
+  settings: Record<string, string>,
+  emailSubjects: Record<string, string>
+): { content: string; subject: string } {
+  const raw = settings[templateId] ?? '';
+  const content = replaceVariablesForTest(raw);
+  const subject = replaceVariablesForTest(emailSubjects[templateId] ?? '');
+  return { content, subject };
 }
 
 type TabKey = 'email' | 'telegram' | 'app' | 'history';
@@ -387,13 +435,13 @@ const AdminTemplates: React.FC = () => {
   );
 
   const handleSendTest = useCallback(
-    async (id: string) => {
-      const raw = settings[id] ?? '';
-      const content = replaceVariablesForTest(raw);
+    async (templateId: string) => {
+      const meta = getBlockMeta(templateId);
+      const { content, subject } = getResolvedTestPayload(templateId, settings, emailSubjects);
 
-      if (activeTab === 'app') {
+      if (meta.channel === 'app') {
         showLocalToast(content || '— (vacío)');
-        setSuccessTestId(id);
+        setSuccessTestId(templateId);
         setTimeout(() => setSuccessTestId(null), 3000);
         return;
       }
@@ -403,18 +451,19 @@ const AdminTemplates: React.FC = () => {
         return;
       }
 
-      setSendingTestId(id);
+      setSendingTestId(templateId);
       setSuccessTestId(null);
       try {
         const body: Record<string, unknown> = {
           action: 'send-notification-test',
-          channel: activeTab === 'email' ? 'email' : 'telegram',
+          channel: meta.channel,
+          templateId,
+          event: meta.event,
           content,
-          userId: user.id, // user.id real del usuario autenticado
-          isTest: true,
+          userId: user.id,
         };
-        if (activeTab === 'email') {
-          body.subject = replaceVariablesForTest(emailSubjects[id] ?? '');
+        if (meta.channel === 'email') {
+          body.subject = subject;
         }
         const response = await fetch('/api/manage', {
           method: 'POST',
@@ -435,7 +484,7 @@ const AdminTemplates: React.FC = () => {
         if (!response.ok) {
           showLocalToast(data.error || 'Error al enviar el test.', 'error');
         } else {
-          setSuccessTestId(id);
+          setSuccessTestId(templateId);
           showLocalToast(data.message || '✅ Test enviado con éxito.', 'success');
           setTimeout(() => setSuccessTestId(null), 3000);
         }
@@ -445,7 +494,7 @@ const AdminTemplates: React.FC = () => {
         setSendingTestId(null);
       }
     },
-    [activeTab, settings, emailSubjects, user, showLocalToast]
+    [settings, emailSubjects, user, showLocalToast]
   );
 
   const handleSaveAll = async () => {
@@ -487,6 +536,8 @@ const AdminTemplates: React.FC = () => {
 
   const prefix = getPrefixForTab(activeTab);
   const ids = getIdsForTab(activeTab);
+  const previewResolved =
+    previewId != null ? getResolvedTestPayload(previewId, settings, emailSubjects) : null;
 
   return (
     <div className="w-full min-h-screen bg-slate-50 p-6">
@@ -850,25 +901,22 @@ const AdminTemplates: React.FC = () => {
                 </button>
               </div>
               <div className="flex-1 min-h-0 p-4 bg-slate-100 rounded-b-2xl">
-                {previewId.startsWith(PREFIX_EMAIL) ? (
+                {previewId.startsWith(PREFIX_EMAIL) && previewResolved ? (
                   <>
                     <p className="text-sm text-slate-700 mb-2">
-                      <span className="font-semibold">Asunto:</span>{' '}
-                      {replaceVariablesForTest(emailSubjects[previewId] ?? '') || (
+                      <span className="font-semibold">Asunto (mismo que Enviar Test):</span>{' '}
+                      {previewResolved.subject || (
                         <span className="text-slate-500 italic">(vacío — en producción puede usarse el predeterminado por evento)</span>
                       )}
                     </p>
                     <p className="text-xs text-slate-500 mb-2">
-                      Vista previa con la plantilla maestra TELSIM. Se actualiza al editar.
+                      Misma envoltura HTML que el test en servidor (api/manage). Se actualiza al editar.
                     </p>
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-[60vh] min-h-[400px]">
                       <iframe
                         key={previewId}
                         title="Vista previa del correo"
-                        srcDoc={MASTER_TEMPLATE.replace(
-                          '{{content}}',
-                          replaceVariablesForTest(settings[previewId] ?? '')
-                        )}
+                        srcDoc={EMAIL_TEST_WRAPPER.replace('{{body_content}}', previewResolved.content)}
                         className="w-full h-full border-0"
                         sandbox="allow-same-origin"
                       />
@@ -877,11 +925,11 @@ const AdminTemplates: React.FC = () => {
                 ) : (
                   <>
                     <p className="text-xs text-slate-500 mb-2">
-                      Mensaje con variables reemplazadas (ej. {'{{nombre}}'} → CEO Test). Se actualiza al editar.
+                      Mismo cuerpo que Enviar Test (variables de prueba aplicadas). Se actualiza al editar.
                     </p>
                     <div className="bg-white rounded-xl border border-slate-200 overflow-auto p-4 h-[60vh] min-h-[400px]">
                       <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
-                        {replaceVariablesForTest(settings[previewId] ?? '') || '(vacío)'}
+                        {previewResolved?.content || '(vacío)'}
                       </pre>
                     </div>
                   </>
