@@ -1,6 +1,24 @@
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/** Fecha/hora legible para usuario (es): dd-mm-yyyy HH:mm. Hora local del servidor. */
+export function formatCancellationDateTimeForUser(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+}
+
+/** Desde ISO guardado en `reservation_expires_at` (fin de reserva 48h). */
+export function formatCancellationDateTimeFromIso(iso: string | null | undefined): string {
+  if (iso == null || String(iso).trim() === '') return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return formatCancellationDateTimeForUser(d);
+}
+
 const CANCEL_EVENT = 'cancellation';
 const TEMPLATE_EMAIL = `template_email_${CANCEL_EVENT}`;
 const TEMPLATE_TELEGRAM = `template_telegram_${CANCEL_EVENT}`;
@@ -8,7 +26,13 @@ const TEMPLATE_APP = `template_app_${CANCEL_EVENT}`;
 
 /** Mismos fallbacks que api/webhooks/stripe (plantillas admin vacías). */
 const DEFAULT_TELEGRAM_CANCELLATION =
-  '🔴 *Cancelación*\n\nPlan: {{plan}}\nNúmero: {{phone}}\nÚltimo período: {{end_date}}\nEstado: {{status}}';
+  '❌ *CANCELACIÓN CONFIRMADA*\n\n' +
+  '📱 Número: {{phone}}\n' +
+  '📦 Plan: {{plan}}\n' +
+  '🔴 Estado: {{status}}\n' +
+  '📅 Fecha de cierre: {{canceled_at}}\n' +
+  '⏳ Reactivación disponible hasta: {{reactivation_deadline}}\n\n' +
+  'La cancelación fue procesada correctamente.';
 const DEFAULT_APP_CANCELLATION = 'Tu plan {{plan}} quedó cancelado. Podrás reactivar cuando quieras.';
 const IN_APP_TITLE_CANCELLATION = '🔴 Suscripción terminada';
 

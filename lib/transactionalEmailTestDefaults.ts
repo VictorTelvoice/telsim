@@ -40,6 +40,8 @@ export function getDefaultAdminEmailTestDataForEvent(event: string): Record<stri
         status: 'Cancelado',
         end_date: '31/12/2026',
         next_date: '—',
+        canceled_at: '20-03-2026 14:30',
+        reactivation_deadline: '22-03-2026 14:30',
         reactivation_url: 'https://www.telsim.io/#/web/reactivate-line?token=preview',
       };
     case 'upgrade_success':

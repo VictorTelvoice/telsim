@@ -18,6 +18,10 @@ import {
   hasRecentAppNotificationDuplicate,
   hasRecentNotificationDuplicate,
 } from '../_helpers/notificationDedupe.js';
+import {
+  formatCancellationDateTimeForUser,
+  formatCancellationDateTimeFromIso,
+} from '../_helpers/cancellationSoftCancel.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -2793,11 +2797,13 @@ export default async function handler(req: any, res: any) {
       const userId = sub.user_id;
       const slotId = sub.slot_id;
       let reactivation_url = '';
+      let reservationExpiresAt: string | null = null;
       try {
         const { token: resToken, expiresAt: resExpires } = await reserveSlotAfterCancellationForEmail({
           slotId: String(slotId ?? ''),
           userId: String(userId ?? ''),
         });
+        reservationExpiresAt = resExpires;
         if (resToken) {
           reactivation_url = `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(resToken)}`;
           console.log('[CANCEL] slot reserved 48h', { slot_id: slotId, expires_at: resExpires });
@@ -2820,7 +2826,8 @@ export default async function handler(req: any, res: any) {
         .eq('id', userId)
         .maybeSingle();
 
-      const now = new Date().toLocaleDateString('es-CL', {
+      const cancelAtMoment = new Date();
+      const now = cancelAtMoment.toLocaleDateString('es-CL', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       });
@@ -2842,6 +2849,8 @@ export default async function handler(req: any, res: any) {
         phone_number: phoneRaw,
         to_email: String(userData?.email ?? ''),
         date: now,
+        canceled_at: formatCancellationDateTimeForUser(cancelAtMoment),
+        reactivation_deadline: formatCancellationDateTimeFromIso(reservationExpiresAt),
         reactivation_url,
       };
 

@@ -10,6 +10,8 @@ import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutC
 import { normalizeTierPlanName } from './_helpers/lineReactivationPlan.js';
 import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
 import {
+  formatCancellationDateTimeForUser,
+  formatCancellationDateTimeFromIso,
   reserveSlotSoftCancel,
   sendCancellationAppFromManage,
   sendCancellationEmailFromManage,
@@ -51,6 +53,8 @@ function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unkno
       return {
         ...base,
         status: 'Cancelado',
+        canceled_at: '20-03-2026 14:30',
+        reactivation_deadline: '22-03-2026 14:30',
         reactivation_url: 'https://www.telsim.io/#/web/reactivate-line?token=preview',
       };
     case 'invoice_paid':
@@ -1242,6 +1246,7 @@ export default async function handler(req: any, res: any) {
         const phoneRaw = String(slotData?.phone_number ?? slotId ?? '');
         const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
 
+        const cancelAtMoment = new Date();
         const cancellationPayload = {
           nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
           email: String(userData?.email ?? ''),
@@ -1253,13 +1258,15 @@ export default async function handler(req: any, res: any) {
           plan_name: String(slotData?.plan_type ?? targetSub.plan_name ?? ''),
           phone_number: phoneRaw,
           to_email: String(userData?.email ?? ''),
-          date: new Date().toLocaleDateString('es-CL', {
+          date: cancelAtMoment.toLocaleDateString('es-CL', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
           }),
+          canceled_at: formatCancellationDateTimeForUser(cancelAtMoment),
+          reactivation_deadline: formatCancellationDateTimeFromIso(resExpires),
           reactivation_url: `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(resToken)}`,
         };
 

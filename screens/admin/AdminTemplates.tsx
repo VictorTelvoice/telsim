@@ -212,11 +212,13 @@ const CANONICAL_STRIPE_BLOCKS: {
       { var: '{{phone}}', desc: 'Número' },
       { var: '{{plan}}', desc: 'Plan' },
       { var: '{{plan_name}}', desc: 'Plan en slot (alias)' },
-      { var: '{{end_date}}', desc: 'Fin del período facturado' },
+      { var: '{{end_date}}', desc: 'Fin del período facturado (Stripe); no es la fecha de cierre de la acción' },
       { var: '{{status}}', desc: 'Estado' },
       { var: '{{slot_id}}', desc: 'ID del slot' },
       { var: '{{phone_number}}', desc: 'Teléfono (alias)' },
-      { var: '{{date}}', desc: 'Fecha/hora del aviso' },
+      { var: '{{date}}', desc: 'Fecha/hora del aviso (legado; mismo instante que canceled_at con otro formato)' },
+      { var: '{{canceled_at}}', desc: 'Fecha y hora en que el usuario ejecutó la cancelación (dd-mm-yyyy HH:mm)' },
+      { var: '{{reactivation_deadline}}', desc: 'Fin de la reserva 48h / plazo para reactivar (dd-mm-yyyy HH:mm)' },
     ],
   },
   {
@@ -277,6 +279,8 @@ const TEST_VARS: Record<string, string> = {
   date: '20/03/2026 12:00',
   billing: 'Mensual',
   now: '20/03/2026 12:00',
+  canceled_at: '20-03-2026 12:00',
+  reactivation_deadline: '22-03-2026 12:00',
 };
 
 function replaceVariablesForTest(text: string): string {
