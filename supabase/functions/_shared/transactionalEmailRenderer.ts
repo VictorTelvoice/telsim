@@ -340,10 +340,15 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
   const lang = params.lang ?? 'es';
   const d = params.data ?? {};
   const defaultTitle = TITLES[canonical][lang];
-  const visualTitle =
+  const fromParam =
     params.contentTitle != null && String(params.contentTitle).trim() !== ''
       ? String(params.contentTitle).trim()
-      : defaultTitle;
+      : '';
+  const fromData =
+    typeof params.data?.contentTitle === 'string' && params.data.contentTitle.trim() !== ''
+      ? params.data.contentTitle.trim()
+      : '';
+  const visualTitle = fromParam || fromData || defaultTitle;
   const cta = CTAS[canonical][lang];
   const ctaUrl = CTA_URLS[canonical];
 

@@ -496,6 +496,9 @@ Deno.serve(async (req) => {
 
     const i18nLang = i18n[lang] ?? i18n.es;
 
+    /** Copia mutable: enriquecemos título y reactivation_url para el renderer canónico. */
+    let dataForRender: Record<string, unknown> = { ...(data as Record<string, unknown>) };
+
     // Contenido editable desde admin_settings (CMS)
     let settingsOverrides: Record<string, string> = {};
     let templateContentFromDb: string | null = null;
@@ -600,11 +603,58 @@ Deno.serve(async (req) => {
           resolvedContentTitle = renderBodyTemplate(titleFromDb, data);
         }
       }
+
+      if (resolvedContentTitle != null && String(resolvedContentTitle).trim() !== '') {
+        dataForRender = { ...dataForRender, contentTitle: resolvedContentTitle };
+      }
+
+      if (canonEv === 'cancellation') {
+        const existingUrl =
+          dataForRender.reactivation_url != null ? String(dataForRender.reactivation_url).trim() : '';
+        if (!existingUrl) {
+          const uid = (user_id as string | undefined) ?? (dataForRender.user_id as string | undefined);
+          const slotId = dataForRender.slot_id != null ? String(dataForRender.slot_id) : '';
+          if (uid && slotId) {
+            try {
+              const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+              const { data: tokRow } = await sb
+                .from('line_reactivation_tokens')
+                .select('token')
+                .eq('user_id', uid)
+                .eq('slot_id', slotId)
+                .is('used_at', null)
+                .gt('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              const tok = (tokRow as { token?: string } | null)?.token;
+              if (tok != null && String(tok).trim() !== '') {
+                dataForRender = {
+                  ...dataForRender,
+                  reactivation_url: `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(String(tok))}`,
+                };
+              }
+            } catch (reacErr) {
+              console.warn('[send-email] reactivation_url backfill skipped:', reacErr);
+            }
+          }
+        }
+      }
+
+      if (Deno.env.get('LOG_EMAIL_TRANSACTIONAL') === '1') {
+        console.log('[send-email] transactional', String(canonEv), {
+          titleKey: titleSettingsKey,
+          hasResolvedTitle: !!(resolvedContentTitle != null && String(resolvedContentTitle).trim() !== ''),
+          hasReactivationUrl: !!(
+            dataForRender.reactivation_url != null && String(dataForRender.reactivation_url).trim() !== ''
+          ),
+        });
+      }
     }
 
     const canonicalRendered = renderTransactionalEmail({
       event: rawEvent,
-      data,
+      data: dataForRender,
       subject: payloadSubject,
       contentTitle: resolvedContentTitle,
       contentHtml: bodyStr,

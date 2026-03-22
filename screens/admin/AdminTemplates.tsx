@@ -640,12 +640,17 @@ const AdminTemplates: React.FC = () => {
     if (!previewId || !previewId.startsWith(PREFIX_EMAIL)) return '';
     const resolved = getResolvedTestPayload(previewId, settings, emailSubjects);
     const meta = getBlockMeta(previewId);
-    const data: Record<string, unknown> = { ...getDefaultAdminEmailTestDataForEvent(meta.event), ...TEST_VARS };
+    const titleTrim = resolved.contentTitle?.trim() ?? '';
+    const data: Record<string, unknown> = {
+      ...getDefaultAdminEmailTestDataForEvent(meta.event),
+      ...TEST_VARS,
+      ...(titleTrim !== '' ? { contentTitle: titleTrim } : {}),
+    };
     const rendered = renderTransactionalEmail({
       event: meta.event,
       data,
       subject: resolved.subject || undefined,
-      contentTitle: resolved.contentTitle || undefined,
+      contentTitle: titleTrim !== '' ? titleTrim : undefined,
       contentHtml: resolved.content,
       contentBelowDetails: resolved.contentBelowDetails,
       lang: 'es',
