@@ -68,6 +68,7 @@ import SniperBots from './screens/use-cases/SniperBots';
 import SecureShopping from './screens/use-cases/SecureShopping';
 import ScaleAds from './screens/use-cases/ScaleAds';
 import WebDashboard from './screens/dashboard/WebDashboard';
+import ReactivateLine from './screens/ReactivateLine';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -247,6 +248,8 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<LandingOrDash_v2 />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
+                  {/* Reactivación post-cancelación: token en query; sin login obligatorio */}
+                  <Route path="/web/reactivate-line" element={<ReactivateLine />} />
                   <Route path="/web" element={<ProtectedRoute><WebDashboard /></ProtectedRoute>} />
 
                   {/* ── Rutas full-width (desktop responsivo, sin max-w-md) ── */}

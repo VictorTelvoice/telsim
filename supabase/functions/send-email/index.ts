@@ -457,6 +457,7 @@ Deno.serve(async (req) => {
       custom_content: payloadCustomContent,
       html_body: payloadHtmlBody,
       contentBelowDetails,
+      contentTitle,
     } = payload as Record<string, unknown>;
 
     if (!event) {
@@ -562,6 +563,7 @@ Deno.serve(async (req) => {
     const langForRenderer: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
 
     let resolvedBelowDetails: string | null = null;
+    let resolvedContentTitle: string | null = null;
     if (canonEv) {
       const payloadTid =
         payloadTemplateId != null && String(payloadTemplateId).trim() !== ''
@@ -580,12 +582,31 @@ Deno.serve(async (req) => {
         const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
         resolvedBelowDetails = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
       }
+
+      const titleSettingsKey = payloadTid
+        ? `${payloadTid}_title`
+        : `template_email_${canonEv}_title`;
+      const hasContentTitleKey =
+        payload != null && typeof payload === 'object' && 'contentTitle' in payload;
+      if (hasContentTitleKey) {
+        const rawCt = contentTitle != null ? String(contentTitle) : '';
+        if (rawCt.trim() !== '') {
+          resolvedContentTitle = renderBodyTemplate(rawCt, data);
+        }
+      }
+      if (resolvedContentTitle == null) {
+        const titleFromDb = settingsOverrides[titleSettingsKey] ?? '';
+        if (titleFromDb.trim() !== '') {
+          resolvedContentTitle = renderBodyTemplate(titleFromDb, data);
+        }
+      }
     }
 
     const canonicalRendered = renderTransactionalEmail({
       event: rawEvent,
       data,
       subject: payloadSubject,
+      contentTitle: resolvedContentTitle,
       contentHtml: bodyStr,
       contentBelowDetails: resolvedBelowDetails,
       lang: langForRenderer,

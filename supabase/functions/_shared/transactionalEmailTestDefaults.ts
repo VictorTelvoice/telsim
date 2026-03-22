@@ -33,7 +33,13 @@ export function getDefaultAdminEmailTestDataForEvent(event: string): Record<stri
     case 'new_purchase':
       return { ...base, status: 'Activo', next_date: '01/04/2026', end_date: '—' };
     case 'cancellation':
-      return { ...base, status: 'Cancelado', end_date: '31/12/2026', next_date: '—' };
+      return {
+        ...base,
+        status: 'Cancelado',
+        end_date: '31/12/2026',
+        next_date: '—',
+        reactivation_url: 'https://www.telsim.io/#/web/reactivate-line?token=preview',
+      };
     case 'upgrade_success':
       return { ...base, status: 'Activo', next_date: '01/04/2026', end_date: '—' };
     case 'invoice_paid':

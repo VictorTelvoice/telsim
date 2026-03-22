@@ -225,7 +225,7 @@ function buildInnerBlock(params: {
       : '';
   const bottomBlock =
     params.bottomHtml.trim() !== ''
-      ? `<div style="margin:24px 0 0 0;${bodyTextStyle}">${params.bottomHtml}</div>`
+      ? `<div style="margin:24px 0 32px 0;${bodyTextStyle}">${params.bottomHtml}</div>`
       : '';
 
   const secondaryOutline = '#2563eb';
@@ -317,6 +317,8 @@ export type RenderTransactionalEmailParams = {
   data: Record<string, unknown>;
   /** Asunto editable (admin / webhook). Si vacío, se usa default por evento. */
   subject?: string | null;
+  /** Título visible (H1) en el cuerpo; si vacío o ausente, se usa el predeterminado del evento. */
+  contentTitle?: string | null;
   /** HTML del copy central desde admin_settings (ya con variables sustituidas en prod/test). */
   contentHtml?: string | null;
   /**
@@ -337,7 +339,11 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
 
   const lang = params.lang ?? 'es';
   const d = params.data ?? {};
-  const title = TITLES[canonical][lang];
+  const defaultTitle = TITLES[canonical][lang];
+  const visualTitle =
+    params.contentTitle != null && String(params.contentTitle).trim() !== ''
+      ? String(params.contentTitle).trim()
+      : defaultTitle;
   const cta = CTAS[canonical][lang];
   const ctaUrl = CTA_URLS[canonical];
 
@@ -362,14 +368,14 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
     if (href !== '') {
       secondaryCta = {
         href,
-        text: lang === 'es' ? 'Reactivar mi servicio' : 'Reactivate my service',
+        text: lang === 'es' ? 'Reactivar mi línea' : 'Reactivate my line',
       };
     }
   }
 
   const rows = detailRows(canonical, d, lang);
   const inner = buildInnerBlock({
-    title: escapeHtml(title),
+    title: escapeHtml(visualTitle),
     topHtml,
     bottomHtml,
     rows,

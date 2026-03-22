@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logEvent } from '../_helpers/logger.js';
@@ -557,6 +558,32 @@ async function triggerEmail(
   }
 }
 
+/** Token de un solo uso; válido 48h. Fallo silencioso → email sin botón de reactivación. */
+async function insertLineReactivationToken(params: {
+  userId: string;
+  slotId: string;
+  subscriptionId: string;
+  planName: string | null;
+  billingType: string | null;
+}): Promise<string | null> {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabaseAdmin.from('line_reactivation_tokens').insert({
+    token,
+    user_id: params.userId,
+    slot_id: params.slotId,
+    subscription_id: params.subscriptionId,
+    plan_name: params.planName,
+    billing_type: params.billingType,
+    expires_at: expiresAt,
+  });
+  if (error) {
+    console.error('[CANCEL] line_reactivation_tokens insert failed', error);
+    return null;
+  }
+  return token;
+}
+
 async function sendTelegramNotification(
   messageOrEvent: string,
   userId: string,
@@ -763,6 +790,22 @@ export default async function handler(req: any, res: any) {
         sessionMeta = { ...sessionMeta, ...subscription.metadata } as Record<string, string>;
       } catch (e: any) {
         console.warn('[WEBHOOK] No se pudo leer metadata desde subscription:', e?.message);
+      }
+    }
+
+    if (
+      sessionMeta.line_reactivation === 'true' &&
+      sessionMeta.line_reactivation_token &&
+      (session.payment_status === 'paid' || session.payment_status === 'no_payment_required')
+    ) {
+      try {
+        await supabaseAdmin
+          .from('line_reactivation_tokens')
+          .update({ used_at: new Date().toISOString() })
+          .eq('token', String(sessionMeta.line_reactivation_token).trim())
+          .is('used_at', null);
+      } catch (markErr: unknown) {
+        console.warn('[WEBHOOK] line_reactivation mark used failed', (markErr as Error)?.message);
       }
     }
 
@@ -2693,6 +2736,22 @@ export default async function handler(req: any, res: any) {
       const phoneRaw = String(slotData?.phone_number ?? slotId ?? '');
       const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
 
+      let reactivation_url = '';
+      try {
+        const reactivationToken = await insertLineReactivationToken({
+          userId: String(sub.user_id ?? ''),
+          slotId: String(slotId ?? ''),
+          subscriptionId: String(sub.id ?? ''),
+          planName: (sub.plan_name as string | null) ?? null,
+          billingType: (sub.billing_type as string | null) ?? null,
+        });
+        if (reactivationToken) {
+          reactivation_url = `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(reactivationToken)}`;
+        }
+      } catch (reacErr) {
+        console.warn('[CANCEL] reactivation token skipped', reacErr);
+      }
+
       const cancellationPayload = {
         nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
         email: String(userData?.email ?? ''),
@@ -2705,6 +2764,7 @@ export default async function handler(req: any, res: any) {
         phone_number: phoneRaw,
         to_email: String(userData?.email ?? ''),
         date: now,
+        reactivation_url,
       };
 
       await createNotificationFromTemplate(

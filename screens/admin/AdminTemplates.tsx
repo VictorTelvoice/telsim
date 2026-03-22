@@ -16,6 +16,11 @@ function emailTemplateBelowDetailsId(templateId: string): string {
   return `${templateId}_below_details`;
 }
 
+/** admin_settings id del título visible (H1): `<templateId>_title` (p. ej. template_email_new_purchase_title). */
+function emailTemplateTitleId(templateId: string): string {
+  return `${templateId}_title`;
+}
+
 type NotificationHistoryRow = {
   id: string;
   created_at: string;
@@ -268,16 +273,18 @@ function getResolvedTestPayload(
   templateId: string,
   settings: Record<string, string>,
   emailSubjects: Record<string, string>
-): { content: string; subject: string; contentBelowDetails?: string } {
+): { content: string; subject: string; contentBelowDetails?: string; contentTitle?: string } {
   const raw = settings[templateId] ?? '';
   const content = replaceVariablesForTest(raw);
   const subject = replaceVariablesForTest(emailSubjects[templateId] ?? '');
   if (templateId.startsWith(PREFIX_EMAIL)) {
     const belowRaw = settings[emailTemplateBelowDetailsId(templateId)] ?? '';
+    const titleRaw = settings[emailTemplateTitleId(templateId)] ?? '';
     return {
       content,
       subject,
       contentBelowDetails: replaceVariablesForTest(belowRaw),
+      contentTitle: replaceVariablesForTest(titleRaw),
     };
   }
   return { content, subject };
@@ -371,6 +378,10 @@ const AdminTemplates: React.FC = () => {
     KNOWN_EMAIL_IDS.forEach((id) => {
       const bid = emailTemplateBelowDetailsId(id);
       if (!(bid in map)) map[bid] = '';
+    });
+    KNOWN_EMAIL_IDS.forEach((id) => {
+      const tid = emailTemplateTitleId(id);
+      if (!(tid in map)) map[tid] = '';
     });
     setSettings(map);
     setEmailSubjects(subjects);
@@ -487,9 +498,16 @@ const AdminTemplates: React.FC = () => {
           .select('content')
           .eq('id', bid)
           .maybeSingle();
+        const titleId = emailTemplateTitleId(id);
+        const { data: titleRow } = await supabase
+          .from('admin_settings')
+          .select('content')
+          .eq('id', titleId)
+          .maybeSingle();
         setSettings((s) => ({
           ...s,
           [bid]: (belowRow as { content?: string | null } | null)?.content ?? '',
+          [titleId]: (titleRow as { content?: string | null } | null)?.content ?? '',
         }));
       }
     },
@@ -529,6 +547,7 @@ const AdminTemplates: React.FC = () => {
           body.subject = subject;
           if (templateId.startsWith(PREFIX_EMAIL)) {
             body.contentBelowDetails = resolved.contentBelowDetails ?? '';
+            body.contentTitle = resolved.contentTitle ?? '';
           }
         }
         const response = await fetch('/api/manage', {
@@ -584,6 +603,16 @@ const AdminTemplates: React.FC = () => {
           },
           { onConflict: 'id' }
         );
+        const titleId = emailTemplateTitleId(id);
+        await supabase.from('admin_settings').upsert(
+          {
+            id: titleId,
+            content: settings[titleId] ?? '',
+            subject: null,
+            updated_at: updatedAt,
+          },
+          { onConflict: 'id' }
+        );
       }
       for (const id of [...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS]) {
         const content = settings[id] ?? '';
@@ -616,6 +645,7 @@ const AdminTemplates: React.FC = () => {
       event: meta.event,
       data,
       subject: resolved.subject || undefined,
+      contentTitle: resolved.contentTitle || undefined,
       contentHtml: resolved.content,
       contentBelowDetails: resolved.contentBelowDetails,
       lang: 'es',
@@ -919,6 +949,25 @@ const AdminTemplates: React.FC = () => {
                         placeholder="Asunto del correo (opcional si el evento tiene predeterminado)"
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                       />
+                    </div>
+                  )}
+                  {activeTab === 'email' && id.startsWith(PREFIX_EMAIL) && (
+                    <div className="mb-4">
+                      <label htmlFor={`email-visual-title-${id}`} className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Título del correo
+                      </label>
+                      <input
+                        id={`email-visual-title-${id}`}
+                        type="text"
+                        value={settings[emailTemplateTitleId(id)] ?? ''}
+                        onChange={(e) => handleContentChange(emailTemplateTitleId(id), e.target.value)}
+                        placeholder="Título visible en el cuerpo (opcional — predeterminado del evento si vacío)"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Guardado en{' '}
+                        <code className="text-[10px] bg-slate-100 px-1 rounded font-mono">{emailTemplateTitleId(id)}</code>
+                      </p>
                     </div>
                   )}
                   {/* Barra de formato: HTML para email (compatible con plantilla maestra), Markdown para resto */}

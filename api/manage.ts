@@ -7,7 +7,13 @@
 import type Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
+import {
+  billingIsAnnual,
+  normalizeTierPlanName,
+  resolveStripePriceIdForReactivation,
+} from './_helpers/lineReactivationPlan.js';
 import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
+import { monthlySmsLimitForPlan } from './_helpers/subscriptionPlanLimits.js';
 import {
   extractReceiptUrlFromInvoice,
   invoiceCustomerTaxIdsForDb,
@@ -40,7 +46,11 @@ function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unkno
 
   switch (event) {
     case 'cancellation':
-      return { ...base, status: 'Cancelado' };
+      return {
+        ...base,
+        status: 'Cancelado',
+        reactivation_url: 'https://www.telsim.io/#/web/reactivate-line?token=preview',
+      };
     case 'invoice_paid':
       return { ...base, status: 'Pagado' };
     case 'upgrade_success':
@@ -318,6 +328,8 @@ async function internalSendEmail(options: {
   template_id?: string;
   /** Bloque inferior HTML; si se envía (incluso ''), send-email lo interpreta como explícito. */
   contentBelowDetails?: string;
+  /** Título visible (H1) en tests; enviado a send-email como `contentTitle`. */
+  contentTitle?: string;
 }): Promise<{ success: boolean; error?: string; httpStatus?: number; rawBodySnippet?: string }> {
   const category = options.category ?? 'operational';
   const preview = (options.content ?? options.html ?? options.custom_content ?? '').slice(0, 500) || null;
@@ -353,6 +365,7 @@ async function internalSendEmail(options: {
         options.template_id.startsWith('template_email_')
       ) {
         payloadOut.contentBelowDetails = options.contentBelowDetails ?? '';
+        payloadOut.contentTitle = options.contentTitle ?? '';
       }
       body = JSON.stringify(payloadOut);
     } catch (serializeErr) {
@@ -1390,6 +1403,7 @@ export default async function handler(req: any, res: any) {
           templateId: templateIdIn,
           event: eventIn,
           contentBelowDetails,
+          contentTitle,
         } = req.body || {};
 
         console.log('[MANAGE send-notification-test] start', {
@@ -1523,6 +1537,10 @@ export default async function handler(req: any, res: any) {
               contentBelowDetails:
                 typeof templateId === 'string' && templateId.startsWith('template_email_')
                   ? String(contentBelowDetails ?? '')
+                  : undefined,
+              contentTitle:
+                typeof templateId === 'string' && templateId.startsWith('template_email_')
+                  ? String(contentTitle ?? '')
                   : undefined,
               data: {
                 ...testData,
@@ -1802,6 +1820,130 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ sent: true, message: 'Alerta de prueba enviada a tu Telegram.' });
       }
 
+      /** Reactivación de línea con token de 48h (enlace del correo de cancelación). Sin sesión: el token es la prueba. */
+      case 'reactivate-line': {
+        const stripe = await getStripeClient();
+        const rawToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+        if (!rawToken) {
+          return res.status(400).json({ error: 'Falta token.', code: 'MISSING_TOKEN' });
+        }
+        const { data: tokRow, error: tokErr } = await supabaseAdmin
+          .from('line_reactivation_tokens')
+          .select('id, token, user_id, slot_id, subscription_id, plan_name, billing_type, expires_at, used_at')
+          .eq('token', rawToken)
+          .maybeSingle();
+        if (tokErr || !tokRow) {
+          return res.status(400).json({ error: 'Enlace inválido o expirado.', code: 'TOKEN_INVALID' });
+        }
+        const t = tokRow as {
+          user_id: string;
+          slot_id: string;
+          subscription_id: string;
+          plan_name: string | null;
+          billing_type: string | null;
+          expires_at: string;
+          used_at: string | null;
+        };
+        if (t.used_at) {
+          return res.status(400).json({ error: 'Este enlace ya fue utilizado.', code: 'TOKEN_USED' });
+        }
+        if (new Date(t.expires_at).getTime() <= Date.now()) {
+          return res.status(400).json({
+            error: 'El plazo de 48 horas para reactivar expiró.',
+            code: 'TOKEN_EXPIRED',
+          });
+        }
+        const { data: subRow } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, slot_id, status')
+          .eq('id', t.subscription_id)
+          .maybeSingle();
+        if (!subRow || String(subRow.user_id) !== String(t.user_id)) {
+          return res.status(400).json({ error: 'La suscripción ya no coincide con este enlace.', code: 'SUB_MISMATCH' });
+        }
+        const st = String((subRow as { status?: string }).status ?? '').toLowerCase();
+        if (!['canceled', 'cancelled'].includes(st)) {
+          return res.status(400).json({
+            error: 'Esta línea ya no está cancelada; no aplica reactivación con este enlace.',
+            code: 'NOT_CANCELED',
+          });
+        }
+        const { data: slotRow } = await supabaseAdmin
+          .from('slots')
+          .select('slot_id, status, assigned_to, phone_number')
+          .eq('slot_id', t.slot_id)
+          .maybeSingle();
+        if (!slotRow) {
+          return res.status(400).json({ error: 'El slot ya no existe.', code: 'SLOT_MISSING' });
+        }
+        const slotStatus = String((slotRow as { status?: string }).status ?? '').toLowerCase();
+        if (slotStatus !== 'libre' || (slotRow as { assigned_to?: string | null }).assigned_to != null) {
+          return res.status(400).json({
+            error: 'Esta línea ya no está disponible para reactivar.',
+            code: 'SLOT_NOT_FREE',
+          });
+        }
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('stripe_customer_id')
+          .eq('id', t.user_id)
+          .maybeSingle();
+        let customerId = (profile as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
+        if (!customerId) {
+          const { data: userStripe } = await supabaseAdmin
+            .from('users')
+            .select('stripe_customer_id')
+            .eq('id', t.user_id)
+            .maybeSingle();
+          customerId = (userStripe as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
+        }
+        if (!customerId) {
+          return res.status(400).json({
+            error: 'No hay cliente de facturación. Inicia sesión en Telsim y configura tu método de pago.',
+            code: 'NO_STRIPE_CUSTOMER',
+          });
+        }
+        const planNameMeta = normalizeTierPlanName(t.plan_name);
+        const isAnnual = billingIsAnnual(t.billing_type);
+        const priceId = resolveStripePriceIdForReactivation(t.plan_name, t.billing_type);
+        const phone = String((slotRow as { phone_number?: string | null }).phone_number ?? '');
+        const limit = monthlySmsLimitForPlan(planNameMeta, null);
+        const baseUrl = getBaseUrl(req);
+
+        const sessionConfig: Record<string, unknown> = {
+          mode: 'subscription',
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          metadata: {
+            userId: t.user_id,
+            slot_id: t.slot_id,
+            planName: planNameMeta,
+            isAnnual: isAnnual ? 'true' : 'false',
+            phoneNumber: phone,
+            limit: String(limit),
+            line_reactivation: 'true',
+            line_reactivation_token: rawToken,
+          },
+          subscription_data: {
+            metadata: {
+              user_id: t.user_id,
+              slot_id: t.slot_id,
+              line_reactivation: 'true',
+              line_reactivation_token: rawToken,
+            },
+          },
+          payment_method_collection: 'always',
+          success_url: `${baseUrl}/#/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/#/web/reactivate-line?token=${encodeURIComponent(rawToken)}`,
+        };
+        applyStripeCheckoutBillingCompliance(sessionConfig);
+        const session = await stripe.checkout.sessions.create(sessionConfig as Stripe.Checkout.SessionCreateParams);
+        if (!session.url) {
+          return res.status(500).json({ error: 'No se pudo crear la sesión de pago.', code: 'CHECKOUT_URL_MISSING' });
+        }
+        return res.status(200).json({ url: session.url });
+      }
+
       /** Solo admin: cancelar suscripciones en Stripe por ID (best-effort; no toca DB; no revierte cancelación local). */
       case 'admin-stripe-cancel-subscriptions': {
         const stripe = await getStripeClient();
@@ -1833,7 +1975,8 @@ export default async function handler(req: any, res: any) {
 
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, list-incoming-sms, simulate-critical-alert, admin-stripe-cancel-subscriptions.',
+          error:
+            'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, reactivate-line, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, list-incoming-sms, simulate-critical-alert, admin-stripe-cancel-subscriptions.',
         });
     }
   } catch (err: any) {
