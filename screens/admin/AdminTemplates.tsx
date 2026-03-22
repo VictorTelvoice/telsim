@@ -40,12 +40,15 @@ const CANONICAL_BLOCK_META: Record<string, { channel: 'email' | 'telegram' | 'ap
   'template_email_cancellation': { channel: 'email', event: 'cancellation' },
   'template_email_upgrade_success': { channel: 'email', event: 'upgrade_success' },
   'template_email_invoice_paid': { channel: 'email', event: 'invoice_paid' },
+  'template_email_reactivation_success': { channel: 'email', event: 'reactivation_success' },
   'template_telegram_new_purchase': { channel: 'telegram', event: 'new_purchase' },
   'template_telegram_cancellation': { channel: 'telegram', event: 'cancellation' },
   'template_telegram_upgrade_success': { channel: 'telegram', event: 'upgrade_success' },
+  'template_telegram_reactivation_success': { channel: 'telegram', event: 'reactivation_success' },
   'template_app_new_purchase': { channel: 'app', event: 'new_purchase' },
   'template_app_cancellation': { channel: 'app', event: 'cancellation' },
   'template_app_upgrade_success': { channel: 'app', event: 'upgrade_success' },
+  'template_app_reactivation_success': { channel: 'app', event: 'reactivation_success' },
 };
 
 function getBlockMeta(templateId: string): { channel: 'email' | 'telegram' | 'app'; event: string } {
@@ -69,6 +72,7 @@ const KNOWN_EMAIL_IDS = [
   'template_email_cancellation',
   'template_email_upgrade_success',
   'template_email_invoice_paid',
+  'template_email_reactivation_success',
   // Legacy / otros
   'template_email_subscription_activated',
   'template_email_subscription_cancelled',
@@ -82,6 +86,7 @@ const KNOWN_TELEGRAM_IDS = [
   'template_telegram_new_purchase',
   'template_telegram_cancellation',
   'template_telegram_upgrade_success',
+  'template_telegram_reactivation_success',
   'template_telegram_subscription_cancelled',
   'template_telegram_new_sms_forward',
   'template_telegram_ceo_daily_report',
@@ -95,6 +100,7 @@ const KNOWN_APP_IDS = [
   'template_app_new_purchase',
   'template_app_cancellation',
   'template_app_upgrade_success',
+  'template_app_reactivation_success',
   'template_app_invoice_paid',
   'template_app_release_success',
   'template_app_release_success_sub',
@@ -228,6 +234,21 @@ const CANONICAL_STRIPE_BLOCKS: {
       { var: '{{slot_id}}', desc: 'ID del slot' },
       { var: '{{billing}}', desc: 'Mensual / Anual' },
       { var: '{{now}}', desc: 'Marca de tiempo local' },
+    ],
+  },
+  {
+    event: 'reactivation_success',
+    title: 'Reactivación exitosa',
+    telegramId: 'template_telegram_reactivation_success',
+    emailId: 'template_email_reactivation_success',
+    vars: [
+      { var: '{{nombre}}', desc: 'Nombre' },
+      { var: '{{email}}', desc: 'Correo' },
+      { var: '{{phone}}', desc: 'Número de línea' },
+      { var: '{{phone_number}}', desc: 'Teléfono (alias)' },
+      { var: '{{plan}}', desc: 'Plan' },
+      { var: '{{status}}', desc: 'Estado' },
+      { var: '{{billing_type}}', desc: 'Mensual / Anual' },
     ],
   },
 ];
@@ -383,6 +404,32 @@ const AdminTemplates: React.FC = () => {
       const tid = emailTemplateTitleId(id);
       if (!(tid in map)) map[tid] = '';
     });
+
+    // Migración suave (solo estado local): si existía copy en scheduled_event y no en reactivation_success, copiar para editar/guardar manualmente.
+    const reactivationEmailId = 'template_email_reactivation_success';
+    const scheduledEmailId = 'template_email_scheduled_event';
+    if ((map[reactivationEmailId] ?? '').trim() === '' && (map[scheduledEmailId] ?? '').trim() !== '') {
+      map[reactivationEmailId] = map[scheduledEmailId] ?? '';
+      if ((subjects[reactivationEmailId] ?? '').trim() === '' && (subjects[scheduledEmailId] ?? '').trim() !== '') {
+        subjects[reactivationEmailId] = subjects[scheduledEmailId] ?? '';
+      }
+      const belowRe = emailTemplateBelowDetailsId(reactivationEmailId);
+      const belowSched = emailTemplateBelowDetailsId(scheduledEmailId);
+      if ((map[belowRe] ?? '').trim() === '' && (map[belowSched] ?? '').trim() !== '') {
+        map[belowRe] = map[belowSched] ?? '';
+      }
+      const titleRe = emailTemplateTitleId(reactivationEmailId);
+      const titleSched = emailTemplateTitleId(scheduledEmailId);
+      if ((map[titleRe] ?? '').trim() === '' && (map[titleSched] ?? '').trim() !== '') {
+        map[titleRe] = map[titleSched] ?? '';
+      }
+    }
+    const rtg = 'template_telegram_reactivation_success';
+    const stg = 'template_telegram_scheduled_event';
+    if ((map[rtg] ?? '').trim() === '' && (map[stg] ?? '').trim() !== '') {
+      map[rtg] = map[stg] ?? '';
+    }
+
     setSettings(map);
     setEmailSubjects(subjects);
   }, []);

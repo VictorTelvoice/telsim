@@ -52,6 +52,8 @@ function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unkno
       return { ...base, status: 'Pagado' };
     case 'upgrade_success':
       return { ...base, status: 'Activo' };
+    case 'reactivation_success':
+      return { ...base, status: 'Activo', next_date: '—', end_date: '—' };
     case 'new_purchase':
     default:
       return { ...base, status: 'Activo' };
@@ -2004,6 +2006,8 @@ export default async function handler(req: any, res: any) {
             phone: phoneFmt || phoneDisplay,
             plan: planNameMeta,
             status: dbStatus === 'trialing' ? 'En período de prueba' : 'Activo',
+            billing_type:
+              String((subRow as { billing_type?: string | null }).billing_type ?? '').trim() || 'Mensual',
             to_email: String((userRowReac as { email?: string } | null)?.email ?? ''),
           },
         });

@@ -16,13 +16,9 @@ function replaceVariables(text: string, data: Record<string, unknown>): string {
 
 const DEFAULT_EMAIL_SUBJECT = '[Telsim] Reactivación exitosa de tu línea {{phone}}';
 
+/** Intro del correo (el cuadro Plan/Estado/SIM/Tipo va en el renderer canónico). El bloque inferior por defecto sale de template_*_below_details o del fallback en send-email. */
 const DEFAULT_EMAIL_BODY = `<p>Hola {{nombre}},</p>
-<p>Tu línea fue reactivada correctamente en Telsim.</p>
-<p><strong>Número:</strong> {{phone}}<br/>
-<strong>Plan:</strong> {{plan}}<br/>
-<strong>Estado:</strong> {{status}}</p>
-<p>Ya puedes volver a usar tu línea y recibir SMS normalmente.</p>
-<p>Equipo Telsim</p>`;
+<p>Tu línea fue reactivada correctamente en Telsim.</p>`;
 
 const DEFAULT_EMAIL_TITLE = 'Reactivación exitosa';
 
@@ -48,6 +44,8 @@ export async function sendReactivationSuccessNotifications(
       phone: string;
       plan: string;
       status: string;
+      /** Mensual / Anual — fila «Tipo de plan» en el renderer. */
+      billing_type?: string;
       to_email?: string;
     };
   }
@@ -56,8 +54,10 @@ export async function sendReactivationSuccessNotifications(
   const payload: Record<string, unknown> = {
     nombre: d.nombre,
     phone: d.phone,
+    phone_number: d.phone,
     plan: d.plan,
     status: d.status,
+    billing_type: d.billing_type ?? 'Mensual',
     to_email: d.to_email ?? '',
     email: d.to_email ?? '',
   };

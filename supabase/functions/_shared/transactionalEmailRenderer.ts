@@ -10,7 +10,12 @@ import {
   getDefaultAdminEmailTestDataForEvent,
 } from './transactionalEmailTestDefaults.ts';
 
-export type CanonicalTransactionalEvent = 'new_purchase' | 'cancellation' | 'upgrade_success' | 'invoice_paid';
+export type CanonicalTransactionalEvent =
+  | 'new_purchase'
+  | 'cancellation'
+  | 'upgrade_success'
+  | 'invoice_paid'
+  | 'reactivation_success';
 
 /** Logo público absoluto (email-safe). */
 export const TELSIM_LOGO_URL = 'https://www.telsim.io/logo-192.png';
@@ -28,6 +33,7 @@ export function normalizeCanonicalTransactionalEvent(raw: string): CanonicalTran
     upgrade_success: 'upgrade_success',
     subscription_activated: 'upgrade_success',
     invoice_paid: 'invoice_paid',
+    reactivation_success: 'reactivation_success',
   };
   return map[k] ?? null;
 }
@@ -113,6 +119,7 @@ const TITLES: Record<CanonicalTransactionalEvent, { es: string; en: string }> = 
   cancellation: { es: 'Cancelación confirmada', en: 'Cancellation confirmed' },
   upgrade_success: { es: '¡Plan actualizado!', en: 'Plan updated!' },
   invoice_paid: { es: 'Pago confirmado', en: 'Payment confirmed' },
+  reactivation_success: { es: 'Reactivación exitosa', en: 'Reactivation successful' },
 };
 
 /** ES: "Ir al Dashboard"; EN: equivalente. CTA → TELSIM_WEB_APP_URL. */
@@ -121,6 +128,7 @@ const CTAS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
   cancellation: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
   upgrade_success: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
   invoice_paid: { es: 'Ir al Dashboard', en: 'Go to Dashboard' },
+  reactivation_success: { es: 'Ir a mis números', en: 'Go to my numbers' },
 };
 
 const CTA_URLS: Record<CanonicalTransactionalEvent, string> = {
@@ -128,6 +136,7 @@ const CTA_URLS: Record<CanonicalTransactionalEvent, string> = {
   cancellation: TELSIM_WEB_APP_URL,
   upgrade_success: TELSIM_WEB_APP_URL,
   invoice_paid: TELSIM_WEB_APP_URL,
+  reactivation_success: TELSIM_WEB_APP_URL,
 };
 
 const DEFAULT_SUBJECTS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
@@ -135,7 +144,18 @@ const DEFAULT_SUBJECTS: Record<CanonicalTransactionalEvent, { es: string; en: st
   cancellation: { es: '[Telsim] Cancelación confirmada', en: '[Telsim] Cancellation confirmed' },
   upgrade_success: { es: '[Telsim] Plan actualizado', en: '[Telsim] Plan updated' },
   invoice_paid: { es: '[Telsim] Pago confirmado', en: '[Telsim] Payment confirmed' },
+  reactivation_success: {
+    es: '[Telsim] Reactivación exitosa de tu línea {{phone}}',
+    en: '[Telsim] Successful reactivation of your line {{phone}}',
+  },
 };
+
+function interpolateDefaultSubject(tpl: string, d: Record<string, unknown>): string {
+  let s = tpl;
+  s = s.replace(/\{\{phone\}\}/g, phoneVal(d));
+  s = s.replace(/\{\{nombre\}\}/g, String(d.nombre ?? ''));
+  return s;
+}
 
 function detailRows(
   canonical: CanonicalTransactionalEvent,
@@ -185,6 +205,13 @@ function detailRows(
         { label: L('Moneda', 'Currency'), valueHtml: currency },
         { label: L('Número SIM', 'SIM number'), valueHtml: phone },
         { label: L('Próximo cobro', 'Next charge'), valueHtml: next },
+      ];
+    case 'reactivation_success':
+      return [
+        { label: L('Plan', 'Plan'), valueHtml: renderColoredPlanValue(planRaw) },
+        { label: L('Estado', 'Status'), valueHtml: renderColoredStatusValue(statusRaw) },
+        { label: L('Número SIM', 'SIM number'), valueHtml: phone },
+        { label: L('Tipo de plan', 'Plan type'), valueHtml: billing },
       ];
     default:
       return [];
@@ -331,7 +358,7 @@ export type RenderTransactionalEmailParams = {
 
 /**
  * Renderiza el email transaccional completo (layout fijo + copy central + filas por evento).
- * Devuelve null si `event` no es uno de los cuatro canónicos.
+ * Devuelve null si `event` no es uno de los eventos canónicos soportados.
  */
 export function renderTransactionalEmail(params: RenderTransactionalEmailParams): { html: string; subject: string } | null {
   const canonical = normalizeCanonicalTransactionalEvent(params.event);
@@ -394,7 +421,7 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
   const subj =
     params.subject != null && String(params.subject).trim() !== ''
       ? String(params.subject).trim()
-      : DEFAULT_SUBJECTS[canonical][lang];
+      : interpolateDefaultSubject(DEFAULT_SUBJECTS[canonical][lang], d);
 
   return { html, subject: subj };
 }

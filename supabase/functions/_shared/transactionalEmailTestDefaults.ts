@@ -12,7 +12,9 @@ export function getDefaultAdminEmailTestDataForEvent(event: string): Record<stri
         ? 'upgrade_success'
         : k === 'invoice_paid'
           ? 'invoice_paid'
-          : 'new_purchase';
+          : k === 'reactivation_success'
+            ? 'reactivation_success'
+            : 'new_purchase';
 
   const base: Record<string, unknown> = {
     nombre: 'CEO Test',
@@ -44,6 +46,8 @@ export function getDefaultAdminEmailTestDataForEvent(event: string): Record<stri
       return { ...base, status: 'Activo', next_date: '01/04/2026', end_date: '—' };
     case 'invoice_paid':
       return { ...base, status: 'Pagado', next_date: '01/04/2026', end_date: '—' };
+    case 'reactivation_success':
+      return { ...base, status: 'Activo', next_date: '—', end_date: '—' };
     default:
       return { ...base, status: 'Activo', next_date: '01/04/2026' };
   }

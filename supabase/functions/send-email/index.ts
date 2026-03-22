@@ -75,6 +75,7 @@ type EventType =
   | 'invoice_paid'
   | 'invoice_failed'
   | 'scheduled_event'
+  | 'reactivation_success'
   | 'low_credit';
 
 interface EmailPayload {
@@ -95,6 +96,7 @@ const eventIcons: Record<EventType, string> = {
   invoice_paid: '',
   invoice_failed: '',
   scheduled_event: '',
+  reactivation_success: '',
   low_credit: '',
 };
 
@@ -187,6 +189,29 @@ const i18n = {
       infoRightLabel: 'MONTO',
       infoLeftValue: (d: Record<string, unknown>) => String(d.renewal_date ?? ''),
       infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+    },
+    reactivation_success: {
+      subject: (d: Record<string, unknown>) =>
+        `[Telsim] Reactivación exitosa de tu línea ${d.phone ?? d.phone_number ?? ''}`,
+      title: 'Reactivación exitosa',
+      body: (d: Record<string, unknown>) =>
+        `Hola <strong>${d.nombre ?? ''}</strong>, tu línea fue reactivada correctamente en Telsim.`,
+      cta: 'Ir a mis números',
+      useTableRows: true,
+      tableRows: [
+        { label: 'PLAN', value: (d: Record<string, unknown>) => String(d.plan ?? '') },
+        { label: 'ESTADO', value: (d: Record<string, unknown>) => String(d.status ?? '') },
+        { label: 'NÚMERO SIM', value: (d: Record<string, unknown>) => String(d.phone_number ?? d.phone ?? '') },
+        {
+          label: 'TIPO DE PLAN',
+          value: (d: Record<string, unknown>) =>
+            d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Anual' : 'Mensual',
+        },
+      ],
+      infoLeftLabel: '',
+      infoRightLabel: '',
+      infoLeftValue: () => '',
+      infoRightValue: () => '',
     },
     low_credit: {
       subject: 'Saldo bajo en tu cuenta Telsim',
@@ -286,6 +311,29 @@ const i18n = {
       infoRightLabel: 'AMOUNT',
       infoLeftValue: (d: Record<string, unknown>) => String(d.renewal_date ?? ''),
       infoRightValue: (d: Record<string, unknown>) => `$${d.amount ?? ''} USD`,
+    },
+    reactivation_success: {
+      subject: (d: Record<string, unknown>) =>
+        `[Telsim] Successful reactivation of your line ${d.phone ?? d.phone_number ?? ''}`,
+      title: 'Reactivation successful',
+      body: (d: Record<string, unknown>) =>
+        `Hello <strong>${d.nombre ?? ''}</strong>, your line was successfully reactivated on Telsim.`,
+      cta: 'Go to my numbers',
+      useTableRows: true,
+      tableRows: [
+        { label: 'PLAN', value: (d: Record<string, unknown>) => String(d.plan ?? '') },
+        { label: 'STATUS', value: (d: Record<string, unknown>) => String(d.status ?? '') },
+        { label: 'SIM NUMBER', value: (d: Record<string, unknown>) => String(d.phone_number ?? d.phone ?? '') },
+        {
+          label: 'PLAN TYPE',
+          value: (d: Record<string, unknown>) =>
+            d.billing_type === 'Anual' || d.billing_type === 'Annual' ? 'Annual' : 'Monthly',
+        },
+      ],
+      infoLeftLabel: '',
+      infoRightLabel: '',
+      infoLeftValue: () => '',
+      infoRightValue: () => '',
     },
     low_credit: {
       subject: 'Low balance on your Telsim account',
@@ -399,6 +447,7 @@ const ctaUrls: Record<EventType, string> = {
   invoice_paid: 'https://www.telsim.io/dashboard#/login',
   invoice_failed: 'https://www.telsim.io/dashboard#/login',
   scheduled_event: 'https://www.telsim.io/dashboard#/login',
+  reactivation_success: 'https://www.telsim.io/#/web',
   low_credit: 'https://www.telsim.io/dashboard#/login',
 };
 
@@ -414,6 +463,7 @@ function normalizeEmailEvent(raw: string): EventType {
     cancellation: 'subscription_cancelled',
     upgrade_success: 'subscription_activated',
     invoice_paid: 'invoice_paid',
+    reactivation_success: 'reactivation_success',
     payment_failed: 'invoice_failed',
     trial_ending: 'scheduled_event',
     upcoming_invoice: 'scheduled_event',
@@ -619,6 +669,15 @@ Deno.serve(async (req) => {
       } else {
         const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
         resolvedBelowDetails = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, mergeForVars) : null;
+      }
+      if (
+        canonEv === 'reactivation_success' &&
+        (resolvedBelowDetails == null || String(resolvedBelowDetails).trim() === '')
+      ) {
+        resolvedBelowDetails =
+          lang === 'en'
+            ? '<p>You can use your line again and receive SMS as usual.</p><p>Telsim Team</p>'
+            : '<p>Ya puedes volver a usar tu línea y recibir SMS normalmente.</p><p>Equipo Telsim</p>';
       }
       const titleKeyPrimary = payloadTid ? `${payloadTid}_title` : `${canonicalTplId}_title`;
       const titleKeyFallback = `${canonicalTplId}_title`;
