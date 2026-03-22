@@ -572,42 +572,12 @@ Deno.serve(async (req) => {
         payloadTemplateId != null && String(payloadTemplateId).trim() !== ''
           ? String(payloadTemplateId).trim()
           : null;
+      const canonicalTplId = `template_email_${canonEv}`;
       const belowSettingsKey = payloadTid
         ? `${payloadTid}_below_details`
         : `template_email_${canonEv}_below_details`;
 
-      const hasExplicitBelow =
-        payload != null && typeof payload === 'object' && 'contentBelowDetails' in payload;
-      if (hasExplicitBelow) {
-        const raw = contentBelowDetails != null ? String(contentBelowDetails) : '';
-        resolvedBelowDetails = raw.trim() !== '' ? renderBodyTemplate(raw, data) : null;
-      } else {
-        const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
-        resolvedBelowDetails = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
-      }
-
-      const titleSettingsKey = payloadTid
-        ? `${payloadTid}_title`
-        : `template_email_${canonEv}_title`;
-      const hasContentTitleKey =
-        payload != null && typeof payload === 'object' && 'contentTitle' in payload;
-      if (hasContentTitleKey) {
-        const rawCt = contentTitle != null ? String(contentTitle) : '';
-        if (rawCt.trim() !== '') {
-          resolvedContentTitle = renderBodyTemplate(rawCt, data);
-        }
-      }
-      if (resolvedContentTitle == null) {
-        const titleFromDb = settingsOverrides[titleSettingsKey] ?? '';
-        if (titleFromDb.trim() !== '') {
-          resolvedContentTitle = renderBodyTemplate(titleFromDb, data);
-        }
-      }
-
-      if (resolvedContentTitle != null && String(resolvedContentTitle).trim() !== '') {
-        dataForRender = { ...dataForRender, contentTitle: resolvedContentTitle };
-      }
-
+      /** Primero: URL de reactivación en data (payload real o backfill) — mismo merge que below/título. */
       if (canonEv === 'cancellation') {
         const existingUrl =
           dataForRender.reactivation_url != null ? String(dataForRender.reactivation_url).trim() : '';
@@ -641,10 +611,46 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (Deno.env.get('LOG_EMAIL_TRANSACTIONAL') === '1') {
-        console.log('[send-email] transactional', String(canonEv), {
-          titleKey: titleSettingsKey,
-          hasResolvedTitle: !!(resolvedContentTitle != null && String(resolvedContentTitle).trim() !== ''),
+      const mergeForVars: Record<string, unknown> = { ...data, ...dataForRender };
+
+      const hasExplicitBelow =
+        payload != null && typeof payload === 'object' && 'contentBelowDetails' in payload;
+      if (hasExplicitBelow) {
+        const raw = contentBelowDetails != null ? String(contentBelowDetails) : '';
+        resolvedBelowDetails = raw.trim() !== '' ? renderBodyTemplate(raw, mergeForVars) : null;
+      } else {
+        const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
+        resolvedBelowDetails = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, mergeForVars) : null;
+      }
+      const titleKeyPrimary = payloadTid ? `${payloadTid}_title` : `${canonicalTplId}_title`;
+      const titleKeyFallback = `${canonicalTplId}_title`;
+
+      const hasExplicitNonEmptyPayloadTitle =
+        payload != null &&
+        typeof payload === 'object' &&
+        'contentTitle' in payload &&
+        String(contentTitle ?? '').trim() !== '';
+      if (hasExplicitNonEmptyPayloadTitle) {
+        resolvedContentTitle = renderBodyTemplate(String(contentTitle).trim(), mergeForVars);
+      }
+      if (resolvedContentTitle == null || String(resolvedContentTitle).trim() === '') {
+        const rawDb = (settingsOverrides[titleKeyPrimary] ?? settingsOverrides[titleKeyFallback] ?? '').trim();
+        if (rawDb !== '') {
+          resolvedContentTitle = renderBodyTemplate(rawDb, mergeForVars);
+        }
+      }
+      if (resolvedContentTitle != null && String(resolvedContentTitle).trim() === '') {
+        resolvedContentTitle = null;
+      }
+
+      if (resolvedContentTitle != null && String(resolvedContentTitle).trim() !== '') {
+        dataForRender = { ...dataForRender, contentTitle: resolvedContentTitle };
+      }
+
+      if (canonEv === 'cancellation' && Deno.env.get('LOG_EMAIL_CANCEL_AUDIT') === '1') {
+        console.log('[send-email] cancellation', {
+          templateId: payloadTid ?? canonicalTplId,
+          titleLen: resolvedContentTitle != null ? String(resolvedContentTitle).length : 0,
           hasReactivationUrl: !!(
             dataForRender.reactivation_url != null && String(dataForRender.reactivation_url).trim() !== ''
           ),

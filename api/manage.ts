@@ -365,7 +365,11 @@ async function internalSendEmail(options: {
         options.template_id.startsWith('template_email_')
       ) {
         payloadOut.contentBelowDetails = options.contentBelowDetails ?? '';
-        payloadOut.contentTitle = options.contentTitle ?? '';
+        /** Solo si hay texto: si omitimos la clave, send-email usa `template_email_*_title` desde admin_settings. */
+        const ct = options.contentTitle != null ? String(options.contentTitle).trim() : '';
+        if (ct !== '') {
+          payloadOut.contentTitle = ct;
+        }
       }
       body = JSON.stringify(payloadOut);
     } catch (serializeErr) {
