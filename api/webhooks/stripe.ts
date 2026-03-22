@@ -14,7 +14,10 @@ import {
 } from '../_helpers/slotCountryMapping.js';
 import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
 import { releaseSlotAtomicForCancelPolicy, type SupabaseAdminForRpc } from '../_helpers/releaseSlotAtomicForCancelPolicy.js';
-import { hasRecentNotificationDuplicate } from '../_helpers/notificationDedupe.js';
+import {
+  hasRecentAppNotificationDuplicate,
+  hasRecentNotificationDuplicate,
+} from '../_helpers/notificationDedupe.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -2813,7 +2816,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: userData } = await supabaseAdmin
         .from('users')
-        .select('email, nombre')
+        .select('email, nombre, telegram_chat_id')
         .eq('id', userId)
         .maybeSingle();
 
@@ -2843,26 +2846,76 @@ export default async function handler(req: any, res: any) {
       };
 
       const recipientEmail = String(userData?.email ?? '').trim();
-      const skipDupCancellation =
+      const tgChatRaw = String((userData as { telegram_chat_id?: string | null })?.telegram_chat_id ?? '').trim();
+      const telegramRecipient = tgChatRaw ? `Telegram:${tgChatRaw}` : '';
+
+      const dupWindowMs = 48 * 60 * 60 * 1000;
+      const skipEmailDup =
         recipientEmail !== '' &&
         Boolean(userId) &&
         (await hasRecentNotificationDuplicate(supabaseAdmin, {
           userId: String(userId),
           eventName: CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
           recipient: recipientEmail,
-          windowMs: 48 * 60 * 60 * 1000,
+          windowMs: dupWindowMs,
+          channel: 'email',
         }));
 
-      if (skipDupCancellation) {
+      const skipTelegramDup =
+        telegramRecipient !== '' &&
+        Boolean(userId) &&
+        (await hasRecentNotificationDuplicate(supabaseAdmin, {
+          userId: String(userId),
+          eventName: CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          recipient: telegramRecipient,
+          windowMs: dupWindowMs,
+          channel: 'telegram',
+        }));
+
+      const skipAppDup =
+        Boolean(userId) &&
+        (await hasRecentAppNotificationDuplicate(supabaseAdmin, {
+          userId: String(userId),
+          sourceNotificationKey: CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          windowMs: dupWindowMs,
+        }));
+
+      if (skipEmailDup) {
         void logEvent(
-          'CANCELLATION_NOTIF_SKIPPED_DUPLICATE',
+          'CANCELLATION_EMAIL_SKIPPED_DUPLICATE',
           'info',
-          'Cancelación ya notificada en ventana 48h (p. ej. soft-cancel); no duplicar email/Telegram/app',
+          'Email de cancelación ya enviado en ventana 48h (p. ej. soft-cancel); no reenviar email',
           recipientEmail || undefined,
           { user_id: userId, stripe_subscription_id: subId, stripe_event_id: stripeEventId },
           'stripe'
         );
-      } else {
+      }
+      if (skipTelegramDup) {
+        void logEvent(
+          'CANCELLATION_TELEGRAM_SKIPPED_DUPLICATE',
+          'info',
+          'Telegram de cancelación ya enviado en ventana 48h; no reenviar Telegram',
+          undefined,
+          {
+            user_id: userId,
+            stripe_subscription_id: subId,
+            stripe_event_id: stripeEventId,
+          },
+          'stripe'
+        );
+      }
+      if (skipAppDup) {
+        void logEvent(
+          'CANCELLATION_APP_SKIPPED_DUPLICATE',
+          'info',
+          'Toast in-app de cancelación ya registrado en ventana 48h; no duplicar',
+          undefined,
+          { user_id: userId, stripe_subscription_id: subId, stripe_event_id: stripeEventId },
+          'stripe'
+        );
+      }
+
+      if (!skipAppDup) {
         await createNotificationFromTemplate(
           CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
           userId,
@@ -2870,26 +2923,28 @@ export default async function handler(req: any, res: any) {
           'error',
           stripeEventId
         );
+      }
 
-        if (userData?.email && userId) {
-          void logEvent(
-            'EMAIL_DISPATCHED',
-            'info',
-            CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
-            null,
-            { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
-            'stripe'
-          );
-          console.log(
-            '[CANCEL] reactivation_url_in_payload',
-            Boolean(cancellationPayload.reactivation_url && String(cancellationPayload.reactivation_url).trim() !== '')
-          );
-          await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
-          console.log('[CANCEL] Email enviado a:', userData.email);
-        } else {
-          console.error('[CANCEL] No se encontró email para userId:', userId);
-        }
+      if (!skipEmailDup && userData?.email && userId) {
+        void logEvent(
+          'EMAIL_DISPATCHED',
+          'info',
+          CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          null,
+          { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
+          'stripe'
+        );
+        console.log(
+          '[CANCEL] reactivation_url_in_payload',
+          Boolean(cancellationPayload.reactivation_url && String(cancellationPayload.reactivation_url).trim() !== '')
+        );
+        await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
+        console.log('[CANCEL] Email enviado a:', userData.email);
+      } else if (!userData?.email && userId) {
+        console.error('[CANCEL] No se encontró email para userId:', userId);
+      }
 
+      if (!skipTelegramDup) {
         void logEvent(
           'TELEGRAM_DISPATCHED',
           'info',

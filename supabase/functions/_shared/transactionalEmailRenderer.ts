@@ -23,8 +23,20 @@ export const TELSIM_LOGO_URL = 'https://www.telsim.io/logo-192.png';
 /** CTA principal: app web (mismo destino para todos los eventos canónicos). */
 export const TELSIM_WEB_APP_URL = 'https://www.telsim.io/#/web';
 
+/**
+ * Si el cliente envía `template_email_<evento>` como `event` (error de integración),
+ * normaliza al nombre canónico para no caer en scheduled_event / legacy.
+ */
+export function coerceTransactionalEventKey(raw: string): string {
+  let s = String(raw ?? '').trim();
+  if (/^template_email_/i.test(s)) {
+    s = s.replace(/^template_email_/i, '');
+  }
+  return s.trim();
+}
+
 export function normalizeCanonicalTransactionalEvent(raw: string): CanonicalTransactionalEvent | null {
-  const k = String(raw ?? '').trim().toLowerCase();
+  const k = coerceTransactionalEventKey(raw).toLowerCase();
   const map: Record<string, CanonicalTransactionalEvent> = {
     new_purchase: 'new_purchase',
     purchase_success: 'new_purchase',

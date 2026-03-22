@@ -20,6 +20,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
+  coerceTransactionalEventKey,
   normalizeCanonicalTransactionalEvent,
   renderTransactionalEmail,
 } from '../_shared/transactionalEmailRenderer.ts';
@@ -456,7 +457,7 @@ const ctaUrls: Record<EventType, string> = {
  * Legacy: se mantienen como identidad. Desconocidos → scheduled_event (evita 400).
  */
 function normalizeEmailEvent(raw: string): EventType {
-  const k = String(raw ?? '').trim().toLowerCase();
+  const k = coerceTransactionalEventKey(raw).toLowerCase();
   const map: Record<string, EventType> = {
     // canónicos
     new_purchase: 'purchase_success',
@@ -581,7 +582,7 @@ Deno.serve(async (req) => {
       return s;
     };
 
-    const rawEvent = String(event);
+    const rawEvent = coerceTransactionalEventKey(String(event));
     const ev = normalizeEmailEvent(rawEvent);
 
     let bodyStr: string;
