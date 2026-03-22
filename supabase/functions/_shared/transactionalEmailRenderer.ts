@@ -320,8 +320,8 @@ export type RenderTransactionalEmailParams = {
   /** HTML del copy central desde admin_settings (ya con variables sustituidas en prod/test). */
   contentHtml?: string | null;
   /**
-   * HTML opcional debajo del cuadro de detalles (admin_settings `template_email_<event>_below_details` o `<templateId>_below_details`).
-   * Si no se envía, compatibilidad legacy con texto tras [[BELOW_DETAILS]] en contentHtml.
+   * Bloque inferior (todos los eventos canónicos). Si trim() no vacío, va debajo del cuadro y antes del CTA.
+   * Origen: admin `template_email_<event>_below_details` / `<templateId>_below_details` o envío de prueba.
    */
   contentBelowDetails?: string | null;
   lang?: 'es' | 'en';

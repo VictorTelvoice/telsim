@@ -500,7 +500,7 @@ const AdminTemplates: React.FC = () => {
     async (templateId: string) => {
       const meta = getBlockMeta(templateId);
       const resolved = getResolvedTestPayload(templateId, settings, emailSubjects);
-      const { content, subject, contentBelowDetails } = resolved;
+      const { content, subject } = resolved;
 
       if (meta.channel === 'app') {
         showLocalToast(content || '— (vacío)');
@@ -528,7 +528,7 @@ const AdminTemplates: React.FC = () => {
         if (meta.channel === 'email') {
           body.subject = subject;
           if (templateId.startsWith(PREFIX_EMAIL)) {
-            body.contentBelowDetails = contentBelowDetails ?? '';
+            body.contentBelowDetails = resolved.contentBelowDetails ?? '';
           }
         }
         const response = await fetch('/api/manage', {
@@ -963,12 +963,12 @@ const AdminTemplates: React.FC = () => {
                     rows={10}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-y text-sm"
                   />
-                  {activeTab === 'email' && (
+                  {activeTab === 'email' && id.startsWith(PREFIX_EMAIL) && (
                     <>
                       <p className="mt-2 text-xs text-slate-500">
-                        El bloque inferior va en el campo de abajo (opcional). En correos canónicos con cuadro de detalles, se guarda como{' '}
+                        Opcional: texto debajo del cuadro de detalles en el correo canónico. Guardado en{' '}
                         <code className="text-[10px] bg-slate-100 px-1 rounded font-mono">{emailTemplateBelowDetailsId(id)}</code>
-                        . El marcador <code className="text-[10px] bg-slate-100 px-1 rounded">[[BELOW_DETAILS]]</code> en el contenido principal ya no se usa; se limpia al enviar.
+                        . El marcador legacy en el cuerpo superior se limpia al enviar.
                       </p>
                       <div className="mt-4">
                         <label

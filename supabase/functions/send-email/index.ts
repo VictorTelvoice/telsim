@@ -456,7 +456,7 @@ Deno.serve(async (req) => {
       is_test: payloadIsTest,
       custom_content: payloadCustomContent,
       html_body: payloadHtmlBody,
-      contentBelowDetails: payloadContentBelow,
+      contentBelowDetails,
     } = payload as Record<string, unknown>;
 
     if (!event) {
@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
 
     const langForRenderer: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
 
-    let contentBelowForRenderer: string | null = null;
+    let resolvedBelowDetails: string | null = null;
     if (canonEv) {
       const payloadTid =
         payloadTemplateId != null && String(payloadTemplateId).trim() !== ''
@@ -570,14 +570,15 @@ Deno.serve(async (req) => {
       const belowSettingsKey = payloadTid
         ? `${payloadTid}_below_details`
         : `template_email_${canonEv}_below_details`;
-      const hasBelowKey =
+
+      const hasExplicitBelow =
         payload != null && typeof payload === 'object' && 'contentBelowDetails' in payload;
-      if (isTest && hasBelowKey) {
-        const raw = payloadContentBelow != null ? String(payloadContentBelow) : '';
-        contentBelowForRenderer = raw.trim() !== '' ? renderBodyTemplate(raw, data) : null;
+      if (hasExplicitBelow) {
+        const raw = contentBelowDetails != null ? String(contentBelowDetails) : '';
+        resolvedBelowDetails = raw.trim() !== '' ? renderBodyTemplate(raw, data) : null;
       } else {
         const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
-        contentBelowForRenderer = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
+        resolvedBelowDetails = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
       }
     }
 
@@ -586,7 +587,7 @@ Deno.serve(async (req) => {
       data,
       subject: payloadSubject,
       contentHtml: bodyStr,
-      contentBelowDetails: contentBelowForRenderer,
+      contentBelowDetails: resolvedBelowDetails,
       lang: langForRenderer,
     });
 

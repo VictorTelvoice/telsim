@@ -316,7 +316,7 @@ async function internalSendEmail(options: {
   custom_content?: string;
   /** Passthrough a Edge Function send-email (p. ej. tests desde Admin Templates). */
   template_id?: string;
-  /** Bloque inferior cancelación (template_email_cancellation_below_details), ya resuelto en test. */
+  /** Bloque inferior HTML; si se envía (incluso ''), send-email lo interpreta como explícito. */
   contentBelowDetails?: string;
 }): Promise<{ success: boolean; error?: string; httpStatus?: number; rawBodySnippet?: string }> {
   const category = options.category ?? 'operational';
@@ -333,7 +333,7 @@ async function internalSendEmail(options: {
     if (!supabaseUrl || !serviceKey) return { success: false, error: 'Configuración de email faltante.' };
     let body: string;
     try {
-      body = JSON.stringify({
+      const payloadOut: Record<string, unknown> = {
         event: options.event,
         user_id: options.userId,
         to_email: email,
@@ -345,8 +345,16 @@ async function internalSendEmail(options: {
         is_test: options.is_test ?? undefined,
         custom_content: options.custom_content ?? undefined,
         template_id: options.template_id ?? undefined,
-        contentBelowDetails: options.contentBelowDetails ?? undefined,
-      });
+      };
+      /** Enviar test desde plantillas: siempre enviar la clave para que send-email use el HTML explícito (incluso vacío). */
+      if (
+        options.is_test === true &&
+        typeof options.template_id === 'string' &&
+        options.template_id.startsWith('template_email_')
+      ) {
+        payloadOut.contentBelowDetails = options.contentBelowDetails ?? '';
+      }
+      body = JSON.stringify(payloadOut);
     } catch (serializeErr) {
       const msg = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
       console.error('[internalSendEmail] JSON.stringify failed', { event: options.event, userId: options.userId, msg });
@@ -1381,7 +1389,7 @@ export default async function handler(req: any, res: any) {
           subject: subjectIn,
           templateId: templateIdIn,
           event: eventIn,
-          contentBelowDetails: contentBelowDetailsIn,
+          contentBelowDetails,
         } = req.body || {};
 
         console.log('[MANAGE send-notification-test] start', {
@@ -1513,10 +1521,8 @@ export default async function handler(req: any, res: any) {
               is_test: true,
               template_id: templateId,
               contentBelowDetails:
-                typeof templateId === 'string' &&
-                templateId.startsWith('template_email_') &&
-                typeof contentBelowDetailsIn === 'string'
-                  ? contentBelowDetailsIn
+                typeof templateId === 'string' && templateId.startsWith('template_email_')
+                  ? String(contentBelowDetails ?? '')
                   : undefined,
               data: {
                 ...testData,
