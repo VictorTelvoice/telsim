@@ -1824,45 +1824,46 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ sent: true, message: 'Alerta de prueba enviada a tu Telegram.' });
       }
 
-      /** Reactivación de línea con token de 48h (enlace del correo de cancelación). Sin sesión: el token es la prueba. */
+      /** Reactivación de línea con token de 48h (reserva en `public.slots`). Sin sesión: el token es la prueba. */
       case 'reactivate-line': {
         const stripe = await getStripeClient();
         const rawToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
         if (!rawToken) {
           return res.status(400).json({ error: 'Falta token.', code: 'MISSING_TOKEN' });
         }
-        const { data: tokRow, error: tokErr } = await supabaseAdmin
-          .from('line_reactivation_tokens')
-          .select('id, token, user_id, slot_id, subscription_id, plan_name, billing_type, expires_at, used_at')
-          .eq('token', rawToken)
+        const { data: slotRow, error: slotErr } = await supabaseAdmin
+          .from('slots')
+          .select(
+            'slot_id, status, assigned_to, phone_number, country, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id'
+          )
+          .eq('reservation_token', rawToken)
+          .eq('status', 'reserved')
           .maybeSingle();
-        if (tokErr || !tokRow) {
+        if (slotErr || !slotRow) {
           return res.status(400).json({ error: 'Enlace inválido o expirado.', code: 'TOKEN_INVALID' });
         }
-        const t = tokRow as {
-          user_id: string;
-          slot_id: string;
-          subscription_id: string;
-          plan_name: string | null;
-          billing_type: string | null;
-          expires_at: string;
-          used_at: string | null;
-        };
-        if (t.used_at) {
-          return res.status(400).json({ error: 'Este enlace ya fue utilizado.', code: 'TOKEN_USED' });
-        }
-        if (new Date(t.expires_at).getTime() <= Date.now()) {
+        const resExp = (slotRow as { reservation_expires_at?: string | null }).reservation_expires_at;
+        if (!resExp || new Date(resExp).getTime() <= Date.now()) {
           return res.status(400).json({
             error: 'El plazo de 48 horas para reactivar expiró.',
             code: 'TOKEN_EXPIRED',
           });
         }
+        const uid = String((slotRow as { reservation_user_id?: string | null }).reservation_user_id ?? '').trim();
+        const sid = String((slotRow as { slot_id?: string }).slot_id ?? '').trim();
+        if (!uid || !sid) {
+          return res.status(400).json({ error: 'Enlace inválido o expirado.', code: 'TOKEN_INVALID' });
+        }
         const { data: subRow } = await supabaseAdmin
           .from('subscriptions')
-          .select('id, user_id, slot_id, status')
-          .eq('id', t.subscription_id)
+          .select('id, user_id, slot_id, status, plan_name, billing_type')
+          .eq('slot_id', sid)
+          .eq('user_id', uid)
+          .in('status', ['canceled', 'cancelled'])
+          .order('updated_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
-        if (!subRow || String(subRow.user_id) !== String(t.user_id)) {
+        if (!subRow || String(subRow.user_id) !== uid) {
           return res.status(400).json({ error: 'La suscripción ya no coincide con este enlace.', code: 'SUB_MISMATCH' });
         }
         const st = String((subRow as { status?: string }).status ?? '').toLowerCase();
@@ -1872,32 +1873,24 @@ export default async function handler(req: any, res: any) {
             code: 'NOT_CANCELED',
           });
         }
-        const { data: slotRow } = await supabaseAdmin
-          .from('slots')
-          .select('slot_id, status, assigned_to, phone_number')
-          .eq('slot_id', t.slot_id)
-          .maybeSingle();
-        if (!slotRow) {
-          return res.status(400).json({ error: 'El slot ya no existe.', code: 'SLOT_MISSING' });
-        }
         const slotStatus = String((slotRow as { status?: string }).status ?? '').toLowerCase();
-        if (slotStatus !== 'libre' || (slotRow as { assigned_to?: string | null }).assigned_to != null) {
+        if (slotStatus !== 'reserved' || (slotRow as { assigned_to?: string | null }).assigned_to != null) {
           return res.status(400).json({
             error: 'Esta línea ya no está disponible para reactivar.',
-            code: 'SLOT_NOT_FREE',
+            code: 'SLOT_NOT_RESERVED',
           });
         }
         const { data: profile } = await supabaseAdmin
           .from('profiles')
           .select('stripe_customer_id')
-          .eq('id', t.user_id)
+          .eq('id', uid)
           .maybeSingle();
         let customerId = (profile as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
         if (!customerId) {
           const { data: userStripe } = await supabaseAdmin
             .from('users')
             .select('stripe_customer_id')
-            .eq('id', t.user_id)
+            .eq('id', uid)
             .maybeSingle();
           customerId = (userStripe as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
         }
@@ -1907,33 +1900,38 @@ export default async function handler(req: any, res: any) {
             code: 'NO_STRIPE_CUSTOMER',
           });
         }
-        const planNameMeta = normalizeTierPlanName(t.plan_name);
-        const isAnnual = billingIsAnnual(t.billing_type);
-        const priceId = resolveStripePriceIdForReactivation(t.plan_name, t.billing_type);
+        const planNameRaw = (subRow as { plan_name?: string | null }).plan_name ?? null;
+        const billingRaw = (subRow as { billing_type?: string | null }).billing_type ?? null;
+        const planNameMeta = normalizeTierPlanName(planNameRaw);
+        const isAnnual = billingIsAnnual(billingRaw);
+        const priceId = resolveStripePriceIdForReactivation(planNameRaw, billingRaw);
         const phone = String((slotRow as { phone_number?: string | null }).phone_number ?? '');
         const limit = monthlySmsLimitForPlan(planNameMeta, null);
         const baseUrl = getBaseUrl(req);
+        const regionCode = String((slotRow as { country?: string | null }).country ?? '')
+          .trim()
+          .toUpperCase();
 
         const sessionConfig: Record<string, unknown> = {
           mode: 'subscription',
           customer: customerId,
           line_items: [{ price: priceId, quantity: 1 }],
           metadata: {
-            userId: t.user_id,
-            slot_id: t.slot_id,
+            userId: uid,
+            slot_id: sid,
             planName: planNameMeta,
             isAnnual: isAnnual ? 'true' : 'false',
             phoneNumber: phone,
             limit: String(limit),
+            reservation_token: rawToken,
+            region: regionCode,
             line_reactivation: 'true',
-            line_reactivation_token: rawToken,
           },
           subscription_data: {
             metadata: {
-              user_id: t.user_id,
-              slot_id: t.slot_id,
+              user_id: uid,
+              slot_id: sid,
               line_reactivation: 'true',
-              line_reactivation_token: rawToken,
             },
           },
           payment_method_collection: 'always',
@@ -1945,6 +1943,12 @@ export default async function handler(req: any, res: any) {
         if (!session.url) {
           return res.status(500).json({ error: 'No se pudo crear la sesión de pago.', code: 'CHECKOUT_URL_MISSING' });
         }
+        await supabaseAdmin
+          .from('slots')
+          .update({ reservation_stripe_session_id: session.id })
+          .eq('slot_id', sid)
+          .eq('status', 'reserved')
+          .eq('reservation_token', rawToken);
         return res.status(200).json({ url: session.url });
       }
 

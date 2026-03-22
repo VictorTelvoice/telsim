@@ -587,17 +587,15 @@ Deno.serve(async (req) => {
           if (uid && slotId) {
             try {
               const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-              const { data: tokRow } = await sb
-                .from('line_reactivation_tokens')
-                .select('token')
-                .eq('user_id', uid)
+              const { data: slotTok } = await sb
+                .from('slots')
+                .select('reservation_token')
                 .eq('slot_id', slotId)
-                .is('used_at', null)
-                .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: false })
-                .limit(1)
+                .eq('reservation_user_id', uid)
+                .eq('status', 'reserved')
+                .gt('reservation_expires_at', new Date().toISOString())
                 .maybeSingle();
-              const tok = (tokRow as { token?: string } | null)?.token;
+              const tok = (slotTok as { reservation_token?: string } | null)?.reservation_token;
               if (tok != null && String(tok).trim() !== '') {
                 dataForRender = {
                   ...dataForRender,
