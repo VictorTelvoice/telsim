@@ -3,10 +3,10 @@ import { Loader2, AlertCircle } from 'lucide-react';
 
 /**
  * Consumo del token del correo de cancelación (#/web/reactivate-line?token=…).
- * Redirige a Stripe Checkout para reactivar la línea (misma lógica que compra / webhook).
+ * Reactiva la suscripción existente en Stripe (sin Checkout) y restaura el slot en BD.
  */
 const ReactivateLine: React.FC = () => {
-  const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Preparando tu reactivación…');
 
   useEffect(() => {
@@ -28,14 +28,24 @@ const ReactivateLine: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'reactivate-line', token }),
         });
-        const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          message?: string;
+          url?: string;
+          error?: string;
+        };
         if (cancelled) return;
+        if (res.ok && data.ok === true) {
+          setStatus('success');
+          setMessage(typeof data.message === 'string' ? data.message : 'Reactivación exitosa.');
+          return;
+        }
         if (res.ok && typeof data.url === 'string' && data.url.startsWith('http')) {
           window.location.href = data.url;
           return;
         }
         setStatus('error');
-        setMessage(typeof data.error === 'string' ? data.error : 'No se pudo iniciar la reactivación.');
+        setMessage(typeof data.error === 'string' ? data.error : 'No se pudo completar la reactivación.');
       } catch {
         if (!cancelled) {
           setStatus('error');
@@ -56,6 +66,11 @@ const ReactivateLine: React.FC = () => {
           <>
             <Loader2 className="w-10 h-10 text-[#0074d4] animate-spin mx-auto mb-4" />
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Reactivar línea</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
+          </>
+        ) : status === 'success' ? (
+          <>
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Listo</h1>
             <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
           </>
         ) : (

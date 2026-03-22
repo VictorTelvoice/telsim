@@ -7,13 +7,9 @@
 import type Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
-import {
-  billingIsAnnual,
-  normalizeTierPlanName,
-  resolveStripePriceIdForReactivation,
-} from './_helpers/lineReactivationPlan.js';
+import { normalizeTierPlanName } from './_helpers/lineReactivationPlan.js';
 import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
-import { monthlySmsLimitForPlan } from './_helpers/subscriptionPlanLimits.js';
+import { reserveSlotSoftCancel, sendCancellationEmailFromManage } from './_helpers/cancellationSoftCancel.js';
 import {
   extractReceiptUrlFromInvoice,
   invoiceCustomerTaxIdsForDb,
@@ -912,6 +908,7 @@ export default async function handler(req: any, res: any) {
           plan_name: string | null;
           status: string | null;
           phone_number: string | null;
+          stripe_subscription_id?: string | null;
           created_at?: string | null;
         };
 
@@ -928,7 +925,7 @@ export default async function handler(req: any, res: any) {
 
           const { data: slotOnlyCandidates, error: slotOnlyErr } = await supabaseAdmin
             .from('subscriptions')
-            .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
+            .select('id, user_id, slot_id, plan_name, status, phone_number, stripe_subscription_id, created_at')
             .eq('slot_id', rawSlotId)
             .in('status', [...LIVE_STATUSES])
             .order('created_at', { ascending: false })
@@ -1002,7 +999,7 @@ export default async function handler(req: any, res: any) {
         if (subscriptionId) {
         const { data: primaryCandidates, error: primaryErr } = await supabaseAdmin
           .from('subscriptions')
-          .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
+          .select('id, user_id, slot_id, plan_name, status, phone_number, stripe_subscription_id, created_at')
           .eq('stripe_subscription_id', subscriptionId)
           .order('created_at', { ascending: false })
           .limit(2);
@@ -1052,7 +1049,7 @@ export default async function handler(req: any, res: any) {
           if (hintSlotId) {
             const { data: slotCandidates, error: slotErr } = await supabaseAdmin
               .from('subscriptions')
-              .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
+              .select('id, user_id, slot_id, plan_name, status, phone_number, stripe_subscription_id, created_at')
               .eq('slot_id', hintSlotId)
               .in('status', [...LIVE_STATUSES])
               .order('created_at', { ascending: false })
@@ -1084,7 +1081,7 @@ export default async function handler(req: any, res: any) {
             const variants = [...new Set([hintPhone, hintDigits, `+${hintDigits}`].filter(Boolean))];
             const { data: phoneCandidates, error: phoneErr } = await supabaseAdmin
               .from('subscriptions')
-              .select('id, user_id, slot_id, plan_name, status, phone_number, created_at')
+              .select('id, user_id, slot_id, plan_name, status, phone_number, stripe_subscription_id, created_at')
               .in('phone_number', variants)
               .in('status', [...LIVE_STATUSES])
               .order('created_at', { ascending: false })
@@ -1145,115 +1142,147 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        // 3) Cancelación consistente del slot:
-        // - cancelar Stripe (si aplica)
-        // - actualizar TODAS las subscriptions del slot dentro de una sola transacción DB
-        // - liberar el slot
+        // 3) Cancelación en dos fases: Stripe programado a 48h (cancel_at) + reserva en slots + correo aquí.
+        //    La baja definitiva en Stripe y liberación total llegan con `customer.subscription.deleted` al vencer el plazo.
         const slotId = targetSub.slot_id;
+        const stripeSubIdForStripe = String(
+          (targetSub as SubscriptionRow).stripe_subscription_id || subscriptionId || ''
+        ).trim();
+        if (!stripeSubIdForStripe || !stripeSubIdForStripe.startsWith('sub_')) {
+          await logCancel('cancel_failed_no_live_subscription', 'error', {
+            subscriptionId,
+            slot_id: slotId,
+          }, 'cancel: falta stripe_subscription_id');
+          return res.status(400).json({
+            error: 'No hay stripe_subscription_id en la suscripción local; no se puede programar la cancelación.',
+            subscriptionId,
+          });
+        }
 
-        // Construir lista de stripe_subscription_id vivas (best-effort) antes de liberar en BD.
-        // `release_slot_atomic` ejecuta dentro cancel_subscriptions_atomic + liberación (orden garantizado en SQL).
-        const { data: liveStripeSubs, error: liveStripeSubsErr } = await supabaseAdmin
+        const graceSeconds = 48 * 60 * 60;
+        const cancelAtUnix = Math.floor(Date.now() / 1000) + graceSeconds;
+        const graceIso = new Date(Date.now() + graceSeconds * 1000).toISOString();
+        const prevStatus = targetSub.status;
+
+        try {
+          await stripe.subscriptions.update(stripeSubIdForStripe, { cancel_at: cancelAtUnix });
+        } catch (err: any) {
+          const msg = String(err?.message ?? err ?? 'Stripe update failed');
+          await logCancel('cancel_stripe_schedule_failed', 'error', {
+            subscriptionId,
+            stripe_subscription_id: stripeSubIdForStripe,
+            error: msg,
+          }, 'cancel: Stripe no pudo programar cancel_at');
+          return res.status(500).json({ error: msg, subscriptionId });
+        }
+
+        const { error: subUpErr } = await supabaseAdmin
           .from('subscriptions')
-          .select('stripe_subscription_id')
-          .eq('slot_id', slotId)
-          .in('status', [...LIVE_STATUSES])
-          .not('stripe_subscription_id', 'is', null);
+          .update({
+            status: 'pending_reactivation_cancel',
+            reactivation_grace_until: graceIso,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', targetSub.id);
 
-        if (liveStripeSubsErr) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            slot_id: slotId,
-            error_code: liveStripeSubsErr.code,
-            error_message: liveStripeSubsErr.message,
-          }, 'cancel: fallo lookup stripe_subscription_id en slot (continuar con cancelación local)');
-        }
-
-        const stripeSubIdsSet = new Set<string>();
-        if (subscriptionId) stripeSubIdsSet.add(subscriptionId);
-        for (const r of liveStripeSubs ?? []) {
-          const sid = (r as { stripe_subscription_id?: string | null }).stripe_subscription_id;
-          if (typeof sid === 'string' && sid.trim()) stripeSubIdsSet.add(sid.trim());
-        }
-
-        const stripeSubIds = [...stripeSubIdsSet].filter((s) => s.length > 0);
-
-        // 2) Cancelar subs locales + liberar slot (una sola RPC; cancel va antes que UPDATE slots en SQL)
-        const { error: slotRpcErr } = await releaseSlotAtomicForCancelPolicy(supabaseAdmin, slotId);
-        if (slotRpcErr) {
-          await logCancel('cancel_failed_no_live_subscription', 'error', {
-            subscriptionId,
-            slot_id: slotId,
-            error_code: slotRpcErr.code,
-            error_message: slotRpcErr.message,
-          }, 'cancel: fallo RPC release_slot_atomic');
-          return res.status(500).json({ error: slotRpcErr.message, subscriptionId });
-        }
-
-        await logCancel('cancel_local_subscription_updated', 'info', {
-          subscriptionId,
-          slot_id: slotId,
-        }, 'cancel: release_slot_atomic OK (cancel_subscriptions_atomic embebido en SQL)');
-
-        // 4) Intentar cancelación en Stripe (best-effort): si falla, solo loguear
-        //    (no revertir local ni volver a poner active, y no depender del webhook).
-        for (const sid of stripeSubIds) {
+        if (subUpErr) {
           try {
-            await stripe.subscriptions.cancel(sid);
-          } catch (err: any) {
-            const msg = String(err?.message ?? 'No se pudo cancelar en Stripe');
-            await logCancel(
-              'cancel_failed_no_live_subscription',
-              'error',
-              { subscriptionId, stripe_error: msg, stripe_subscription_id: sid },
-              'cancel: fallo Stripe (ignorado; cancelación local ya realizada)'
-            );
+            await stripe.subscriptions.update(stripeSubIdForStripe, { cancel_at: null } as Stripe.SubscriptionUpdateParams);
+          } catch {
+            // best-effort rollback
           }
+          await logCancel('cancel_db_sub_failed', 'error', { subscriptionId, error: subUpErr.message }, 'cancel');
+          return res.status(500).json({ error: subUpErr.message, subscriptionId });
         }
 
-        // Una sola lectura de `slots` (sin columnas inexistentes). Tras RPC OK, la verificación es best-effort.
-        const { data: releasedSlot, error: slotSelErr } = await supabaseAdmin
+        const { token: resToken, expiresAt: resExpires } = await reserveSlotSoftCancel(supabaseAdmin, {
+          slotId: String(slotId),
+          userId: String(targetSub.user_id),
+        });
+
+        if (!resToken) {
+          try {
+            await stripe.subscriptions.update(stripeSubIdForStripe, { cancel_at: null } as Stripe.SubscriptionUpdateParams);
+          } catch {
+            // ignore
+          }
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              status: prevStatus ?? 'active',
+              reactivation_grace_until: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', targetSub.id);
+          await logCancel('cancel_slot_reserve_failed', 'error', { subscriptionId, slot_id: slotId }, 'cancel: slot no ocupado o reserva falló');
+          return res.status(500).json({
+            error: 'No se pudo reservar el número para reactivación (48 h).',
+            subscriptionId,
+          });
+        }
+
+        let stripePeriodEndLabel = '';
+        try {
+          const st = await stripe.subscriptions.retrieve(stripeSubIdForStripe);
+          const pe = st.current_period_end;
+          if (pe) stripePeriodEndLabel = new Date(pe * 1000).toLocaleDateString('es-CL');
+        } catch {
+          stripePeriodEndLabel = '';
+        }
+
+        const { data: userData } = await supabaseAdmin
+          .from('users')
+          .select('email, nombre')
+          .eq('id', targetSub.user_id)
+          .maybeSingle();
+        const { data: slotData } = await supabaseAdmin
           .from('slots')
-          .select('phone_number, plan_type, status, assigned_to')
-          .eq('slot_id', targetSub.slot_id)
+          .select('phone_number, plan_type')
+          .eq('slot_id', slotId)
           .maybeSingle();
 
-        const slotData = releasedSlot;
+        const phoneRaw = String(slotData?.phone_number ?? slotId ?? '');
+        const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
 
-        if (slotSelErr || !releasedSlot) {
-          await logCancel('cancel_slot_verify_warning', 'warning', {
-            subscriptionId,
-            local_subscription_id: targetSub.id,
-            slot_id: targetSub.slot_id,
-            error_message: slotSelErr?.message ?? null,
-          }, 'cancel: verificación post-RPC no concluyó (release_slot_atomic ya OK)');
-        } else {
-          const releasedOk =
-            String((releasedSlot as any).status ?? '').toLowerCase() === 'libre' &&
-            (releasedSlot as any).assigned_to == null &&
-            (releasedSlot as any).plan_type == null;
-          if (!releasedOk) {
-            await logCancel('cancel_slot_verify_warning', 'warning', {
-              subscriptionId,
-              local_subscription_id: targetSub.id,
-              slot_id: targetSub.slot_id,
-              released_slot: releasedSlot,
-            }, 'cancel: estado slot inesperado tras RPC (release_slot_atomic ya OK)');
-          }
-        }
+        const cancellationPayload = {
+          nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+          email: String(userData?.email ?? ''),
+          phone: phoneFormatted,
+          plan: String(targetSub.plan_name ?? ''),
+          end_date: stripePeriodEndLabel || new Date().toLocaleDateString('es-CL'),
+          status: 'Cancelado',
+          slot_id: String(slotId ?? ''),
+          plan_name: String(slotData?.plan_type ?? targetSub.plan_name ?? ''),
+          phone_number: phoneRaw,
+          to_email: String(userData?.email ?? ''),
+          date: new Date().toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          reactivation_url: `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(resToken)}`,
+        };
 
-        await logCancel('cancel_slot_released', 'info', {
+        await sendCancellationEmailFromManage(supabaseAdmin, {
+          userId: String(targetSub.user_id),
+          cancellationPayload,
+        });
+
+        await logCancel('cancel_soft_ok', 'info', {
           subscriptionId,
-          local_subscription_id: targetSub.id,
-          slot_id: targetSub.slot_id,
-          phone_number: slotData?.phone_number ?? null,
-        }, 'cancel: slot liberado en slots');
+          slot_id: slotId,
+          grace_until: graceIso,
+          reservation_expires_at: resExpires,
+        }, 'cancel: programado cancel_at + slot reserved + email');
 
-        let released_number = true;
-
-        // Email, Telegram e in-app de cancelación: solo en `customer.subscription.deleted` (api/webhooks/stripe.ts).
-
-        return res.status(200).json({ ok: true, released_number });
+        return res.status(200).json({
+          ok: true,
+          soft_cancel: true,
+          grace_until: graceIso,
+          released_number: false,
+        });
       }
 
       case 'upgrade': {
@@ -1824,7 +1853,7 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ sent: true, message: 'Alerta de prueba enviada a tu Telegram.' });
       }
 
-      /** Reactivación de línea con token de 48h (reserva en `public.slots`). Sin sesión: el token es la prueba. */
+      /** Reactivación sin Checkout: quita cancel_at en Stripe y restaura slot + fila local (pending_reactivation_cancel). */
       case 'reactivate-line': {
         const stripe = await getStripeClient();
         const rawToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
@@ -1834,7 +1863,7 @@ export default async function handler(req: any, res: any) {
         const { data: slotRow, error: slotErr } = await supabaseAdmin
           .from('slots')
           .select(
-            'slot_id, status, assigned_to, phone_number, country, reservation_token, reservation_expires_at, reservation_user_id, reservation_stripe_session_id'
+            'slot_id, status, assigned_to, phone_number, reservation_token, reservation_expires_at, reservation_user_id'
           )
           .eq('reservation_token', rawToken)
           .eq('status', 'reserved')
@@ -1856,22 +1885,17 @@ export default async function handler(req: any, res: any) {
         }
         const { data: subRow } = await supabaseAdmin
           .from('subscriptions')
-          .select('id, user_id, slot_id, status, plan_name, billing_type')
+          .select('id, user_id, slot_id, status, plan_name, billing_type, stripe_subscription_id')
           .eq('slot_id', sid)
           .eq('user_id', uid)
-          .in('status', ['canceled', 'cancelled'])
-          .order('updated_at', { ascending: false })
-          .limit(1)
+          .eq('status', 'pending_reactivation_cancel')
           .maybeSingle();
         if (!subRow || String(subRow.user_id) !== uid) {
           return res.status(400).json({ error: 'La suscripción ya no coincide con este enlace.', code: 'SUB_MISMATCH' });
         }
-        const st = String((subRow as { status?: string }).status ?? '').toLowerCase();
-        if (!['canceled', 'cancelled'].includes(st)) {
-          return res.status(400).json({
-            error: 'Esta línea ya no está cancelada; no aplica reactivación con este enlace.',
-            code: 'NOT_CANCELED',
-          });
+        const stripeSubId = String((subRow as { stripe_subscription_id?: string | null }).stripe_subscription_id ?? '').trim();
+        if (!stripeSubId.startsWith('sub_')) {
+          return res.status(400).json({ error: 'Suscripción Stripe no encontrada.', code: 'SUB_STRIPE_MISSING' });
         }
         const slotStatus = String((slotRow as { status?: string }).status ?? '').toLowerCase();
         if (slotStatus !== 'reserved' || (slotRow as { assigned_to?: string | null }).assigned_to != null) {
@@ -1880,76 +1904,79 @@ export default async function handler(req: any, res: any) {
             code: 'SLOT_NOT_RESERVED',
           });
         }
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('stripe_customer_id')
-          .eq('id', uid)
-          .maybeSingle();
-        let customerId = (profile as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
-        if (!customerId) {
-          const { data: userStripe } = await supabaseAdmin
-            .from('users')
-            .select('stripe_customer_id')
-            .eq('id', uid)
-            .maybeSingle();
-          customerId = (userStripe as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
+
+        let stSub: Stripe.Subscription;
+        try {
+          stSub = await stripe.subscriptions.retrieve(stripeSubId);
+        } catch {
+          return res.status(400).json({ error: 'No se pudo leer la suscripción en Stripe.', code: 'STRIPE_RETRIEVE' });
         }
-        if (!customerId) {
-          return res.status(400).json({
-            error: 'No hay cliente de facturación. Inicia sesión en Telsim y configura tu método de pago.',
-            code: 'NO_STRIPE_CUSTOMER',
+
+        try {
+          await stripe.subscriptions.update(stripeSubId, { cancel_at: null } as Stripe.SubscriptionUpdateParams);
+        } catch (e: any) {
+          return res.status(500).json({
+            error: e?.message ?? 'Stripe no pudo anular la cancelación programada.',
+            code: 'STRIPE_UPDATE',
           });
         }
-        const planNameRaw = (subRow as { plan_name?: string | null }).plan_name ?? null;
-        const billingRaw = (subRow as { billing_type?: string | null }).billing_type ?? null;
-        const planNameMeta = normalizeTierPlanName(planNameRaw);
-        const isAnnual = billingIsAnnual(billingRaw);
-        const priceId = resolveStripePriceIdForReactivation(planNameRaw, billingRaw);
-        const phone = String((slotRow as { phone_number?: string | null }).phone_number ?? '');
-        const limit = monthlySmsLimitForPlan(planNameMeta, null);
-        const baseUrl = getBaseUrl(req);
-        const regionCode = String((slotRow as { country?: string | null }).country ?? '')
-          .trim()
-          .toUpperCase();
 
-        const sessionConfig: Record<string, unknown> = {
-          mode: 'subscription',
-          customer: customerId,
-          line_items: [{ price: priceId, quantity: 1 }],
-          metadata: {
-            userId: uid,
-            slot_id: sid,
-            planName: planNameMeta,
-            isAnnual: isAnnual ? 'true' : 'false',
-            phoneNumber: phone,
-            limit: String(limit),
-            reservation_token: rawToken,
-            region: regionCode,
-            line_reactivation: 'true',
-          },
-          subscription_data: {
-            metadata: {
-              user_id: uid,
-              slot_id: sid,
-              line_reactivation: 'true',
-            },
-          },
-          payment_method_collection: 'always',
-          success_url: `${baseUrl}/#/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${baseUrl}/#/web/reactivate-line?token=${encodeURIComponent(rawToken)}`,
-        };
-        applyStripeCheckoutBillingCompliance(sessionConfig);
-        const session = await stripe.checkout.sessions.create(sessionConfig as Stripe.Checkout.SessionCreateParams);
-        if (!session.url) {
-          return res.status(500).json({ error: 'No se pudo crear la sesión de pago.', code: 'CHECKOUT_URL_MISSING' });
+        const stripeStatus = String(stSub.status ?? '').toLowerCase();
+        const dbStatus = stripeStatus === 'trialing' ? 'trialing' : 'active';
+        const nextBilling =
+          stSub.current_period_end != null
+            ? new Date(stSub.current_period_end * 1000).toISOString()
+            : null;
+        const planNameMeta = normalizeTierPlanName((subRow as { plan_name?: string | null }).plan_name ?? null);
+
+        const { error: subUpErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            status: dbStatus,
+            reactivation_grace_until: null,
+            next_billing_date: nextBilling,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', (subRow as { id: string }).id);
+
+        if (subUpErr) {
+          return res.status(500).json({ error: subUpErr.message, code: 'DB_SUB_UPDATE' });
         }
-        await supabaseAdmin
+
+        const { error: slotUpErr } = await supabaseAdmin
           .from('slots')
-          .update({ reservation_stripe_session_id: session.id })
+          .update({
+            status: 'ocupado',
+            assigned_to: uid,
+            plan_type: planNameMeta,
+            reservation_token: null,
+            reservation_expires_at: null,
+            reservation_user_id: null,
+            reservation_stripe_session_id: null,
+          })
           .eq('slot_id', sid)
           .eq('status', 'reserved')
           .eq('reservation_token', rawToken);
-        return res.status(200).json({ url: session.url });
+
+        if (slotUpErr) {
+          try {
+            const cancelAtUnix = Math.floor(Date.now() / 1000) + 48 * 60 * 60;
+            await stripe.subscriptions.update(stripeSubId, { cancel_at: cancelAtUnix });
+          } catch {
+            // ignore
+          }
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              status: 'pending_reactivation_cancel',
+              reactivation_grace_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', (subRow as { id: string }).id);
+          return res.status(500).json({ error: slotUpErr.message, code: 'DB_SLOT_UPDATE' });
+        }
+
+        return res.status(200).json({ ok: true, message: 'Reactivación exitosa.' });
       }
 
       /** Solo admin: cancelar suscripciones en Stripe por ID (best-effort; no toca DB; no revierte cancelación local). */

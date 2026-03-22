@@ -2607,6 +2607,8 @@ export default async function handler(req: any, res: any) {
       }
 
       const sub = primaryCandidates[0] as any;
+      /** Soft cancel desde manage: correo ya enviado; aquí solo finalizamos al vencer cancel_at en Stripe (48h). */
+      const wasGracePending = String(sub.status ?? '').toLowerCase() === 'pending_reactivation_cancel';
 
       // Fase 4 (ledger-first): registrar churn_event (solo cuando NO es parte de upgrade).
       try {
@@ -2673,6 +2675,7 @@ export default async function handler(req: any, res: any) {
         .update({
           status: 'canceled',
           next_billing_date: null,
+          reactivation_grace_until: null,
           updated_at: nowIso,
         })
         .eq('stripe_subscription_id', subId);
@@ -2705,6 +2708,30 @@ export default async function handler(req: any, res: any) {
         'stripe'
       );
 
+      if (wasGracePending) {
+        for (const slotIdCleanup of primarySlotIds) {
+          await supabaseAdmin
+            .from('slots')
+            .update({
+              reservation_token: null,
+              reservation_expires_at: null,
+              reservation_user_id: null,
+              reservation_stripe_session_id: null,
+            })
+            .eq('slot_id', slotIdCleanup);
+        }
+        await logEvent(
+          'cancel_grace_expired_finalized',
+          'info',
+          'cancel: suscripción eliminada en Stripe tras ventana de reactivación (sin reactivar)',
+          undefined,
+          { phase: 'customer.subscription.deleted', stripeSubId: subId, slot_ids: primarySlotIds },
+          'stripe'
+        );
+      }
+
+      // ── Reserva 48h + correo solo si la baja NO vino del flujo soft-cancel (manage ya envió el email).
+      if (!wasGracePending) {
       // ── Reserva 48h en public.slots (tras release → libre) + URL de reactivación para el correo real
       const userId = sub.user_id;
       const slotId = sub.slot_id;
@@ -2798,6 +2825,7 @@ export default async function handler(req: any, res: any) {
       );
       await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
       console.log('[CANCEL] Telegram enviado OK');
+      }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
       await logEvent('WEBHOOK_ERROR', 'error', err?.message, undefined, {
