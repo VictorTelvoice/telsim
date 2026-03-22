@@ -9,7 +9,12 @@ import { createClient } from '@supabase/supabase-js';
 import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutCompliance.js';
 import { normalizeTierPlanName } from './_helpers/lineReactivationPlan.js';
 import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
-import { reserveSlotSoftCancel, sendCancellationEmailFromManage } from './_helpers/cancellationSoftCancel.js';
+import {
+  reserveSlotSoftCancel,
+  sendCancellationAppFromManage,
+  sendCancellationEmailFromManage,
+  sendCancellationTelegramFromManage,
+} from './_helpers/cancellationSoftCancel.js';
 import { sendReactivationSuccessNotifications } from './_helpers/reactivationSuccessNotifications.js';
 import {
   extractReceiptUrlFromInvoice,
@@ -1259,6 +1264,14 @@ export default async function handler(req: any, res: any) {
         };
 
         await sendCancellationEmailFromManage(supabaseAdmin, {
+          userId: String(targetSub.user_id),
+          cancellationPayload,
+        });
+        await sendCancellationTelegramFromManage(supabaseAdmin, {
+          userId: String(targetSub.user_id),
+          cancellationPayload,
+        });
+        await sendCancellationAppFromManage(supabaseAdmin, {
           userId: String(targetSub.user_id),
           cancellationPayload,
         });

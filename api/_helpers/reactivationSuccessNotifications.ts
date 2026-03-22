@@ -87,6 +87,17 @@ export async function sendReactivationSuccessNotifications(
       ? replaceVariables(String(titleFromDb).trim(), payload)
       : DEFAULT_EMAIL_TITLE;
 
+  const { data: belowRow } = await supabaseAdmin
+    .from('admin_settings')
+    .select('content')
+    .eq('id', `${TEMPLATE_EMAIL}_below_details`)
+    .maybeSingle();
+  const belowFromDb = (belowRow as { content?: string | null } | null)?.content;
+  const contentBelowResolved =
+    belowFromDb != null && String(belowFromDb).trim() !== ''
+      ? replaceVariables(String(belowFromDb).trim(), payload)
+      : undefined;
+
   let email = d.to_email;
   if (!email) {
     const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', params.userId).maybeSingle();
@@ -130,6 +141,7 @@ export async function sendReactivationSuccessNotifications(
       content: bodyOverride,
       subject: subjectResolved,
       contentTitle: contentTitleResolved,
+      ...(contentBelowResolved !== undefined ? { contentBelowDetails: contentBelowResolved } : {}),
     }),
   });
   const result = await res.json().catch(() => ({}));

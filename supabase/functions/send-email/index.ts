@@ -511,7 +511,19 @@ Deno.serve(async (req) => {
       contentTitle,
     } = payload as Record<string, unknown>;
 
-    if (!event) {
+    const tplIdRaw =
+      payloadTemplateId != null && String(payloadTemplateId).trim() !== ''
+        ? String(payloadTemplateId).trim()
+        : '';
+    let resolvedEventStr =
+      event != null && String(event).trim() !== '' ? String(event).trim() : '';
+    if (!resolvedEventStr && tplIdRaw.startsWith('template_email_')) {
+      const inferred = coerceTransactionalEventKey(tplIdRaw);
+      if (normalizeCanonicalTransactionalEvent(inferred)) {
+        resolvedEventStr = inferred;
+      }
+    }
+    if (!resolvedEventStr) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
     }
 
@@ -582,7 +594,19 @@ Deno.serve(async (req) => {
       return s;
     };
 
-    const rawEvent = coerceTransactionalEventKey(String(event));
+    let rawEvent = coerceTransactionalEventKey(resolvedEventStr);
+    /** Si `event` no resuelve a canónico o cae en scheduled_event, preferir clave desde template_id (p. ej. template_email_reactivation_success). */
+    if (tplIdRaw.startsWith('template_email_')) {
+      const fromTpl = coerceTransactionalEventKey(tplIdRaw);
+      const canonTpl = normalizeCanonicalTransactionalEvent(fromTpl);
+      if (canonTpl) {
+        const canonFromEv = normalizeCanonicalTransactionalEvent(rawEvent);
+        const evProbe = normalizeEmailEvent(rawEvent);
+        if (!canonFromEv || evProbe === 'scheduled_event') {
+          rawEvent = fromTpl;
+        }
+      }
+    }
     const ev = normalizeEmailEvent(rawEvent);
 
     let bodyStr: string;
@@ -597,7 +621,7 @@ Deno.serve(async (req) => {
     } else {
       const tBody = i18nLang[ev];
       if (!tBody) {
-        return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), { status: 400 });
+        return new Response(JSON.stringify({ error: `Unknown event: ${resolvedEventStr}` }), { status: 400 });
       }
       const bodyKey = `email_${ev}_body_${lang}`;
       const bodyOverrideRaw = settingsOverrides[bodyKey];
@@ -725,6 +749,10 @@ Deno.serve(async (req) => {
       contentBelowDetails: resolvedBelowDetails,
       lang: langForRenderer,
     });
+
+    console.log(
+      `[send-email] rawEvent=${String(event ?? '')} resolvedEvent=${resolvedEventStr} coerced=${rawEvent} normalizedEvent=${ev} canonEv=${canonEv ?? 'null'} template_id=${tplIdRaw} canonicalRendered=${canonicalRendered != null}`,
+    );
 
     let html: string;
     let subject: string;
