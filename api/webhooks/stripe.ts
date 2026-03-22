@@ -558,30 +558,46 @@ async function triggerEmail(
   }
 }
 
-/** Token de un solo uso; válido 48h. Fallo silencioso → email sin botón de reactivación. */
+function looksLikeUuid(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s ?? '').trim());
+}
+
+/** Token de un solo uso; válido 48h. Fallo → email sin botón de reactivación. */
 async function insertLineReactivationToken(params: {
   userId: string;
   slotId: string;
   subscriptionId: string;
   planName: string | null;
   billingType: string | null;
-}): Promise<string | null> {
+}): Promise<{ token: string | null; expiresAt: string | null }> {
+  if (!looksLikeUuid(params.userId) || !looksLikeUuid(params.subscriptionId)) {
+    console.error('[CANCEL] line_reactivation_tokens skip: user_id o subscription_id no UUID', {
+      user_id_ok: looksLikeUuid(params.userId),
+      subscription_id_ok: looksLikeUuid(params.subscriptionId),
+    });
+    return { token: null, expiresAt: null };
+  }
   const token = crypto.randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-  const { error } = await supabaseAdmin.from('line_reactivation_tokens').insert({
-    token,
-    user_id: params.userId,
-    slot_id: params.slotId,
-    subscription_id: params.subscriptionId,
-    plan_name: params.planName,
-    billing_type: params.billingType,
-    expires_at: expiresAt,
-  });
+  const { data, error } = await supabaseAdmin
+    .from('line_reactivation_tokens')
+    .insert({
+      token,
+      user_id: params.userId,
+      slot_id: params.slotId,
+      subscription_id: params.subscriptionId,
+      plan_name: params.planName,
+      billing_type: params.billingType,
+      expires_at: expiresAt,
+    })
+    .select('token, expires_at')
+    .single();
   if (error) {
     console.error('[CANCEL] line_reactivation_tokens insert failed', error);
-    return null;
+    return { token: null, expiresAt: null };
   }
-  return token;
+  const row = data as { token: string; expires_at: string };
+  return { token: row.token, expiresAt: row.expires_at };
 }
 
 async function sendTelegramNotification(
@@ -2613,6 +2629,32 @@ export default async function handler(req: any, res: any) {
 
       const sub = primaryCandidates[0] as any;
 
+      /**
+       * Reactivation URL para el email real de cancelación: se genera aquí (antes de release_slot_atomic)
+       * para que `subscription_id` siga referenciando una fila válida en `subscriptions` y el payload
+       * lleve `reactivation_url` a `triggerEmail` → body `data` de `send-email`.
+       */
+      let reactivation_url = '';
+      try {
+        const { token: reactivationToken, expiresAt: reactivationExpiresAt } = await insertLineReactivationToken({
+          userId: String(sub.user_id ?? ''),
+          slotId: String(sub.slot_id ?? ''),
+          subscriptionId: String(sub.id ?? ''),
+          planName: (sub.plan_name as string | null) ?? null,
+          billingType: (sub.billing_type as string | null) ?? null,
+        });
+        if (reactivationToken) {
+          reactivation_url = `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(reactivationToken)}`;
+          console.log('[CANCEL] reactivation token created', {
+            token_prefix: reactivationToken.slice(0, 10),
+            expires_at: reactivationExpiresAt,
+            subscription_id: sub.id,
+          });
+        }
+      } catch (reacErr) {
+        console.warn('[CANCEL] reactivation token skipped', reacErr);
+      }
+
       // Fase 4 (ledger-first): registrar churn_event (solo cuando NO es parte de upgrade).
       try {
         const occurredAtIso = event.created ? new Date(event.created * 1000).toISOString() : new Date().toISOString();
@@ -2736,22 +2778,6 @@ export default async function handler(req: any, res: any) {
       const phoneRaw = String(slotData?.phone_number ?? slotId ?? '');
       const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
 
-      let reactivation_url = '';
-      try {
-        const reactivationToken = await insertLineReactivationToken({
-          userId: String(sub.user_id ?? ''),
-          slotId: String(slotId ?? ''),
-          subscriptionId: String(sub.id ?? ''),
-          planName: (sub.plan_name as string | null) ?? null,
-          billingType: (sub.billing_type as string | null) ?? null,
-        });
-        if (reactivationToken) {
-          reactivation_url = `https://www.telsim.io/#/web/reactivate-line?token=${encodeURIComponent(reactivationToken)}`;
-        }
-      } catch (reacErr) {
-        console.warn('[CANCEL] reactivation token skipped', reacErr);
-      }
-
       const cancellationPayload = {
         nombre: String((userData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
         email: String(userData?.email ?? ''),
@@ -2784,6 +2810,10 @@ export default async function handler(req: any, res: any) {
           { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
           'stripe'
         );
+        console.log('[CANCEL] email payload reactivation_url', {
+          reactivation_url_in_payload:
+            Boolean(cancellationPayload.reactivation_url && String(cancellationPayload.reactivation_url).trim() !== ''),
+        });
         await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
         console.log('[CANCEL] Email enviado a:', userData.email);
       } else {
