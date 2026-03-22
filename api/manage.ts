@@ -395,17 +395,7 @@ async function internalSendEmail(options: {
     const errorDetail = !res.ok
       ? (typeof result?.error === 'string' ? result.error : typeof result?.message === 'string' ? result.message : errFromDetail) || rawBody || `HTTP ${res.status}`
       : null;
-    await insertNotificationLog({
-      user_id: options.userId,
-      channel: 'email',
-      recipient: email,
-      event: options.event,
-      status: res.ok ? 'sent' : 'error',
-      category,
-      content_preview: preview,
-      error_message: res.ok ? null : errorDetail,
-      metadata: options.metadata ? { slot_id: options.metadata.slot_id, phone_number: options.metadata.phone_number } : undefined,
-    });
+    /** Historial: send-email (Edge) inserta una fila por envío; no duplicar aquí. */
     const snippet = rawBody.slice(0, 4000);
     if (!res.ok) {
       return {

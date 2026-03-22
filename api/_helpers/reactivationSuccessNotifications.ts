@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logEvent } from './logger.js';
 
 const EVENT = 'reactivation_success';
 const TEMPLATE_EMAIL = `template_email_${EVENT}`;
@@ -91,11 +92,31 @@ export async function sendReactivationSuccessNotifications(
     const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', params.userId).maybeSingle();
     email = userData?.email ?? undefined;
   }
-  if (!email) return;
+  if (!email) {
+    void logEvent(
+      'REACTIVATION_SUCCESS_SKIP_NO_EMAIL',
+      'warning',
+      'reactivation_success: usuario sin email; no se llama a send-email',
+      undefined,
+      { user_id: params.userId },
+      'manage'
+    );
+    return;
+  }
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) return;
+  if (!supabaseUrl || !serviceKey) {
+    void logEvent(
+      'REACTIVATION_SUCCESS_SKIP_NO_CONFIG',
+      'critical',
+      'reactivation_success: falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY',
+      undefined,
+      { user_id: params.userId },
+      'manage'
+    );
+    return;
+  }
 
   const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
     method: 'POST',
@@ -112,19 +133,17 @@ export async function sendReactivationSuccessNotifications(
     }),
   });
   const result = await res.json().catch(() => ({}));
-  try {
-    await supabaseAdmin.from('notification_history').insert({
-      user_id: params.userId,
-      type: 'email',
-      event_name: EVENT,
-      recipient: email,
-      content: bodyOverride.slice(0, 500) || null,
-      status: res.ok ? 'sent' : 'error',
-      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
-    });
-  } catch {
-    // no bloquear
+  if (!res.ok) {
+    void logEvent(
+      'REACTIVATION_SUCCESS_EMAIL_FAILED',
+      'error',
+      `send-email reactivation_success: ${String((result as { message?: string })?.message ?? (result as { error?: string })?.error ?? res.status)}`,
+      email,
+      { user_id: params.userId, status: res.status },
+      'manage'
+    );
   }
+  /** Historial email: un solo insert en supabase/functions/send-email. */
 
   const { data: tgRow } = await supabaseAdmin.from('admin_settings').select('content').eq('id', TEMPLATE_TG).maybeSingle();
   const tgTemplate =

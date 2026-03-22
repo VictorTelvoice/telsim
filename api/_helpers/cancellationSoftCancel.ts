@@ -106,18 +106,6 @@ export async function sendCancellationEmailFromManage(
       subject: subjectResolved,
     }),
   });
-  const result = await res.json().catch(() => ({}));
-  try {
-    await supabaseAdmin.from('notification_history').insert({
-      user_id: params.userId,
-      type: 'email',
-      event_name: CANCEL_EVENT,
-      recipient: email,
-      content: bodyOverride.slice(0, 500) || null,
-      status: res.ok ? 'sent' : 'error',
-      error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
-    });
-  } catch {
-    // no bloquear
-  }
+  await res.json().catch(() => ({}));
+  /** Historial: un solo registro en la Edge send-email (evitar duplicar con el caller). */
 }

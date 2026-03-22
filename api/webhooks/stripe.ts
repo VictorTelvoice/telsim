@@ -14,6 +14,7 @@ import {
 } from '../_helpers/slotCountryMapping.js';
 import { monthlySmsLimitForPlan } from '../_helpers/subscriptionPlanLimits.js';
 import { releaseSlotAtomicForCancelPolicy, type SupabaseAdminForRpc } from '../_helpers/releaseSlotAtomicForCancelPolicy.js';
+import { hasRecentNotificationDuplicate } from '../_helpers/notificationDedupe.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -176,6 +177,9 @@ const FINANCE_COST_PER_SMS_CENTS_ID = 'finance_cost_per_sms_cents';
 /** Tras reactivación, Stripe puede emitir invoice.payment_succeeded; no debe verse como compra nueva. */
 const REACTIVATION_PURCHASE_SKIP_MS = 5 * 60 * 1000;
 
+/** Tras reactivación exitosa, el invoice asociado no debe disparar invoice_paid (email/app) durante esta ventana. */
+const REACTIVATION_INVOICE_SKIP_MS = 24 * 60 * 60 * 1000;
+
 function skipPurchaseNotifsDueToRecentReactivation(meta: Stripe.Metadata | null | undefined): boolean {
   const m = meta as Record<string, string> | null | undefined;
   if (!m || m.reactivation_flow !== 'true') return false;
@@ -184,6 +188,17 @@ function skipPurchaseNotifsDueToRecentReactivation(meta: Stripe.Metadata | null 
   const secs = Number(at);
   if (!Number.isFinite(secs)) return false;
   return Date.now() - secs * 1000 <= REACTIVATION_PURCHASE_SKIP_MS;
+}
+
+/** Omite notificaciones tipo invoice_paid mientras la suscripción sigue marcada con flujo de reactivación reciente. */
+function skipInvoiceNotifsDueToReactivationFlow(meta: Stripe.Metadata | null | undefined): boolean {
+  const m = meta as Record<string, string> | null | undefined;
+  if (!m || m.reactivation_flow !== 'true') return false;
+  const at = m.reactivation_at;
+  if (!at) return false;
+  const secs = Number(at);
+  if (!Number.isFinite(secs)) return false;
+  return Date.now() - secs * 1000 <= REACTIVATION_INVOICE_SKIP_MS;
 }
 
 function parseCentsSetting(content: unknown): number {
@@ -554,20 +569,8 @@ async function triggerEmail(
         subject: subjectResolved,
       }),
     });
-    const result = await res.json().catch(() => ({}));
-    try {
-      await supabaseAdmin.from('notification_history').insert({
-        user_id: userId,
-        type: 'email',
-        event_name: event,
-        recipient: email,
-        content: bodyOverride.slice(0, 500) || null,
-        status: res.ok ? 'sent' : 'error',
-        error_message: res.ok ? null : (result?.message ?? (typeof result?.error === 'string' ? result.error : null)),
-      });
-    } catch {
-      // no bloquear
-    }
+    await res.json().catch(() => ({}));
+    /** Historial: un solo insert en send-email (Edge); evitar duplicar filas. */
   } catch (err) {
     console.error('[triggerEmail]', err);
   }
@@ -2328,20 +2331,41 @@ export default async function handler(req: any, res: any) {
     }
 
     let skipPurchaseNotifs = false;
+    let skipInvoicePaidNotifs = false;
     try {
       const stForReac = await stripe.subscriptions.retrieve(stripeSubId);
       skipPurchaseNotifs = skipPurchaseNotifsDueToRecentReactivation(stForReac.metadata);
+      skipInvoicePaidNotifs = skipInvoiceNotifsDueToReactivationFlow(stForReac.metadata);
     } catch {
       skipPurchaseNotifs = false;
+      skipInvoicePaidNotifs = false;
     }
     if (skipPurchaseNotifs) {
       console.log('[invoice.payment_succeeded] skip compra/pago: reactivation_flow reciente', { stripeSubId });
     }
+    if (skipInvoicePaidNotifs) {
+      void logEvent(
+        'INVOICE_PAID_SKIPPED_REACTIVATION_FLOW',
+        'info',
+        'invoice_paid omitido: metadata reactivation_flow reciente en la suscripción',
+        undefined,
+        {
+          stripe_subscription_id: stripeSubId,
+          invoice_id: invoice.id ?? null,
+          billing_reason: invoice.billing_reason ?? null,
+        },
+        'stripe'
+      );
+    }
+
+    /** Notificaciones invoice_paid solo desde invoice.payment_succeeded (invoice.paid duplica el mismo cobro). */
+    const sendInvoicePaidNotifications =
+      event.type === 'invoice.payment_succeeded' && !skipInvoicePaidNotifs;
 
     if (subTyped.status === 'past_due') {
       const { error: pastDueErr } = await supabaseAdmin.from('subscriptions').update({ status: 'active' }).eq('id', subTyped.id);
       if (pastDueErr) throw pastDueErr;
-      if (!skipPurchaseNotifs) {
+      if (sendInvoicePaidNotifications) {
         await createNotification(
           subTyped.user_id,
           '✅ Pago procesado',
@@ -2375,7 +2399,7 @@ export default async function handler(req: any, res: any) {
         : `+${String(phoneRawInv).replace(/^\+/, '')}`
       : '';
     const emailInv = String((invUser as { email?: string } | null)?.email ?? invoice.customer_email ?? '');
-    if (!skipPurchaseNotifs) {
+    if (sendInvoicePaidNotifications) {
       await triggerEmail(CANONICAL_TEMPLATE_EVENTS.INVOICE_PAID, subTyped.user_id, {
         nombre: String((invUser as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
         email: emailInv,
@@ -2818,43 +2842,65 @@ export default async function handler(req: any, res: any) {
         reactivation_url,
       };
 
-      await createNotificationFromTemplate(
-        CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
-        userId,
-        cancellationPayload,
-        'error',
-        stripeEventId
-      );
+      const recipientEmail = String(userData?.email ?? '').trim();
+      const skipDupCancellation =
+        recipientEmail !== '' &&
+        Boolean(userId) &&
+        (await hasRecentNotificationDuplicate(supabaseAdmin, {
+          userId: String(userId),
+          eventName: CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          recipient: recipientEmail,
+          windowMs: 48 * 60 * 60 * 1000,
+        }));
 
-      if (userData?.email && userId) {
+      if (skipDupCancellation) {
         void logEvent(
-          'EMAIL_DISPATCHED',
+          'CANCELLATION_NOTIF_SKIPPED_DUPLICATE',
+          'info',
+          'Cancelación ya notificada en ventana 48h (p. ej. soft-cancel); no duplicar email/Telegram/app',
+          recipientEmail || undefined,
+          { user_id: userId, stripe_subscription_id: subId, stripe_event_id: stripeEventId },
+          'stripe'
+        );
+      } else {
+        await createNotificationFromTemplate(
+          CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          userId,
+          cancellationPayload,
+          'error',
+          stripeEventId
+        );
+
+        if (userData?.email && userId) {
+          void logEvent(
+            'EMAIL_DISPATCHED',
+            'info',
+            CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+            null,
+            { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
+            'stripe'
+          );
+          console.log(
+            '[CANCEL] reactivation_url_in_payload',
+            Boolean(cancellationPayload.reactivation_url && String(cancellationPayload.reactivation_url).trim() !== '')
+          );
+          await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
+          console.log('[CANCEL] Email enviado a:', userData.email);
+        } else {
+          console.error('[CANCEL] No se encontró email para userId:', userId);
+        }
+
+        void logEvent(
+          'TELEGRAM_DISPATCHED',
           'info',
           CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
           null,
-          { user_id: userId, template: `template_email_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'email' },
+          { user_id: userId, template: `template_telegram_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'telegram' },
           'stripe'
         );
-        console.log(
-          '[CANCEL] reactivation_url_in_payload',
-          Boolean(cancellationPayload.reactivation_url && String(cancellationPayload.reactivation_url).trim() !== '')
-        );
-        await triggerEmail(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
-        console.log('[CANCEL] Email enviado a:', userData.email);
-      } else {
-        console.error('[CANCEL] No se encontró email para userId:', userId);
+        await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
+        console.log('[CANCEL] Telegram enviado OK');
       }
-
-      void logEvent(
-        'TELEGRAM_DISPATCHED',
-        'info',
-        CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
-        null,
-        { user_id: userId, template: `template_telegram_${CANONICAL_TEMPLATE_EVENTS.CANCELLATION}`, channel: 'telegram' },
-        'stripe'
-      );
-      await sendTelegramNotification(CANONICAL_TEMPLATE_EVENTS.CANCELLATION, userId, cancellationPayload);
-      console.log('[CANCEL] Telegram enviado OK');
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.deleted:', err.message);
