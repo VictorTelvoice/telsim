@@ -8,6 +8,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 const ReactivateLine: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Preparando tu reactivación…');
+  const [nextUrl, setNextUrl] = useState('/#/web');
 
   useEffect(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -31,6 +32,7 @@ const ReactivateLine: React.FC = () => {
         const data = (await res.json().catch(() => ({}))) as {
           ok?: boolean;
           message?: string;
+          next_url?: string;
           url?: string;
           error?: string;
         };
@@ -38,6 +40,9 @@ const ReactivateLine: React.FC = () => {
         if (res.ok && data.ok === true) {
           setStatus('success');
           setMessage(typeof data.message === 'string' ? data.message : 'Reactivación exitosa.');
+          if (typeof data.next_url === 'string' && data.next_url.trim() !== '') {
+            setNextUrl(data.next_url.trim());
+          }
           return;
         }
         if (res.ok && typeof data.url === 'string' && data.url.startsWith('http')) {
@@ -71,7 +76,13 @@ const ReactivateLine: React.FC = () => {
         ) : status === 'success' ? (
           <>
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Listo</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{message}</p>
+            <a
+              href={nextUrl}
+              className="inline-flex items-center justify-center rounded-xl bg-[#0074d4] hover:bg-[#0066bd] text-white text-sm font-semibold px-6 py-3 transition-colors"
+            >
+              Ir a mis números
+            </a>
           </>
         ) : (
           <>

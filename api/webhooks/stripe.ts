@@ -72,6 +72,8 @@ const CANONICAL_TEMPLATE_EVENTS = {
   CANCELLATION: 'cancellation',
   UPGRADE_SUCCESS: 'upgrade_success',
   INVOICE_PAID: 'invoice_paid',
+  /** Enviado desde api/manage reactivate-line (no webhook de compra). */
+  REACTIVATION_SUCCESS: 'reactivation_success',
 } as const;
 
 /** Fallbacks legibles si no hay plantilla en admin_settings (nunca mostrar "Evento: …" al usuario). */
@@ -170,6 +172,19 @@ async function resolveEmailSubject(event: string, data: Record<string, unknown>)
 
 const FINANCE_COST_PER_SLOT_MONTH_CENTS_ID = 'finance_cost_per_slot_month_cents';
 const FINANCE_COST_PER_SMS_CENTS_ID = 'finance_cost_per_sms_cents';
+
+/** Tras reactivación, Stripe puede emitir invoice.payment_succeeded; no debe verse como compra nueva. */
+const REACTIVATION_PURCHASE_SKIP_MS = 5 * 60 * 1000;
+
+function skipPurchaseNotifsDueToRecentReactivation(meta: Stripe.Metadata | null | undefined): boolean {
+  const m = meta as Record<string, string> | null | undefined;
+  if (!m || m.reactivation_flow !== 'true') return false;
+  const at = m.reactivation_at;
+  if (!at) return false;
+  const secs = Number(at);
+  if (!Number.isFinite(secs)) return false;
+  return Date.now() - secs * 1000 <= REACTIVATION_PURCHASE_SKIP_MS;
+}
 
 function parseCentsSetting(content: unknown): number {
   const n = typeof content === 'string' ? parseInt(content, 10) : Number(content);
@@ -2312,15 +2327,28 @@ export default async function handler(req: any, res: any) {
       if (nbErr) throw nbErr;
     }
 
+    let skipPurchaseNotifs = false;
+    try {
+      const stForReac = await stripe.subscriptions.retrieve(stripeSubId);
+      skipPurchaseNotifs = skipPurchaseNotifsDueToRecentReactivation(stForReac.metadata);
+    } catch {
+      skipPurchaseNotifs = false;
+    }
+    if (skipPurchaseNotifs) {
+      console.log('[invoice.payment_succeeded] skip compra/pago: reactivation_flow reciente', { stripeSubId });
+    }
+
     if (subTyped.status === 'past_due') {
       const { error: pastDueErr } = await supabaseAdmin.from('subscriptions').update({ status: 'active' }).eq('id', subTyped.id);
       if (pastDueErr) throw pastDueErr;
-      await createNotification(
-        subTyped.user_id,
-        '✅ Pago procesado',
-        `El pago de tu plan ${subTyped.plan_name} fue exitoso. Tu servicio continúa activo.`,
-        'success'
-      );
+      if (!skipPurchaseNotifs) {
+        await createNotification(
+          subTyped.user_id,
+          '✅ Pago procesado',
+          `El pago de tu plan ${subTyped.plan_name} fue exitoso. Tu servicio continúa activo.`,
+          'success'
+        );
+      }
     } else if (subTyped.status === 'trialing') {
       const { error: trialErr } = await supabaseAdmin.from('subscriptions').update({ status: 'active' }).eq('id', subTyped.id);
       if (trialErr) throw trialErr;
@@ -2347,26 +2375,28 @@ export default async function handler(req: any, res: any) {
         : `+${String(phoneRawInv).replace(/^\+/, '')}`
       : '';
     const emailInv = String((invUser as { email?: string } | null)?.email ?? invoice.customer_email ?? '');
-    await triggerEmail(CANONICAL_TEMPLATE_EVENTS.INVOICE_PAID, subTyped.user_id, {
-      nombre: String((invUser as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
-      email: emailInv,
-      phone: phoneFmtInv,
-      plan: subTyped.plan_name ?? '',
-      end_date: next_date,
-      status: 'Activo',
-      slot_id: subTyped.slot_id ?? '',
-      amount: ((fullInv.amount_paid ?? invoice.amount_paid ?? 0) / 100).toFixed(2),
-      subtotal: ((fullInv.subtotal ?? 0) / 100).toFixed(2),
-      tax: (invoiceTaxCents(fullInv) / 100).toFixed(2),
-      total: ((fullInv.total ?? 0) / 100).toFixed(2),
-      invoice_pdf: fullInv.invoice_pdf ?? '',
-      hosted_invoice_url: fullInv.hosted_invoice_url ?? '',
-      receipt_url: receiptUrl ?? '',
-      next_date,
-      phone_number: phoneRawInv,
-      to: emailInv,
-      to_email: emailInv,
-    });
+    if (!skipPurchaseNotifs) {
+      await triggerEmail(CANONICAL_TEMPLATE_EVENTS.INVOICE_PAID, subTyped.user_id, {
+        nombre: String((invUser as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+        email: emailInv,
+        phone: phoneFmtInv,
+        plan: subTyped.plan_name ?? '',
+        end_date: next_date,
+        status: 'Activo',
+        slot_id: subTyped.slot_id ?? '',
+        amount: ((fullInv.amount_paid ?? invoice.amount_paid ?? 0) / 100).toFixed(2),
+        subtotal: ((fullInv.subtotal ?? 0) / 100).toFixed(2),
+        tax: (invoiceTaxCents(fullInv) / 100).toFixed(2),
+        total: ((fullInv.total ?? 0) / 100).toFixed(2),
+        invoice_pdf: fullInv.invoice_pdf ?? '',
+        hosted_invoice_url: fullInv.hosted_invoice_url ?? '',
+        receipt_url: receiptUrl ?? '',
+        next_date,
+        phone_number: phoneRawInv,
+        to: emailInv,
+        to_email: emailInv,
+      });
+    }
   }
 
   // Fase 5: refunds / chargebacks (modelo preparado, sin notificaciones)

@@ -10,6 +10,7 @@ import { applyStripeCheckoutBillingCompliance } from './_helpers/stripeCheckoutC
 import { normalizeTierPlanName } from './_helpers/lineReactivationPlan.js';
 import { releaseSlotAtomicForCancelPolicy } from './_helpers/releaseSlotAtomicForCancelPolicy.js';
 import { reserveSlotSoftCancel, sendCancellationEmailFromManage } from './_helpers/cancellationSoftCancel.js';
+import { sendReactivationSuccessNotifications } from './_helpers/reactivationSuccessNotifications.js';
 import {
   extractReceiptUrlFromInvoice,
   invoiceCustomerTaxIdsForDb,
@@ -1912,8 +1913,16 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: 'No se pudo leer la suscripción en Stripe.', code: 'STRIPE_RETRIEVE' });
         }
 
+        const reactivationAtUnix = String(Math.floor(Date.now() / 1000));
         try {
-          await stripe.subscriptions.update(stripeSubId, { cancel_at: null } as Stripe.SubscriptionUpdateParams);
+          await stripe.subscriptions.update(stripeSubId, {
+            cancel_at: null,
+            metadata: {
+              ...(stSub.metadata || {}),
+              reactivation_flow: 'true',
+              reactivation_at: reactivationAtUnix,
+            },
+          } as Stripe.SubscriptionUpdateParams);
         } catch (e: any) {
           return res.status(500).json({
             error: e?.message ?? 'Stripe no pudo anular la cancelación programada.',
@@ -1976,7 +1985,34 @@ export default async function handler(req: any, res: any) {
           return res.status(500).json({ error: slotUpErr.message, code: 'DB_SLOT_UPDATE' });
         }
 
-        return res.status(200).json({ ok: true, message: 'Reactivación exitosa.' });
+        const { data: userRowReac } = await supabaseAdmin
+          .from('users')
+          .select('email, nombre')
+          .eq('id', uid)
+          .maybeSingle();
+        const phoneDisplay = String((slotRow as { phone_number?: string | null }).phone_number ?? sid ?? '');
+        const phoneFmt = phoneDisplay
+          ? phoneDisplay.startsWith('+')
+            ? phoneDisplay
+            : `+${String(phoneDisplay).replace(/^\+/, '')}`
+          : '';
+
+        await sendReactivationSuccessNotifications(supabaseAdmin, {
+          userId: uid,
+          data: {
+            nombre: String((userRowReac as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+            phone: phoneFmt || phoneDisplay,
+            plan: planNameMeta,
+            status: dbStatus === 'trialing' ? 'En período de prueba' : 'Activo',
+            to_email: String((userRowReac as { email?: string } | null)?.email ?? ''),
+          },
+        });
+
+        return res.status(200).json({
+          ok: true,
+          message: 'Reactivación exitosa.',
+          next_url: '/#/web',
+        });
       }
 
       /** Solo admin: cancelar suscripciones en Stripe por ID (best-effort; no toca DB; no revierte cancelación local). */
