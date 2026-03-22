@@ -57,6 +57,7 @@ import SupportCenter from './screens/admin/SupportCenter';
 import AdminTicketChat from './screens/admin/AdminTicketChat';
 import AdminNotifications from './screens/admin/AdminNotifications';
 import AdminTemplates from './screens/admin/AdminTemplates';
+import AdminIncomingSms from './screens/admin/AdminIncomingSms';
 import AdminFinanceRevenueOps from './screens/admin/AdminFinanceRevenueOps';
 import ApiDocs from './screens/ApiDocs';
 import LegalScreen from './screens/legal/LegalScreen';
@@ -288,6 +289,7 @@ const App: React.FC = () => {
                     <Route path="content" element={<ContentCMS />} />
                     <Route path="notifications" element={<AdminNotifications />} />
                     <Route path="templates" element={<AdminTemplates />} />
+                    <Route path="incoming-sms" element={<AdminIncomingSms />} />
                     <Route path="support" element={<SupportCenter />} />
                     <Route path="support/:ticketId" element={<AdminTicketChat backTo="/admin/support" />} />
                     <Route path="logs" element={<AdminLogs />} />

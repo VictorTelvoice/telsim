@@ -19,7 +19,13 @@
 // }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { renderTransactionalEmail } from '../_shared/transactionalEmailRenderer.ts';
+import {
+  normalizeCanonicalTransactionalEvent,
+  renderTransactionalEmail,
+} from '../_shared/transactionalEmailRenderer.ts';
+
+const TEMPLATE_EMAIL_CANCELLATION_ID = 'template_email_cancellation';
+const TEMPLATE_EMAIL_CANCELLATION_BELOW_ID = 'template_email_cancellation_below_details';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const RESEND_FROM = 'Telsim <noreply@telsim.io>';
@@ -441,7 +447,20 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const { event, user_id, to_email, data = {}, template_id: payloadTemplateId, content: payloadContent, from: payloadFrom, subject: payloadSubject, is_test: payloadIsTest, custom_content: payloadCustomContent, html_body: payloadHtmlBody } = payload;
+    const {
+      event,
+      user_id,
+      to_email,
+      data = {},
+      template_id: payloadTemplateId,
+      content: payloadContent,
+      from: payloadFrom,
+      subject: payloadSubject,
+      is_test: payloadIsTest,
+      custom_content: payloadCustomContent,
+      html_body: payloadHtmlBody,
+      contentBelowDetails: payloadContentBelow,
+    } = payload as Record<string, unknown>;
 
     if (!event) {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
@@ -487,7 +506,7 @@ Deno.serve(async (req) => {
       const { data: rows } = await supabase.from('admin_settings').select('id, content');
       if (rows) {
         rows.forEach((r: { id: string; content: string | null }) => {
-          if (r.id && r.content != null) settingsOverrides[r.id] = r.content;
+          if (r.id) settingsOverrides[r.id] = r.content ?? '';
         });
       }
       if (payloadTemplateId && (!payloadContent || String(payloadContent).trim() === '')) {
@@ -535,12 +554,35 @@ Deno.serve(async (req) => {
         : tBody.body(data);
     }
 
+    const canonCancellation = normalizeCanonicalTransactionalEvent(rawEvent) === 'cancellation';
+    if (canonCancellation && !isTest) {
+      const topFromDb = settingsOverrides[TEMPLATE_EMAIL_CANCELLATION_ID] ?? '';
+      if (topFromDb.trim() !== '') {
+        bodyStr = renderBodyTemplate(topFromDb, data);
+      }
+    }
+
     const langForRenderer: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
+
+    let contentBelowForRenderer: string | null = null;
+    if (canonCancellation) {
+      const hasBelowKey =
+        payload != null && typeof payload === 'object' && 'contentBelowDetails' in payload;
+      if (isTest && hasBelowKey) {
+        const raw = payloadContentBelow != null ? String(payloadContentBelow) : '';
+        contentBelowForRenderer = raw.trim() !== '' ? renderBodyTemplate(raw, data) : null;
+      } else {
+        const belowRaw = settingsOverrides[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] ?? '';
+        contentBelowForRenderer = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
+      }
+    }
+
     const canonicalRendered = renderTransactionalEmail({
       event: rawEvent,
       data,
       subject: payloadSubject,
       contentHtml: bodyStr,
+      contentBelowDetails: contentBelowForRenderer,
       lang: langForRenderer,
     });
 

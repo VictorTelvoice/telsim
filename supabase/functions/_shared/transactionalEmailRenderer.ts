@@ -63,6 +63,11 @@ function splitEmailBodySections(contentHtml: string): { topHtml: string; bottomH
   };
 }
 
+/** Quita cualquier marcador legacy del HTML (cancelación); no altera el diseño. */
+function stripLegacyBelowDetailsMarker(html: string): string {
+  return String(html ?? '').replace(BELOW_DETAILS_STRIP_ALL_RE, '').trim();
+}
+
 function billingLabel(d: Record<string, unknown>, lang: 'es' | 'en'): string {
   const b = d.billing_type;
   if (b === 'Anual' || b === 'Annual' || b === 'annual') return lang === 'es' ? 'Anual' : 'Annual';
@@ -314,6 +319,11 @@ export type RenderTransactionalEmailParams = {
   subject?: string | null;
   /** HTML del copy central desde admin_settings (ya con variables sustituidas en prod/test). */
   contentHtml?: string | null;
+  /**
+   * Solo cancelación: HTML debajo del cuadro de detalles (admin_settings template_email_cancellation_below_details).
+   * Si no se envía, se mantiene compatibilidad con texto tras [[BELOW_DETAILS]] en contentHtml (legacy).
+   */
+  contentBelowDetails?: string | null;
   lang?: 'es' | 'en';
 };
 
@@ -336,7 +346,23 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
       ? String(params.contentHtml)
       : `<p>${lang === 'es' ? 'Actualización de tu cuenta TELSIM.' : 'An update regarding your TELSIM account.'}</p>`;
 
-  const { topHtml, bottomHtml } = splitEmailBodySections(rawBody);
+  const { topHtml: splitTop, bottomHtml: splitBottom } = splitEmailBodySections(rawBody);
+
+  let topHtml: string;
+  let bottomHtml: string;
+  if (canonical === 'cancellation') {
+    const explicit =
+      params.contentBelowDetails != null && String(params.contentBelowDetails).trim() !== '';
+    topHtml = stripLegacyBelowDetailsMarker(splitTop);
+    if (explicit) {
+      bottomHtml = stripLegacyBelowDetailsMarker(String(params.contentBelowDetails));
+    } else {
+      bottomHtml = stripLegacyBelowDetailsMarker(splitBottom);
+    }
+  } else {
+    topHtml = splitTop;
+    bottomHtml = splitBottom;
+  }
 
   let secondaryCta: { href: string; text: string } | undefined;
   if (canonical === 'cancellation') {

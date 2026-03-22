@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle, BellRing, LayoutTemplate, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle, BellRing, LayoutTemplate, TrendingUp, Inbox } from 'lucide-react';
 import AdminGlobalSearch from '../../screens/admin/AdminGlobalSearch';
 
 const nav = [
@@ -14,6 +14,7 @@ const nav = [
   { to: 'content', label: 'CMS de Contenidos', icon: Settings },
   { to: 'notifications', label: 'Notificaciones', icon: BellRing },
   { to: 'templates', label: 'Plantillas', icon: LayoutTemplate },
+  { to: 'incoming-sms', label: 'SMS Entrantes', icon: Inbox },
 ];
 
 /**

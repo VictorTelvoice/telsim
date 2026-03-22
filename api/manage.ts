@@ -316,6 +316,8 @@ async function internalSendEmail(options: {
   custom_content?: string;
   /** Passthrough a Edge Function send-email (p. ej. tests desde Admin Templates). */
   template_id?: string;
+  /** Bloque inferior cancelación (template_email_cancellation_below_details), ya resuelto en test. */
+  contentBelowDetails?: string;
 }): Promise<{ success: boolean; error?: string; httpStatus?: number; rawBodySnippet?: string }> {
   const category = options.category ?? 'operational';
   const preview = (options.content ?? options.html ?? options.custom_content ?? '').slice(0, 500) || null;
@@ -343,6 +345,7 @@ async function internalSendEmail(options: {
         is_test: options.is_test ?? undefined,
         custom_content: options.custom_content ?? undefined,
         template_id: options.template_id ?? undefined,
+        contentBelowDetails: options.contentBelowDetails ?? undefined,
       });
     } catch (serializeErr) {
       const msg = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
@@ -1378,6 +1381,7 @@ export default async function handler(req: any, res: any) {
           subject: subjectIn,
           templateId: templateIdIn,
           event: eventIn,
+          contentBelowDetails: contentBelowDetailsIn,
         } = req.body || {};
 
         console.log('[MANAGE send-notification-test] start', {
@@ -1508,6 +1512,10 @@ export default async function handler(req: any, res: any) {
               subject: subjectLine,
               is_test: true,
               template_id: templateId,
+              contentBelowDetails:
+                templateId === 'template_email_cancellation' && typeof contentBelowDetailsIn === 'string'
+                  ? contentBelowDetailsIn
+                  : undefined,
               data: {
                 ...testData,
                 to_email: toEmail,
@@ -1670,6 +1678,70 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ list: withUserEmail });
       }
 
+      /** Admin CEO: SMS recibidos (public.sms_logs). */
+      case 'list-incoming-sms': {
+        const {
+          userId: reqUserId,
+          slotId: slotIdFilter,
+          sender: senderFilter,
+          serviceName: serviceNameFilter,
+          onlyUnread,
+          hideSpam,
+          limit: limitParam,
+        } = req.body || {};
+        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+          return res.status(403).json({ error: 'Solo el administrador.', code: 'FORBIDDEN' });
+        }
+        const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
+        let query = supabaseAdmin
+          .from('sms_logs')
+          .select(
+            'id, created_at, received_at, slot_id, sender, content, user_id, service_name, verification_code, is_spam, message_type, is_read'
+          )
+          .order('received_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (slotIdFilter && String(slotIdFilter).trim()) {
+          query = query.ilike('slot_id', `%${String(slotIdFilter).trim()}%`);
+        }
+        if (senderFilter && String(senderFilter).trim()) {
+          query = query.ilike('sender', `%${String(senderFilter).trim()}%`);
+        }
+        if (serviceNameFilter && String(serviceNameFilter).trim()) {
+          query = query.ilike('service_name', `%${String(serviceNameFilter).trim()}%`);
+        }
+        if (onlyUnread === true) {
+          query = query.eq('is_read', false);
+        }
+        if (hideSpam === true) {
+          query = query.or('is_spam.eq.false,is_spam.is.null');
+        }
+        const { data: rows, error } = await query;
+        if (error) {
+          return res.status(500).json({ error: error.message, code: 'DB_ERROR' });
+        }
+        const list = (rows || []).map((r: Record<string, unknown>) => {
+          const receivedAt = r.received_at != null ? String(r.received_at) : null;
+          const createdAt = r.created_at != null ? String(r.created_at) : '';
+          return {
+            id: r.id,
+            created_at: createdAt,
+            received_at: receivedAt,
+            display_at: receivedAt || createdAt,
+            slot_id: r.slot_id ?? null,
+            sender: r.sender ?? null,
+            content: r.content ?? null,
+            user_id: r.user_id ?? null,
+            service_name: r.service_name ?? null,
+            verification_code: r.verification_code ?? null,
+            is_spam: r.is_spam === true,
+            message_type: r.message_type ?? null,
+            is_read: r.is_read === true,
+          };
+        });
+        return res.status(200).json({ list });
+      }
+
       case 'get-notification-stats': {
         const { userId: reqUserId } = req.body || {};
         if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
@@ -1754,7 +1826,7 @@ export default async function handler(req: any, res: any) {
 
       default:
         return res.status(400).json({
-          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, simulate-critical-alert, admin-stripe-cancel-subscriptions.',
+          error: 'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, list-incoming-sms, simulate-critical-alert, admin-stripe-cancel-subscriptions.',
         });
     }
   } catch (err: any) {
