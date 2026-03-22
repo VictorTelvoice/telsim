@@ -320,8 +320,8 @@ export type RenderTransactionalEmailParams = {
   /** HTML del copy central desde admin_settings (ya con variables sustituidas en prod/test). */
   contentHtml?: string | null;
   /**
-   * Solo cancelación: HTML debajo del cuadro de detalles (admin_settings template_email_cancellation_below_details).
-   * Si no se envía, se mantiene compatibilidad con texto tras [[BELOW_DETAILS]] en contentHtml (legacy).
+   * HTML opcional debajo del cuadro de detalles (admin_settings `template_email_<event>_below_details` o `<templateId>_below_details`).
+   * Si no se envía, compatibilidad legacy con texto tras [[BELOW_DETAILS]] en contentHtml.
    */
   contentBelowDetails?: string | null;
   lang?: 'es' | 'en';
@@ -348,21 +348,12 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
 
   const { topHtml: splitTop, bottomHtml: splitBottom } = splitEmailBodySections(rawBody);
 
-  let topHtml: string;
-  let bottomHtml: string;
-  if (canonical === 'cancellation') {
-    const explicit =
-      params.contentBelowDetails != null && String(params.contentBelowDetails).trim() !== '';
-    topHtml = stripLegacyBelowDetailsMarker(splitTop);
-    if (explicit) {
-      bottomHtml = stripLegacyBelowDetailsMarker(String(params.contentBelowDetails));
-    } else {
-      bottomHtml = stripLegacyBelowDetailsMarker(splitBottom);
-    }
-  } else {
-    topHtml = splitTop;
-    bottomHtml = splitBottom;
-  }
+  const explicitBelow =
+    params.contentBelowDetails != null && String(params.contentBelowDetails).trim() !== '';
+  const topHtml = stripLegacyBelowDetailsMarker(splitTop);
+  const bottomHtml = explicitBelow
+    ? stripLegacyBelowDetailsMarker(String(params.contentBelowDetails))
+    : stripLegacyBelowDetailsMarker(splitBottom);
 
   let secondaryCta: { href: string; text: string } | undefined;
   if (canonical === 'cancellation') {

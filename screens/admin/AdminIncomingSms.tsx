@@ -14,7 +14,6 @@ export type IncomingSmsRow = {
   content: string | null;
   user_id: string | null;
   service_name: string | null;
-  verification_code: string | null;
   is_spam: boolean;
   message_type: string | null;
   is_read: boolean;
@@ -185,7 +184,6 @@ const AdminIncomingSms: React.FC = () => {
                   <th className="px-5 py-3">Slot</th>
                   <th className="px-5 py-3">Remitente</th>
                   <th className="px-5 py-3">Servicio</th>
-                  <th className="px-5 py-3">Código</th>
                   <th className="px-5 py-3 min-w-[180px]">Mensaje</th>
                   <th className="px-5 py-3">Spam</th>
                   <th className="px-5 py-3">Leído</th>
@@ -195,13 +193,13 @@ const AdminIncomingSms: React.FC = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-5 py-12 text-center text-slate-500">
                       <Loader2 size={24} className="animate-spin mx-auto" />
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-5 py-12 text-center text-slate-500">
                       No hay registros.
                     </td>
                   </tr>
@@ -216,9 +214,6 @@ const AdminIncomingSms: React.FC = () => {
                       </td>
                       <td className="px-5 py-3 text-slate-800 break-all max-w-[140px]">{row.sender ?? '—'}</td>
                       <td className="px-5 py-3 text-slate-700">{row.service_name ?? '—'}</td>
-                      <td className="px-5 py-3 text-slate-700 font-mono text-xs">
-                        {row.verification_code ?? '—'}
-                      </td>
                       <td className="px-5 py-3 text-slate-600 max-w-md">
                         <span className="line-clamp-2" title={row.content ?? ''}>
                           {truncateMsg(row.content)}

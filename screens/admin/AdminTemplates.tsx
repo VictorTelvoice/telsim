@@ -11,8 +11,10 @@ const PREFIX_EMAIL = 'template_email_';
 const PREFIX_TELEGRAM = 'template_telegram_';
 const PREFIX_APP = 'template_app_';
 
-/** Segundo bloque HTML para cancelación (debajo del cuadro de detalles). */
-const TEMPLATE_EMAIL_CANCELLATION_BELOW_ID = 'template_email_cancellation_below_details';
+/** admin_settings id del bloque inferior: `<templateId>_below_details` (p. ej. template_email_new_purchase_below_details). */
+function emailTemplateBelowDetailsId(templateId: string): string {
+  return `${templateId}_below_details`;
+}
 
 type NotificationHistoryRow = {
   id: string;
@@ -270,8 +272,8 @@ function getResolvedTestPayload(
   const raw = settings[templateId] ?? '';
   const content = replaceVariablesForTest(raw);
   const subject = replaceVariablesForTest(emailSubjects[templateId] ?? '');
-  if (templateId === 'template_email_cancellation') {
-    const belowRaw = settings[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] ?? '';
+  if (templateId.startsWith(PREFIX_EMAIL)) {
+    const belowRaw = settings[emailTemplateBelowDetailsId(templateId)] ?? '';
     return {
       content,
       subject,
@@ -366,9 +368,10 @@ const AdminTemplates: React.FC = () => {
     KNOWN_EMAIL_IDS.forEach((id) => {
       if (!(id in subjects)) subjects[id] = '';
     });
-    if (!(TEMPLATE_EMAIL_CANCELLATION_BELOW_ID in map)) {
-      map[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] = '';
-    }
+    KNOWN_EMAIL_IDS.forEach((id) => {
+      const bid = emailTemplateBelowDetailsId(id);
+      if (!(bid in map)) map[bid] = '';
+    });
     setSettings(map);
     setEmailSubjects(subjects);
   }, []);
@@ -477,15 +480,16 @@ const AdminTemplates: React.FC = () => {
       if (id.startsWith(PREFIX_EMAIL)) {
         setEmailSubjects((s) => ({ ...s, [id]: row?.subject ?? '' }));
       }
-      if (id === 'template_email_cancellation') {
+      if (id.startsWith(PREFIX_EMAIL)) {
+        const bid = emailTemplateBelowDetailsId(id);
         const { data: belowRow } = await supabase
           .from('admin_settings')
           .select('content')
-          .eq('id', TEMPLATE_EMAIL_CANCELLATION_BELOW_ID)
+          .eq('id', bid)
           .maybeSingle();
         setSettings((s) => ({
           ...s,
-          [TEMPLATE_EMAIL_CANCELLATION_BELOW_ID]: (belowRow as { content?: string | null } | null)?.content ?? '',
+          [bid]: (belowRow as { content?: string | null } | null)?.content ?? '',
         }));
       }
     },
@@ -523,7 +527,7 @@ const AdminTemplates: React.FC = () => {
         };
         if (meta.channel === 'email') {
           body.subject = subject;
-          if (templateId === 'template_email_cancellation') {
+          if (templateId.startsWith(PREFIX_EMAIL)) {
             body.contentBelowDetails = contentBelowDetails ?? '';
           }
         }
@@ -570,16 +574,17 @@ const AdminTemplates: React.FC = () => {
           { id, content, subject: subj || null, updated_at: updatedAt },
           { onConflict: 'id' }
         );
+        const bid = emailTemplateBelowDetailsId(id);
+        await supabase.from('admin_settings').upsert(
+          {
+            id: bid,
+            content: settings[bid] ?? '',
+            subject: null,
+            updated_at: updatedAt,
+          },
+          { onConflict: 'id' }
+        );
       }
-      await supabase.from('admin_settings').upsert(
-        {
-          id: TEMPLATE_EMAIL_CANCELLATION_BELOW_ID,
-          content: settings[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] ?? '',
-          subject: null,
-          updated_at: updatedAt,
-        },
-        { onConflict: 'id' }
-      );
       for (const id of [...KNOWN_TELEGRAM_IDS, ...KNOWN_APP_IDS]) {
         const content = settings[id] ?? '';
         await supabase.from('admin_settings').upsert(
@@ -958,26 +963,28 @@ const AdminTemplates: React.FC = () => {
                     rows={10}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-y text-sm"
                   />
-                  {activeTab === 'email' && id === 'template_email_cancellation' && (
+                  {activeTab === 'email' && (
                     <>
                       <p className="mt-2 text-xs text-slate-500">
-                        El bloque inferior va en el campo de abajo. Si el contenido principal aún tiene el marcador antiguo, bórralo: el correo ya no lo usa y se limpia en el envío.
+                        El bloque inferior va en el campo de abajo (opcional). En correos canónicos con cuadro de detalles, se guarda como{' '}
+                        <code className="text-[10px] bg-slate-100 px-1 rounded font-mono">{emailTemplateBelowDetailsId(id)}</code>
+                        . El marcador <code className="text-[10px] bg-slate-100 px-1 rounded">[[BELOW_DETAILS]]</code> en el contenido principal ya no se usa; se limpia al enviar.
                       </p>
                       <div className="mt-4">
                         <label
-                          htmlFor={`below-${TEMPLATE_EMAIL_CANCELLATION_BELOW_ID}`}
+                          htmlFor={`below-${emailTemplateBelowDetailsId(id)}`}
                           className="block text-sm font-medium text-slate-700 mb-1.5"
                         >
                           Texto debajo del cuadro
                         </label>
                         <textarea
                           ref={(el) => {
-                            textareaRefs.current[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] = el;
+                            textareaRefs.current[emailTemplateBelowDetailsId(id)] = el;
                           }}
-                          id={`below-${TEMPLATE_EMAIL_CANCELLATION_BELOW_ID}`}
-                          value={settings[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] ?? ''}
+                          id={`below-${emailTemplateBelowDetailsId(id)}`}
+                          value={settings[emailTemplateBelowDetailsId(id)] ?? ''}
                           onChange={(e) =>
-                            handleContentChange(TEMPLATE_EMAIL_CANCELLATION_BELOW_ID, e.target.value)
+                            handleContentChange(emailTemplateBelowDetailsId(id), e.target.value)
                           }
                           placeholder="HTML opcional debajo del cuadro de detalles (mismas variables que arriba)."
                           rows={6}

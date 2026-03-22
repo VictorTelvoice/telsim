@@ -1513,7 +1513,9 @@ export default async function handler(req: any, res: any) {
               is_test: true,
               template_id: templateId,
               contentBelowDetails:
-                templateId === 'template_email_cancellation' && typeof contentBelowDetailsIn === 'string'
+                typeof templateId === 'string' &&
+                templateId.startsWith('template_email_') &&
+                typeof contentBelowDetailsIn === 'string'
                   ? contentBelowDetailsIn
                   : undefined,
               data: {
@@ -1696,7 +1698,7 @@ export default async function handler(req: any, res: any) {
         let query = supabaseAdmin
           .from('sms_logs')
           .select(
-            'id, created_at, received_at, slot_id, sender, content, user_id, service_name, verification_code, is_spam, message_type, is_read'
+            'id, created_at, received_at, slot_id, sender, content, user_id, service_name, is_spam, message_type, is_read'
           )
           .order('received_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
@@ -1733,7 +1735,6 @@ export default async function handler(req: any, res: any) {
             content: r.content ?? null,
             user_id: r.user_id ?? null,
             service_name: r.service_name ?? null,
-            verification_code: r.verification_code ?? null,
             is_spam: r.is_spam === true,
             message_type: r.message_type ?? null,
             is_read: r.is_read === true,

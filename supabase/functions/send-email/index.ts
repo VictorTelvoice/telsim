@@ -24,9 +24,6 @@ import {
   renderTransactionalEmail,
 } from '../_shared/transactionalEmailRenderer.ts';
 
-const TEMPLATE_EMAIL_CANCELLATION_ID = 'template_email_cancellation';
-const TEMPLATE_EMAIL_CANCELLATION_BELOW_ID = 'template_email_cancellation_below_details';
-
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const RESEND_FROM = 'Telsim <noreply@telsim.io>';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -554,9 +551,9 @@ Deno.serve(async (req) => {
         : tBody.body(data);
     }
 
-    const canonCancellation = normalizeCanonicalTransactionalEvent(rawEvent) === 'cancellation';
-    if (canonCancellation && !isTest) {
-      const topFromDb = settingsOverrides[TEMPLATE_EMAIL_CANCELLATION_ID] ?? '';
+    const canonEv = normalizeCanonicalTransactionalEvent(rawEvent);
+    if (canonEv && !isTest) {
+      const topFromDb = settingsOverrides[`template_email_${canonEv}`] ?? '';
       if (topFromDb.trim() !== '') {
         bodyStr = renderBodyTemplate(topFromDb, data);
       }
@@ -565,14 +562,21 @@ Deno.serve(async (req) => {
     const langForRenderer: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
 
     let contentBelowForRenderer: string | null = null;
-    if (canonCancellation) {
+    if (canonEv) {
+      const payloadTid =
+        payloadTemplateId != null && String(payloadTemplateId).trim() !== ''
+          ? String(payloadTemplateId).trim()
+          : null;
+      const belowSettingsKey = payloadTid
+        ? `${payloadTid}_below_details`
+        : `template_email_${canonEv}_below_details`;
       const hasBelowKey =
         payload != null && typeof payload === 'object' && 'contentBelowDetails' in payload;
       if (isTest && hasBelowKey) {
         const raw = payloadContentBelow != null ? String(payloadContentBelow) : '';
         contentBelowForRenderer = raw.trim() !== '' ? renderBodyTemplate(raw, data) : null;
       } else {
-        const belowRaw = settingsOverrides[TEMPLATE_EMAIL_CANCELLATION_BELOW_ID] ?? '';
+        const belowRaw = settingsOverrides[belowSettingsKey] ?? '';
         contentBelowForRenderer = belowRaw.trim() !== '' ? renderBodyTemplate(belowRaw, data) : null;
       }
     }

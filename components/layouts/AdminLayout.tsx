@@ -9,12 +9,12 @@ const nav = [
   { to: 'finance', label: 'Revenue Ops', icon: TrendingUp },
   { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },
+  { to: 'incoming-sms', label: 'SMS Entrantes', icon: Inbox },
   { to: 'logs', label: 'Logs de Sistema', icon: History },
   { to: 'support', label: 'Soporte / Tickets', icon: MessageSquare },
   { to: 'content', label: 'CMS de Contenidos', icon: Settings },
   { to: 'notifications', label: 'Notificaciones', icon: BellRing },
   { to: 'templates', label: 'Plantillas', icon: LayoutTemplate },
-  { to: 'incoming-sms', label: 'SMS Entrantes', icon: Inbox },
 ];
 
 /**
