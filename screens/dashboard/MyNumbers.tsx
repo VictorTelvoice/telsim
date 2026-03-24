@@ -65,6 +65,7 @@ const MyNumbers: React.FC = () => {
     const [savingFwd, setSavingFwd] = useState(false);
     const [testingTg, setTestingTg] = useState(false);
     const [slotFwdActive, setSlotFwdActive] = useState(false);
+    const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
 
     const fetchSlots = async (): Promise<SlotWithPlan[]> => {
         if (!user?.id) return [];
@@ -320,6 +321,27 @@ const MyNumbers: React.FC = () => {
         setIsFwdModalOpen(true);
     };
 
+    const handleToggleForwarding = async (slotId: string, newVal: boolean) => {
+        setTogglingSlot(slotId);
+        try {
+            const { error } = await supabase
+                .from('slots')
+                .update({ forwarding_active: newVal })
+                .eq('slot_id', slotId);
+
+            if (error) throw error;
+
+            setSlots(prev => prev.map(slot => (
+                slot.slot_id === slotId ? { ...slot, forwarding_active: newVal } : slot
+            )));
+        } catch (err) {
+            console.error(err);
+            showToast(getAppTemplate('common_error', t('common.error')), 'error');
+        } finally {
+            setTogglingSlot(null);
+        }
+    };
+
     const handleSaveAutomation = async () => {
         if (!user || !activeConfigSlot) return;
         setSavingFwd(true);
@@ -489,7 +511,6 @@ const MyNumbers: React.FC = () => {
                         <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
                         {filteredSlots.map((slot, index) => {
                             const style = getPlanStyle(slot.actual_plan_name);
-                            const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -545,9 +566,6 @@ const MyNumbers: React.FC = () => {
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">SMS</p>
                                                         <p className="text-[12px] font-black">{(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}</p>
-                                                        <div className="mt-1 w-16 h-[2px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
-                                                            <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
-                                                        </div>
                                                     </div>
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Desde</p>
@@ -573,8 +591,16 @@ const MyNumbers: React.FC = () => {
                                                 <button onClick={() => handleUpgradeSelect(slot)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <Zap className="size-4 text-primary" />
                                                 </button>
-                                                <button onClick={() => openAutomationConfig(slot)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <Bot className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-500'}`} />
+                                                <button
+                                                    onClick={() => handleToggleForwarding(slot.slot_id, !slot.forwarding_active)}
+                                                    disabled={togglingSlot === slot.slot_id}
+                                                    className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm backdrop-blur-sm ${
+                                                        slot.forwarding_active
+                                                            ? 'bg-sky-500 text-white border-sky-400/60'
+                                                            : 'bg-white/85 dark:bg-slate-900/80 border-white/40 dark:border-slate-700 text-slate-500'
+                                                    } ${togglingSlot === slot.slot_id ? 'opacity-70' : ''}`}
+                                                >
+                                                    {togglingSlot === slot.slot_id ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
                                                 </button>
                                                 <button onClick={() => handleCopy(slot.phone_number)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <Copy className="size-4 text-slate-500" />
