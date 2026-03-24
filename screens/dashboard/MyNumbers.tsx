@@ -497,7 +497,7 @@ const MyNumbers: React.FC = () => {
                                         className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
                                         style={{
                                             clipPath:
-                                                'polygon(18px 0, 42% 0, calc(42% + 10px) 8px, calc(58% - 10px) 8px, 58% 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
+                                                'polygon(14px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
                                         }}
                                     >
                                         <div className="flex justify-between items-start">
