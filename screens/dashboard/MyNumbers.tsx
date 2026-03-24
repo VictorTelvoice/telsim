@@ -637,7 +637,7 @@ const MyNumbers: React.FC = () => {
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-6 min-h-[280px] flex flex-col justify-between ${style.cardBg}`}>
+                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-6 min-h-[248px] flex flex-col justify-between ${style.cardBg}`}>
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col gap-1">
                                                 <span className={`text-[12px] font-black tracking-tighter uppercase ${style.accentText}`}>Telsim Online</span>
@@ -673,11 +673,7 @@ const MyNumbers: React.FC = () => {
                                             <div className="flex flex-col min-w-0 flex-1">
                                                 <span className="text-[8px] font-black uppercase tracking-[0.3em] opacity-40">Subscriber Number</span>
                                                 <h3 className="text-[24px] font-black font-mono tracking-tighter leading-none">{formatPhoneNumber(slot.phone_number)}</h3>
-                                                <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2">
-                                                    <div>
-                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Plan</p>
-                                                        <p className="text-[12px] font-black">{style.label}</p>
-                                                    </div>
+                                                <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 items-start">
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Ciclo</p>
                                                         <p className="text-[12px] font-black">
@@ -687,9 +683,12 @@ const MyNumbers: React.FC = () => {
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">SMS</p>
                                                         <p className="text-[12px] font-black">{(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}</p>
+                                                        <div className="mt-1 w-16 h-[2px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                                            <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Alta</p>
+                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Desde</p>
                                                         <p className="text-[12px] font-black">{formatCreatedAt(slot.created_at)}</p>
                                                     </div>
                                                 </div>
@@ -700,9 +699,6 @@ const MyNumbers: React.FC = () => {
                                             <div className="flex flex-col gap-3 min-w-0">
                                                 <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${style.badgeBg}`}>
                                                     {style.icon} {style.label}
-                                                </div>
-                                                <div className="w-28 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
-                                                    <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
                                                 </div>
                                             </div>
 
