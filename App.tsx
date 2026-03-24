@@ -13,6 +13,7 @@ import ScrollToTop from './components/ScrollToTop';
 import AdminLayout from './components/layouts/AdminLayout';
 import { ImpersonationProvider } from './contexts/ImpersonationContext';
 import ImpersonationBanner, { ImpersonationBannerSpacer } from './components/ImpersonationBanner';
+import { hasSupabaseEnv } from './lib/supabase';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -82,6 +83,19 @@ const RouteFallback = () => (
       <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Cargando Telsim...</p>
     </div>
   </div>
+);
+
+const EnvConfigFallback = () => (
+  <HashRouter>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="*" element={<Landing />} />
+      </Routes>
+      <div className="fixed bottom-4 left-1/2 z-[100] w-[min(92vw,720px)] -translate-x-1/2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg">
+        Configuracion incompleta en produccion: faltan `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY`.
+      </div>
+    </Suspense>
+  </HashRouter>
 );
 
 const LandingOrDash_v2: React.FC = () => {
@@ -243,6 +257,10 @@ const App: React.FC = () => {
     };
     lockOrientation();
   }, []);
+
+  if (!hasSupabaseEnv) {
+    return <EnvConfigFallback />;
+  }
 
   return (
     <ThemeProvider>

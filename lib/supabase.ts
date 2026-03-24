@@ -4,13 +4,18 @@ const env = (import.meta as any).env ?? {};
 const SUPABASE_URL = env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
+export const hasSupabaseEnv = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+if (!hasSupabaseEnv) {
+  console.error(
     'Missing Supabase environment variables. Define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
   );
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(
+  SUPABASE_URL || 'https://example.supabase.co',
+  SUPABASE_ANON_KEY || 'missing-anon-key',
+  {
   auth: {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     persistSession: true, // auth v2
@@ -21,17 +26,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // Interceptor global: limpiar estado al cerrar sesión
-supabase.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_OUT') {
-    if (typeof window === 'undefined') return;
-    [
-      'selected_plan', 'selected_billing', 'selected_plan_annual',
-      'post_login_redirect', 'selected_plan_price_id', 'selected_plan_price',
-    ].forEach(k => localStorage.removeItem(k));
-    const hash = window.location.hash;
-    if (hash.includes('/auth/callback')) return;
-    if (hash.includes('/web') || hash.includes('/dashboard') || hash.includes('/admin')) {
-      window.location.hash = '/login';
+if (hasSupabaseEnv) {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      if (typeof window === 'undefined') return;
+      [
+        'selected_plan', 'selected_billing', 'selected_plan_annual',
+        'post_login_redirect', 'selected_plan_price_id', 'selected_plan_price',
+      ].forEach(k => localStorage.removeItem(k));
+      const hash = window.location.hash;
+      if (hash.includes('/auth/callback')) return;
+      if (hash.includes('/web') || hash.includes('/dashboard') || hash.includes('/admin')) {
+        window.location.hash = '/login';
+      }
     }
-  }
-});
+  });
+}
