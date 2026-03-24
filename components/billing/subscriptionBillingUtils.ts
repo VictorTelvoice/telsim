@@ -317,7 +317,8 @@ export type SubscriptionReactivationFields = {
 
 /**
  * Resuelve href para el flujo `#/web/reactivate-line?token=…`.
- * Prioridad: `reactivation_url` si viene informada → construcción con `reservation_token` del slot.
+ * Prioridad: `reservation_token` vigente del slot → `reactivation_url` persistida.
+ * El token del slot es la fuente de verdad más reciente y evita reutilizar enlaces viejos.
  * Requiere ventana de gracia vigente y/o reserva de slot con token no expirado; si no hay URL ni token usable, devuelve null.
  */
 export function resolveReactivateLineHref(
@@ -346,16 +347,16 @@ export function resolveReactivateLineHref(
     return null;
   }
 
+  if (slotOk) {
+    return `/#/web/reactivate-line?token=${encodeURIComponent(tok)}`;
+  }
+
   const raw = sub.reactivation_url != null ? String(sub.reactivation_url).trim() : '';
   if (raw) {
     if (/^https?:\/\//i.test(raw)) return raw;
     if (raw.startsWith('/#/') || raw.startsWith('#/')) {
       return raw.startsWith('/') ? raw : `/${raw}`;
     }
-  }
-
-  if (tok.length > 0) {
-    return `/#/web/reactivate-line?token=${encodeURIComponent(tok)}`;
   }
 
   return null;

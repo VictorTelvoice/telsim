@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+const isMobileDeviceUA = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
 /**
  * Consumo del token del correo de cancelación (#/web/reactivate-line?token=…).
  * Reactiva la suscripción existente en Stripe (sin Checkout) y restaura el slot en BD.
@@ -8,7 +15,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 const ReactivateLine: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Preparando tu reactivación…');
-  const [nextUrl, setNextUrl] = useState('/#/web');
+  const [nextUrl, setNextUrl] = useState(isMobileDeviceUA() ? '/#/dashboard/numbers' : '/#/web');
 
   useEffect(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -40,7 +47,7 @@ const ReactivateLine: React.FC = () => {
         if (res.ok && data.ok === true) {
           setStatus('success');
           setMessage(typeof data.message === 'string' ? data.message : 'Reactivación exitosa.');
-          if (typeof data.next_url === 'string' && data.next_url.trim() !== '') {
+          if (!isMobileDeviceUA() && typeof data.next_url === 'string' && data.next_url.trim() !== '') {
             setNextUrl(data.next_url.trim());
           }
           return;
