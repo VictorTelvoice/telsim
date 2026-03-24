@@ -269,6 +269,19 @@ const MyNumbers: React.FC = () => {
         return 'cl';
     };
 
+    const getBillingLabel = (slot: SlotWithPlan) =>
+        String(slot.billing_type || 'monthly').toLowerCase() === 'annual' ? 'Anual' : 'Mensual';
+
+    const getStatusLabel = (slot: SlotWithPlan) =>
+        slot.status === 'expired' ? 'Expirada' : 'Activa';
+
+    const formatCreatedAt = (iso?: string | null) => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
     const handleReleaseSlot = async () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
         setReleasing(true);
@@ -598,7 +611,30 @@ const MyNumbers: React.FC = () => {
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('mynumbers.syncing')}</p>
                     </div>
                 ) : (
-                    <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
+                    <div className="space-y-8">
+                        <section className="rounded-[2rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-5 py-5">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                        Mis SIMs
+                                    </p>
+                                    <h2 className="mt-1 text-[24px] font-black tracking-tight text-slate-900 dark:text-white">
+                                        {slots.length} linea{slots.length === 1 ? '' : 's'} operativas
+                                    </h2>
+                                    <p className="mt-1 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                                        Mismo enfoque del dashboard web: identidad de la SIM, plan, estado y acciones rápidas.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/onboarding/region')}
+                                    className="shrink-0 rounded-2xl bg-primary text-white px-4 py-3 text-[11px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20"
+                                >
+                                    Nueva SIM
+                                </button>
+                            </div>
+                        </section>
+
+                        <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
                         {slots.map((slot) => {
                             const style = getPlanStyle(slot.actual_plan_name);
                             const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);
@@ -648,27 +684,50 @@ const MyNumbers: React.FC = () => {
                                                     <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
                                                 </div>
                                             </div>
-                                            <span className="text-[7px] font-bold opacity-20 uppercase">Nodo: {slot.slot_id}</span>
+                                            <span className="text-[8px] font-bold opacity-40 uppercase">Alta: {formatCreatedAt(slot.created_at)}</span>
                                         </div>
                                     </div>
 
-                                    <div className="mt-5 flex items-center justify-center gap-3">
-                                        <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all"><Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}</button>
-                                        <button onClick={() => handleCopy(slot.phone_number)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center shadow-sm"><Copy className="size-4 text-slate-400" /></button>
+                                    <div className="mt-5 rounded-[1.6rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                                        <div className="grid grid-cols-3 gap-px bg-slate-100 dark:bg-slate-800">
+                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Billing</p>
+                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">{getBillingLabel(slot)}</p>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Estado</p>
+                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">{getStatusLabel(slot)}</p>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">SMS</p>
+                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">
+                                                    {(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                                        <button onClick={() => openAutomationConfig(slot)} className="size-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center shadow-sm hover:text-primary transition-colors">
-                                            <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} />
-                                        </button>
-
-                                        <button onClick={() => handleUpgradeSelect(slot)} className="size-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm">
-                                            <TrendingUp className="size-4" />
-                                        </button>
-
-                                        <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="size-12 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-full flex items-center justify-center transition-transform active:scale-90"><Trash2 className="size-4" /></button>
+                                        <div className="p-3 flex items-center justify-center gap-2.5 flex-wrap">
+                                            <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 min-w-[140px] h-12 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all">
+                                                <Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}
+                                            </button>
+                                            <button onClick={() => handleUpgradeSelect(slot)} className="h-12 px-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all">
+                                                <TrendingUp className="size-4" /> Plan
+                                            </button>
+                                            <button onClick={() => openAutomationConfig(slot)} className="h-12 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-primary transition-colors">
+                                                <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} /> Bot
+                                            </button>
+                                            <button onClick={() => handleCopy(slot.phone_number)} className="h-12 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                                                <Copy className="size-4 text-slate-400" /> Copiar
+                                            </button>
+                                            <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="h-12 px-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-transform active:scale-90">
+                                                <Trash2 className="size-4" /> Baja
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
                         })}
+                        </div>
                     </div>
                 )}
             </main>
@@ -691,15 +750,15 @@ const MyNumbers: React.FC = () => {
                   {/* Body */}
                   <div className="p-7 flex flex-col gap-5">
                     <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Al confirmar, tu suscripción quedará cancelada de inmediato y el número será liberado del sistema. <strong className="text-slate-700 dark:text-slate-200">Esta acción no puede deshacerse.</strong>
+                      Al confirmar, programaremos la baja de esta SIM y conservaremos el número reservado durante 48 horas para que puedas reactivarlo. <strong className="text-slate-700 dark:text-slate-200">Durante ese plazo todavía podrás recuperarlo desde Facturación.</strong>
                     </p>
 
                     {/* Checklist de consecuencias */}
                     <div className="rounded-2xl p-4 flex flex-col gap-2.5 bg-rose-50 dark:bg-slate-800">
                       {[
-                        'Perderás acceso al número de forma permanente',
-                        'Los SMS pendientes no podrán recuperarse',
-                        'No se realizará ningún reembolso proporcional',
+                        'La suscripción pasará a baja programada',
+                        'El número quedará reservado por 48 horas para reactivación',
+                        'Tras ese plazo, la línea podrá liberarse definitivamente',
                       ].map((item, i) => (
                         <div key={i} className="flex items-start gap-2.5">
                           <div className="w-4 h-4 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -733,7 +792,7 @@ const MyNumbers: React.FC = () => {
                             ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/30 active:scale-[0.98]'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
                         }`}>
-                        {releasing ? <Loader2 size={15} className="animate-spin" /> : 'Dar de baja definitivamente'}
+                        {releasing ? <Loader2 size={15} className="animate-spin" /> : 'Programar baja de la SIM'}
                       </button>
                       <button
                         onClick={() => { setIsReleaseModalOpen(false); setConfirmReleaseCheck(false); }}
