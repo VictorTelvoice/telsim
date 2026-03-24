@@ -1,37 +1,88 @@
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { ArrowLeft, Check, Zap, Shield, Loader2 } from 'lucide-react';
+import { Check, Loader2, ShieldCheck, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const PLAN_CONFIG: Record<string, any> = {
+const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+const PLAN_CONFIG: Record<string, { color: string; bg: string; border: string; limit: number; features: string[] }> = {
   Starter: {
-    color: '#64748b', bg: '#f8fafc', border: '#e2e8f0',
-    features: ['150 SMS mensuales', 'Número SIM Real', 'Notificaciones en tiempo real', 'Soporte vía Ticket'],
+    color: '#64748b',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
+    limit: 150,
+    features: ['150 SMS mensuales', 'Numero SIM real', 'Notificaciones en tiempo real', 'Soporte via ticket'],
   },
   Pro: {
-    color: '#0047FF', bg: '#eff6ff', border: '#0047FF',
-    features: ['400 SMS mensuales', 'SMS 100% automatizados', 'Acceso a API y Webhooks', 'Soporte prioritario Chat en vivo'],
+    color: '#0047FF',
+    bg: '#eff6ff',
+    border: '#0047FF',
+    limit: 400,
+    features: ['400 SMS mensuales', 'SMS 100% automatizados', 'Acceso a API y Webhooks', 'Soporte prioritario chat en vivo'],
   },
   Power: {
-    color: '#f59e0b', bg: '#fffbeb', border: '#f59e0b',
-    features: ['1,400 SMS mensuales', 'Seguridad y Control Empresarial', 'Integraciones Personalizadas', 'Soporte Prioritario 24/7'],
+    color: '#f59e0b',
+    bg: '#fffbeb',
+    border: '#f59e0b',
+    limit: 1400,
+    features: ['1,400 SMS mensuales', 'Seguridad empresarial', 'Integraciones personalizadas', 'Soporte prioritario 24/7'],
   },
 };
+
+const TelsimLogo = ({ small = false }: { small?: boolean }) => (
+  <div className="flex items-center gap-2.5">
+    <div className={`${small ? 'h-8 w-8' : 'h-9 w-9'} flex items-center justify-center rounded-xl bg-primary`}>
+      <span className={`material-symbols-rounded text-white ${small ? 'text-[17px]' : 'text-[20px]'}`}>sim_card</span>
+    </div>
+    <span className={`${small ? 'text-[16px]' : 'text-xl'} font-extrabold tracking-tight text-slate-900`}>Telsim</span>
+  </div>
+);
+
+const CheckIcon = () => (
+  <span className="material-symbols-outlined text-emerald-500" style={{ fontSize: '16px' }}>
+    check_circle
+  </span>
+);
 
 export default function UpgradeSummary() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { user } = useAuth();
+  const [desktop, setDesktop] = useState(isDesktop());
   const [isProcessing, setIsProcessing] = useState(false);
 
+  useEffect(() => {
+    const handler = () => setDesktop(isDesktop());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   const {
-    phoneNumber, slot_id, planName, currentPlanName,
-    stripePriceId, limit, price, isAnnual,
+    phoneNumber,
+    slot_id,
+    planName = 'Pro',
+    currentPlanName = 'Starter',
+    stripePriceId,
+    limit,
+    price,
+    isAnnual,
   } = state || {};
 
-  const config = PLAN_CONFIG[planName] || PLAN_CONFIG.Starter;
-  const displayPrice = isAnnual ? price : price;
-  const billingLabel = isAnnual ? '/año' : '/mes';
+  const config = PLAN_CONFIG[planName] || PLAN_CONFIG.Pro;
+  const resolvedLimit = limit || config.limit;
+  const resolvedPrice = Number(price || 0);
+
+  const billingLabel = isAnnual ? 'Anual' : 'Mensual';
+
+  const summaryItems = useMemo(
+    () => [
+      { label: 'Plan anterior', value: currentPlanName },
+      { label: 'Nuevo plan', value: `${planName} · ${billingLabel}` },
+      { label: 'Linea SIM', value: phoneNumber || '—' },
+      { label: 'Capacidad', value: `${resolvedLimit} SMS / mes` },
+    ],
+    [billingLabel, currentPlanName, phoneNumber, planName, resolvedLimit]
+  );
 
   const handleConfirmUpgrade = async () => {
     setIsProcessing(true);
@@ -50,7 +101,6 @@ export default function UpgradeSummary() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || 'Error al procesar el upgrade');
       }
@@ -75,138 +125,232 @@ export default function UpgradeSummary() {
     }
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'inherit' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 32px', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 14, fontWeight: 600 }}
-        >
-          <ArrowLeft size={16} /> Cambiar plan
-        </button>
-        <span style={{ color: '#cbd5e1' }}>/</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Confirmar upgrade</span>
-        <span style={{ fontSize: 12, background: '#f1f5f9', color: '#64748b', padding: '2px 10px', borderRadius: 20, fontFamily: 'monospace' }}>{phoneNumber}</span>
+  const PlanCard = () => (
+    <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-[#1A2230]">
+      <div className="border-b border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/30">
+        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Upgrade de infraestructura</span>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{planName}</span>
+          <span
+            className="rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider"
+            style={{ color: config.color, borderColor: `${config.color}40`, backgroundColor: `${config.color}12` }}
+          >
+            {billingLabel}
+          </span>
+        </div>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 32px', display: 'grid', gridTemplateColumns: '1fr 420px', gap: 32, alignItems: 'start' }}>
-
-        {/* LEFT: Plan details */}
-        <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>Confirma tu nuevo plan</h1>
-          <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 32px' }}>
-            Cambias de <strong style={{ color: '#475569' }}>{currentPlanName || 'Starter'}</strong> a <strong style={{ color: config.color }}>{planName}</strong>. El cambio es inmediato.
-          </p>
-
-          {/* Plan card */}
-          <div style={{ background: 'white', borderRadius: 20, border: `2px solid ${config.border}`, padding: 28, marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 800, color: config.color, textTransform: 'uppercase', letterSpacing: 2, margin: '0 0 4px' }}>{planName}</p>
-                <p style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: 0 }}>{limit?.toLocaleString()} créditos/mes</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: 42, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed(2)}</span>
-                <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{billingLabel}</span>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {config.features.map((f: string, i: number) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Check size={11} color="#16a34a" strokeWidth={3} />
-                  </div>
-                  <span style={{ fontSize: 13, color: '#475569' }}>{f}</span>
-                </div>
-              ))}
+      <div className="space-y-5 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400">Linea seleccionada</span>
+            <span className="font-mono text-xl font-black text-slate-900 dark:text-white">{phoneNumber || '—'}</span>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-500">{resolvedLimit} SMS / mes</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                Sin trial
+              </span>
             </div>
           </div>
-
-          {/* Info inmediato */}
-          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <Zap size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: 2 }} />
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#15803d', margin: '0 0 2px' }}>Activación inmediata</p>
-              <p style={{ fontSize: 12, color: '#16a34a', margin: 0 }}>Tu línea se reconfigurará instantáneamente con las nuevas capacidades {planName}. Sin tiempo de espera.</p>
-            </div>
+          <div className="text-right">
+            <span className="text-3xl font-black text-slate-900 dark:text-white">${resolvedPrice.toFixed(2)}</span>
+            <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">{isAnnual ? '/año' : '/mes'}</span>
           </div>
         </div>
 
-        {/* RIGHT: Summary box */}
-        <div style={{ position: 'sticky', top: 24 }}>
-          <div style={{ background: 'white', borderRadius: 20, border: '1px solid #e2e8f0', padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 20px' }}>Resumen del pedido</h3>
+        <div className="space-y-2">
+          {config.features.map((feature, index) => (
+            <div key={index} className="flex items-center gap-2 text-[12px] font-bold text-slate-500">
+              <CheckIcon />
+              {feature}
+            </div>
+          ))}
+        </div>
 
-            {/* Number */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Shield size={16} color="#64748b" />
-              </div>
-              <div>
-                <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, margin: 0 }}>NÚMERO SIM</p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0, fontFamily: 'monospace' }}>{phoneNumber}</p>
-              </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-800/40 dark:bg-emerald-900/20">
+          <div className="mb-3 flex items-start gap-3">
+            <Zap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div>
+              <p className="text-sm font-black uppercase tracking-tight text-emerald-800 dark:text-emerald-300">Activación inmediata</p>
+              <p className="mt-1 text-[11px] font-medium leading-relaxed text-emerald-700 dark:text-emerald-400/80">
+                Tu SIM se actualizará con las nuevas capacidades al confirmar el upgrade.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-t border-emerald-500/10 pt-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Cambio</span>
+            <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300">
+              {currentPlanName} → {planName}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const Totals = () => (
+    <div className="flex flex-col gap-3">
+      {summaryItems.map((item) => (
+        <div key={item.label} className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-slate-400">
+          <span>{item.label}</span>
+          <span className="max-w-[52%] truncate text-right text-slate-700 dark:text-slate-200">{item.value}</span>
+        </div>
+      ))}
+      <div className="my-1 h-px w-full bg-slate-200 dark:bg-slate-800" />
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-black uppercase text-slate-900 dark:text-white">Total hoy</span>
+        <span className="text-3xl font-black text-slate-900 dark:text-white">${resolvedPrice.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+
+  if (desktop) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F0F4F8] font-display">
+        <header className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
+          <TelsimLogo />
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400">
+              <span className="text-[10px] text-white">✓</span>
+            </span>
+            Plan upgrade
+            <span className="mx-1 text-slate-200">·</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+              <span className="text-[10px] font-black text-white">2</span>
+            </span>
+            <span className="font-bold text-slate-700">Confirmación</span>
+          </div>
+          <button
+            onClick={() => !isProcessing && navigate(-1)}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400 transition-colors hover:text-primary"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            Volver
+          </button>
+        </header>
+
+        <div className="flex flex-1 items-start justify-center px-8 py-12">
+          <div className="w-full max-w-3xl">
+            <div className="mb-8">
+              <h1 className="text-[30px] font-black tracking-tight text-slate-900">Confirma tu upgrade</h1>
+              <p className="mt-1.5 text-[14px] text-slate-500">Revisa los detalles antes de aplicar el cambio a tu SIM.</p>
             </div>
 
-            {/* Plan change */}
-            <div style={{ padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: '#94a3b8' }}>Plan anterior</span>
-                <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{currentPlanName}</span>
+            <div className="grid grid-cols-5 gap-6">
+              <div className="col-span-3">
+                <PlanCard />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>Nuevo plan</span>
-                <span style={{ fontSize: 13, color: config.color, fontWeight: 700 }}>{planName}</span>
+
+              <div className="col-span-2 flex flex-col gap-5">
+                <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <h3 className="mb-5 text-[13px] font-black uppercase tracking-wider text-slate-400">Resumen de cobro</h3>
+                  <Totals />
+                </div>
+
+                <button
+                  onClick={handleConfirmUpgrade}
+                  disabled={isProcessing}
+                  className="group flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-black text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
+                >
+                  <span>{isProcessing ? <Loader2 className="h-5 w-5 animate-spin text-white/80" /> : <span />}</span>
+                  <span>{isProcessing ? 'Procesando...' : `Confirmar upgrade a ${planName}`}</span>
+                  <span className="material-symbols-outlined text-white/80">arrow_forward</span>
+                </button>
+
+                <div className="flex flex-col gap-2 px-2">
+                  {[
+                    { icon: '⚡', text: 'Cambio inmediato en tu infraestructura' },
+                    { icon: '🔒', text: 'Pago seguro procesado por Stripe' },
+                    { icon: '🛡️', text: 'Sin periodo de prueba en upgrades' },
+                  ].map((item) => (
+                    <div key={item.text} className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+                      <span>{item.icon}</span>
+                      <span>{item.text}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {/* Billing */}
-            <div style={{ padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: '#64748b' }}>Facturación</span>
-                <span style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{isAnnual ? 'Anual' : 'Mensual'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: '#64748b' }}>Período de prueba</span>
-                <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>Sin trial</span>
-              </div>
-            </div>
+  return (
+    <div className="flex min-h-screen flex-col items-center bg-background-light font-display text-[#111318] antialiased dark:bg-background-dark dark:text-white">
+      <div className="relative flex min-h-screen w-full max-w-md flex-col overflow-x-hidden bg-background-light shadow-2xl dark:bg-background-dark">
+        <div className="sticky top-0 z-20 flex items-center bg-background-light/90 px-4 py-3 backdrop-blur-sm dark:bg-background-dark/90">
+          <div
+            onClick={() => !isProcessing && navigate(-1)}
+            className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 ${isProcessing ? 'opacity-30' : ''}`}
+          >
+            <span className="material-symbols-outlined text-[#111318] dark:text-white" style={{ fontSize: '24px' }}>
+              arrow_back
+            </span>
+          </div>
+          <h2 className="flex-1 pr-10 text-center text-lg font-bold leading-tight text-[#111318] dark:text-white">Confirmar upgrade</h2>
+        </div>
 
-            {/* Total */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0 20px' }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Total hoy</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed(2)}</span>
-            </div>
+        <div className="flex flex-col gap-2 px-6 pb-4 pt-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-primary dark:text-blue-400">Paso 2 de 2</p>
+            <p className="text-xs font-medium text-gray-400">Finalizar</p>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#dbdfe6] dark:bg-gray-700">
+            <div className="h-full w-full bg-primary" />
+          </div>
+        </div>
 
-            {/* CTA */}
-            <button
-              onClick={handleConfirmUpgrade}
-              disabled={isProcessing}
-              style={{
-                width: '100%', padding: '15px 0', borderRadius: 14, border: 'none',
-                background: isProcessing ? '#94a3b8' : config.color,
-                color: 'white', fontSize: 15, fontWeight: 800, cursor: isProcessing ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {isProcessing ? (
-                <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Procesando...</>
-              ) : (
-                <>Confirmar upgrade a {planName} →</>
-              )}
-            </button>
-
-            <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', margin: '12px 0 0' }}>
-              🔒 Pago seguro. El cobro es inmediato y sin período de prueba.
+        <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto px-6 pb-44">
+          <div className="pb-6 pt-2">
+            <h1 className="mb-2 text-left text-[28px] font-extrabold leading-tight tracking-tight text-[#111318] dark:text-white">
+              Confirma tu nuevo plan
+            </h1>
+            <p className="text-base font-medium text-gray-500 dark:text-gray-400">
+              Revisa tu upgrade antes de aplicarlo a la línea.
             </p>
           </div>
+
+          <div className="mb-6">
+            <PlanCard />
+          </div>
+
+          <div className="mb-6 flex flex-col gap-3 px-2">
+            <Totals />
+          </div>
+
+          <div className="mx-2 mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-5 dark:border-blue-900/30 dark:bg-blue-900/10">
+            <div className="flex items-start gap-4">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <p className="text-[11px] font-bold leading-relaxed text-slate-600 dark:text-slate-300">
+                Este upgrade se cobra de inmediato y actualiza tu SIM sin esperar un nuevo período de prueba.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="fixed bottom-0 z-30 w-full max-w-md border-t border-gray-100 bg-white/95 p-6 pb-10 backdrop-blur-md dark:border-gray-800 dark:bg-[#101622]/95">
+          <button
+            onClick={handleConfirmUpgrade}
+            disabled={isProcessing}
+            className="group flex h-16 w-full items-center justify-between rounded-2xl bg-primary px-2 font-bold text-white shadow-button transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
+          >
+            <div className="w-12">
+              {isProcessing ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-white/80" /> : null}
+            </div>
+            <span className="text-[17px] uppercase tracking-wide">
+              {isProcessing ? 'Procesando...' : `Confirmar ${planName}`}
+            </span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 transition-colors group-hover:bg-white/30">
+              <span className="material-symbols-outlined text-white">arrow_forward</span>
+            </div>
+          </button>
         </div>
       </div>
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
