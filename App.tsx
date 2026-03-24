@@ -78,8 +78,8 @@ const UserTicketChat = React.lazy(() => import('./screens/dashboard/UserTicketCh
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-5 py-4 shadow-sm">
-      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Cargando Telsim...</p>
+    <div className="flex items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-5 py-4 shadow-sm">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-600 dark:border-t-blue-400" />
     </div>
   </div>
 );

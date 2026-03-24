@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { resolveAvatarUrlForUi } from '../lib/resolveAvatarUrl';
+import { resolveAvatarUrlForUi, sanitizeHttpUrl } from '../lib/resolveAvatarUrl';
 
 interface SideDrawerProps {
   isOpen: boolean;
@@ -21,13 +21,14 @@ export default function SideDrawer({
 }: SideDrawerProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { user: authUser } = useAuth();
-  const resolvedAvatarUrl = resolveAvatarUrlForUi(authUser);
+  const { user: authUser, profile, version } = useAuth();
+  const resolvedAvatarUrl =
+    sanitizeHttpUrl(profile?.avatar_url) ?? resolveAvatarUrlForUi(authUser);
   const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     setAvatarError(false);
-  }, [resolvedAvatarUrl]);
+  }, [resolvedAvatarUrl, version]);
 
   const isDark = theme === 'dark';
 
