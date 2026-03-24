@@ -81,12 +81,13 @@ const Settings: React.FC = () => {
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
+      const avatarUrlWithVersion = `${publicUrl}?t=${Date.now()}`;
       const { error: authError } = await (supabase.auth as any).updateUser({
-        data: { avatar_url: publicUrl }
+        data: { avatar_url: avatarUrlWithVersion }
       });
       if (authError) throw authError;
-      await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
-      setAvatarUrl(publicUrl);
+      await supabase.from('users').update({ avatar_url: avatarUrlWithVersion }).eq('id', user.id);
+      setAvatarUrl(avatarUrlWithVersion);
 
       invalidateProfile();
       await refreshProfile();

@@ -71,10 +71,11 @@ const Profile: React.FC = () => {
         .from('avatars').upload(fileName, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const avatarUrlWithVersion = `${publicUrl}?t=${Date.now()}`;
       // Cast supabase.auth to any to bypass SupabaseAuthClient type missing updateUser
-      await (supabase.auth as any).updateUser({ data: { avatar_url: publicUrl } });
-      await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', user.id);
-      setAvatarUrl(publicUrl);
+      await (supabase.auth as any).updateUser({ data: { avatar_url: avatarUrlWithVersion } });
+      await supabase.from('users').update({ avatar_url: avatarUrlWithVersion }).eq('id', user.id);
+      setAvatarUrl(avatarUrlWithVersion);
 
       invalidateProfile();
       await refreshProfile();

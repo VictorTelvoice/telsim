@@ -57,7 +57,7 @@ function enrichUser(sessionUser: any, profile: ProfileData) {
 }
 
 const PROFILE_CACHE_PREFIX = 'telsim_profile_v1_';
-const PROFILE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 días
+const PROFILE_CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutos
 
 function profileCacheKey(userId: string) {
   return `${PROFILE_CACHE_PREFIX}${userId}`;
@@ -305,14 +305,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (cached !== undefined) {
         lastProfileErrorAtRef.current = null;
-        lastProfileLoadedUserIdRef.current = userId;
-        // cache puede ser null real o un objeto válido
+        // Pintamos cache primero para velocidad, pero seguimos revalidando en DB.
         setProfile(cached);
         setUser(enrichUser(sessUser, cached));
-        // Hydration aplicada al estado: marca gate luego de setProfile/setUser
-        lastHydratedAuthUserIdRef.current = userId;
         setProfileLoading(false);
-        return;
       }
 
       // 2) Si no existe cache => consultar DB
@@ -394,6 +390,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       lastProfileErrorAtRef.current = null;
+      lastProfileLoadedUserIdRef.current = userId;
 
       setProfile(p);
       setUser((prev: any) => (prev ? enrichUser(prev, p) : null));
@@ -475,6 +472,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
   }, [runBackgroundWork, setBaseAuthState, clearProfileViewState, resetHydrationGate, resetProfileFetchGuards]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user?.id) return;
+
+    const syncVisibleProfile = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshProfile().catch((err) => console.error('Auth visibility refresh error:', err));
+      }
+    };
+
+    const syncFocusedProfile = () => {
+      void refreshProfile().catch((err) => console.error('Auth focus refresh error:', err));
+    };
+
+    window.addEventListener('focus', syncFocusedProfile);
+    document.addEventListener('visibilitychange', syncVisibleProfile);
+
+    return () => {
+      window.removeEventListener('focus', syncFocusedProfile);
+      document.removeEventListener('visibilitychange', syncVisibleProfile);
+    };
+  }, [refreshProfile, user?.id]);
 
   const signOut = useCallback(async () => {
     const userId = user?.id;
