@@ -5,14 +5,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getPostAuthRoute } from '../../lib/routing';
-import { STRIPE_PRICES } from '../../constants/stripePrices';
 import { useMessagesCount } from '../../contexts/MessagesContext';
 import { Slot } from '../../types';
 import {
     Copy,
     Trash2,
-    Settings,
-    Mail,
+    MessageSquare,
     PlusCircle,
     ArrowLeft,
     AlertTriangle,
@@ -25,12 +23,12 @@ import {
     ChevronRight,
     Loader2,
     Bot,
-    TrendingUp,
     ToggleLeft,
     ToggleRight,
-    ShieldCheck,
     Send,
-    Search
+    Search,
+    SlidersHorizontal,
+    ArrowUpDown
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -40,56 +38,6 @@ interface SlotWithPlan extends Slot {
     billing_type?: string;
     subscription_created_at?: string | null;
 }
-
-const OFFICIAL_PLANS_DATA = [
-    {
-        id: 'Starter',
-        name: 'Starter',
-        subtitleKey: 'landing.pricing.starter.credits',
-        price: 19.90,
-        limit: 150,
-        stripePriceId: STRIPE_PRICES.STARTER.MONTHLY,
-        annualPrice: 199,
-        annualStripePriceId: STRIPE_PRICES.STARTER.ANNUAL,
-        icon: 'shield',
-        featuresKey: 'landing.pricing.features.starter',
-        accent: 'text-slate-400',
-        iconBg: 'bg-slate-100',
-        border: 'border-slate-100 dark:border-slate-800'
-    },
-    {
-        id: 'Pro',
-        name: 'Pro',
-        subtitleKey: 'landing.pricing.pro.credits',
-        price: 39.90,
-        limit: 400,
-        stripePriceId: STRIPE_PRICES.PRO.MONTHLY,
-        annualPrice: 399,
-        annualStripePriceId: STRIPE_PRICES.PRO.ANNUAL,
-        icon: 'bolt',
-        featuresKey: 'landing.pricing.features.pro',
-        popularBadgeKey: 'landing.pricing.pro.popular',
-        accent: 'text-[#0047FF]',
-        iconBg: 'bg-blue-50 dark:bg-blue-900/20',
-        border: 'border-blue-500/40'
-    },
-    {
-        id: 'Power',
-        name: 'Power',
-        subtitleKey: 'landing.pricing.power.credits',
-        price: 99.00,
-        limit: 1400,
-        stripePriceId: STRIPE_PRICES.POWER.MONTHLY,
-        annualPrice: 990,
-        annualStripePriceId: STRIPE_PRICES.POWER.ANNUAL,
-        icon: 'electric_bolt',
-        featuresKey: 'landing.pricing.features.power',
-        premiumBadgeKey: 'landing.pricing.power.premium',
-        accent: 'text-[#B49248]',
-        iconBg: 'bg-amber-50 dark:bg-amber-900/20',
-        border: 'border-amber-400/50'
-    }
-];
 
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
@@ -117,10 +65,6 @@ const MyNumbers: React.FC = () => {
     const [savingFwd, setSavingFwd] = useState(false);
     const [testingTg, setTestingTg] = useState(false);
     const [slotFwdActive, setSlotFwdActive] = useState(false);
-
-    const [showUpgradeView, setShowUpgradeView] = useState(false);
-    const [slotToUpgrade, setSlotToUpgrade] = useState<SlotWithPlan | null>(null);
-    const [isAnnualUpgrade, setIsAnnualUpgrade] = useState(false);
 
     const fetchSlots = async (): Promise<SlotWithPlan[]> => {
         if (!user?.id) return [];
@@ -166,14 +110,11 @@ const MyNumbers: React.FC = () => {
         if (user?.id) fetchSlots();
     }, [user?.id]);
 
-    // Lógica para detectar si volvemos desde el resumen de upgrade
     useEffect(() => {
         if (location.state?.reopenUpgrade && slots.length > 0) {
             const slot = slots.find(s => s.slot_id === location.state.slotId);
             if (slot) {
-                setSlotToUpgrade(slot);
-                setShowUpgradeView(true);
-                // Limpiamos el estado para que no se reabra innecesariamente en futuros renders
+                handleUpgradeSelect(slot);
                 window.history.replaceState({}, document.title);
             }
         }
@@ -437,28 +378,14 @@ const MyNumbers: React.FC = () => {
     };
 
     const handleUpgradeSelect = (slot: SlotWithPlan) => {
-        setSlotToUpgrade(slot);
-        setShowUpgradeView(true);
-    };
-
-    const confirmUpgrade = (plan: any) => {
-        if (!slotToUpgrade) return;
-        const price = isAnnualUpgrade ? plan.annualPrice : plan.price;
-        const stripePriceId = isAnnualUpgrade ? plan.annualStripePriceId : plan.stripePriceId;
-        navigate('/dashboard/upgrade-summary', {
+        navigate('/dashboard/upgrade-plan', {
             state: {
-                phoneNumber: slotToUpgrade.phone_number,
-                planName: plan.id,
-                currentPlanName: slotToUpgrade.actual_plan_name,
-                currentLimit: slotToUpgrade.monthly_limit,
-                price,
-                limit: plan.limit,
-                stripePriceId,
-                slot_id: slotToUpgrade.slot_id,
-                isAnnual: isAnnualUpgrade,
+                phoneNumber: slot.phone_number,
+                slot_id: slot.slot_id,
+                currentPlanName: slot.actual_plan_name || 'Starter',
+                billing_type: slot.billing_type || 'monthly',
             }
         });
-        setShowUpgradeView(false);
     };
 
     const getPlanStyle = (planName: string | undefined | null) => {
@@ -496,126 +423,6 @@ const MyNumbers: React.FC = () => {
         };
     };
 
-    if (showUpgradeView && slotToUpgrade) {
-        const PLAN_ORDER: Record<string, number> = { 'STARTER': 1, 'PRO': 2, 'POWER': 3 };
-        const currentPlanName = (slotToUpgrade.actual_plan_name || 'Starter').toUpperCase();
-        const currentBillingType = slotToUpgrade.billing_type || 'monthly'; // 'monthly' | 'annual'
-        const currentPlanOrder = PLAN_ORDER[currentPlanName] ?? 1;
-
-        const availablePlans = OFFICIAL_PLANS_DATA.filter((plan) => {
-            const planOrder = PLAN_ORDER[plan.id.toUpperCase()] ?? 1;
-            // Mostrar planes superiores al actual
-            if (planOrder > currentPlanOrder) return true;
-            // Mostrar el mismo plan si está en mensual (para upgrade a anual)
-            if (planOrder === currentPlanOrder && currentBillingType === 'monthly') return true;
-            return false;
-        });
-
-        return (
-            <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col animate-in fade-in duration-300">
-                {/* Header */}
-                <header className="flex items-center justify-between px-6 py-6 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50">
-                    <button onClick={() => setShowUpgradeView(false)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
-                        <ArrowLeft className="size-6" />
-                    </button>
-                    <div className="text-center flex-1">
-                        <h1 className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.change_plan')}</h1>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{formatPhoneNumber(slotToUpgrade.phone_number)}</p>
-                    </div>
-                    <div className="w-10"></div>
-                </header>
-
-                <main className="flex-1 flex flex-col gap-4 px-6 pb-12 overflow-hidden max-w-lg mx-auto w-full">
-                    {/* Plan actual */}
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl px-4 py-3">
-                        <div className="size-2 rounded-full bg-emerald-500"></div>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                            Plan actual:
-                        </span>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
-                            {slotToUpgrade.actual_plan_name || 'Starter'} {currentBillingType === 'annual' ? '· Anual' : '· Mensual'}
-                        </span>
-                    </div>
-
-                    {/* Toggle Anual / Mensual */}
-                    <div className="flex items-center justify-center gap-3 py-2">
-                        <span className={`text-sm font-bold transition-colors ${!isAnnualUpgrade ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Mensual</span>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={isAnnualUpgrade}
-                            onClick={() => setIsAnnualUpgrade((prev) => !prev)}
-                            className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isAnnualUpgrade ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
-                        >
-                            <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${isAnnualUpgrade ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
-                        <span className={`text-sm font-bold transition-colors ${isAnnualUpgrade ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Anual</span>
-                        {isAnnualUpgrade && (
-                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                                Ahorras 17%
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="flex-1 flex flex-col gap-3">
-                        {availablePlans.map((plan) => {
-                            const isSamePlanAnnualUpgrade = PLAN_ORDER[plan.id.toUpperCase()] === currentPlanOrder && currentBillingType === 'monthly';
-                            const displayPrice = isAnnualUpgrade ? plan.annualPrice : plan.price;
-                            return (
-                                <div
-                                    key={plan.id}
-                                    onClick={() => confirmUpgrade(plan)}
-                                    className={`relative flex-1 flex flex-col justify-between bg-white dark:bg-surface-dark rounded-[2.2rem] p-5 border-2 transition-all cursor-pointer hover:scale-[1.01] ${plan.border} shadow-sm active:scale-[0.99]`}
-                                >
-                                    {isSamePlanAnnualUpgrade && (
-                                        <div className="absolute -top-2.5 left-8 bg-emerald-500 text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                            Cambia a anual · Ahorra 17%
-                                        </div>
-                                    )}
-                                    {!isSamePlanAnnualUpgrade && plan.popularBadgeKey && (
-                                        <div className="absolute -top-2.5 left-8 bg-[#0047FF] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                            {t(plan.popularBadgeKey)}
-                                        </div>
-                                    )}
-                                    {!isSamePlanAnnualUpgrade && plan.premiumBadgeKey && (
-                                        <div className="absolute -top-2.5 left-8 bg-gradient-to-r from-[#B49248] to-[#8C6B1C] text-white text-[7px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest z-10">
-                                            {t(plan.premiumBadgeKey)}
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex gap-3 items-center">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${plan.iconBg} ${plan.accent}`}>
-                                                <span className="material-symbols-outlined text-[22px]">{plan.icon}</span>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{plan.name}</h3>
-                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${plan.accent}`}>{t(plan.subtitleKey)}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-baseline gap-0.5">
-                                            <span className="text-2xl font-black tracking-tighter tabular-nums text-slate-900 dark:text-white">${displayPrice.toFixed(2)}</span>
-                                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">{isAnnualUpgrade ? '/yr' : '/m'}</span>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-2 mt-2">
-                                        {(t(plan.featuresKey) as unknown as string[]).map((feat, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <div className={`size-4 rounded-full flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-900/30 border border-blue-100/50`}>
-                                                    <span className={`material-symbols-outlined text-[10px] font-black ${plan.accent}`}>done</span>
-                                                </div>
-                                                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold leading-none">{feat}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </main>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
             <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
@@ -640,34 +447,40 @@ const MyNumbers: React.FC = () => {
                             <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 {filteredSlots.length} SIM{filteredSlots.length === 1 ? '' : 's'}
                             </p>
-                            <div className="rounded-[1.6rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-4 py-3 flex items-center gap-3 flex-wrap">
-                                <Search className="size-4 text-slate-400 flex-shrink-0" />
+                            <div className="rounded-[1.5rem] border border-slate-200/70 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-sm px-2.5 py-2 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                                <Search className="size-3.5 text-slate-400 flex-shrink-0" />
                                 <input
                                     type="text"
                                     value={simFilter}
                                     onChange={(e) => setSimFilter(e.target.value)}
-                                    placeholder="Buscar SIM, etiqueta o plan"
-                                    className="min-w-[120px] flex-1 bg-transparent outline-none text-[13px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    placeholder="Buscar"
+                                    className="min-w-0 w-[34%] flex-none bg-transparent outline-none text-[11px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
-                                <select
-                                    value={planFilter}
-                                    onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
-                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
-                                >
-                                    <option value="all">Todas</option>
-                                    <option value="start">Start</option>
-                                    <option value="pro">Pro</option>
-                                    <option value="power">Power</option>
-                                </select>
-                                <select
-                                    value={sortMode}
-                                    onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
-                                >
-                                    <option value="recent">Recientes</option>
-                                    <option value="oldest">Antiguas</option>
-                                    <option value="usage">Mas uso</option>
-                                </select>
+                                <div className="relative w-[84px] shrink-0">
+                                    <SlidersHorizontal className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        value={planFilter}
+                                        onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
+                                        className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                    >
+                                        <option value="all">Todas</option>
+                                        <option value="start">Start</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="power">Power</option>
+                                    </select>
+                                </div>
+                                <div className="relative w-[92px] shrink-0">
+                                    <ArrowUpDown className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        value={sortMode}
+                                        onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+                                        className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                    >
+                                        <option value="recent">Nuevas</option>
+                                        <option value="oldest">Antiguas</option>
+                                        <option value="usage">Mas uso</option>
+                                    </select>
+                                </div>
                             </div>
                         </section>
 
@@ -753,13 +566,13 @@ const MyNumbers: React.FC = () => {
 
                                         <div className="mt-2 flex items-center justify-end gap-2 flex-wrap">
                                                 <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <Mail className="size-4 text-primary" />
+                                                    <MessageSquare className="size-4 text-primary" />
                                                 </button>
                                                 <button onClick={() => handleUpgradeSelect(slot)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <TrendingUp className="size-4 text-primary" />
+                                                    <Zap className="size-4 text-primary" />
                                                 </button>
                                                 <button onClick={() => openAutomationConfig(slot)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-500'}`} />
+                                                    <Bot className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-500'}`} />
                                                 </button>
                                                 <button onClick={() => handleCopy(slot.phone_number)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <Copy className="size-4 text-slate-500" />
