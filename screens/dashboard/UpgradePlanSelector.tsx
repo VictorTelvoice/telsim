@@ -1,409 +1,370 @@
-import { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Zap } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 
-const PLANS = [
-  {
+const OFFICIAL_PLANS = {
+  starter: {
     id: 'Starter',
-    name: 'STARTER',
-    credits: '150 Creditos SMS',
-    price: 19.9,
-    annualPrice: 199,
-    annualMonthly: 16.58,
+    amount: 19.9,
+    amountAnnual: 199,
     limit: 150,
     stripePriceId: STRIPE_PRICES.STARTER.MONTHLY,
-    annualStripePriceId: STRIPE_PRICES.STARTER.ANNUAL,
-    accent: 'text-slate-500',
-    border: 'border-slate-200',
-    badgeBg: 'bg-slate-900',
-    popular: false,
-    idealFor: 'Usuarios individuales y desarrolladores',
-    features: [
-      'Numero SIM real',
-      'Notificaciones en tiempo real',
-      'Visualizacion en app',
-      'Capacidad: 150 SMS mensuales',
-      'Soporte tecnico via ticket',
-    ],
+    stripePriceIdAnnual: STRIPE_PRICES.STARTER.ANNUAL,
+    creditsLabel: '150 Creditos SMS',
+    featuresKey: 'landing.pricing.features.starter',
+    descKey: 'landing.pricing.starter.desc',
   },
-  {
+  pro: {
     id: 'Pro',
-    name: 'PRO',
-    credits: '400 Creditos SMS',
-    price: 39.9,
-    annualPrice: 399,
-    annualMonthly: 33.25,
+    amount: 39.9,
+    amountAnnual: 399,
     limit: 400,
     stripePriceId: STRIPE_PRICES.PRO.MONTHLY,
-    annualStripePriceId: STRIPE_PRICES.PRO.ANNUAL,
-    accent: 'text-[#0047FF]',
-    border: 'border-[#0047FF]',
-    badgeBg: 'bg-[#0047FF]',
-    popular: true,
-    idealFor: 'Equipos DevOps y automatizadores',
-    features: [
-      'Todo lo incluido en Starter',
-      'SMS 100% automatizados',
-      'Acceso a API, Webhooks y TelegramBot',
-      'Capacidad: 400 SMS mensuales',
-      'Soporte via ticket y chat en vivo',
-    ],
+    stripePriceIdAnnual: STRIPE_PRICES.PRO.ANNUAL,
+    creditsLabel: '400 Creditos SMS',
+    featuresKey: 'landing.pricing.features.pro',
+    descKey: 'landing.pricing.pro.desc',
   },
-  {
+  power: {
     id: 'Power',
-    name: 'POWER',
-    credits: '1,400 Creditos SMS',
-    price: 99,
-    annualPrice: 990,
-    annualMonthly: 82.5,
+    amount: 99,
+    amountAnnual: 990,
     limit: 1400,
     stripePriceId: STRIPE_PRICES.POWER.MONTHLY,
-    annualStripePriceId: STRIPE_PRICES.POWER.ANNUAL,
-    accent: 'text-amber-500',
-    border: 'border-amber-400',
-    badgeBg: 'bg-amber-500',
-    popular: false,
-    idealFor: 'Fintech, corporativos y plataformas P2P',
-    features: [
-      'Todo lo incluido en Pro',
-      'Seguridad y control empresarial',
-      'Integraciones personalizadas',
-      'Capacidad: 1,400 SMS mensuales',
-      'Soporte prioritario 24/7',
-    ],
+    stripePriceIdAnnual: STRIPE_PRICES.POWER.ANNUAL,
+    creditsLabel: '1,400 Creditos SMS',
+    featuresKey: 'landing.pricing.features.power',
+    descKey: 'landing.pricing.power.desc',
   },
-];
+} as const;
 
-type PlanWithForce = (typeof PLANS)[number] & { forceAnnual?: boolean };
+type PlanKey = keyof typeof OFFICIAL_PLANS;
+type VisiblePlan = {
+  key: PlanKey;
+  id: string;
+  creditsLabel: string;
+  limit: number;
+  amount: number;
+  amountAnnual: number;
+  stripePriceId: string;
+  stripePriceIdAnnual: string;
+  featuresKey: string;
+  descKey: string;
+  forceAnnual?: boolean;
+};
+
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="mt-0.5 flex-shrink-0">
+    <circle cx="12" cy="12" r="12" fill="#10b981" opacity="0.15" />
+    <path d="M7 12.5l3.5 3.5 6.5-7" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+const PLAN_ORDER: Record<string, number> = { starter: 1, pro: 2, power: 3 };
+
+const getPlanTheme = (key: PlanKey) => {
+  if (key === 'pro') {
+    return {
+      borderClass: 'border-primary',
+      cardClass: 'bg-[linear-gradient(160deg,#eff6ff_0%,#ffffff_50%)]',
+      badgeClass: 'bg-blue-100 text-primary',
+      idealClass: 'bg-blue-50 text-primary',
+      titleClass: 'text-primary',
+      ctaClass: 'text-primary',
+      ctaBg: 'bg-primary',
+    };
+  }
+  if (key === 'power') {
+    return {
+      borderClass: 'border-amber-400',
+      cardClass: 'bg-white',
+      badgeClass: 'bg-[linear-gradient(135deg,#FEF3C7,#FDE68A)] text-amber-600',
+      idealClass: 'bg-[linear-gradient(135deg,#FFFBEB,#FEF3C7)] text-amber-700',
+      titleClass: 'bg-[linear-gradient(90deg,#F5A623,#D4A017)] bg-clip-text text-transparent',
+      ctaClass: 'bg-[linear-gradient(90deg,#F5A623,#D4A017)] bg-clip-text text-transparent',
+      ctaBg: 'bg-amber-500',
+    };
+  }
+  return {
+    borderClass: 'border-slate-200',
+    cardClass: 'bg-white',
+    badgeClass: 'bg-slate-100 text-slate-600',
+    idealClass: 'bg-slate-50 text-slate-600',
+    titleClass: 'text-slate-400',
+    ctaClass: 'text-slate-500',
+    ctaBg: 'bg-slate-900',
+  };
+};
 
 export default function UpgradePlanSelector() {
   const navigate = useNavigate();
   const { state } = useLocation();
+  const { t } = useLanguage();
 
   const phoneNumber = state?.phoneNumber as string | undefined;
   const slotId = state?.slot_id as string | undefined;
-  const currentPlanName = (state?.currentPlanName || 'Starter') as string;
+  const currentPlanName = String(state?.currentPlanName || 'Starter');
   const currentBilling = (state?.billing_type || 'monthly') as 'monthly' | 'annual';
 
-  const [showAnnual, setShowAnnual] = useState(currentBilling === 'annual');
-  const [activeIndex, setActiveIndex] = useState(0);
-  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const [desktop, setDesktop] = useState(isDesktop());
+  const [isAnnual, setIsAnnual] = useState(currentBilling === 'annual');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  const samePlanAnnual =
-    currentBilling === 'monthly'
-      ? PLANS.find((plan) => plan.id.toLowerCase() === currentPlanName.toLowerCase()) ?? null
-      : null;
+  useEffect(() => {
+    const handler = () => setDesktop(isDesktop());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
-  const otherPlans = PLANS.filter((plan) => plan.id.toLowerCase() !== currentPlanName.toLowerCase());
+  const visiblePlans = useMemo<VisiblePlan[]>(() => {
+    const currentKey = currentPlanName.toLowerCase() as PlanKey;
+    return (Object.entries(OFFICIAL_PLANS) as [PlanKey, (typeof OFFICIAL_PLANS)[PlanKey]][])
+      .filter(([key]) => {
+        const planOrder = PLAN_ORDER[key];
+        const currentOrder = PLAN_ORDER[currentKey] ?? 1;
+        if (planOrder > currentOrder) return true;
+        return key === currentKey && currentBilling === 'monthly';
+      })
+      .map(([key, plan]) => ({
+        key,
+        ...plan,
+        forceAnnual: key === currentKey && currentBilling === 'monthly',
+      }));
+  }, [currentBilling, currentPlanName]);
 
-  const visiblePlans: PlanWithForce[] = [
-    ...(samePlanAnnual ? [{ ...samePlanAnnual, forceAnnual: true }] : []),
-    ...otherPlans,
-  ];
+  useEffect(() => {
+    setCurrentPage(Math.min(visiblePlans.length > 1 ? 1 : 0, Math.max(visiblePlans.length - 1, 0)));
+  }, [visiblePlans.length]);
 
-  const handleCarouselScroll = () => {
-    const node = carouselRef.current;
-    if (!node) return;
-    const cardWidth = node.clientWidth * 0.84;
-    if (!cardWidth) return;
-    const nextIndex = Math.round(node.scrollLeft / (cardWidth + 16));
-    if (nextIndex !== activeIndex) {
-      setActiveIndex(Math.max(0, Math.min(visiblePlans.length - 1, nextIndex)));
-    }
+  useEffect(() => {
+    if (desktop) return;
+    const el = scrollRef.current;
+    if (!el || visiblePlans.length === 0) return;
+    const targetIndex = Math.min(visiblePlans.length > 1 ? 1 : 0, visiblePlans.length - 1);
+    const timer = setTimeout(() => {
+      const cards = el.querySelectorAll<HTMLElement>('[data-plan-card]');
+      const card = cards[targetIndex];
+      card?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      setCurrentPage(targetIndex);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [desktop, visiblePlans.length]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cards = Array.from(el.querySelectorAll<HTMLElement>('[data-plan-card]'));
+    if (cards.length === 0) return;
+
+    const viewportCenter = el.scrollLeft + el.clientWidth / 2;
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, index) => {
+      const center = card.offsetLeft + card.offsetWidth / 2;
+      const distance = Math.abs(center - viewportCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setCurrentPage(closestIndex);
   };
 
-  const scrollToCard = (index: number) => {
-    const node = carouselRef.current;
-    if (!node) return;
-    const card = node.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
-    if (!card) return;
-    card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    setActiveIndex(index);
-  };
-
-  const handleSelect = (plan: PlanWithForce) => {
-    const isAnnual = plan.forceAnnual ?? showAnnual;
+  const handleSelect = (plan: VisiblePlan) => {
+    const useAnnual = plan.forceAnnual ? true : isAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber,
         slot_id: slotId,
         planName: plan.id,
         currentPlanName,
-        stripePriceId: isAnnual ? plan.annualStripePriceId : plan.stripePriceId,
+        stripePriceId: useAnnual ? plan.stripePriceIdAnnual : plan.stripePriceId,
         limit: plan.limit,
-        price: isAnnual ? plan.annualPrice : plan.price,
-        isAnnual,
+        price: useAnnual ? plan.amountAnnual : plan.amount,
+        isAnnual: useAnnual,
         isUpgrade: true,
       },
     });
   };
 
-  return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 md:px-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-          >
-            <ArrowLeft size={16} />
-            <span>Mis SIMs</span>
-          </button>
-          <span className="hidden text-slate-300 md:inline">/</span>
-          <span className="hidden text-sm font-black text-slate-900 md:inline">Cambiar plan</span>
-          <span className="mx-auto text-sm font-black uppercase tracking-[0.2em] text-slate-900 md:hidden">Planes</span>
-          {phoneNumber && (
-            <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 md:ml-0 md:inline-flex">
-              {phoneNumber}
+  const Toggle = () => (
+    <div className="flex items-center gap-3">
+      <span className={`text-sm font-bold transition-colors ${!isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Mensual</span>
+      <button
+        onClick={() => setIsAnnual(!isAnnual)}
+        className={`relative h-6 w-12 rounded-full transition-colors duration-300 ${isAnnual ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+      >
+        <div className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-300 ${isAnnual ? 'translate-x-6' : 'translate-x-0'}`} />
+      </button>
+      <span className={`text-sm font-bold transition-colors ${isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Anual</span>
+      <span className={`rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-600 transition-all duration-200 ${isAnnual ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}>
+        Ahorra 17%
+      </span>
+    </div>
+  );
+
+  const renderCard = (plan: VisiblePlan, mobile = false) => {
+    const theme = getPlanTheme(plan.key);
+    const amount = plan.forceAnnual ? plan.amountAnnual : isAnnual ? plan.amountAnnual : plan.amount;
+    const priceLabel = plan.forceAnnual ? `/yr` : isAnnual ? `/yr` : `/mo`;
+    const featureTexts = t(plan.featuresKey) as unknown as string[];
+    const descText = t(plan.descKey) as unknown as string;
+
+    return (
+      <button
+        key={plan.key}
+        data-plan-card
+        onClick={() => handleSelect(plan)}
+        className={`group relative flex cursor-pointer flex-col overflow-hidden text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl p-6' : 'rounded-3xl p-7 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
+        style={plan.key === 'power' && !mobile
+          ? { background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
+          : undefined}
+      >
+        {plan.forceAnnual ? (
+          <div className={`absolute ${mobile ? '-top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-4 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-emerald-500 text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
+            Cambia a anual
+          </div>
+        ) : plan.key === 'pro' ? (
+          <div className={`absolute ${mobile ? 'top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-5 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-primary text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
+            ⚡ Más popular
+          </div>
+        ) : null}
+
+        <div className={mobile ? 'pt-5' : ''}>
+          <div className={`mb-3 text-[11px] font-black uppercase tracking-widest ${theme.titleClass}`}>{plan.id}</div>
+          <div className={`mb-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${theme.badgeClass}`}>
+            <span className="text-[11px] font-black">{plan.creditsLabel}</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className={`${mobile ? 'text-5xl' : 'text-[48px]'} font-black leading-none text-slate-900 dark:text-white`}>
+              ${amount}
             </span>
-          )}
+            <span className="text-sm font-semibold text-slate-400">{priceLabel}</span>
+          </div>
+          {plan.forceAnnual ? (
+            <p className="mt-1 text-[11px] font-bold text-emerald-500">Upgrade anual inmediato</p>
+          ) : isAnnual ? (
+            <p className="mt-1 text-[11px] font-bold text-emerald-500">
+              Facturado como ${plan.amountAnnual}/año
+            </p>
+          ) : null}
         </div>
+
+        <div className={`h-px ${plan.key === 'power' ? '' : plan.key === 'pro' ? 'bg-gradient-to-r from-transparent via-blue-200 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent'}`} style={plan.key === 'power' ? { background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' } : undefined} />
+
+        <div className={`flex flex-1 flex-col ${mobile ? 'gap-2.5' : 'gap-2.5'}`}>
+          {featureTexts.map((feature, index) => (
+            <div key={`${plan.key}-${index}`} className="flex items-start gap-2">
+              <CheckIcon />
+              <span className={`${mobile ? 'text-xs' : 'text-[13px]'} font-semibold text-slate-700 dark:text-slate-300`}>
+                {feature}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className={`rounded-2xl px-4 py-3 ${theme.idealClass}`}>
+          <p className="mb-0.5 text-[9px] font-black uppercase tracking-wider opacity-60">Ideal para</p>
+          <p className={`${mobile ? 'text-xs' : 'text-[12px]'} font-bold`}>{descText}</p>
+        </div>
+
+        <div className={`flex items-center justify-center gap-1.5 pt-1 ${theme.ctaClass}`}>
+          <span className={`${mobile ? 'text-sm' : 'text-[14px]'} font-black`}>Cambiar plan</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
+      </button>
+    );
+  };
+
+  if (desktop) {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8] font-display">
+        <header className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
+              <span className="material-symbols-rounded text-[20px] text-white">sim_card</span>
+            </div>
+            <span className="text-xl font-extrabold tracking-tight text-slate-900">Telsim</span>
+          </button>
+          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+            <span>{phoneNumber || 'Cambiar plan'}</span>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-6xl px-8 py-12">
+          <div className="mb-10 text-center">
+            <h1 className="text-[36px] font-black tracking-tight text-slate-900">Elige tu nuevo plan</h1>
+            <p className="mt-2 text-[15px] font-medium text-slate-500">
+              Plan actual: {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'} — El cambio es inmediato, sin días de prueba.
+            </p>
+          </div>
+
+          <div className="mb-10 flex justify-center">
+            <Toggle />
+          </div>
+
+          <div className={`grid gap-6 ${visiblePlans.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : visiblePlans.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {visiblePlans.map((plan) => renderCard(plan))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-background-light font-display dark:bg-background-dark">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-background-light/90 px-5 py-4 backdrop-blur-md dark:border-slate-800 dark:bg-background-dark/90">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-slate-600 dark:text-slate-300">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Planes</h2>
+        <div className="w-10" />
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 pt-10 md:px-8 md:pt-14">
-        <section className="mx-auto max-w-3xl text-center">
-          <h1 className="text-[42px] font-black leading-[0.95] tracking-tight text-slate-900 md:text-6xl">
-            Elige tu nuevo plan
-          </h1>
-          <p className="mt-5 text-base leading-relaxed text-slate-400 md:text-xl">
-            Plan actual:{' '}
-            <strong className="text-slate-700">
-              {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'}
-            </strong>{' '}
-            — El cambio es inmediato, sin días de prueba.
+      <main className="flex flex-1 flex-col pb-10">
+        <div className="px-6 pb-4 pt-3 text-center">
+          <h1 className="mb-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Elige tu nuevo plan</h1>
+          <p className="text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+            Plan actual: {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'}
           </p>
-        </section>
+        </div>
 
-        {visiblePlans.length > 0 && (
-          <section className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <span className={`text-lg font-bold ${!showAnnual ? 'text-slate-900' : 'text-slate-400'}`}>Mensual</span>
-            <button
-              onClick={() => setShowAnnual((prev) => !prev)}
-              className={`relative h-12 w-24 rounded-full transition-colors ${
-                showAnnual ? 'bg-[#1d4fff]' : 'bg-slate-200'
-              }`}
-              type="button"
-              role="switch"
-              aria-checked={showAnnual}
-            >
-              <span
-                className={`absolute top-1.5 h-9 w-9 rounded-full bg-white shadow-md transition-all ${
-                  showAnnual ? 'left-[3.75rem]' : 'left-1.5'
-                }`}
-              />
-            </button>
-            <span className={`text-lg font-black ${showAnnual ? 'text-slate-900' : 'text-slate-400'}`}>Anual</span>
-            {showAnnual && (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-600">
-                Ahorra 17%
-              </span>
-            )}
-          </section>
-        )}
+        <div className="mb-6 flex items-center justify-center gap-3 px-6">
+          <Toggle />
+        </div>
 
-        <section className="mt-10 hidden gap-5 md:grid md:grid-cols-2 xl:grid-cols-3">
-          {visiblePlans.map((plan) => {
-            const isAnnual = plan.forceAnnual ?? showAnnual;
-            const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
-            const planTone = plan.id === 'Power'
-              ? 'bg-amber-50 text-amber-700'
-              : plan.id === 'Pro'
-                ? 'bg-blue-50 text-blue-700'
-                : 'bg-slate-100 text-slate-600';
-            const idealTone = plan.id === 'Power'
-              ? 'bg-amber-50 text-amber-700'
-              : plan.id === 'Pro'
-                ? 'bg-blue-50 text-blue-700'
-                : 'bg-slate-50 text-slate-600';
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          style={{ scrollPaddingInline: 'calc(50% - 36vw)' }}
+          className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[14vw] pb-4 pt-4"
+        >
+          {visiblePlans.map((plan) => renderCard(plan, true))}
+        </div>
 
-            return (
-              <article
-                key={plan.id}
-                onClick={() => handleSelect(plan)}
-                className={`relative flex min-h-[640px] cursor-pointer flex-col rounded-[2rem] border-2 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl md:p-7 ${plan.border}`}
-              >
-                {plan.forceAnnual && (
-                  <div className="absolute -top-3 left-6 rounded-full bg-emerald-500 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                    Cambia a anual · Ahorra 17%
-                  </div>
-                )}
-                {!plan.forceAnnual && plan.popular && (
-                  <div className="absolute -top-3 left-6 flex items-center gap-1 rounded-full bg-[#0047FF] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                    <Zap size={10} />
-                    Más popular
-                  </div>
-                )}
-
-                <div className={`text-sm font-black uppercase tracking-[0.32em] ${plan.accent}`}>{plan.name}</div>
-                <div className={`mt-3 inline-flex w-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${planTone}`}>
-                  {plan.credits}
-                </div>
-
-                <div className="mt-7">
-                  <div className="flex items-end gap-2">
-                    <span className="text-[56px] font-black leading-none tracking-tight text-slate-900 md:text-[72px]">
-                      ${displayPrice.toFixed(2)}
-                    </span>
-                    <span className="mb-2 text-xl font-bold text-slate-400">/mo</span>
-                  </div>
-                  {isAnnual && (
-                    <p className="mt-2 text-base text-slate-400">
-                      Facturado como ${plan.annualPrice}/año
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-8 flex flex-1 flex-col gap-4">
-                  {plan.features.map((feature) => (
-                    <div key={feature} className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
-                        <Check size={14} className="text-emerald-600" strokeWidth={3} />
-                      </div>
-                      <span className="text-lg leading-8 text-slate-600">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={`mt-7 rounded-2xl px-4 py-3 ${idealTone}`}>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">Ideal para</p>
-                  <p className="mt-1 text-sm font-bold">{plan.idealFor}</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleSelect(plan);
-                  }}
-                  className={`mt-6 h-14 rounded-2xl text-base font-black text-white transition hover:opacity-90 ${
-                    plan.id === 'Power'
-                      ? 'bg-amber-500'
-                      : plan.popular
-                        ? 'bg-[#0047FF]'
-                        : 'bg-slate-900'
-                  }`}
-                >
-                  Seleccionar plan
-                </button>
-              </article>
-            );
-          })}
-        </section>
-
-        <section className="mt-10 md:hidden">
-          <div
-            ref={carouselRef}
-            onScroll={handleCarouselScroll}
-            className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {visiblePlans.map((plan, index) => {
-              const isAnnual = plan.forceAnnual ?? showAnnual;
-              const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
-              const planTone = plan.id === 'Power'
-                ? 'bg-amber-50 text-amber-700'
-                : plan.id === 'Pro'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'bg-slate-100 text-slate-600';
-              const idealTone = plan.id === 'Power'
-                ? 'bg-amber-50 text-amber-700'
-                : plan.id === 'Pro'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'bg-slate-50 text-slate-600';
-
-              return (
-                <article
-                  key={plan.id}
-                  data-card-index={index}
-                  onClick={() => handleSelect(plan)}
-                  className={`relative min-h-[590px] w-[84vw] max-w-[360px] shrink-0 snap-center rounded-[2.2rem] border-[3px] bg-white px-6 pb-7 pt-8 shadow-sm ${plan.border}`}
-                >
-                  {plan.forceAnnual && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white">
-                      Cambia a anual
-                    </div>
-                  )}
-                  {!plan.forceAnnual && plan.popular && (
-                    <div className="absolute -top-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-b-[1.6rem] rounded-t-none bg-[#2c57db] px-5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                      <Zap size={11} />
-                      Más popular
-                    </div>
-                  )}
-
-                  <div className={`mt-8 text-[10px] font-black uppercase tracking-[0.34em] ${plan.accent}`}>{plan.name}</div>
-                  <div className={`mt-5 inline-flex w-fit items-center rounded-full px-4 py-2 text-[11px] font-black ${planTone}`}>
-                    {plan.credits}
-                  </div>
-
-                  <div className="mt-8 flex items-end gap-2">
-                    <span className="text-[64px] font-black leading-none tracking-tight text-slate-900">
-                      ${displayPrice.toFixed(2)}
-                    </span>
-                    <span className="mb-2 text-[18px] font-black text-slate-400">/mo</span>
-                  </div>
-                  {isAnnual && (
-                    <p className="mt-2 text-[13px] text-slate-400">
-                      Facturado como ${plan.annualPrice}/año
-                    </p>
-                  )}
-
-                  <div className="mt-7 border-t border-slate-100 pt-6">
-                    <div className="flex flex-col gap-4">
-                      {plan.features.map((feature) => (
-                        <div key={feature} className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
-                            <Check size={14} className="text-emerald-500" strokeWidth={3} />
-                          </div>
-                          <span className="text-[14px] font-medium leading-8 text-slate-600">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={`mt-7 rounded-[1.8rem] px-5 py-4 ${idealTone}`}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Ideal para</p>
-                    <p className="mt-2 text-[14px] font-black leading-6">{plan.idealFor}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleSelect(plan);
-                    }}
-                    className={`mt-7 w-full text-center text-[17px] font-black ${
-                      plan.id === 'Power'
-                        ? 'text-amber-500'
-                        : plan.popular
-                          ? 'text-[#2c57db]'
-                          : 'text-slate-900'
-                    }`}
-                  >
-                    Seleccionar plan →
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-
-          <div className="mt-3 flex items-center justify-center gap-3">
-            {visiblePlans.map((plan, index) => (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => scrollToCard(index)}
-                className={`h-3 rounded-full transition-all ${
-                  activeIndex === index ? 'w-8 bg-[#2c57db]' : 'w-3 bg-slate-200'
-                }`}
-                aria-label={`Ver plan ${plan.name}`}
-              />
-            ))}
-          </div>
-        </section>
-
-        <p className="mt-8 text-center text-sm font-medium text-slate-400 md:text-base">
-          El upgrade es inmediato y sin período de prueba. Se cobrará el plan completo desde hoy.
-        </p>
+        <div className="mt-3 flex justify-center gap-2">
+          {visiblePlans.map((plan, index) => (
+            <div
+              key={plan.key}
+              className={`rounded-full transition-all duration-300 ${currentPage === index ? 'h-2 w-4 bg-primary' : 'h-2 w-2 bg-slate-200 dark:bg-slate-700'}`}
+            />
+          ))}
+        </div>
       </main>
     </div>
   );

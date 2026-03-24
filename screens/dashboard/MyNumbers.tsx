@@ -515,7 +515,7 @@ const MyNumbers: React.FC = () => {
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <div
-                                        className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col gap-4 ${style.cardBg}`}
+                                        className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
                                         style={{
                                             clipPath:
                                                 'polygon(14px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
@@ -551,12 +551,12 @@ const MyNumbers: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="mt-1 flex items-center gap-5">
+                                        <div className="flex items-center gap-5">
                                             <div className={`w-14 h-10 rounded-lg border border-black/10 shadow-inner ${style.chip}`}></div>
                                             <div className="flex flex-col min-w-0 flex-1">
                                                 <span className="text-[8px] font-black uppercase tracking-[0.3em] opacity-40">Subscriber Number</span>
                                                 <h3 className="text-[24px] font-black font-mono tracking-tighter leading-none">{formatPhoneNumber(slot.phone_number)}</h3>
-                                                <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-1 items-start">
+                                                <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 items-start">
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Ciclo</p>
                                                         <p className="text-[12px] font-black">
@@ -584,7 +584,7 @@ const MyNumbers: React.FC = () => {
 
                                         </div>
 
-                                        <div className="mt-auto flex items-center justify-end gap-2 flex-wrap">
+                                        <div className="mt-2 flex items-center justify-end gap-2 flex-wrap">
                                                 <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <MessageSquare className="size-4 text-primary" />
                                                 </button>
