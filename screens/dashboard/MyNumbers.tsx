@@ -497,7 +497,7 @@ const MyNumbers: React.FC = () => {
                                         className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
                                         style={{
                                             clipPath:
-                                                'polygon(14px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
+                                                'polygon(14px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
                                         }}
                                     >
                                         <div className="flex justify-between items-start">
@@ -559,7 +559,7 @@ const MyNumbers: React.FC = () => {
 
                                         <div className="flex items-end justify-between gap-4">
                                             <div className="flex flex-col gap-2 min-w-0">
-                                                <div className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.18em] flex items-center gap-1 w-fit ${style.badgeBg}`}>
+                                                <div className={`w-14 justify-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.18em] flex items-center gap-1 ${style.badgeBg}`}>
                                                     {style.icon} {style.label}
                                                 </div>
                                             </div>
