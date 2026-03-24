@@ -613,17 +613,19 @@ const MyNumbers: React.FC = () => {
                 ) : (
                     <div className="space-y-8">
                         <section className="rounded-[2rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-5 py-5">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                                        Mis SIMs
-                                    </p>
-                                    <h2 className="mt-1 text-[24px] font-black tracking-tight text-slate-900 dark:text-white">
-                                        {slots.length} linea{slots.length === 1 ? '' : 's'} operativas
-                                    </h2>
-                                    <p className="mt-1 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                                        Mismo enfoque del dashboard web: identidad de la SIM, plan, estado y acciones rápidas.
-                                    </p>
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className="w-14 h-14 rounded-[1.4rem] bg-gradient-to-br from-[#0047FF] via-[#2563eb] to-[#00C8FF] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                        <span className="text-[22px]">📶</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                            Chips activos
+                                        </p>
+                                        <h2 className="mt-1 text-[24px] font-black tracking-tight text-slate-900 dark:text-white">
+                                            {slots.length} chip{slots.length === 1 ? '' : 's'}
+                                        </h2>
+                                    </div>
                                 </div>
                                 <button
                                     onClick={() => navigate('/onboarding/region')}
@@ -635,13 +637,13 @@ const MyNumbers: React.FC = () => {
                         </section>
 
                         <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
-                        {slots.map((slot) => {
+                        {slots.map((slot, index) => {
                             const style = getPlanStyle(slot.actual_plan_name);
                             const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className={`relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500 p-7 aspect-[1.58/1] flex flex-col justify-between ${style.cardBg}`}>
+                                    <div className={`relative shadow-2xl rounded-[2rem] overflow-hidden group/sim transition-all duration-500 p-7 min-h-[320px] flex flex-col justify-between ${style.cardBg}`}>
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col gap-1">
                                                 <span className={`text-[12px] font-black tracking-tighter uppercase ${style.accentText}`}>Telsim Online</span>
@@ -662,8 +664,13 @@ const MyNumbers: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="size-8 rounded-full overflow-hidden border-2 shadow-sm border-white/40">
-                                                <img src={`https://flagcdn.com/w80/${getCountryCode(slot)}.png`} className="w-full h-full object-cover" alt="" />
+                                            <div className="flex flex-col items-end gap-2">
+                                                <div className="size-8 rounded-full overflow-hidden border-2 shadow-sm border-white/40">
+                                                    <img src={`https://flagcdn.com/w80/${getCountryCode(slot)}.png`} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                                <span className={`text-[11px] font-black font-mono tracking-widest ${style.accentText}`}>
+                                                    #{String(index + 1).padStart(2, '0')}
+                                                </span>
                                             </div>
                                         </div>
 
@@ -675,53 +682,51 @@ const MyNumbers: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-between items-end">
-                                            <div className="flex flex-col gap-2">
-                                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.badgeBg}`}>
+                                        <div className="flex items-end justify-between gap-4">
+                                            <div className="flex flex-col gap-3 min-w-0">
+                                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${style.badgeBg}`}>
                                                     {style.icon} {style.label}
                                                 </div>
-                                                <div className="w-24 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                                <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+                                                    <div>
+                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Billing</p>
+                                                        <p className="text-[12px] font-black">{getBillingLabel(slot)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Estado</p>
+                                                        <p className="text-[12px] font-black">{getStatusLabel(slot)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">SMS</p>
+                                                        <p className="text-[12px] font-black">{(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Alta</p>
+                                                        <p className="text-[12px] font-black">{formatCreatedAt(slot.created_at)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="w-28 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                                                     <div className={`h-full ${style.progressFill}`} style={{ width: `${usagePercent}%` }}></div>
                                                 </div>
                                             </div>
-                                            <span className="text-[8px] font-bold opacity-40 uppercase">Alta: {formatCreatedAt(slot.created_at)}</span>
-                                        </div>
-                                    </div>
 
-                                    <div className="mt-5 rounded-[1.6rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-                                        <div className="grid grid-cols-3 gap-px bg-slate-100 dark:bg-slate-800">
-                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
-                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Billing</p>
-                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">{getBillingLabel(slot)}</p>
+                                            <div className="grid grid-cols-2 gap-2 shrink-0 self-end">
+                                                <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-12 h-12 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
+                                                    <Mail className="size-4 text-primary" />
+                                                </button>
+                                                <button onClick={() => handleUpgradeSelect(slot)} className="w-12 h-12 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
+                                                    <TrendingUp className="size-4 text-primary" />
+                                                </button>
+                                                <button onClick={() => openAutomationConfig(slot)} className="w-12 h-12 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
+                                                    <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-500'}`} />
+                                                </button>
+                                                <button onClick={() => handleCopy(slot.phone_number)} className="w-12 h-12 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
+                                                    <Copy className="size-4 text-slate-500" />
+                                                </button>
+                                                <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="w-12 h-12 rounded-2xl bg-rose-50/90 dark:bg-rose-900/20 border border-rose-200/70 dark:border-rose-900/30 text-rose-500 flex items-center justify-center shadow-sm backdrop-blur-sm col-span-2">
+                                                    <Trash2 className="size-4" />
+                                                </button>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
-                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Estado</p>
-                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">{getStatusLabel(slot)}</p>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-900 px-4 py-3">
-                                                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">SMS</p>
-                                                <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white">
-                                                    {(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-3 flex items-center justify-center gap-2.5 flex-wrap">
-                                            <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="flex-1 min-w-[140px] h-12 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all">
-                                                <Mail className="size-4 text-primary" /> {t('mynumbers.inbox')}
-                                            </button>
-                                            <button onClick={() => handleUpgradeSelect(slot)} className="h-12 px-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-primary rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all">
-                                                <TrendingUp className="size-4" /> Plan
-                                            </button>
-                                            <button onClick={() => openAutomationConfig(slot)} className="h-12 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-primary transition-colors">
-                                                <Settings className={`size-4 ${slot.forwarding_active ? 'text-primary' : 'text-slate-400'}`} /> Bot
-                                            </button>
-                                            <button onClick={() => handleCopy(slot.phone_number)} className="h-12 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm">
-                                                <Copy className="size-4 text-slate-400" /> Copiar
-                                            </button>
-                                            <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="h-12 px-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 text-rose-500 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-transform active:scale-90">
-                                                <Trash2 className="size-4" /> Baja
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
