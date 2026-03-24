@@ -38,6 +38,7 @@ interface SlotWithPlan extends Slot {
     monthly_limit?: number;
     credits_used?: number;
     billing_type?: string;
+    subscription_created_at?: string | null;
 }
 
 const OFFICIAL_PLANS_DATA = [
@@ -99,6 +100,8 @@ const MyNumbers: React.FC = () => {
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
     const [simFilter, setSimFilter] = useState('');
+    const [planFilter, setPlanFilter] = useState<'all' | 'start' | 'pro' | 'power'>('all');
+    const [sortMode, setSortMode] = useState<'recent' | 'oldest' | 'usage'>('recent');
 
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
@@ -131,7 +134,7 @@ const MyNumbers: React.FC = () => {
 
             const { data: subsData } = await supabase
                 .from('subscriptions')
-                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type')
+                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at')
                 .eq('user_id', user?.id)
                 .in('status', ['active', 'trialing']);
 
@@ -143,6 +146,7 @@ const MyNumbers: React.FC = () => {
                     monthly_limit: subscription?.monthly_limit || 150,
                     credits_used: subscription?.credits_used || 0,
                     billing_type: subscription?.billing_type || 'monthly',
+                    subscription_created_at: subscription?.created_at || null,
                     forwarding_active: slot.forwarding_active || false
                 };
             });
@@ -278,14 +282,29 @@ const MyNumbers: React.FC = () => {
         return d.toLocaleDateString();
     };
 
-    const filteredSlots = slots.filter((slot) => {
-        const q = simFilter.trim().toLowerCase();
-        if (!q) return true;
-        const phone = String(slot.phone_number || '').toLowerCase();
-        const label = String(slot.label || '').toLowerCase();
-        const plan = String(slot.actual_plan_name || '').toLowerCase();
-        return phone.includes(q) || label.includes(q) || plan.includes(q);
-    });
+    const filteredSlots = [...slots]
+        .filter((slot) => {
+            const q = simFilter.trim().toLowerCase();
+            const planName = String(slot.actual_plan_name || '').toLowerCase();
+            const matchesPlan =
+                planFilter === 'all' ||
+                (planFilter === 'start' && planName.includes('start')) ||
+                (planFilter === 'pro' && planName.includes('pro')) ||
+                (planFilter === 'power' && planName.includes('power'));
+            if (!matchesPlan) return false;
+            if (!q) return true;
+            const phone = String(slot.phone_number || '').toLowerCase();
+            const label = String(slot.label || '').toLowerCase();
+            return phone.includes(q) || label.includes(q) || planName.includes(q);
+        })
+        .sort((a, b) => {
+            if (sortMode === 'usage') {
+                return (b.credits_used || 0) - (a.credits_used || 0);
+            }
+            const aTime = new Date(a.subscription_created_at || a.created_at || 0).getTime();
+            const bTime = new Date(b.subscription_created_at || b.created_at || 0).getTime();
+            return sortMode === 'oldest' ? aTime - bTime : bTime - aTime;
+        });
 
     const handleReleaseSlot = async () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
@@ -621,15 +640,34 @@ const MyNumbers: React.FC = () => {
                             <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 {filteredSlots.length} SIM{filteredSlots.length === 1 ? '' : 's'}
                             </p>
-                            <div className="rounded-[1.6rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-4 py-3 flex items-center gap-3">
+                            <div className="rounded-[1.6rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-4 py-3 flex items-center gap-3 flex-wrap">
                                 <Search className="size-4 text-slate-400 flex-shrink-0" />
                                 <input
                                     type="text"
                                     value={simFilter}
                                     onChange={(e) => setSimFilter(e.target.value)}
-                                    placeholder="Filtrar por numero, etiqueta o plan"
-                                    className="w-full bg-transparent outline-none text-[13px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    placeholder="Buscar SIM, etiqueta o plan"
+                                    className="min-w-[120px] flex-1 bg-transparent outline-none text-[13px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
+                                <select
+                                    value={planFilter}
+                                    onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
+                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                >
+                                    <option value="all">Todas</option>
+                                    <option value="start">Start</option>
+                                    <option value="pro">Pro</option>
+                                    <option value="power">Power</option>
+                                </select>
+                                <select
+                                    value={sortMode}
+                                    onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                >
+                                    <option value="recent">Recientes</option>
+                                    <option value="oldest">Antiguas</option>
+                                    <option value="usage">Mas uso</option>
+                                </select>
                             </div>
                         </section>
 
@@ -640,7 +678,13 @@ const MyNumbers: React.FC = () => {
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}>
+                                    <div
+                                        className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
+                                        style={{
+                                            clipPath:
+                                                'polygon(14px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
+                                        }}
+                                    >
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col gap-1">
                                                 <span className={`text-[12px] font-black tracking-tighter uppercase ${style.accentText}`}>Telsim Online</span>
@@ -692,7 +736,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Desde</p>
-                                                        <p className="text-[12px] font-black">{formatCreatedAt(slot.created_at)}</p>
+                                                        <p className="text-[12px] font-black">{formatCreatedAt(slot.subscription_created_at || slot.created_at)}</p>
                                                     </div>
                                                 </div>
                                             </div>
