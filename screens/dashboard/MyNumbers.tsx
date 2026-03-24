@@ -29,7 +29,8 @@ import {
     ToggleLeft,
     ToggleRight,
     ShieldCheck,
-    Send
+    Send,
+    Search
 } from 'lucide-react';
 
 interface SlotWithPlan extends Slot {
@@ -97,6 +98,7 @@ const MyNumbers: React.FC = () => {
     const { refreshUnreadCount } = useMessagesCount();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [simFilter, setSimFilter] = useState('');
 
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
@@ -273,8 +275,17 @@ const MyNumbers: React.FC = () => {
         if (!iso) return '—';
         const d = new Date(iso);
         if (Number.isNaN(d.getTime())) return '—';
-        return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+        return d.toLocaleDateString();
     };
+
+    const filteredSlots = slots.filter((slot) => {
+        const q = simFilter.trim().toLowerCase();
+        if (!q) return true;
+        const phone = String(slot.phone_number || '').toLowerCase();
+        const label = String(slot.label || '').toLowerCase();
+        const plan = String(slot.actual_plan_name || '').toLowerCase();
+        return phone.includes(q) || label.includes(q) || plan.includes(q);
+    });
 
     const handleReleaseSlot = async () => {
         if (!slotToRelease || !user || !confirmReleaseCheck) return;
@@ -461,7 +472,7 @@ const MyNumbers: React.FC = () => {
             accentText: 'text-primary',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
-            label: 'STARTER',
+            label: 'START',
             progressFill: 'bg-emerald-500'
         };
     };
@@ -606,38 +617,30 @@ const MyNumbers: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <section className="rounded-[2rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-5 py-5">
-                            <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-4 min-w-0">
-                                    <div className="w-14 h-14 rounded-[1.4rem] bg-gradient-to-br from-[#0047FF] via-[#2563eb] to-[#00C8FF] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                                        <span className="text-[22px]">📶</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                                            Chips activos
-                                        </p>
-                                        <h2 className="mt-1 text-[24px] font-black tracking-tight text-slate-900 dark:text-white">
-                                            {slots.length} chip{slots.length === 1 ? '' : 's'}
-                                        </h2>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => navigate('/onboarding/region')}
-                                    className="shrink-0 rounded-2xl bg-primary text-white px-4 py-3 text-[11px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20"
-                                >
-                                    Nueva SIM
-                                </button>
+                        <section className="space-y-2">
+                            <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                {filteredSlots.length} SIM{filteredSlots.length === 1 ? '' : 's'}
+                            </p>
+                            <div className="rounded-[1.6rem] border border-slate-200/70 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm px-4 py-3 flex items-center gap-3">
+                                <Search className="size-4 text-slate-400 flex-shrink-0" />
+                                <input
+                                    type="text"
+                                    value={simFilter}
+                                    onChange={(e) => setSimFilter(e.target.value)}
+                                    placeholder="Filtrar por numero, etiqueta o plan"
+                                    className="w-full bg-transparent outline-none text-[13px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                />
                             </div>
                         </section>
 
                         <div className="space-y-14 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
-                        {slots.map((slot, index) => {
+                        {filteredSlots.map((slot, index) => {
                             const style = getPlanStyle(slot.actual_plan_name);
                             const usagePercent = Math.min(100, ((slot.credits_used || 0) / (slot.monthly_limit || 150)) * 100);
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-6 min-h-[232px] flex flex-col justify-between ${style.cardBg}`}>
+                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}>
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col gap-1">
                                                 <span className={`text-[12px] font-black tracking-tighter uppercase ${style.accentText}`}>Telsim Online</span>
