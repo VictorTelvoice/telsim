@@ -447,21 +447,23 @@ const MyNumbers: React.FC = () => {
                             <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 {filteredSlots.length} SIM{filteredSlots.length === 1 ? '' : 's'}
                             </p>
-                            <div className="rounded-[1.5rem] border border-slate-200/70 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-sm px-2.5 py-2 flex items-center gap-1.5 flex-nowrap overflow-hidden">
-                                <Search className="size-3.5 text-slate-400 flex-shrink-0" />
+                            <div className="rounded-[1.5rem] border border-slate-200/70 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-sm px-2 py-1.5 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                                <div className="flex items-center gap-1.5 min-w-0 w-[33%] flex-none rounded-xl bg-slate-50/90 dark:bg-slate-800/90 px-2 py-1.5 border border-slate-200/70 dark:border-slate-700/70">
+                                    <Search className="size-3.5 text-slate-400 flex-shrink-0" />
                                 <input
                                     type="text"
                                     value={simFilter}
                                     onChange={(e) => setSimFilter(e.target.value)}
                                     placeholder="Buscar"
-                                    className="min-w-0 w-[34%] flex-none bg-transparent outline-none text-[11px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    className="min-w-0 w-full bg-transparent outline-none text-[11px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
+                                </div>
                                 <div className="relative w-[84px] shrink-0">
                                     <SlidersHorizontal className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                                     <select
                                         value={planFilter}
                                         onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
-                                        className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                        className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
                                     >
                                         <option value="all">Todas</option>
                                         <option value="start">Start</option>
@@ -474,7 +476,7 @@ const MyNumbers: React.FC = () => {
                                     <select
                                         value={sortMode}
                                         onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                                        className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+                                        className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
                                     >
                                         <option value="recent">Nuevas</option>
                                         <option value="oldest">Antiguas</option>
@@ -495,7 +497,7 @@ const MyNumbers: React.FC = () => {
                                         className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
                                         style={{
                                             clipPath:
-                                                'polygon(14px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
+                                                'polygon(18px 0, 42% 0, calc(42% + 10px) 8px, calc(58% - 10px) 8px, 58% 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 14px 100%, 0 calc(100% - 14px), 0 calc(50% + 18px), 8px calc(50% + 18px), 8px calc(50% - 18px), 0 calc(50% - 18px), 0 14px)',
                                         }}
                                     >
                                         <div className="flex justify-between items-start">
