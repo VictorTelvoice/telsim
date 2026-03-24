@@ -429,7 +429,10 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   /** `slot_id` → token de reserva en `slots` (reactivación 48h). */
   const [slotReservationBySlotId, setSlotReservationBySlotId] = useState<
-    Record<string, { reservation_token: string | null; reservation_expires_at: string | null }>
+    Record<
+      string,
+      { reservation_token: string | null; reservation_expires_at: string | null; phone_number: string | null }
+    >
   >({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -681,7 +684,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       } else {
         const { data: slotRows, error: slotErr } = await supabase
           .from('slots')
-          .select('slot_id, reservation_token, reservation_expires_at')
+          .select('slot_id, reservation_token, reservation_expires_at, phone_number')
           .in('slot_id', slotIds)
           .abortSignal(signal);
         if (!alive.current || reqId !== subsReqIdRef.current) return;
@@ -689,12 +692,16 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           console.warn('[billing] slots reservation fetch:', slotErr.message);
           setSlotReservationBySlotId({});
         } else {
-          const next: Record<string, { reservation_token: string | null; reservation_expires_at: string | null }> = {};
+          const next: Record<
+            string,
+            { reservation_token: string | null; reservation_expires_at: string | null; phone_number: string | null }
+          > = {};
           for (const s of slotRows || []) {
             const sid = (s as { slot_id: string }).slot_id;
             next[sid] = {
               reservation_token: (s as { reservation_token?: string | null }).reservation_token ?? null,
               reservation_expires_at: (s as { reservation_expires_at?: string | null }).reservation_expires_at ?? null,
+              phone_number: (s as { phone_number?: string | null }).phone_number ?? null,
             };
           }
           setSlotReservationBySlotId(next);

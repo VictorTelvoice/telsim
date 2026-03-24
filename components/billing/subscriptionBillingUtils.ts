@@ -305,6 +305,7 @@ export function resolveEstimatedMrrMonthlyEquivalent<T extends SubscriptionLikeM
 export type SlotReservationForReactivation = {
   reservation_token?: string | null;
   reservation_expires_at?: string | null;
+  phone_number?: string | null;
 };
 
 /** Campos opcionales de `subscriptions` / enriquecimiento para el CTA “Reactivar línea”. */
@@ -508,8 +509,12 @@ export function buildSubscriptionBillingViewModel<T extends InvoiceRowForView>(
     st === 'pending_reactivation_cancel' ? 'Plazo reactivación' : 'Próxima renovación / cobro';
 
   const line =
+    String(ctx.slotReservation?.phone_number ?? '')
+      .trim() ||
     String(sub.phone_number ?? '')
-      .trim() || String(sub.slot_id ?? '').trim() || 'Sin línea asociada';
+      .trim() ||
+    String(sub.slot_id ?? '').trim() ||
+    'Sin línea asociada';
 
   let display_invoice_label = '—';
   if (!ctx.invoicesReady) {
