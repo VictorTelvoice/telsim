@@ -75,6 +75,7 @@ const ScaleAds = React.lazy(() => import('./screens/use-cases/ScaleAds'));
 const WebDashboard = React.lazy(() => import('./screens/dashboard/WebDashboard'));
 const UserTickets = React.lazy(() => import('./screens/dashboard/UserTickets'));
 const UserTicketChat = React.lazy(() => import('./screens/dashboard/UserTicketChat'));
+const ReactivateLine = React.lazy(() => import('./screens/ReactivateLine'));
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
@@ -266,6 +267,7 @@ const App: React.FC = () => {
                   <Route path="/login" element={<Login />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/register" element={<Navigate to="/login" replace />} />
+                  <Route path="/web/reactivate-line" element={<ReactivateLine />} />
                   {/* Plan sin ProtectedRoute — usuario nuevo puede verlo */}
                   <Route path="/onboarding/plan" element={<PlanSelect />} />
                   <Route path="/onboarding/region" element={<ProtectedRoute><RegionSelect /></ProtectedRoute>} />
