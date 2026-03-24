@@ -637,7 +637,7 @@ const MyNumbers: React.FC = () => {
 
                             return (
                                 <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-6 min-h-[248px] flex flex-col justify-between ${style.cardBg}`}>
+                                    <div className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-6 min-h-[232px] flex flex-col justify-between ${style.cardBg}`}>
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col gap-1">
                                                 <span className={`text-[12px] font-black tracking-tighter uppercase ${style.accentText}`}>Telsim Online</span>
@@ -696,15 +696,15 @@ const MyNumbers: React.FC = () => {
                                         </div>
 
                                         <div className="flex items-end justify-between gap-4">
-                                            <div className="flex flex-col gap-3 min-w-0">
-                                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${style.badgeBg}`}>
+                                            <div className="flex flex-col gap-2 min-w-0">
+                                                <div className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.18em] flex items-center gap-1 w-fit ${style.badgeBg}`}>
                                                     {style.icon} {style.label}
                                                 </div>
                                             </div>
 
                                         </div>
 
-                                        <div className="mt-4 flex items-center justify-end gap-2.5 flex-wrap">
+                                        <div className="mt-2 flex items-center justify-end gap-2 flex-wrap">
                                                 <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <Mail className="size-4 text-primary" />
                                                 </button>
