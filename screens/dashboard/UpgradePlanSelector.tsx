@@ -51,7 +51,7 @@ type VisiblePlan = {
   stripePriceIdAnnual: string;
   featuresKey: string;
   descKey: string;
-  forceAnnual?: boolean;
+  forceBilling?: 'monthly' | 'annual';
 };
 
 const CheckIcon = () => (
@@ -127,12 +127,12 @@ export default function UpgradePlanSelector() {
         const planOrder = PLAN_ORDER[key];
         const currentOrder = PLAN_ORDER[currentKey] ?? 1;
         if (planOrder > currentOrder) return true;
-        return key === currentKey && currentBilling === 'monthly';
+        return key === currentKey;
       })
       .map(([key, plan]) => ({
         key,
         ...plan,
-        forceAnnual: key === currentKey && currentBilling === 'monthly',
+        forceBilling: key === currentKey ? (currentBilling === 'monthly' ? 'annual' : 'monthly') : undefined,
       }));
   }, [currentBilling, currentPlanName]);
 
@@ -177,7 +177,7 @@ export default function UpgradePlanSelector() {
   };
 
   const handleSelect = (plan: VisiblePlan) => {
-    const useAnnual = plan.forceAnnual ? true : isAnnual;
+    const useAnnual = plan.forceBilling ? plan.forceBilling === 'annual' : isAnnual;
     navigate('/dashboard/upgrade-summary', {
       state: {
         phoneNumber,
@@ -211,8 +211,9 @@ export default function UpgradePlanSelector() {
 
   const renderCard = (plan: VisiblePlan, mobile = false) => {
     const theme = getPlanTheme(plan.key);
-    const amount = plan.forceAnnual ? plan.amountAnnual : isAnnual ? plan.amountAnnual : plan.amount;
-    const priceLabel = plan.forceAnnual ? `/yr` : isAnnual ? `/yr` : `/mo`;
+    const useAnnual = plan.forceBilling ? plan.forceBilling === 'annual' : isAnnual;
+    const amount = useAnnual ? plan.amountAnnual : plan.amount;
+    const priceLabel = useAnnual ? `/yr` : `/mo`;
     const featureTexts = t(plan.featuresKey) as unknown as string[];
     const descText = t(plan.descKey) as unknown as string;
 
@@ -221,14 +222,14 @@ export default function UpgradePlanSelector() {
         key={plan.key}
         data-plan-card
         onClick={() => handleSelect(plan)}
-        className={`group relative flex cursor-pointer flex-col overflow-hidden text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl p-6' : 'rounded-3xl p-7 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
+        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl p-6 pt-7' : 'rounded-3xl p-7 pt-8 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
         style={plan.key === 'power' && !mobile
           ? { background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
           : undefined}
       >
-        {plan.forceAnnual ? (
-          <div className={`absolute ${mobile ? '-top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-4 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-emerald-500 text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
-            Cambia a anual
+        {plan.forceBilling ? (
+          <div className={`absolute ${mobile ? 'top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-4 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-emerald-500 text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
+            {plan.forceBilling === 'annual' ? 'Cambia a anual' : 'Cambia a mensual'}
           </div>
         ) : plan.key === 'pro' ? (
           <div className={`absolute ${mobile ? 'top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-5 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-primary text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
@@ -247,8 +248,10 @@ export default function UpgradePlanSelector() {
             </span>
             <span className="text-sm font-semibold text-slate-400">{priceLabel}</span>
           </div>
-          {plan.forceAnnual ? (
-            <p className="mt-1 text-[11px] font-bold text-emerald-500">Upgrade anual inmediato</p>
+          {plan.forceBilling ? (
+            <p className="mt-1 text-[11px] font-bold text-emerald-500">
+              {plan.forceBilling === 'annual' ? 'Cambio anual inmediato' : 'Cambio mensual inmediato'}
+            </p>
           ) : isAnnual ? (
             <p className="mt-1 text-[11px] font-bold text-emerald-500">
               Facturado como ${plan.amountAnnual}/año
