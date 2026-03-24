@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Zap } from 'lucide-react';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
@@ -87,6 +87,8 @@ export default function UpgradePlanSelector() {
   const currentBilling = (state?.billing_type || 'monthly') as 'monthly' | 'annual';
 
   const [showAnnual, setShowAnnual] = useState(currentBilling === 'annual');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
   const samePlanAnnual =
     currentBilling === 'monthly'
@@ -99,6 +101,26 @@ export default function UpgradePlanSelector() {
     ...(samePlanAnnual ? [{ ...samePlanAnnual, forceAnnual: true }] : []),
     ...otherPlans,
   ];
+
+  const handleCarouselScroll = () => {
+    const node = carouselRef.current;
+    if (!node) return;
+    const cardWidth = node.clientWidth * 0.84;
+    if (!cardWidth) return;
+    const nextIndex = Math.round(node.scrollLeft / (cardWidth + 16));
+    if (nextIndex !== activeIndex) {
+      setActiveIndex(Math.max(0, Math.min(visiblePlans.length - 1, nextIndex)));
+    }
+  };
+
+  const scrollToCard = (index: number) => {
+    const node = carouselRef.current;
+    if (!node) return;
+    const card = node.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    setActiveIndex(index);
+  };
 
   const handleSelect = (plan: PlanWithForce) => {
     const isAnnual = plan.forceAnnual ?? showAnnual;
@@ -128,10 +150,11 @@ export default function UpgradePlanSelector() {
             <ArrowLeft size={16} />
             <span>Mis SIMs</span>
           </button>
-          <span className="text-slate-300">/</span>
-          <span className="text-sm font-black text-slate-900">Cambiar plan</span>
+          <span className="hidden text-slate-300 md:inline">/</span>
+          <span className="hidden text-sm font-black text-slate-900 md:inline">Cambiar plan</span>
+          <span className="mx-auto text-sm font-black uppercase tracking-[0.2em] text-slate-900 md:hidden">Planes</span>
           {phoneNumber && (
-            <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 md:ml-0">
+            <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 md:ml-0 md:inline-flex">
               {phoneNumber}
             </span>
           )}
@@ -140,10 +163,10 @@ export default function UpgradePlanSelector() {
 
       <main className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 pt-10 md:px-8 md:pt-14">
         <section className="mx-auto max-w-3xl text-center">
-          <h1 className="text-[44px] font-black leading-[0.95] tracking-tight text-slate-900 md:text-6xl">
+          <h1 className="text-[42px] font-black leading-[0.95] tracking-tight text-slate-900 md:text-6xl">
             Elige tu nuevo plan
           </h1>
-          <p className="mt-5 text-lg leading-relaxed text-slate-400 md:text-xl">
+          <p className="mt-5 text-base leading-relaxed text-slate-400 md:text-xl">
             Plan actual:{' '}
             <strong className="text-slate-700">
               {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'}
@@ -153,11 +176,11 @@ export default function UpgradePlanSelector() {
         </section>
 
         {visiblePlans.length > 0 && (
-          <section className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <section className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <span className={`text-lg font-bold ${!showAnnual ? 'text-slate-900' : 'text-slate-400'}`}>Mensual</span>
             <button
               onClick={() => setShowAnnual((prev) => !prev)}
-              className={`relative h-14 w-28 rounded-full transition-colors ${
+              className={`relative h-12 w-24 rounded-full transition-colors ${
                 showAnnual ? 'bg-[#1d4fff]' : 'bg-slate-200'
               }`}
               type="button"
@@ -165,8 +188,8 @@ export default function UpgradePlanSelector() {
               aria-checked={showAnnual}
             >
               <span
-                className={`absolute top-2 h-10 w-10 rounded-full bg-white shadow-md transition-all ${
-                  showAnnual ? 'left-[4.25rem]' : 'left-2'
+                className={`absolute top-1.5 h-9 w-9 rounded-full bg-white shadow-md transition-all ${
+                  showAnnual ? 'left-[3.75rem]' : 'left-1.5'
                 }`}
               />
             </button>
@@ -179,7 +202,7 @@ export default function UpgradePlanSelector() {
           </section>
         )}
 
-        <section className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <section className="mt-10 hidden gap-5 md:grid md:grid-cols-2 xl:grid-cols-3">
           {visiblePlans.map((plan) => {
             const isAnnual = plan.forceAnnual ?? showAnnual;
             const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
@@ -266,6 +289,116 @@ export default function UpgradePlanSelector() {
               </article>
             );
           })}
+        </section>
+
+        <section className="mt-10 md:hidden">
+          <div
+            ref={carouselRef}
+            onScroll={handleCarouselScroll}
+            className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {visiblePlans.map((plan, index) => {
+              const isAnnual = plan.forceAnnual ?? showAnnual;
+              const displayPrice = isAnnual ? plan.annualMonthly : plan.price;
+              const planTone = plan.id === 'Power'
+                ? 'bg-amber-50 text-amber-700'
+                : plan.id === 'Pro'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-slate-100 text-slate-600';
+              const idealTone = plan.id === 'Power'
+                ? 'bg-amber-50 text-amber-700'
+                : plan.id === 'Pro'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-slate-50 text-slate-600';
+
+              return (
+                <article
+                  key={plan.id}
+                  data-card-index={index}
+                  onClick={() => handleSelect(plan)}
+                  className={`relative min-h-[590px] w-[84vw] max-w-[360px] shrink-0 snap-center rounded-[2.2rem] border-[3px] bg-white px-6 pb-7 pt-8 shadow-sm ${plan.border}`}
+                >
+                  {plan.forceAnnual && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                      Cambia a anual
+                    </div>
+                  )}
+                  {!plan.forceAnnual && plan.popular && (
+                    <div className="absolute -top-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-b-[1.6rem] rounded-t-none bg-[#2c57db] px-5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                      <Zap size={11} />
+                      Más popular
+                    </div>
+                  )}
+
+                  <div className={`mt-8 text-[10px] font-black uppercase tracking-[0.34em] ${plan.accent}`}>{plan.name}</div>
+                  <div className={`mt-5 inline-flex w-fit items-center rounded-full px-4 py-2 text-[11px] font-black ${planTone}`}>
+                    {plan.credits}
+                  </div>
+
+                  <div className="mt-8 flex items-end gap-2">
+                    <span className="text-[64px] font-black leading-none tracking-tight text-slate-900">
+                      ${displayPrice.toFixed(2)}
+                    </span>
+                    <span className="mb-2 text-[18px] font-black text-slate-400">/mo</span>
+                  </div>
+                  {isAnnual && (
+                    <p className="mt-2 text-[13px] text-slate-400">
+                      Facturado como ${plan.annualPrice}/año
+                    </p>
+                  )}
+
+                  <div className="mt-7 border-t border-slate-100 pt-6">
+                    <div className="flex flex-col gap-4">
+                      {plan.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-3">
+                          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
+                            <Check size={14} className="text-emerald-500" strokeWidth={3} />
+                          </div>
+                          <span className="text-[14px] font-medium leading-8 text-slate-600">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`mt-7 rounded-[1.8rem] px-5 py-4 ${idealTone}`}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Ideal para</p>
+                    <p className="mt-2 text-[14px] font-black leading-6">{plan.idealFor}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSelect(plan);
+                    }}
+                    className={`mt-7 w-full text-center text-[17px] font-black ${
+                      plan.id === 'Power'
+                        ? 'text-amber-500'
+                        : plan.popular
+                          ? 'text-[#2c57db]'
+                          : 'text-slate-900'
+                    }`}
+                  >
+                    Seleccionar plan →
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center justify-center gap-3">
+            {visiblePlans.map((plan, index) => (
+              <button
+                key={plan.id}
+                type="button"
+                onClick={() => scrollToCard(index)}
+                className={`h-3 rounded-full transition-all ${
+                  activeIndex === index ? 'w-8 bg-[#2c57db]' : 'w-3 bg-slate-200'
+                }`}
+                aria-label={`Ver plan ${plan.name}`}
+              />
+            ))}
+          </div>
         </section>
 
         <p className="mt-8 text-center text-sm font-medium text-slate-400 md:text-base">
