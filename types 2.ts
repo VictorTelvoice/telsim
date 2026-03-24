@@ -1,0 +1,75 @@
+
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  period: string;
+  features: string[];
+  recommended?: boolean;
+  trialDays?: number;
+}
+
+export interface NotificationDetails {
+  number: string;
+  plan: string;
+  activationDate: string;
+  nextBilling: string;
+  price: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id?: string;
+  title: string;
+  message: string;
+  created_at: string;
+  icon?: string;
+  type: 'activation' | 'message' | 'security' | 'subscription' | 'system' | 'success' | 'error' | 'info' | 'warning';
+  is_read: boolean;
+  link?: string;
+  details?: NotificationDetails;
+}
+
+export interface SMSLog {
+  id: string;
+  user_id: string;
+  sender: string;
+  content: string;
+  received_at: string;
+  slot_id: string;
+  service_name?: string;
+  verification_code?: string;
+  is_spam?: boolean;
+  extracted_code?: string;
+  is_read: boolean;
+}
+
+export interface Slot {
+  slot_id: string;
+  phone_number: string;
+  plan_type: string;
+  assigned_to: string;
+  created_at: string;
+  status?: string;
+  region?: string;
+  label?: string;
+  forwarding_active?: boolean;
+  forwarding_channel?: 'telegram' | 'discord' | 'webhook';
+  forwarding_config?: string;
+  /** Join con subscriptions (left join); puede ser array según Supabase */
+  subscriptions?: any[];
+  /** Suscripción activa vinculada (merge en fetchData) */
+  activeSub?: { created_at?: string; credits_used?: number; monthly_limit?: number; plan_name?: string; billing_type?: string };
+}
+
+export interface SimNumber {
+  id: string;
+  number: string;
+  countryCode: string;
+  countryName: string;
+  gateway: string;
+  planName: string;
+  status: 'active' | 'trial' | 'expired';
+  signal: '4G' | '5G' | 'LTE';
+  unreadCount: number;
+}
