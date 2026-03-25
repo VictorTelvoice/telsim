@@ -15,8 +15,8 @@ const PLAN_CREDITS: Record<string, number> = {
 
 const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
   Starter: { monthly: 19.90, annual: 199 },
-  Pro:     { monthly: 39.90, annual: 479 },
-  Power:   { monthly: 99.00, annual: 1188 },
+  Pro:     { monthly: 39.90, annual: 399 },
+  Power:   { monthly: 99.00, annual: 990 },
 };
 
 const PLAN_COLORS: Record<string, string> = {

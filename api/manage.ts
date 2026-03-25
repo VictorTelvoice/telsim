@@ -2503,10 +2503,66 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ ok: true });
       }
 
+      case 'sync-subscription-billing': {
+        const { subscriptionId } = req.body || {};
+        if (!subscriptionId) {
+          return res.status(400).json({ error: 'Falta subscriptionId.' });
+        }
+
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'Se requiere sesión.' });
+        }
+
+        const { data: subRow, error: subErr } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, stripe_subscription_id')
+          .eq('id', subscriptionId)
+          .maybeSingle();
+        if (subErr) {
+          return res.status(500).json({ error: subErr.message });
+        }
+        if (!subRow) {
+          return res.status(404).json({ error: 'Suscripción no encontrada.' });
+        }
+
+        const ownerId = String((subRow as { user_id?: string | null }).user_id ?? '');
+        const isAdmin = authUid.toLowerCase() === ADMIN_UID.toLowerCase();
+        if (!isAdmin && ownerId !== authUid) {
+          return res.status(403).json({ error: 'No autorizado para sincronizar esta suscripción.' });
+        }
+
+        const stripeSubId = String((subRow as { stripe_subscription_id?: string | null }).stripe_subscription_id ?? '').trim();
+        if (!stripeSubId.startsWith('sub_')) {
+          return res.status(400).json({ error: 'Suscripción sin stripe_subscription_id válido.' });
+        }
+
+        const stripe = await getStripeClient();
+        const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+        const snap = subscriptionBillingSnapshotFromStripe(stripeSub);
+
+        const { error: upErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            status: snap.status,
+            subscription_status: stripeSub.status,
+            trial_end: snap.trial_end,
+            current_period_end: snap.current_period_end,
+            next_billing_date: snap.next_billing_date,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', subscriptionId);
+        if (upErr) {
+          return res.status(500).json({ error: upErr.message });
+        }
+
+        return res.status(200).json({ ok: true, subscriptionId, applied: snap });
+      }
+
       default:
         return res.status(400).json({
           error:
-            'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, reactivate-line, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, list-incoming-sms, simulate-critical-alert, admin-sync-subscriptions-from-stripe, admin-stripe-cancel-subscriptions.',
+            'Action no válida. Use: portal, payment-method, invoice-history, invoice-resolve, notify-ticket-reply, upgrade, cancel, reactivate-line, send-test, verify-bot, send-notification-test, retry-notification, list-notification-history, list-incoming-sms, simulate-critical-alert, admin-sync-subscriptions-from-stripe, admin-stripe-cancel-subscriptions, sync-subscription-billing.',
         });
     }
   } catch (err: any) {

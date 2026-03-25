@@ -467,6 +467,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const subsFetchInFlightRef = useRef(false);
   const subsReqIdRef = useRef(0);
+  const billingSyncAttemptedRef = useRef<Set<string>>(new Set());
 
   /** Una fila por línea (slot / Stripe sub): evita duplicados históricos que inflan el conteo. */
   const subscriptionsDedupedByLine = useMemo(
@@ -717,6 +718,50 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       if (reqId === subsReqIdRef.current) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const candidates = subscriptions.filter((s) => {
+      const status = normalizeSubscriptionStatus(s.status);
+      const stripeSubId = String(s.stripe_subscription_id ?? '').trim();
+      return (
+        (status === 'active' || status === 'trialing') &&
+        !resolveSubscriptionNextBillingIso(s) &&
+        stripeSubId.startsWith('sub_') &&
+        !billingSyncAttemptedRef.current.has(s.id)
+      );
+    });
+    if (!user?.id || candidates.length === 0) return;
+
+    let cancelled = false;
+    const run = async () => {
+      let changed = false;
+      for (const sub of candidates) {
+        billingSyncAttemptedRef.current.add(sub.id);
+        try {
+          const response = await fetch('/api/manage', {
+            method: 'POST',
+            headers: manageAuthHeaders,
+            body: JSON.stringify({ action: 'sync-subscription-billing', subscriptionId: sub.id }),
+          });
+          if (!response.ok) continue;
+          changed = true;
+        } catch {
+          // best-effort silencioso; evita bloquear la UI
+        }
+      }
+      if (changed && !cancelled) {
+        const controller = new AbortController();
+        const reqId = ++subsReqIdRef.current;
+        const alive = { current: true };
+        await fetchSubscriptions(user.id, controller.signal, reqId, alive);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [subscriptions, user?.id, manageAuthHeaders]);
 
   const fetchPaymentMethod = async (userId: string, signal: AbortSignal, alive: { current: boolean }) => {
     setLoadingPM(true);
