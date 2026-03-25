@@ -25,7 +25,8 @@ import {
   User,
   Search,
   SlidersHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  ArrowLeft
 } from 'lucide-react';
 
 const Messages: React.FC = () => {
@@ -251,7 +252,7 @@ const Messages: React.FC = () => {
           className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400"
           aria-label={t('messages.back')}
         >
-          <span className="material-icons-round text-[20px]">chevron_left</span>
+          <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('messages.title')}</h1>
         <button 
