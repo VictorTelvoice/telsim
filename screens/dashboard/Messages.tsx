@@ -347,24 +347,24 @@ const Messages: React.FC = () => {
             <p className="text-sm text-slate-400 font-medium leading-relaxed italic">{filterNum ? t('messages.no_records_for').replace('{num}', formatPhoneNumber(filterNum)) : t('messages.codes_appear_here')}</p>
           </div>
         ) : (
-          <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
             {filteredMessages.map((msg, idx) => {
               const style = getServiceStyle(msg.service_name, msg.sender);
               const realNumber = slotMap[msg.slot_id] || msg.slot_id;
               return (
                 <div key={msg.id} style={{ animationDelay: `${idx * 50}ms` }} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between px-1">
                       <div />
                       <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 tabular-nums shrink-0">{formatTime(msg.received_at)}</span>
                     </div>
 
-                      <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2.5">
                       <div className={`size-9 rounded-[1rem] flex items-center justify-center shadow-lg flex-shrink-0 mt-1 ${style.bg} ${style.text}`}>
                         {style.icon}
                       </div>
-                      <div className="flex-1 bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-3.5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99]">
-                      <div className="mb-1.5">
+                      <div className="flex-1 bg-white dark:bg-surface-dark rounded-[1.25rem] rounded-tl-[0.35rem] px-3 py-2.5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99]">
+                      <div className="mb-1">
                         <span className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                           {style.label}
                         </span>
@@ -373,12 +373,12 @@ const Messages: React.FC = () => {
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">SIM: {formatPhoneNumber(realNumber)}</span>
                         </div>
                       </div>
-                      <div className="flex items-end gap-3">
+                      <div className="flex items-end gap-2">
                         <p className="flex-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
                         {msg.verification_code ? (
                           <button
                             onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)}
-                            className={`size-10 rounded-xl flex items-center justify-center shrink-0 transition-all text-[10px] font-black uppercase tracking-wide ${
+                            className={`size-7 rounded-lg flex items-center justify-center shrink-0 transition-all text-[10px] font-black uppercase tracking-wide ${
                               copyingId === msg.id
                                 ? 'bg-emerald-500 text-white shadow-lg'
                                 : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-90 dark:bg-slate-950'
