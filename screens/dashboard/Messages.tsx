@@ -22,7 +22,10 @@ import {
   RefreshCw,
   Shield,
   ShoppingCart,
-  User
+  User,
+  Search,
+  SlidersHorizontal,
+  ArrowUpDown
 } from 'lucide-react';
 
 const Messages: React.FC = () => {
@@ -38,6 +41,8 @@ const Messages: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'verifications' | 'others'>('verifications');
+  const [messageSearch, setMessageSearch] = useState('');
+  const [sortMode, setSortMode] = useState<'recent' | 'oldest' | 'service'>('recent');
 
   const filterNum = searchParams.get('num');
 
@@ -202,7 +207,7 @@ const Messages: React.FC = () => {
   };
 
   const filteredMessages = useMemo(() => {
-    return messages.filter(msg => {
+    const base = messages.filter(msg => {
       const hasCode = msg.verification_code && msg.verification_code.trim() !== '';
       const tabMatch = activeTab === 'verifications' ? hasCode : !hasCode;
       if (!tabMatch) return false;
@@ -210,19 +215,41 @@ const Messages: React.FC = () => {
         const msgNum = slotMap[msg.slot_id];
         const cleanFilter = filterNum.replace(/\D/g, '');
         const cleanMsgNum = (msgNum || '').replace(/\D/g, '');
-        return cleanMsgNum.includes(cleanFilter);
+        if (!cleanMsgNum.includes(cleanFilter)) return false;
       }
-      return true;
+      const q = messageSearch.trim().toLowerCase();
+      if (!q) return true;
+      const haystack = [
+        msg.content,
+        msg.sender,
+        msg.service_name,
+        msg.verification_code,
+        slotMap[msg.slot_id] || '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
     });
-  }, [messages, activeTab, filterNum, slotMap]);
+
+    return [...base].sort((a, b) => {
+      if (sortMode === 'oldest') {
+        return new Date(a.received_at).getTime() - new Date(b.received_at).getTime();
+      }
+      if (sortMode === 'service') {
+        return (a.service_name || a.sender || '').localeCompare(b.service_name || b.sender || '', language === 'es' ? 'es' : 'en');
+      }
+      return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
+    });
+  }, [messages, activeTab, filterNum, slotMap, messageSearch, sortMode, language]);
 
   const toggleFilter = (num: string | null) => {
+    const nextParams = new URLSearchParams(searchParams);
     if (num) {
-      searchParams.set('num', num);
+      nextParams.set('num', num);
     } else {
-      searchParams.delete('num');
+      nextParams.delete('num');
     }
-    setSearchParams(searchParams);
+    setSearchParams(nextParams);
   };
 
   return (
@@ -246,24 +273,50 @@ const Messages: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 -mx-6 px-6">
-          <button 
-            onClick={() => toggleFilter(null)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${!filterNum ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
-          >
-            {t('messages.all_ports')}
-          </button>
-          {userSlots.map((slot) => (
-            <button 
-              key={slot.slot_id}
-              onClick={() => toggleFilter(slot.phone_number)}
-              className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filterNum === slot.phone_number ? 'bg-primary border-primary text-white shadow-lg shadow-blue-500/20 scale-105' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400'}`}
-            >
-              <img src={`https://flagcdn.com/w40/${getCountryCode(slot.phone_number)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm" alt="" />
-              {formatPhoneNumber(slot.phone_number)}
-            </button>
-          ))}
-        </div>
+        <section className="space-y-2 pb-3">
+          <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+            {filteredMessages.length} SMS
+          </p>
+          <div className="rounded-[1.5rem] border border-slate-200/70 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-sm px-2 py-1.5 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+            <div className="flex items-center gap-1.5 min-w-0 w-[33%] flex-none rounded-xl bg-slate-50/90 dark:bg-slate-800/90 px-2 py-1.5 border border-slate-200/70 dark:border-slate-700/70">
+              <Search className="size-3.5 text-slate-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={messageSearch}
+                onChange={(e) => setMessageSearch(e.target.value)}
+                placeholder="Buscar"
+                className="min-w-0 w-full bg-transparent outline-none text-[11px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
+            <div className="relative w-[112px] shrink-0">
+              <SlidersHorizontal className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              <select
+                value={filterNum || 'all'}
+                onChange={(e) => toggleFilter(e.target.value === 'all' ? null : e.target.value)}
+                className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+              >
+                <option value="all">Todas</option>
+                {userSlots.map((slot) => (
+                  <option key={slot.slot_id} value={slot.phone_number}>
+                    {slot.phone_number}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative w-[92px] shrink-0">
+              <ArrowUpDown className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+                className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
+              >
+                <option value="recent">Nuevos</option>
+                <option value="oldest">Antiguos</option>
+                <option value="service">Servicio</option>
+              </select>
+            </div>
+          </div>
+        </section>
 
         <div className="bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl flex items-center mb-2">
             <button onClick={() => setActiveTab('verifications')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[11px] font-black transition-all uppercase tracking-tight ${activeTab === 'verifications' ? 'bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>{t('messages.verifications')}</button>
@@ -318,19 +371,21 @@ const Messages: React.FC = () => {
                         <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
                       </div>
 
-                      {/* Verification code block — dark bubble continuation */}
+                      {/* Verification code block — action compacta al final del mensaje */}
                       {msg.verification_code && (
-                        <div className="mt-1.5 bg-slate-900 dark:bg-slate-950 rounded-[1.4rem] rounded-tl-[0.35rem] border border-slate-800 p-4 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{t('dashboard.traffic.code_detected')}</span>
-                            <span className="text-3xl font-black font-mono tracking-[0.2em] text-white tabular-nums leading-none">{msg.verification_code}</span>
+                        <div className="mt-1.5 bg-slate-900 dark:bg-slate-950 rounded-[1.4rem] rounded-tl-[0.35rem] border border-slate-800 p-4">
+                          <div className="flex items-end justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-3xl font-black font-mono tracking-[0.2em] text-white tabular-nums leading-none">{msg.verification_code}</span>
+                            </div>
+                            <button
+                              onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)}
+                              className={`h-10 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-[10px] font-black uppercase tracking-wide ${copyingId === msg.id ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white/10 text-white/80 hover:bg-white/20 active:scale-90'}`}
+                            >
+                              {copyingId === msg.id ? <Check className="size-4" /> : <Copy className="size-4" />}
+                              {copyingId === msg.id ? 'Copiado' : 'Copiar'}
+                            </button>
                           </div>
-                          <button
-                            onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)}
-                            className={`size-12 rounded-xl flex items-center justify-center transition-all ${copyingId === msg.id ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white/10 text-white/70 hover:bg-white/20 active:scale-90'}`}
-                          >
-                            {copyingId === msg.id ? <Check className="size-5" /> : <Copy className="size-5" />}
-                          </button>
                         </div>
                       )}
                     </div>
