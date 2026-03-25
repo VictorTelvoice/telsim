@@ -2504,9 +2504,9 @@ export default async function handler(req: any, res: any) {
       }
 
       case 'sync-subscription-billing': {
-        const { subscriptionId } = req.body || {};
-        if (!subscriptionId) {
-          return res.status(400).json({ error: 'Falta subscriptionId.' });
+        const { subscriptionId, slotId } = req.body || {};
+        if (!subscriptionId && !slotId) {
+          return res.status(400).json({ error: 'Falta subscriptionId o slotId.' });
         }
 
         const authUid = await getRequestAuthUserId(req);
@@ -2514,11 +2514,22 @@ export default async function handler(req: any, res: any) {
           return res.status(401).json({ error: 'Se requiere sesión.' });
         }
 
-        const { data: subRow, error: subErr } = await supabaseAdmin
+        let subQuery = supabaseAdmin
           .from('subscriptions')
-          .select('id, user_id, stripe_subscription_id')
-          .eq('id', subscriptionId)
-          .maybeSingle();
+          .select('id, user_id, stripe_subscription_id, slot_id, created_at');
+
+        if (subscriptionId) {
+          subQuery = subQuery.eq('id', subscriptionId);
+        } else {
+          subQuery = subQuery
+            .eq('slot_id', slotId)
+            .eq('user_id', authUid)
+            .in('status', ['active', 'trialing', 'past_due'])
+            .order('created_at', { ascending: false })
+            .limit(1);
+        }
+
+        const { data: subRow, error: subErr } = await subQuery.maybeSingle();
         if (subErr) {
           return res.status(500).json({ error: subErr.message });
         }
@@ -2540,6 +2551,32 @@ export default async function handler(req: any, res: any) {
         const stripe = await getStripeClient();
         const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
         const snap = subscriptionBillingSnapshotFromStripe(stripeSub);
+        let currentPeriodEnd = snap.current_period_end;
+        let nextBillingDate = snap.next_billing_date;
+
+        if (!currentPeriodEnd && !nextBillingDate) {
+          try {
+            const invs = await stripe.invoices.list({ subscription: stripeSubId, limit: 1 });
+            const latestInvoice = invs.data?.[0] ?? null;
+            const invoiceLine = latestInvoice?.lines?.data?.[0] ?? null;
+            const fallbackPeriodEndSec =
+              invoiceLine?.period?.end ??
+              ((latestInvoice as any)?.period_end ?? null);
+            const fallbackPeriodEndIso =
+              typeof fallbackPeriodEndSec === 'number' && fallbackPeriodEndSec > 0
+                ? new Date(fallbackPeriodEndSec * 1000).toISOString()
+                : null;
+            if (fallbackPeriodEndIso) {
+              currentPeriodEnd = fallbackPeriodEndIso;
+              nextBillingDate = fallbackPeriodEndIso;
+            }
+          } catch (invoiceErr) {
+            console.warn('[SYNC_BILLING] invoice fallback failed', {
+              stripe_subscription_id: stripeSubId,
+              error: String((invoiceErr as any)?.message ?? invoiceErr ?? ''),
+            });
+          }
+        }
 
         const { error: upErr } = await supabaseAdmin
           .from('subscriptions')
@@ -2547,16 +2584,24 @@ export default async function handler(req: any, res: any) {
             status: snap.status,
             subscription_status: stripeSub.status,
             trial_end: snap.trial_end,
-            current_period_end: snap.current_period_end,
-            next_billing_date: snap.next_billing_date,
+            current_period_end: currentPeriodEnd,
+            next_billing_date: nextBillingDate,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', subscriptionId);
+          .eq('id', String((subRow as { id?: string | null }).id ?? ''));
         if (upErr) {
           return res.status(500).json({ error: upErr.message });
         }
 
-        return res.status(200).json({ ok: true, subscriptionId, applied: snap });
+        return res.status(200).json({
+          ok: true,
+          subscriptionId: String((subRow as { id?: string | null }).id ?? ''),
+          applied: {
+            ...snap,
+            current_period_end: currentPeriodEnd,
+            next_billing_date: nextBillingDate,
+          },
+        });
       }
 
       default:

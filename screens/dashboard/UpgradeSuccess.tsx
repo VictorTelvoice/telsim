@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Zap, Calendar, CreditCard, ArrowRight, Star } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const isMobileDeviceUA = (): boolean => {
   if (typeof navigator === 'undefined') return false;
@@ -28,6 +29,7 @@ const PLAN_COLORS: Record<string, string> = {
 export default function UpgradeSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [countdown, setCountdown] = useState(10);
   const dashboardDestination = isMobileDeviceUA() ? '/dashboard/numbers' : '/web';
 
@@ -41,6 +43,37 @@ export default function UpgradeSuccess() {
   const price   = PLAN_PRICES[planName]?.[isAnnual ? 'annual' : 'monthly'] ?? 0;
   const billingLabel = isAnnual ? 'Anual' : 'Mensual';
   const planGradient = PLAN_COLORS[planName] ?? 'from-blue-500 to-blue-600';
+
+  useEffect(() => {
+    if (!user?.id || !slotId) return;
+
+    let cancelled = false;
+
+    const syncBilling = async () => {
+      try {
+        const res = await fetch('/api/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'sync-subscription-billing',
+            slotId,
+          }),
+        });
+        if (!res.ok && !cancelled) {
+          console.warn('[UPGRADE_SUCCESS] sync-subscription-billing failed', await res.text().catch(() => ''));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[UPGRADE_SUCCESS] sync-subscription-billing error', err);
+        }
+      }
+    };
+
+    void syncBilling();
+    return () => {
+      cancelled = true;
+    };
+  }, [slotId, user?.id]);
 
   // Auto-redirect countdown
   useEffect(() => {
