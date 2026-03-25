@@ -1030,7 +1030,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
         </div>
       )}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Activas</p>
           <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{kpiStrictActiveSubs.length}</p>
@@ -1044,9 +1044,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Equivalente mensual</p>
           <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
             {mrrEstimated ? formatCurrency(mrrEstimated.amount, mrrCurrency) : '—'}
-          </p>
-          <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-            {t('billing.mrr_estimated_subtitle')}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 min-h-[7rem] flex flex-col">

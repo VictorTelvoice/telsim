@@ -506,7 +506,7 @@ export function buildSubscriptionBillingViewModel<T extends InvoiceRowForView>(
 
   const st = normalizeSubscriptionStatus(sub.status);
   const display_next_date_label =
-    st === 'pending_reactivation_cancel' ? 'Plazo reactivación' : 'Próxima renovación / cobro';
+    st === 'pending_reactivation_cancel' ? 'Plazo reactivación' : 'Próxima renovación';
 
   const line =
     String(ctx.slotReservation?.phone_number ?? '')
