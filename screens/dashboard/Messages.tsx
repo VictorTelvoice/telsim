@@ -359,14 +359,19 @@ const Messages: React.FC = () => {
                       <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 tabular-nums shrink-0">{formatTime(msg.received_at)}</span>
                     </div>
 
-                    <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3">
                       <div className={`size-9 rounded-[1rem] flex items-center justify-center shadow-lg flex-shrink-0 mt-1 ${style.bg} ${style.text}`}>
                         {style.icon}
                       </div>
                       <div className="flex-1 bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-3.5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99]">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <img src={`https://flagcdn.com/w40/${getCountryCode(realNumber)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm opacity-60" alt="" />
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">SIM: {formatPhoneNumber(realNumber)}</span>
+                      <div className="mb-1.5">
+                        <span className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+                          {style.label}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <img src={`https://flagcdn.com/w40/${getCountryCode(realNumber)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm opacity-60" alt="" />
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">SIM: {formatPhoneNumber(realNumber)}</span>
+                        </div>
                       </div>
                       <div className="flex items-end gap-3">
                         <p className="flex-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
