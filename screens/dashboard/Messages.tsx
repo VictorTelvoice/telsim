@@ -355,22 +355,21 @@ const Messages: React.FC = () => {
                 <div key={msg.id} style={{ animationDelay: `${idx * 50}ms` }} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between px-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={`size-9 rounded-[1rem] flex items-center justify-center shadow-lg flex-shrink-0 ${style.bg} ${style.text}`}>
-                          {style.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">{style.label}</span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <img src={`https://flagcdn.com/w40/${getCountryCode(realNumber)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm opacity-60" alt="" />
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">SIM: {formatPhoneNumber(realNumber)}</span>
-                          </div>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">{style.label}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <img src={`https://flagcdn.com/w40/${getCountryCode(realNumber)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm opacity-60" alt="" />
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">SIM: {formatPhoneNumber(realNumber)}</span>
                         </div>
                       </div>
                       <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 tabular-nums shrink-0">{formatTime(msg.received_at)}</span>
                     </div>
 
-                    <div className="bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-3.5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99]">
+                    <div className="flex items-end gap-3">
+                      <div className={`size-9 rounded-[1rem] flex items-center justify-center shadow-lg flex-shrink-0 ${style.bg} ${style.text}`}>
+                        {style.icon}
+                      </div>
+                      <div className="flex-1 bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-3.5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99]">
                       <div className="flex items-end gap-3">
                         <p className="flex-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
                         {msg.verification_code ? (
@@ -386,6 +385,7 @@ const Messages: React.FC = () => {
                             {copyingId === msg.id ? <Check className="size-4" /> : <Copy className="size-4" />}
                           </button>
                         ) : null}
+                      </div>
                       </div>
                     </div>
                   </div>
