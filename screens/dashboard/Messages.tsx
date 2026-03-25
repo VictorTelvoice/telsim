@@ -296,7 +296,7 @@ const Messages: React.FC = () => {
                 className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
               >
                 <option value="all">Todos</option>
-                <option value="verifications">Verif.</option>
+                <option value="verifications">OTP</option>
                 <option value="others">Others</option>
               </select>
             </div>
