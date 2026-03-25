@@ -1456,10 +1456,12 @@ export default async function handler(req: any, res: any) {
             phone_number: (slotRow as { phone_number?: string } | null)?.phone_number || '',
           },
         };
+        const upgradeMetadata = subData.metadata as Record<string, string>;
 
         const upgradeSession: Record<string, unknown> = {
           mode: 'subscription',
           customer: customerId,
+          metadata: upgradeMetadata,
           line_items: [{ price: newPriceId, quantity: 1 }],
           subscription_data: subData,
           payment_method_collection: 'always',
@@ -2275,6 +2277,7 @@ export default async function handler(req: any, res: any) {
 
         const stripe = await getStripeClient();
         const results: Record<string, unknown>[] = [];
+        const LIVE_DB_STATUSES = ['active', 'trialing', 'past_due', 'pending_reactivation_cancel'] as const;
 
         for (const row of rowById.values()) {
           const sid = String(row.stripe_subscription_id ?? '').trim();
@@ -2345,6 +2348,123 @@ export default async function handler(req: any, res: any) {
             stripe_status: stripeSub.status,
             applied: snap,
           });
+        }
+
+        if (phonesIn.length) {
+          const variantSet = new Set<string>();
+          for (const p of phonesIn) {
+            for (const v of collectPhoneNumberVariantsForQuery(p)) variantSet.add(v);
+          }
+          const variants = [...variantSet];
+          if (variants.length) {
+            const { data: slotsByPhone } = await supabaseAdmin
+              .from('slots')
+              .select('slot_id, phone_number, assigned_to, plan_type')
+              .in('phone_number', variants);
+
+            for (const slot of slotsByPhone ?? []) {
+              const slotId = String((slot as { slot_id?: string }).slot_id ?? '').trim();
+              const phoneNumber = String((slot as { phone_number?: string }).phone_number ?? '').trim();
+              const userId = String((slot as { assigned_to?: string | null }).assigned_to ?? '').trim();
+              if (!slotId || !phoneNumber || !userId) continue;
+
+              const { data: existingLive } = await supabaseAdmin
+                .from('subscriptions')
+                .select('id')
+                .eq('slot_id', slotId)
+                .in('status', [...LIVE_DB_STATUSES])
+                .limit(1)
+                .maybeSingle();
+              if (existingLive) continue;
+
+              const { data: userStripe } = await supabaseAdmin
+                .from('users')
+                .select('stripe_customer_id')
+                .eq('id', userId)
+                .maybeSingle();
+              const customerId = String((userStripe as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? '').trim();
+              if (!customerId) continue;
+
+              const listed = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
+              const candidate = listed.data.find((sub) => {
+                const subSlotId = String(sub.metadata?.slot_id ?? '').trim();
+                const status = String(sub.status ?? '').toLowerCase();
+                return subSlotId === slotId && status !== 'canceled' && status !== 'cancelled' && status !== 'incomplete_expired';
+              });
+              if (!candidate) continue;
+
+              const price = candidate.items.data[0]?.price;
+              const billingType = price?.recurring?.interval === 'year' ? 'annual' : 'monthly';
+              const recoveredPlan = String(
+                candidate.metadata?.new_plan_name ??
+                candidate.metadata?.planName ??
+                candidate.metadata?.plan_name ??
+                (slot as { plan_type?: string | null }).plan_type ??
+                ''
+              ).trim() || 'Starter';
+              const amount = (price?.unit_amount ?? 0) / 100;
+              const snap = subscriptionBillingSnapshotFromStripe(candidate);
+              const monthlyLimit = monthlySmsLimitForPlan(recoveredPlan, null);
+
+              const { data: existingRecovered } = await supabaseAdmin
+                .from('subscriptions')
+                .select('id')
+                .eq('stripe_subscription_id', candidate.id)
+                .maybeSingle();
+
+              let recoveredId = (existingRecovered as { id?: string } | null)?.id ?? null;
+              if (!existingRecovered) {
+                const { data: inserted, error: insertErr } = await supabaseAdmin
+                  .from('subscriptions')
+                  .insert({
+                    user_id: userId,
+                    slot_id: slotId,
+                    phone_number: phoneNumber,
+                    stripe_subscription_id: candidate.id,
+                    stripe_session_id: null,
+                    plan_name: recoveredPlan,
+                    monthly_limit: monthlyLimit,
+                    billing_type: billingType,
+                    amount,
+                    currency: candidate.currency ?? 'usd',
+                    status: snap.status,
+                    subscription_status: candidate.status,
+                    trial_end: snap.trial_end,
+                    current_period_end: snap.current_period_end,
+                    next_billing_date: snap.next_billing_date,
+                    activation_state: 'on_air',
+                  })
+                  .select('id')
+                  .maybeSingle();
+                if (insertErr) {
+                  results.push({ phone_number: phoneNumber, slot_id: slotId, error: insertErr.message, recovery: 'failed_insert' });
+                  continue;
+                }
+                recoveredId = (inserted as { id?: string } | null)?.id ?? null;
+              }
+
+              await supabaseAdmin
+                .from('slots')
+                .update({
+                  status: 'ocupado',
+                  assigned_to: userId,
+                  plan_type: recoveredPlan,
+                  reservation_token: null,
+                  reservation_expires_at: null,
+                  reservation_user_id: null,
+                  reservation_stripe_session_id: null,
+                })
+                .eq('slot_id', slotId);
+
+              results.push({
+                phone_number: phoneNumber,
+                slot_id: slotId,
+                stripe_subscription_id: candidate.id,
+                recovered_subscription_id: recoveredId,
+                recovered: true,
+              });
+            }
+          }
         }
 
         return res.status(200).json({

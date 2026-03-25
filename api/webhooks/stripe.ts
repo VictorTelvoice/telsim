@@ -839,12 +839,12 @@ export default async function handler(req: any, res: any) {
     const rawMeta = session.metadata as Record<string, string> | null | undefined;
     let sessionMeta: Record<string, string> = rawMeta && typeof rawMeta === 'object' ? { ...rawMeta } : {};
 
-    if (!sessionMeta.upgrade && session.subscription) {
+    if (session.subscription) {
       try {
         const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string
         );
-        sessionMeta = { ...sessionMeta, ...subscription.metadata } as Record<string, string>;
+        sessionMeta = { ...(subscription.metadata as Record<string, string>), ...sessionMeta } as Record<string, string>;
       } catch (e: any) {
         console.warn('[WEBHOOK] No se pudo leer metadata desde subscription:', e?.message);
       }
