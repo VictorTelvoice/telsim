@@ -882,6 +882,7 @@ export default async function handler(req: any, res: any) {
       let upgradeSubscriptionId: string | null = (existingNewRow as { id?: string } | null)?.id ?? null;
 
       if (!existingNewRow) {
+        const activationTs = new Date().toISOString();
         const { data: phoneRow } = await supabaseAdmin
           .from('subscriptions')
           .select('phone_number')
@@ -900,6 +901,7 @@ export default async function handler(req: any, res: any) {
             stripe_session_id: session.id,
             plan_name: upgradeMeta.new_plan_name,
             monthly_limit: upgradeMonthlyLimit,
+            credits_used: 0,
             billing_type: billingTypeFromStripe,
             amount,
             currency: (newSub.currency ?? 'usd') as string,
@@ -909,11 +911,15 @@ export default async function handler(req: any, res: any) {
             current_period_end: billingSnap.current_period_end,
             next_billing_date: billingSnap.next_billing_date,
             activation_state: 'on_air',
+            activation_state_updated_at: activationTs,
+            created_at: activationTs,
+            updated_at: activationTs,
           })
           .select('id')
           .maybeSingle();
         if (upInsErr) {
           console.error('[PURCHASE] subscription upsert error (upgrade)', upInsErr);
+          throw new Error(`[UPGRADE_INSERT_FAILED] ${upInsErr.message}`);
         } else {
           upgradeSubscriptionId = (upInsRow as { id?: string } | null)?.id ?? null;
           console.log('[PURCHASE] subscription upsert OK', {
