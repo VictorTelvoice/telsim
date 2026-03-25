@@ -4,15 +4,15 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { getPostAuthRoute } from '../../lib/routing';
 import { useMessagesCount } from '../../contexts/MessagesContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot } from '../../types';
+import SideDrawer from '../../components/SideDrawer';
 import {
     Copy,
     Trash2,
     MessageSquare,
     PlusCircle,
-    ArrowLeft,
     AlertTriangle,
     Pencil,
     Check,
@@ -43,10 +43,12 @@ const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const { t } = useLanguage();
-    const { refreshUnreadCount } = useMessagesCount();
+    const { t, language, setLanguage } = useLanguage();
+    const { unreadSmsCount: unreadMessages, refreshUnreadCount } = useMessagesCount();
+    const { unreadCount: unreadNotificationsCount } = useNotifications();
     const [slots, setSlots] = useState<SlotWithPlan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const [simFilter, setSimFilter] = useState('');
     const [planFilter, setPlanFilter] = useState<'all' | 'start' | 'pro' | 'power'>('all');
     const [sortMode, setSortMode] = useState<'recent' | 'oldest' | 'usage'>('recent');
@@ -67,6 +69,9 @@ const MyNumbers: React.FC = () => {
     const [testingTg, setTestingTg] = useState(false);
     const [slotFwdActive, setSlotFwdActive] = useState(false);
     const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
+    const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+    const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
+    const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
 
     const fetchSlots = async (): Promise<SlotWithPlan[]> => {
         if (!user?.id) return [];
@@ -476,12 +481,20 @@ const MyNumbers: React.FC = () => {
 
     return (
         <div className="min-h-screen relative bg-[#F8FAFC] dark:bg-background-dark font-display pb-32">
-            <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
-                <button onClick={() => navigate(getPostAuthRoute())} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
-                    <ArrowLeft className="size-5" />
+            <header className="grid grid-cols-[40px_1fr_40px] items-center gap-3 px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
+                <button
+                    onClick={() => setDrawerOpen(true)}
+                    className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-[#1e3a8a] dark:text-blue-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                    aria-label="Abrir menu"
+                >
+                    <svg width="16" height="12" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <line x1="0" y1="1" x2="18" y2="1"/>
+                        <line x1="0" y1="7" x2="18" y2="7"/>
+                        <line x1="0" y1="13" x2="18" y2="13"/>
+                    </svg>
                 </button>
-                <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.title')}</h1>
-                <button onClick={() => navigate('/onboarding/region')} className="p-2 -mr-2 text-primary dark:text-blue-400">
+                <h1 className="text-center text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('mynumbers.title')}</h1>
+                <button onClick={() => navigate('/onboarding/region')} className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-primary dark:text-blue-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition">
                     <PlusCircle className="size-5" />
                 </button>
             </header>
@@ -776,6 +789,16 @@ const MyNumbers: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <SideDrawer
+                isOpen={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                user={{ name: userName, plan: planName }}
+                unreadMessages={unreadMessages}
+                unreadNotifications={unreadNotificationsCount}
+                currentLang={language}
+                onLangChange={(lang) => setLanguage(lang as 'es' | 'en')}
+            />
         </div>
     );
 };

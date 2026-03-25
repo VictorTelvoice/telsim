@@ -140,11 +140,11 @@ const Settings: React.FC = () => {
       )}
 
       {/* Header — mismo patrón que el Dashboard */}
-      <div className="bg-[#F0F4F8] dark:bg-background-dark pt-12 pb-3 px-5 flex items-center gap-3 flex-shrink-0">
-        {/* Hamburger — igual que en Dashboard */}
+      <div className="bg-[#F0F4F8] dark:bg-background-dark pt-12 pb-3 px-5 grid grid-cols-[38px_1fr_38px] items-center gap-3 flex-shrink-0">
         <button
           onClick={() => setDrawerOpen(true)}
           className="w-[38px] h-[38px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center flex-shrink-0"
+          aria-label="Abrir menu"
         >
           <svg width="16" height="12" viewBox="0 0 18 14" fill="none" stroke={isDark ? "#60a5fa" : "#1e3a8a"} strokeWidth="2.2" strokeLinecap="round">
             <line x1="0" y1="1" x2="18" y2="1"/>
@@ -153,10 +153,9 @@ const Settings: React.FC = () => {
           </svg>
         </button>
 
-        <h1 className="flex-1 text-[20px] font-black text-slate-900 dark:text-white tracking-tight">{t('settings.title')}</h1>
+        <h1 className="text-center text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('settings.title')}</h1>
 
-        {/* Campana — copiar EXACTAMENTE el mismo JSX de la campana del Dashboard/Home, incluyendo el badge de unreadCount */}
-        <div className="flex-shrink-0">
+        <div className="flex items-center justify-end flex-shrink-0">
             <NotificationsMenu />
         </div>
       </div>
