@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Zap, Calendar, CreditCard, ArrowRight, Star } from 'lucide-react';
 
+const isMobileDeviceUA = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 const PLAN_CREDITS: Record<string, number> = {
   Starter: 150,
   Pro: 400,
@@ -24,6 +29,7 @@ export default function UpgradeSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
   const [countdown, setCountdown] = useState(10);
+  const dashboardDestination = isMobileDeviceUA() ? '/dashboard/numbers' : '/web';
 
   // Leer params de la URL: ?slotId=8A&planName=Starter&isAnnual=true
   const params = new URLSearchParams(location.search);
@@ -42,14 +48,14 @@ export default function UpgradeSuccess() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate('/web');
+          navigate(dashboardDestination);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [navigate]);
+  }, [dashboardDestination, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -128,7 +134,7 @@ export default function UpgradeSuccess() {
           {/* Footer con botón */}
           <div className="px-6 pb-6 space-y-3">
             <button
-              onClick={() => navigate('/web')}
+              onClick={() => navigate(dashboardDestination)}
               className="w-full bg-gray-900 hover:bg-gray-700 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
             >
               Ir a Mis SIMs

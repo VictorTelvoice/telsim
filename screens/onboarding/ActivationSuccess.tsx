@@ -16,6 +16,10 @@ interface ActivationData {
 }
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+const isMobileDeviceUA = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 // ─── Plan pricing catalogue ───────────────────────────────────────────────────
 const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number }> = {
@@ -42,6 +46,8 @@ const ActivationSuccess: React.FC = () => {
   const [data, setData] = useState<ActivationData | null>(null);
   const [copied, setCopied] = useState(false);
   const [desktop, setDesktop] = useState(isDesktop());
+  const dashboardDestination = isMobileDeviceUA() ? '/dashboard' : '/web';
+  const billingDestination = isMobileDeviceUA() ? '/dashboard/billing' : '/web';
 
   useEffect(() => {
     const handler = () => setDesktop(isDesktop());
@@ -298,7 +304,7 @@ const ActivationSuccess: React.FC = () => {
 
                 {/* CTAs */}
                 <button
-                  onClick={() => navigate('/web')}
+                  onClick={() => navigate(dashboardDestination)}
                   className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
                 >
                   <span />
@@ -310,7 +316,7 @@ const ActivationSuccess: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => navigate('/web')}
+                  onClick={() => navigate(billingDestination)}
                   className="w-full h-11 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 font-bold text-[12px] uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
