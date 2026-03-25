@@ -967,6 +967,25 @@ export default async function handler(req: any, res: any) {
         console.log('[UPGRADE] idempotente: fila ya existe para nueva Stripe subscription', { newSubId });
       }
 
+      if (upgradeSubscriptionId) {
+        const billingUpdatePayload = {
+          status: billingSnap.status,
+          subscription_status: newSub.status,
+          trial_end: billingSnap.trial_end,
+          current_period_end: billingSnap.current_period_end,
+          next_billing_date: billingSnap.next_billing_date ?? billingSnap.current_period_end ?? null,
+          updated_at: new Date().toISOString(),
+        };
+        const { error: billingPersistErr } = await supabaseAdmin
+          .from('subscriptions')
+          .update(billingUpdatePayload)
+          .eq('id', upgradeSubscriptionId);
+        if (billingPersistErr) {
+          console.error('[UPGRADE] billing snapshot persist failed after insert/update', billingPersistErr);
+          throw new Error(`[UPGRADE_BILLING_PERSIST_FAILED] ${billingPersistErr.message}`);
+        }
+      }
+
       // 2) Slot siempre ocupado y alineado al plan (upgrade no debe dejar reserved/libre).
       const { error: upgradeSlotErr } = await supabaseAdmin
         .from('slots')
