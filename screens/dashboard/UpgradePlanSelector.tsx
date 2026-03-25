@@ -63,8 +63,6 @@ const CheckIcon = () => (
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
-const PLAN_ORDER: Record<string, number> = { starter: 1, pro: 2, power: 3 };
-
 const getPlanTheme = (key: PlanKey) => {
   if (key === 'pro') {
     return {
@@ -122,18 +120,15 @@ export default function UpgradePlanSelector() {
 
   const visiblePlans = useMemo<VisiblePlan[]>(() => {
     const currentKey = currentPlanName.toLowerCase() as PlanKey;
-    return (Object.entries(OFFICIAL_PLANS) as [PlanKey, (typeof OFFICIAL_PLANS)[PlanKey]][])
-      .filter(([key]) => {
-        const planOrder = PLAN_ORDER[key];
-        const currentOrder = PLAN_ORDER[currentKey] ?? 1;
-        if (planOrder > currentOrder) return true;
-        return key === currentKey;
-      })
-      .map(([key, plan]) => ({
+    const orderedKeys = ([currentKey, ...(['starter', 'pro', 'power'] as PlanKey[]).filter((key) => key !== currentKey)]) as PlanKey[];
+    return orderedKeys.map((key) => {
+      const plan = OFFICIAL_PLANS[key];
+      return {
         key,
         ...plan,
         forceBilling: key === currentKey ? (currentBilling === 'monthly' ? 'annual' : 'monthly') : undefined,
-      }));
+      };
+    });
   }, [currentBilling, currentPlanName]);
 
   useEffect(() => {
