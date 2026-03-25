@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   CreditCard,
@@ -16,6 +15,9 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useMessagesCount } from '../../contexts/MessagesContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import SideDrawer from '../SideDrawer';
 import {
   BILLING_PAGE_INITIAL,
   BILLING_PAGE_STEP,
@@ -417,8 +419,14 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user, session } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
+  const { unreadSmsCount } = useMessagesCount();
+  const { unreadCount: unreadNotificationsCount } = useNotifications();
   const isEmbedded = variant === 'embedded';
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+  const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
+  const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
 
   const manageAuthHeaders = useMemo(() => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -1552,26 +1560,42 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   if (!isEmbedded) {
     return (
-      <div className="min-h-screen bg-white dark:bg-background-dark font-display pb-28">
-        <header className="flex items-center justify-between px-6 py-6 bg-white/90 dark:bg-background-dark/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-background-dark font-display pb-28">
+        <header className="grid grid-cols-[40px_1fr_40px] items-center gap-3 px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
           <button
             type="button"
-            onClick={() => navigate(-1)}
-            className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400"
+            onClick={() => setDrawerOpen(true)}
+            className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-[#1e3a8a] dark:text-blue-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            aria-label="Abrir menu"
           >
-            <ArrowLeft className="size-6" />
+            <svg width="16" height="12" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="0" y1="1" x2="18" y2="1"/>
+              <line x1="0" y1="7" x2="18" y2="7"/>
+              <line x1="0" y1="13" x2="18" y2="13"/>
+            </svg>
           </button>
+          <h1 className="text-center text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('billing.title')}</h1>
           <button
             type="button"
             onClick={handleOpenStripePortal}
             disabled={isCreatingPortal}
-            className="text-[11px] font-black text-primary uppercase tracking-widest px-3 py-2 hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2"
+            className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            aria-label={t('billing.manage')}
           >
-            {isCreatingPortal ? <Loader2 className="size-3 animate-spin" /> : t('billing.manage')}
+            {isCreatingPortal ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-5" />}
           </button>
         </header>
         {inner}
         {detailModal}
+        <SideDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          user={{ name: userName, plan: planName }}
+          unreadMessages={unreadSmsCount}
+          unreadNotifications={unreadNotificationsCount}
+          currentLang={language}
+          onLangChange={(lang) => setLanguage(lang as 'es' | 'en')}
+        />
       </div>
     );
   }
