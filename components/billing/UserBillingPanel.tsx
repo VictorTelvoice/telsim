@@ -1034,9 +1034,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const inner = (
     <main className={mainClasses}>
       {!hideIntroTitle && (
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{t('billing.title')}</h1>
-        </div>
+        <div />
       )}
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
