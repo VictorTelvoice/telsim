@@ -264,7 +264,7 @@ const Messages: React.FC = () => {
         </button>
       </header>
 
-      <div className="max-w-lg mx-auto lg:max-w-5xl lg:px-4">
+      <div className="px-5 pt-8 max-w-lg mx-auto lg:max-w-4xl lg:px-10">
 
         <section className="space-y-2 pt-3 pb-2">
           <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
@@ -312,7 +312,7 @@ const Messages: React.FC = () => {
         </section>
       </div>
       
-      <main className="px-5 max-w-lg mx-auto lg:max-w-5xl lg:px-10 py-5">
+      <main className="px-5 max-w-lg mx-auto lg:max-w-4xl lg:px-10 py-5">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
