@@ -120,12 +120,7 @@ export default function UpgradePlanSelector() {
 
   const visiblePlans = useMemo<VisiblePlan[]>(() => {
     const currentKey = currentPlanName.toLowerCase() as PlanKey;
-    const orderMap: Record<PlanKey, PlanKey[]> = {
-      starter: ['starter', 'pro', 'power'],
-      pro: ['pro', 'power', 'starter'],
-      power: ['power', 'pro', 'starter'],
-    };
-    const orderedKeys = orderMap[currentKey] || orderMap.starter;
+    const orderedKeys: PlanKey[] = ['starter', 'pro', 'power'];
     return orderedKeys.map((key) => {
       const plan = OFFICIAL_PLANS[key];
       return {
@@ -137,14 +132,14 @@ export default function UpgradePlanSelector() {
   }, [currentBilling, currentPlanName]);
 
   useEffect(() => {
-    setCurrentPage(Math.min(visiblePlans.length > 1 ? 1 : 0, Math.max(visiblePlans.length - 1, 0)));
+    setCurrentPage(0);
   }, [visiblePlans.length]);
 
   useEffect(() => {
     if (desktop) return;
     const el = scrollRef.current;
     if (!el || visiblePlans.length === 0) return;
-    const targetIndex = Math.min(visiblePlans.length > 1 ? 1 : 0, visiblePlans.length - 1);
+    const targetIndex = 0;
     const timer = setTimeout(() => {
       const cards = el.querySelectorAll<HTMLElement>('[data-plan-card]');
       const card = cards[targetIndex];
@@ -222,7 +217,7 @@ export default function UpgradePlanSelector() {
         key={plan.key}
         data-plan-card
         onClick={() => handleSelect(plan)}
-        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl p-6 pt-7' : 'rounded-3xl p-7 pt-8 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
+        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl px-6 pb-6 pt-7' : 'rounded-3xl px-8 pb-7 pt-8 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
         style={plan.key === 'power' && !mobile
           ? { background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
           : undefined}
@@ -239,7 +234,7 @@ export default function UpgradePlanSelector() {
 
         <div className={mobile ? 'pt-5' : ''}>
           <div className={`mb-3 text-[11px] font-black uppercase tracking-widest ${theme.titleClass}`}>{plan.id}</div>
-          <div className={`mb-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${theme.badgeClass}`}>
+          <div className={`mb-5 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 ${theme.badgeClass}`}>
             <span className="text-[11px] font-black">{plan.creditsLabel}</span>
           </div>
           <div className="flex items-baseline gap-1">
@@ -261,23 +256,23 @@ export default function UpgradePlanSelector() {
 
         <div className={`h-px ${plan.key === 'power' ? '' : plan.key === 'pro' ? 'bg-gradient-to-r from-transparent via-blue-200 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent'}`} style={plan.key === 'power' ? { background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' } : undefined} />
 
-        <div className={`flex flex-1 flex-col ${mobile ? 'gap-2.5' : 'gap-2.5'}`}>
+        <div className={`flex flex-1 flex-col ${mobile ? 'gap-2.5' : 'gap-3'} ${mobile ? 'py-5' : 'py-6'}`}>
           {featureTexts.map((feature, index) => (
             <div key={`${plan.key}-${index}`} className="flex items-start gap-2">
               <CheckIcon />
-              <span className={`${mobile ? 'text-xs' : 'text-[13px]'} font-semibold text-slate-700 dark:text-slate-300`}>
+              <span className={`${mobile ? 'text-[12.5px]' : 'text-[14px]'} leading-relaxed font-semibold text-slate-700 dark:text-slate-300`}>
                 {feature}
               </span>
             </div>
           ))}
         </div>
 
-        <div className={`rounded-2xl px-4 py-3 ${theme.idealClass}`}>
+        <div className={`rounded-2xl px-5 py-3.5 ${theme.idealClass}`}>
           <p className="mb-0.5 text-[9px] font-black uppercase tracking-wider opacity-60">Ideal para</p>
-          <p className={`${mobile ? 'text-xs' : 'text-[12px]'} font-bold`}>{descText}</p>
+          <p className={`${mobile ? 'text-[12.5px]' : 'text-[13px]'} leading-relaxed font-bold`}>{descText}</p>
         </div>
 
-        <div className={`flex items-center justify-center gap-1.5 pt-1 ${theme.ctaClass}`}>
+        <div className={`flex items-center justify-center gap-1.5 pt-3 ${theme.ctaClass}`}>
           <span className={`${mobile ? 'text-sm' : 'text-[14px]'} font-black`}>Cambiar plan</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
