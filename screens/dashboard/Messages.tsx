@@ -377,20 +377,17 @@ const Messages: React.FC = () => {
                       <div className="bg-white dark:bg-surface-dark rounded-[1.4rem] rounded-tl-[0.35rem] p-4 shadow-sm border border-slate-100 dark:border-slate-800 transition-all active:scale-[0.99] space-y-3">
                         <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">{msg.content}</p>
                         {msg.verification_code && (
-                          <div className="flex items-center justify-between gap-3 pt-1">
-                            <span className="text-[28px] font-black font-mono tracking-[0.18em] text-slate-900 dark:text-white tabular-nums leading-none">
-                              {msg.verification_code}
-                            </span>
+                          <div className="flex items-center justify-end gap-3 pt-1">
                             <button
                               onClick={(e) => handleCopy(e, msg.verification_code!, msg.id)}
-                              className={`h-10 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-[10px] font-black uppercase tracking-wide ${
+                              className={`size-10 rounded-xl flex items-center justify-center transition-all text-[10px] font-black uppercase tracking-wide ${
                                 copyingId === msg.id
                                   ? 'bg-emerald-500 text-white shadow-lg'
                                   : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-90 dark:bg-slate-950'
                               }`}
+                              aria-label={copyingId === msg.id ? 'Código copiado' : 'Copiar código'}
                             >
                               {copyingId === msg.id ? <Check className="size-4" /> : <Copy className="size-4" />}
-                              {copyingId === msg.id ? 'Copiado' : 'Copiar'}
                             </button>
                           </div>
                         )}
