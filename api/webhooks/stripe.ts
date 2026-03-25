@@ -891,32 +891,66 @@ export default async function handler(req: any, res: any) {
           .limit(1)
           .maybeSingle();
 
-        const { data: upInsRow, error: upInsErr } = await supabaseAdmin
+        const upgradeInsertPayload = {
+          user_id: upgradeMeta.user_id,
+          slot_id: upgradeMeta.slot_id,
+          phone_number: (phoneRow as { phone_number?: string } | null)?.phone_number ?? null,
+          stripe_subscription_id: newSubId,
+          stripe_session_id: session.id,
+          plan_name: upgradeMeta.new_plan_name,
+          monthly_limit: upgradeMonthlyLimit,
+          credits_used: 0,
+          billing_type: billingTypeFromStripe,
+          amount,
+          currency: (newSub.currency ?? 'usd') as string,
+          status: billingSnap.status,
+          subscription_status: newSub.status,
+          trial_end: billingSnap.trial_end,
+          current_period_end: billingSnap.current_period_end,
+          next_billing_date: billingSnap.next_billing_date,
+          activation_state: 'on_air',
+          activation_state_updated_at: activationTs,
+          created_at: activationTs,
+          updated_at: activationTs,
+        };
+
+        let upInsRow: { id?: string } | null = null;
+        let upInsErr: { code?: string; message?: string; details?: string | null } | null = null;
+
+        const firstInsert = await supabaseAdmin
           .from('subscriptions')
-          .insert({
-            user_id: upgradeMeta.user_id,
-            slot_id: upgradeMeta.slot_id,
-            phone_number: (phoneRow as { phone_number?: string } | null)?.phone_number ?? null,
-            stripe_subscription_id: newSubId,
-            stripe_session_id: session.id,
-            plan_name: upgradeMeta.new_plan_name,
-            monthly_limit: upgradeMonthlyLimit,
-            credits_used: 0,
-            billing_type: billingTypeFromStripe,
-            amount,
-            currency: (newSub.currency ?? 'usd') as string,
-            status: billingSnap.status,
-            subscription_status: newSub.status,
-            trial_end: billingSnap.trial_end,
-            current_period_end: billingSnap.current_period_end,
-            next_billing_date: billingSnap.next_billing_date,
-            activation_state: 'on_air',
-            activation_state_updated_at: activationTs,
-            created_at: activationTs,
-            updated_at: activationTs,
-          })
+          .insert(upgradeInsertPayload)
           .select('id')
           .maybeSingle();
+        upInsRow = firstInsert.data as { id?: string } | null;
+        upInsErr = firstInsert.error;
+
+        if (upInsErr?.code === '23505' && /slot_id/i.test(String(upInsErr.details ?? upInsErr.message ?? ''))) {
+          console.warn('[UPGRADE] live slot conflict on insert; marking previous live rows canceled before retry', {
+            slot_id: upgradeMeta.slot_id,
+            old_subscription_id: upgradeMeta.old_subscription_id,
+            new_subscription_id: newSubId,
+          });
+
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              status: 'canceled',
+              updated_at: activationTs,
+            })
+            .eq('slot_id', upgradeMeta.slot_id)
+            .in('status', LIVE_STATUSES)
+            .neq('stripe_subscription_id', newSubId);
+
+          const retryInsert = await supabaseAdmin
+            .from('subscriptions')
+            .insert(upgradeInsertPayload)
+            .select('id')
+            .maybeSingle();
+          upInsRow = retryInsert.data as { id?: string } | null;
+          upInsErr = retryInsert.error;
+        }
+
         if (upInsErr) {
           console.error('[PURCHASE] subscription upsert error (upgrade)', upInsErr);
           throw new Error(`[UPGRADE_INSERT_FAILED] ${upInsErr.message}`);
