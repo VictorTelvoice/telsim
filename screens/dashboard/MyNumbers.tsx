@@ -499,7 +499,7 @@ const MyNumbers: React.FC = () => {
                 </button>
             </header>
 
-            <main className="px-5 py-8 space-y-12 max-w-lg mx-auto lg:max-w-4xl lg:px-10">
+            <main className="px-5 py-4 space-y-12 max-w-lg mx-auto lg:max-w-4xl lg:px-10">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <Loader2 className="size-10 text-primary animate-spin" />
