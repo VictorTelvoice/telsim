@@ -276,7 +276,7 @@ const Messages: React.FC = () => {
 
       <div className="px-5 pt-4 max-w-lg mx-auto lg:max-w-4xl lg:px-10">
 
-        <section className="space-y-2 pt-3 pb-2">
+        <section className="space-y-2 pb-2">
           <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
             {filteredMessages.length} SMS
           </p>
