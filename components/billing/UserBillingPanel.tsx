@@ -359,7 +359,7 @@ const SubscriptionBillingCard: React.FC<{
             className="px-2.5 py-2 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wide hover:bg-primary/20 flex items-center justify-center gap-1 min-h-[38px] text-center"
           >
             <ExternalLink className="size-3.5 shrink-0" />
-            Gestionar pago
+            Gestionar
           </button>
         ) : null}
         <button
