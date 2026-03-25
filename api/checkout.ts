@@ -181,7 +181,10 @@ export default async function handler(req: any, res: any) {
                 const subscription = await stripe.subscriptions.retrieve(stripeSubId);
                 await stripe.subscriptions.update(stripeSubId, {
                   items: [{ id: subscription.items.data[0].id, price: priceId }],
-                  proration_behavior: 'always_invoice',
+                  billing_cycle_anchor: 'now',
+                  proration_behavior: 'none',
+                  trial_end: 'now',
+                  cancel_at_period_end: false,
                   metadata: {
                     userId,
                     slot_id: activeSub.slot_id as string,

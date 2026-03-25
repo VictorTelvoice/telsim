@@ -19,7 +19,6 @@ import {
 } from './_helpers/cancellationSoftCancel.js';
 import { sendReactivationSuccessNotifications } from './_helpers/reactivationSuccessNotifications.js';
 import { subscriptionBillingSnapshotFromStripe } from './_helpers/stripeSubscriptionBilling.js';
-import { resolveBillingCycleAnchorForUpgradeCheckout } from './_helpers/checkoutSubscriptionBillingAnchor.js';
 import { monthlySmsLimitForPlan } from './_helpers/subscriptionPlanLimits.js';
 import {
   extractReceiptUrlFromInvoice,
@@ -1369,7 +1368,13 @@ export default async function handler(req: any, res: any) {
         const baseUrl = getBaseUrl(req);
         const monthlyLimit = monthlySmsLimitForPlan(newPlanName, null);
 
-        /** Misma ruta que /api/checkout: si hay sub Stripe + método de pago, upgrade sin Checkout (sin anchor). */
+        /**
+         * Regla de negocio TELSIM para upgrades:
+         * - cobrar el valor completo del nuevo plan inmediatamente
+         * - perder cualquier trial vigente
+         * - activar el nuevo plan desde ya
+         * - no prorratear ni heredar billing anchors del ciclo anterior
+         */
         try {
           const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
           const defaultPm = customer.invoice_settings?.default_payment_method;
@@ -1379,7 +1384,10 @@ export default async function handler(req: any, res: any) {
             const subscription = await stripe.subscriptions.retrieve(stripeSubId);
             await stripe.subscriptions.update(stripeSubId, {
               items: [{ id: subscription.items.data[0].id, price: newPriceId }],
-              proration_behavior: 'always_invoice',
+              billing_cycle_anchor: 'now',
+              proration_behavior: 'none',
+              trial_end: 'now',
+              cancel_at_period_end: false,
               metadata: {
                 userId: String(userId),
                 slot_id: String(slotId),
@@ -1437,7 +1445,6 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        const anchorRes = resolveBillingCycleAnchorForUpgradeCheckout(existingStripeSub);
         const subData: Record<string, unknown> = {
           metadata: {
             upgrade: 'true',
@@ -1449,11 +1456,6 @@ export default async function handler(req: any, res: any) {
             phone_number: (slotRow as { phone_number?: string } | null)?.phone_number || '',
           },
         };
-        if (anchorRes.billing_cycle_anchor != null) {
-          subData.billing_cycle_anchor = anchorRes.billing_cycle_anchor;
-        }
-
-        console.log('[UPGRADE_CHECKOUT_ANCHOR]', JSON.stringify(anchorRes.log));
 
         const upgradeSession: Record<string, unknown> = {
           mode: 'subscription',
@@ -1466,11 +1468,10 @@ export default async function handler(req: any, res: any) {
         };
         applyStripeCheckoutBillingCompliance(upgradeSession);
         const session = await stripe.checkout.sessions.create(upgradeSession as Stripe.Checkout.SessionCreateParams);
-
-        console.log('[UPGRADE_CHECKOUT_ANCHOR] enviado a Stripe', {
+        console.log('[UPGRADE_CHECKOUT]', {
           session_id: session.id,
-          billing_cycle_anchor: anchorRes.billing_cycle_anchor ?? '(omitido)',
-          anchor_log: anchorRes.log,
+          charge_policy: 'full_amount_immediate_no_trial_no_proration',
+          existing_stripe_subscription_id: stripeSubId ?? null,
         });
 
         return res.status(200).json({ url: session.url });
