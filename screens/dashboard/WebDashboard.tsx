@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEffectiveUser } from '../../contexts/ImpersonationContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -333,6 +333,7 @@ const WebDashboard: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const isDark = theme === 'dark';
   const { notifications, unreadCount: notifUnread, loading: notifLoading, markAsRead: markNotifRead, markAllAsRead: markAllNotifRead, clearAll: clearAllNotifs } = useNotifications();
 
@@ -358,6 +359,14 @@ const WebDashboard: React.FC = () => {
   const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
+
+  useEffect(() => {
+    const targetTab = location.state?.activeTab;
+    if (targetTab && typeof targetTab === 'string') {
+      setActiveTab(targetTab as TabId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   // ─── Ticket support state (web help tab) ───────────────────────────────────
   const [helpView, setHelpView] = useState<HelpView>('main');
   const [helpTickets, setHelpTickets] = useState<WebTicket[]>([]);

@@ -246,6 +246,7 @@ const SubscriptionBillingCard: React.FC<{
   formatFriendlyDate: (iso: string) => string;
   onDetail: () => void;
   onPortal: () => void;
+  onGoToLine: () => void;
   openReactivateLine: (href: string) => void;
   resolvingInvoiceId: string | null;
   resolveInvoiceUrls: (id: string) => void;
@@ -259,6 +260,7 @@ const SubscriptionBillingCard: React.FC<{
   formatFriendlyDate,
   onDetail,
   onPortal,
+  onGoToLine,
   openReactivateLine,
   resolvingInvoiceId,
   resolveInvoiceUrls,
@@ -356,6 +358,13 @@ const SubscriptionBillingCard: React.FC<{
             Gestionar pago
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={onGoToLine}
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[40px]"
+        >
+          Ir a la línea
+        </button>
         {vm.can_reactivate && vm.reactivation_url ? (
           <button
             type="button"
@@ -424,6 +433,21 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       navigate(path);
     },
     [navigate]
+  );
+
+  const goToSubscriptionLine = useCallback(
+    (sub: Subscription) => {
+      const state = {
+        focusSlotId: sub.slot_id ?? null,
+        focusPhoneNumber: sub.phone_number ?? null,
+      };
+      if (variant === 'embedded') {
+        navigate('/web', { state: { activeTab: 'numbers', ...state } });
+        return;
+      }
+      navigate('/dashboard/numbers', { state });
+    },
+    [navigate, variant]
   );
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -1008,7 +1032,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Suscripciones activas</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Activas</p>
           <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{kpiStrictActiveSubs.length}</p>
           {pastDueCountKpi > 0 ? (
             <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400/90 mt-1 leading-snug">
@@ -1017,7 +1041,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           ) : null}
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{t('billing.mrr_estimated')}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Equivalente mensual</p>
           <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
             {mrrEstimated ? formatCurrency(mrrEstimated.amount, mrrCurrency) : '—'}
           </p>
@@ -1026,7 +1050,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 min-h-[7rem] flex flex-col">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Próxima fecha de cobro</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Proximo cobro</p>
           {upcomingChargeSummary ? (
             <div className="mt-2 min-w-0 flex-1 flex flex-col justify-between gap-1">
               <p className="text-sm font-black text-slate-900 dark:text-white leading-snug">
@@ -1048,7 +1072,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           )}
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex flex-col min-h-[7.5rem]">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{t('billing.primary_payment')}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Método de pago.</p>
           <div className="flex-1 flex flex-col justify-between gap-2 mt-1">
             {paymentMethod ? (
               <div className="flex items-start gap-2 min-w-0">
@@ -1175,6 +1199,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                   formatFriendlyDate={formatFriendlyDate}
                   onDetail={() => setSelectedSub(sub)}
                   onPortal={handleOpenStripePortal}
+                  onGoToLine={() => goToSubscriptionLine(sub)}
                   openReactivateLine={openReactivateLine}
                   resolvingInvoiceId={resolvingInvoiceId}
                   resolveInvoiceUrls={resolveInvoiceUrls}
@@ -1254,6 +1279,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                       formatFriendlyDate={formatFriendlyDate}
                       onDetail={() => setSelectedSub(sub)}
                       onPortal={handleOpenStripePortal}
+                      onGoToLine={() => goToSubscriptionLine(sub)}
                       openReactivateLine={openReactivateLine}
                       resolvingInvoiceId={resolvingInvoiceId}
                       resolveInvoiceUrls={resolveInvoiceUrls}

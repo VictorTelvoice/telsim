@@ -50,6 +50,7 @@ const MyNumbers: React.FC = () => {
     const [simFilter, setSimFilter] = useState('');
     const [planFilter, setPlanFilter] = useState<'all' | 'start' | 'pro' | 'power'>('all');
     const [sortMode, setSortMode] = useState<'recent' | 'oldest' | 'usage'>('recent');
+    const [highlightedSlotId, setHighlightedSlotId] = useState<string | null>(null);
 
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [tempLabelValue, setTempLabelValue] = useState('');
@@ -130,6 +131,34 @@ const MyNumbers: React.FC = () => {
                 window.history.replaceState({}, document.title);
             }
         }
+    }, [location.state, slots]);
+
+    useEffect(() => {
+        const focusSlotId = location.state?.focusSlotId as string | undefined;
+        const focusPhoneNumber = location.state?.focusPhoneNumber as string | undefined;
+        if ((!focusSlotId && !focusPhoneNumber) || slots.length === 0) return;
+
+        const target = slots.find((slot) =>
+            (focusSlotId && slot.slot_id === focusSlotId) ||
+            (focusPhoneNumber && slot.phone_number === focusPhoneNumber)
+        );
+        if (!target) return;
+
+        setHighlightedSlotId(target.slot_id);
+        const timer = window.setTimeout(() => {
+            document.getElementById(`sim-card-${target.slot_id}`)?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        }, 120);
+
+        window.history.replaceState({}, document.title);
+        const clearTimer = window.setTimeout(() => setHighlightedSlotId(null), 2200);
+
+        return () => {
+            window.clearTimeout(timer);
+            window.clearTimeout(clearTimer);
+        };
     }, [location.state, slots]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -513,7 +542,13 @@ const MyNumbers: React.FC = () => {
                             const style = getPlanStyle(slot.actual_plan_name);
 
                             return (
-                                <div key={slot.slot_id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div
+                                    key={slot.slot_id}
+                                    id={`sim-card-${slot.slot_id}`}
+                                    className={`relative group animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-[1.9rem] transition-all ${
+                                        highlightedSlotId === slot.slot_id ? 'ring-4 ring-primary/30 ring-offset-4 ring-offset-[#F8FAFC]' : ''
+                                    }`}
+                                >
                                     <div
                                         className={`relative shadow-2xl rounded-[1.8rem] overflow-hidden group/sim transition-all duration-500 p-5 min-h-[220px] flex flex-col justify-between ${style.cardBg}`}
                                         style={{
