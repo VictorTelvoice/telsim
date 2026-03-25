@@ -254,24 +254,26 @@ const Messages: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-background-dark font-display pb-32">
-      <header className="px-6 pt-12 pb-2 bg-[#F2F2F7]/80 dark:bg-background-dark/80 backdrop-blur-xl sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 shadow-sm shadow-black/5">
-        <div className="max-w-lg mx-auto lg:max-w-5xl lg:px-4">
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <button onClick={() => navigate(getPostAuthRoute())} className="mb-2 flex items-center gap-1 text-primary font-bold text-sm">
-              <span className="material-icons-round text-lg">chevron_left</span>
-              {t('messages.back')}
-            </button>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{t('messages.title')}</h1>
-          </div>
-          <button 
-            onClick={fetchData} 
-            disabled={loading}
-            className="bg-white dark:bg-slate-800 size-10 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 mb-1 border border-slate-100 dark:border-slate-700"
-          >
-            <RefreshCw className={`size-5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
+      <header className="flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
+        <button
+          onClick={() => navigate(getPostAuthRoute())}
+          className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400"
+          aria-label={t('messages.back')}
+        >
+          <span className="material-icons-round text-[20px]">chevron_left</span>
+        </button>
+        <h1 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{t('messages.title')}</h1>
+        <button 
+          onClick={fetchData} 
+          disabled={loading}
+          className="p-2 -mr-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400"
+          aria-label="Actualizar mensajes"
+        >
+          <RefreshCw className={`size-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </header>
+
+      <div className="max-w-lg mx-auto lg:max-w-5xl lg:px-4">
 
         <section className="space-y-2 pb-3">
           <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
@@ -329,8 +331,7 @@ const Messages: React.FC = () => {
             </div>
           </div>
         </section>
-        </div>{/* end desktop centering wrapper */}
-      </header>
+      </div>
       
       <main className="px-5 max-w-lg mx-auto lg:max-w-5xl lg:px-10 py-6">
         {loading ? (
