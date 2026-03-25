@@ -42,7 +42,6 @@ const Messages: React.FC = () => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'all' | 'verifications' | 'others'>('verifications');
   const [messageSearch, setMessageSearch] = useState('');
-  const [sortMode, setSortMode] = useState<'recent' | 'oldest' | 'service'>('recent');
 
   const filterNum = searchParams.get('num');
 
@@ -231,16 +230,8 @@ const Messages: React.FC = () => {
       return haystack.includes(q);
     });
 
-    return [...base].sort((a, b) => {
-      if (sortMode === 'oldest') {
-        return new Date(a.received_at).getTime() - new Date(b.received_at).getTime();
-      }
-      if (sortMode === 'service') {
-        return (a.service_name || a.sender || '').localeCompare(b.service_name || b.sender || '', language === 'es' ? 'es' : 'en');
-      }
-      return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
-    });
-  }, [messages, messageType, filterNum, slotMap, messageSearch, sortMode, language]);
+    return [...base].sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+  }, [messages, messageType, filterNum, slotMap, messageSearch]);
 
   const toggleFilter = (num: string | null) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -275,12 +266,12 @@ const Messages: React.FC = () => {
 
       <div className="max-w-lg mx-auto lg:max-w-5xl lg:px-4">
 
-        <section className="space-y-2 pb-3">
+        <section className="space-y-2 pt-3 pb-2">
           <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
             {filteredMessages.length} SMS
           </p>
           <div className="rounded-[1.5rem] border border-slate-200/70 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-sm px-2 py-1.5 flex items-center gap-1.5 flex-nowrap overflow-hidden">
-            <div className="flex items-center gap-1.5 min-w-0 w-[33%] flex-none rounded-xl bg-slate-50/90 dark:bg-slate-800/90 px-2 py-1.5 border border-slate-200/70 dark:border-slate-700/70">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 rounded-xl bg-slate-50/90 dark:bg-slate-800/90 px-2 py-1.5 border border-slate-200/70 dark:border-slate-700/70">
               <Search className="size-3.5 text-slate-400 flex-shrink-0" />
               <input
                 type="text"
@@ -290,7 +281,7 @@ const Messages: React.FC = () => {
                 className="min-w-0 w-full bg-transparent outline-none text-[11px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
-            <div className="relative w-[112px] shrink-0">
+            <div className="relative w-[88px] shrink-0">
               <SlidersHorizontal className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
               <select
                 value={messageType}
@@ -302,7 +293,7 @@ const Messages: React.FC = () => {
                 <option value="others">Others</option>
               </select>
             </div>
-            <div className="relative w-[92px] shrink-0">
+            <div className="relative w-[96px] shrink-0">
               <ArrowUpDown className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
               <select
                 value={filterNum || 'all'}
@@ -317,23 +308,11 @@ const Messages: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="relative w-[92px] shrink-0">
-              <ArrowUpDown className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-              <select
-                value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                className="w-full appearance-none bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl pl-7 pr-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 outline-none"
-              >
-                <option value="recent">Nuevos</option>
-                <option value="oldest">Antiguos</option>
-                <option value="service">Servicio</option>
-              </select>
-            </div>
           </div>
         </section>
       </div>
       
-      <main className="px-5 max-w-lg mx-auto lg:max-w-5xl lg:px-10 py-6">
+      <main className="px-5 max-w-lg mx-auto lg:max-w-5xl lg:px-10 py-5">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
