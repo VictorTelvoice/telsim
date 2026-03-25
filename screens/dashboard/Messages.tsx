@@ -370,7 +370,7 @@ const Messages: React.FC = () => {
                       {/* Port / phone number */}
                       <div className="flex items-center gap-1.5 mb-2 px-1">
                         <img src={`https://flagcdn.com/w40/${getCountryCode(realNumber)}.png`} className="w-3.5 h-2.5 object-cover rounded-sm opacity-60" alt="" />
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('dashboard.port')}: {formatPhoneNumber(realNumber)}</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">SIM: {formatPhoneNumber(realNumber)}</span>
                       </div>
 
                       {/* SMS Bubble */}
