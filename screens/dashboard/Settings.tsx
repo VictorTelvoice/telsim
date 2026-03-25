@@ -134,19 +134,18 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-background-dark font-display flex flex-col">
       {showRating && (
         <RatingModal onDone={() => { setShowRating(false); doLogout(); }} />
       )}
 
-      {/* Header — mismo patrón que el Dashboard */}
-      <div className="bg-[#F0F4F8] dark:bg-background-dark pt-12 pb-3 px-5 grid grid-cols-[38px_1fr_38px] items-center gap-3 flex-shrink-0">
+      <header className="grid grid-cols-[40px_1fr_40px] items-center gap-3 px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 lg:px-12">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="w-[38px] h-[38px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center flex-shrink-0"
+          className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-[#1e3a8a] dark:text-blue-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           aria-label="Abrir menu"
         >
-          <svg width="16" height="12" viewBox="0 0 18 14" fill="none" stroke={isDark ? "#60a5fa" : "#1e3a8a"} strokeWidth="2.2" strokeLinecap="round">
+          <svg width="16" height="12" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <line x1="0" y1="1" x2="18" y2="1"/>
             <line x1="0" y1="7" x2="18" y2="7"/>
             <line x1="0" y1="13" x2="18" y2="13"/>
@@ -158,7 +157,7 @@ const Settings: React.FC = () => {
         <div className="flex items-center justify-end flex-shrink-0">
             <NotificationsMenu />
         </div>
-      </div>
+      </header>
 
       {/* Scroll body */}
       <div className="flex-1 overflow-y-auto px-4 pb-28 space-y-3">
