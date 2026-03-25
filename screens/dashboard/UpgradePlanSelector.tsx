@@ -120,7 +120,12 @@ export default function UpgradePlanSelector() {
 
   const visiblePlans = useMemo<VisiblePlan[]>(() => {
     const currentKey = currentPlanName.toLowerCase() as PlanKey;
-    const orderedKeys = ([currentKey, ...(['starter', 'pro', 'power'] as PlanKey[]).filter((key) => key !== currentKey)]) as PlanKey[];
+    const orderMap: Record<PlanKey, PlanKey[]> = {
+      starter: ['starter', 'pro', 'power'],
+      pro: ['pro', 'power', 'starter'],
+      power: ['power', 'pro', 'starter'],
+    };
+    const orderedKeys = orderMap[currentKey] || orderMap.starter;
     return orderedKeys.map((key) => {
       const plan = OFFICIAL_PLANS[key];
       return {
