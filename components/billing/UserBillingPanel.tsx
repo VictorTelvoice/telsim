@@ -265,6 +265,10 @@ const SubscriptionBillingCard: React.FC<{
   resolvingInvoiceId,
   resolveInvoiceUrls,
 }) => {
+  const actionCount = 2 + (vm.can_manage_payment ? 1 : 0) + (vm.can_reactivate && vm.reactivation_url ? 1 : 0);
+  const actionGridClass =
+    actionCount >= 4 ? 'grid grid-cols-2 sm:grid-cols-4 gap-2 items-center' : 'grid grid-cols-3 gap-2 items-center';
+
   const wrap = muted
     ? 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 min-w-0 opacity-95 ring-1 ring-slate-100/80 dark:ring-slate-800/80'
     : 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 min-w-0 shadow-sm shadow-slate-200/40 dark:shadow-none';
@@ -340,11 +344,11 @@ const SubscriptionBillingCard: React.FC<{
         {latestInvoice && invoicesReady ? <InvoiceFiscalSummary inv={latestInvoice} formatCurrency={formatCurrency} /> : null}
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className={actionGridClass}>
         <button
           type="button"
           onClick={onDetail}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[40px]"
+          className="px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[38px] text-center"
         >
           Ver detalle
         </button>
@@ -352,7 +356,7 @@ const SubscriptionBillingCard: React.FC<{
           <button
             type="button"
             onClick={onPortal}
-            className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider hover:bg-primary/20 flex items-center gap-1 min-h-[40px]"
+            className="px-2.5 py-2 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wide hover:bg-primary/20 flex items-center justify-center gap-1 min-h-[38px] text-center"
           >
             <ExternalLink className="size-3.5 shrink-0" />
             Gestionar pago
@@ -361,7 +365,7 @@ const SubscriptionBillingCard: React.FC<{
         <button
           type="button"
           onClick={onGoToLine}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[40px]"
+          className="px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wide text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[38px] text-center"
         >
           Ir a la línea
         </button>
@@ -369,7 +373,7 @@ const SubscriptionBillingCard: React.FC<{
           <button
             type="button"
             onClick={() => openReactivateLine(vm.reactivation_url!)}
-            className="px-3 py-2 rounded-xl border border-orange-200 dark:border-orange-500/35 bg-orange-50 dark:bg-orange-500/10 text-orange-900 dark:text-orange-100 text-[11px] font-black uppercase tracking-wider hover:bg-orange-100/90 dark:hover:bg-orange-500/20 min-h-[40px]"
+            className="px-2.5 py-2 rounded-xl border border-orange-200 dark:border-orange-500/35 bg-orange-50 dark:bg-orange-500/10 text-orange-900 dark:text-orange-100 text-[10px] font-black uppercase tracking-wide hover:bg-orange-100/90 dark:hover:bg-orange-500/20 min-h-[38px] text-center"
           >
             Reactivar línea
           </button>
