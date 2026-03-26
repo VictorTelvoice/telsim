@@ -293,64 +293,60 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
             <p className="text-[11px] font-bold text-slate-400 italic">{t('dashboard.traffic.waiting')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {messages.map((msg, idx) => {
             const style = getServiceStyle(msg.service_name, msg.sender);
             return (
               <div
-                  key={msg.id}
-                  className="bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col animate-in slide-in-from-left-4 duration-500 group overflow-hidden relative"
-                  style={{ animationDelay: `${idx * 100}ms` }}
+                key={msg.id}
+                style={{ animationDelay: `${idx * 50}ms` }}
+                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
               >
-                  {idx === 0 && (
-                     <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none"></div>
-                  )}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <div />
+                    <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 tabular-nums shrink-0">
+                      {formatTime(msg.received_at)}
+                    </span>
+                  </div>
 
-                  <div className="flex items-center gap-4 mb-3">
-                      <div className={`size-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 transition-all group-hover:scale-105 ${style.bg} ${style.text}`}>
+                  <div className="flex items-start gap-2.5">
+                      <div className={`size-9 rounded-[1rem] flex items-center justify-center shadow-lg flex-shrink-0 mt-1 ${style.bg} ${style.text}`}>
                           {style.icon}
                       </div>
-
-                      <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate pr-2">
-                                  {style.label}
-                              </span>
-                              <span className="text-[9px] font-bold text-slate-300 tabular-nums flex items-center gap-1 shrink-0">
-                                  <Clock className="size-2.5" />
-                                  {formatTime(msg.received_at)}
-                              </span>
-                          </div>
-                          <p className="text-[9px] font-medium text-slate-400 truncate uppercase tracking-widest">{t('dashboard.traffic.from')}: {formatSenderNumber(msg.sender)}</p>
-                      </div>
-                  </div>
-
-                  <div className="px-1 mb-4">
-                    <p className="text-[12px] leading-relaxed text-slate-500 dark:text-slate-400 italic font-medium">
-                      {msg.content}
-                    </p>
-                  </div>
-
-                  {msg.verification_code && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-100/50 dark:border-slate-700/50">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('dashboard.traffic.code_detected')}</span>
-                          <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-[0.15em] tabular-nums leading-none">
-                              {msg.verification_code}
+                      <div className="flex-1 bg-white dark:bg-surface-dark rounded-[1.25rem] rounded-tl-[0.35rem] px-3 py-2.5 shadow-sm border border-slate-100 dark:border-slate-800">
+                        <div className="mb-1">
+                          <span className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+                            {style.label}
+                          </span>
+                          <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest truncate mt-0.5">
+                            Origen: {formatSenderNumber(msg.sender)}
                           </span>
                         </div>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleCopy(msg.verification_code!, msg.id); }}
-                            className={`size-10 rounded-lg flex items-center justify-center transition-all ${
+                        <div className="flex items-end gap-2">
+                          <p className="flex-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200 font-medium">
+                            {msg.content}
+                          </p>
+                          {msg.verification_code ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy(msg.verification_code!, msg.id);
+                              }}
+                              className={`size-7 rounded-lg flex items-center justify-center shrink-0 transition-all ${
                                 copyingId === msg.id
-                                ? 'bg-emerald-500 text-white shadow-lg'
-                                : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-primary active:scale-90 border border-slate-100 dark:border-slate-700 shadow-sm'
-                            }`}
-                        >
-                            {copyingId === msg.id ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                        </button>
-                    </div>
-                  )}
+                                  ? 'bg-emerald-500 text-white shadow-lg'
+                                  : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-90 dark:bg-slate-950'
+                              }`}
+                              aria-label={copyingId === msg.id ? 'Código copiado' : 'Copiar código'}
+                            >
+                              {copyingId === msg.id ? <Check className="size-4" /> : <Copy className="size-4" />}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                  </div>
+                </div>
               </div>
             );
           })}
