@@ -14,6 +14,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
+async function getRequester(req: any) {
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/i, '') : '';
+  if (!token) return null;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const url = process.env.SUPABASE_URL || '';
+  if (!anonKey || !url) return null;
+  const supabaseAuth = createClient(url, anonKey, { global: { fetch } });
+  const { data, error } = await supabaseAuth.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user;
+}
+
 function isTelegramPayload(p: Record<string, unknown>): boolean {
   return typeof p?.token === 'string' && (typeof p?.chat_id === 'string' || typeof p?.chat_id === 'number');
 }
@@ -38,6 +53,12 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const requester = await getRequester(req);
+  if (!requester) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const isAdmin = String(requester.id).toLowerCase() === ADMIN_UID.toLowerCase();
+
   try {
     const { log_id, userId } = req.body || {};
     const logId = typeof log_id === 'string' ? log_id.trim() : '';
@@ -55,6 +76,10 @@ export default async function handler(req: any, res: any) {
 
     if (fetchError || !log) {
       return res.status(404).json({ error: 'Log not found' });
+    }
+
+    if (!isAdmin && requester.id !== uid) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     if (log.user_id !== uid) {

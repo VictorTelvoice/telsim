@@ -11,7 +11,28 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+
+async function getRequester(req: any) {
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/i, '') : '';
+  if (!token) return null;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const url = process.env.SUPABASE_URL || '';
+  if (!anonKey || !url) return null;
+  const supabaseAuth = createClient(url, anonKey, { global: { fetch } });
+  const { data, error } = await supabaseAuth.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user;
+}
+
 export default async function handler(req: any, res: any) {
+  const requester = await getRequester(req);
+  const isAdmin = String(requester?.id || '').toLowerCase() === ADMIN_UID.toLowerCase();
+  if (!requester || !isAdmin) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   if (req.method === 'GET') {
     try {
       const { data: subscriptions, error } = await supabaseAdmin
