@@ -601,7 +601,7 @@ const WebDashboard: React.FC = () => {
       setFetchError(null);
       const { data: subsData } = await supabase
         .from('subscriptions')
-        .select('*')
+        .select('id, user_id, slot_id, phone_number, plan_name, monthly_limit, credits_used, status, billing_type, created_at, amount, trial_end, current_period_end, next_billing_date, activation_state, stripe_subscription_id, stripe_session_id')
         .eq('user_id', user?.id)
         .in('status', ['active', 'trialing'])
         .order('created_at', { ascending: false })
@@ -616,7 +616,11 @@ const WebDashboard: React.FC = () => {
 
       const uniqueSubs = Array.from(new Map(subsData.map((s: { slot_id: string }) => [s.slot_id, s])).values());
 
-      const { data: slotsData } = await supabase.from('slots').select('*').in('slot_id', uniqueSubs.map(s => s.slot_id)).abortSignal(signal);
+      const { data: slotsData } = await supabase
+        .from('slots')
+        .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active, forwarding_channel, forwarding_config')
+        .in('slot_id', uniqueSubs.map(s => s.slot_id))
+        .abortSignal(signal);
       if (signal.aborted) return;
 
       const finalData = uniqueSubs
@@ -635,7 +639,13 @@ const WebDashboard: React.FC = () => {
           .forEach((k) => localStorage.removeItem(k));
       }
 
-      const { data: msgs } = await supabase.from('sms_logs').select('*').eq('user_id', user?.id).order('received_at', { ascending: false }).limit(60).abortSignal(signal);
+      const { data: msgs } = await supabase
+        .from('sms_logs')
+        .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+        .eq('user_id', user?.id)
+        .order('received_at', { ascending: false })
+        .limit(60)
+        .abortSignal(signal);
       if (signal.aborted) return;
       if (msgs) setMessages(msgs as SMSLog[]);
 
@@ -687,31 +697,25 @@ const WebDashboard: React.FC = () => {
     };
   }, [fetchData]);
 
-  // ─── Auto-refresh feed en vivo every 5 seconds ────────────────────────────────
   useEffect(() => {
     const userId = user?.id;
-    if (activeTab !== 'overview') return;
-    if (!userId) return;
-    if (fetchError) return;
+    if (activeTab !== 'overview' || !userId || fetchError) return;
 
-    const interval = setInterval(() => {
-      if (inFlightRef.current) return;
-      const fetchFeed = async () => {
-        try {
-          const { data } = await supabase
-            .from('sms_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .order('received_at', { ascending: false })
-            .limit(60);
-          if (data) setMessages(data as SMSLog[]);
-        } catch (e: any) {
-          console.error('Error refreshing feed:', e);
-        }
-      };
-      fetchFeed();
-    }, 5000);
-    return () => clearInterval(interval);
+    const refreshOverviewFeed = async () => {
+      try {
+        const { data } = await supabase
+          .from('sms_logs')
+          .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+          .eq('user_id', userId)
+          .order('received_at', { ascending: false })
+          .limit(60);
+        if (data) setMessages(data as SMSLog[]);
+      } catch (e: any) {
+        console.error('Error refreshing feed:', e);
+      }
+    };
+
+    void refreshOverviewFeed();
   }, [user?.id, activeTab, fetchError]);
 
   const getAvatarStoragePathFromUrl = (url: string): string | null => {
@@ -766,8 +770,12 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setFeedRefreshing(true);
     try {
-      const { data } = await supabase.from('sms_logs').select('*').eq('user_id', user.id)
-        .order('received_at', { ascending: false }).limit(60);
+      const { data } = await supabase
+        .from('sms_logs')
+        .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(60);
       if (data) setMessages(data);
     } catch (e) { console.error('Error refreshing feed:', e); }
     finally { setFeedRefreshing(false); }

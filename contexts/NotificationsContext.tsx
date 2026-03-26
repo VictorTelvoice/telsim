@@ -41,7 +41,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, title, message, created_at, icon, type, is_read, link, details')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
