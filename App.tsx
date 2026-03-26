@@ -38,6 +38,7 @@ const Security = React.lazy(() => import('./screens/dashboard/Security'));
 const IdentityVerification = React.lazy(() => import('./screens/dashboard/IdentityVerification'));
 const Support = React.lazy(() => import('./screens/dashboard/Support'));
 const HelpCenter = React.lazy(() => import('./screens/dashboard/HelpCenter'));
+const FAQ = React.lazy(() => import('./screens/dashboard/FAQ'));
 const TermsPrivacy = React.lazy(() => import('./screens/dashboard/TermsPrivacy'));
 const SettingsScreen = React.lazy(() => import('./screens/dashboard/Settings'));
 const MobileNotificationSettings = React.lazy(() => import('./screens/dashboard/MobileNotificationSettings'));
@@ -114,6 +115,7 @@ const BottomNav = () => {
     isActive('/dashboard/settings') || 
     isActive('/dashboard/notification-settings') ||
     isActive('/dashboard/help') || 
+    isActive('/dashboard/faq') || 
     isActive('/dashboard/terms') || 
     isActive('/dashboard/security') ||
     isActive('/dashboard/support') ||
@@ -355,6 +357,10 @@ const App: React.FC = () => {
                         <Route 
                           path="/dashboard/help" 
                           element={<ProtectedRoute><DashboardLayout><HelpCenter /></DashboardLayout></ProtectedRoute>} 
+                        />
+                        <Route 
+                          path="/dashboard/faq" 
+                          element={<ProtectedRoute><DashboardLayout><FAQ /></DashboardLayout></ProtectedRoute>} 
                         />
                         <Route 
                           path="/dashboard/support/tickets" 
