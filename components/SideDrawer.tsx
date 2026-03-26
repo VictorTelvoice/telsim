@@ -90,10 +90,10 @@ export default function SideDrawer({
   };
 
   const SectionLabel = ({ label }: { label: string }) => (
-    <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 px-[18px] pt-[10px] pb-[3px]">{label}</p>
+    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 px-[18px] pt-[12px] pb-[4px]">{label}</p>
   );
 
-  const Divider = () => <div className="h-px bg-slate-50 dark:bg-slate-800 mx-3.5 my-[3px]" />;
+  const Divider = () => <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-1.5" />;
 
   return (
     <>
@@ -104,9 +104,11 @@ export default function SideDrawer({
       <div className="fixed top-0 left-0 bottom-0 w-[295px] bg-white dark:bg-slate-900 rounded-r-[28px] z-50 flex flex-col overflow-hidden shadow-2xl animate-slideIn">
 
         {/* Header */}
-        <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb] px-5 pt-12 pb-[18px] relative overflow-hidden flex-shrink-0">
+        <div className="px-5 pt-12 pb-5 relative overflow-hidden flex-shrink-0 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-slate-50 via-[#eef4ff] to-[#f8fbff] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
+          <div className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/30 to-transparent dark:from-white/[0.02] dark:to-transparent pointer-events-none" />
           <div className="flex items-center gap-3 relative z-10 min-w-0">
-            <div className="w-11 h-11 rounded-[14px] flex-shrink-0 overflow-hidden border border-white/30 bg-white/10">
+            <div className="w-11 h-11 rounded-[14px] flex-shrink-0 overflow-hidden border border-white/80 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
               {resolvedAvatarUrl && !avatarError ? (
                 <img
                   src={resolvedAvatarUrl}
@@ -116,14 +118,14 @@ export default function SideDrawer({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-white/20 text-base font-black text-white">
+                <div className="flex h-full w-full items-center justify-center bg-primary/10 dark:bg-slate-700 text-base font-black text-primary dark:text-white">
                   {userInitials}
                 </div>
               )}
             </div>
             <div className="min-w-0">
-              <p className="mb-1 truncate text-[14px] font-black text-white">{displayName}</p>
-              <span className="inline-flex items-center gap-1 bg-white/[0.14] border border-white/20 px-2 py-[3px] rounded-full text-[9px] font-black text-white/90 uppercase tracking-wider">
+              <p className="mb-1 truncate text-[14px] font-black text-slate-900 dark:text-white">{displayName}</p>
+              <span className="inline-flex items-center gap-1 bg-white/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-[3px] rounded-full text-[9px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-400 flex-shrink-0" />
                 {user.plan} · Activo
               </span>
@@ -181,11 +183,6 @@ export default function SideDrawer({
 
         {/* Footer */}
         <div className="px-3.5 pt-2.5 pb-8 border-t border-slate-50 dark:border-slate-800 flex-shrink-0">
-          <div onClick={() => window.open('https://telsim.app', '_blank')} className="flex items-center justify-center gap-2 bg-gradient-to-br from-[#1d4ed8] to-[#2563eb] text-white px-4 py-3 rounded-[13px] text-[12.5px] font-black cursor-pointer mb-1.5 active:opacity-85 shadow-md shadow-blue-500/20">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Ir al sitio web
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
           <div
             onClick={() => {
               if (!onLogout) return;
