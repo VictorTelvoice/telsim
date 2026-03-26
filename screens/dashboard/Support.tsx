@@ -18,6 +18,11 @@ import {
 } from 'lucide-react';
 
 type SupportTier = 'starter' | 'pro' | 'power' | 'none';
+type LockedChannelState = {
+  title: string;
+  requirement: string;
+  hint: string;
+} | null;
 
 const Support: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +30,7 @@ const Support: React.FC = () => {
   const { user } = useAuth();
   const [supportTier, setSupportTier] = useState<SupportTier>('none');
   const [loadingTier, setLoadingTier] = useState(true);
+  const [lockedChannel, setLockedChannel] = useState<LockedChannelState>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +130,13 @@ const Support: React.FC = () => {
     }
 
     if (!enabled) {
-      navigate('/dashboard/billing');
+      setLockedChannel({
+        title: channelId === 'chat' ? 'Chat en Vivo' : 'WhatsApp Directo',
+        requirement: channelId === 'chat' ? 'Disponible para clientes con plan Pro o Power.' : 'Disponible solo para clientes con plan Power.',
+        hint: channelId === 'chat'
+          ? 'Activa un plan Pro o Power para recibir soporte en tiempo real desde la app.'
+          : 'Sube a Power para desbloquear soporte prioritario por WhatsApp 24/7.',
+      });
       return;
     }
 
@@ -140,6 +152,39 @@ const Support: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-background-dark font-display pb-32">
+      {lockedChannel && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/40 backdrop-blur-[2px] px-4 pb-6 pt-24">
+          <div className="w-full max-w-md rounded-[2rem] border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+            <div className="px-6 pt-6 pb-5">
+              <div className="size-12 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-primary text-[24px]">workspace_premium</span>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 mb-2">Canal restringido</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mb-2">{lockedChannel.title}</h3>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 leading-relaxed mb-3">{lockedChannel.requirement}</p>
+              <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{lockedChannel.hint}</p>
+            </div>
+            <div className="px-6 pb-6 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setLockedChannel(null)}
+                className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-sm font-bold"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  setLockedChannel(null);
+                  navigate('/dashboard/numbers');
+                }}
+                className="h-12 rounded-xl bg-primary hover:bg-blue-700 text-white text-sm font-black shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all"
+              >
+                Hacer upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="flex items-center justify-between px-6 py-6 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400">
@@ -222,13 +267,7 @@ const Support: React.FC = () => {
           </div>
         </div>
 
-        {/* SELF-SERVICE SECTION */}
         <div className="bg-primary/5 dark:bg-blue-950/10 rounded-[2.5rem] p-8 border border-primary/10 space-y-6">
-           <div className="flex items-center gap-3">
-              <Zap className="size-5 text-primary" />
-              <h3 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.15em]">{t('support.instant_answers')}</h3>
-           </div>
-           
            <div className="grid grid-cols-1 gap-3">
               <button 
                 onClick={() => navigate('/dashboard/help')}
