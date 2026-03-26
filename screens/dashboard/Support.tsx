@@ -86,7 +86,7 @@ const Support: React.FC = () => {
       wait: '1-4 horas',
       color: 'bg-slate-900 dark:bg-slate-800 text-white',
       enabled: true,
-      tag: 'Siempre disponible',
+      tag: null,
       upgradeHint: null,
     },
     {
@@ -99,7 +99,7 @@ const Support: React.FC = () => {
       wait: '< 2 min',
       color: 'bg-primary text-white',
       enabled: supportTier === 'pro' || supportTier === 'power',
-      tag: supportTier === 'pro' || supportTier === 'power' ? 'Pro / Power' : 'Requiere Pro',
+      tag: supportTier === 'pro' || supportTier === 'power' ? null : 'Requiere Pro',
       upgradeHint: supportTier === 'pro' || supportTier === 'power' ? null : 'Activa un plan Pro o Power para soporte en tiempo real.',
     },
     {
@@ -112,7 +112,7 @@ const Support: React.FC = () => {
       wait: '24/7',
       color: 'bg-emerald-500 text-white',
       enabled: supportTier === 'power',
-      tag: supportTier === 'power' ? 'Power' : 'Requiere Power',
+      tag: supportTier === 'power' ? null : 'Requiere Power',
       upgradeHint: supportTier === 'power' ? null : 'Sube a Power para atención prioritaria por WhatsApp 24/7.',
     },
   ], [supportTier, t]);
@@ -177,12 +177,15 @@ const Support: React.FC = () => {
               <button 
                 key={channel.id} 
                 onClick={() => handleChannelClick(channel.id, channel.enabled)}
-                className={`w-full bg-white dark:bg-surface-dark p-6 rounded-[2rem] border flex items-center gap-5 shadow-soft transition-all text-left relative overflow-hidden group ${
+                className={`w-full p-6 rounded-[2rem] border flex items-center gap-5 transition-all text-left relative overflow-hidden group ${
                   channel.enabled
-                    ? 'border-slate-100 dark:border-slate-800 hover:scale-[1.02] active:scale-[0.98]'
-                    : 'border-slate-200/80 dark:border-slate-700 opacity-90'
+                    ? 'bg-white dark:bg-surface-dark border-slate-100 dark:border-slate-800 shadow-soft hover:scale-[1.02] active:scale-[0.98]'
+                    : 'bg-gradient-to-br from-slate-50 to-slate-100/90 dark:from-slate-900 dark:to-slate-800 border-slate-200/90 dark:border-slate-700 shadow-[0_16px_35px_rgba(15,23,42,0.08)]'
                 }`}
               >
+                 {!channel.enabled && (
+                  <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-white/50 to-transparent dark:from-slate-900/30 pointer-events-none" />
+                 )}
                  <div className={`size-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${channel.color}`}>
                     {channel.icon}
                  </div>
@@ -200,13 +203,20 @@ const Support: React.FC = () => {
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('support.wait_time')}: {channel.wait}</span>
                     </div>
                     {channel.upgradeHint && (
-                      <p className="text-[10px] font-semibold text-primary mt-2">
+                      <p className="text-[10px] font-semibold text-primary mt-2 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[13px]">workspace_premium</span>
                         {channel.upgradeHint}
                       </p>
                     )}
-                 </div>
+                  </div>
 
-                 <ChevronRight className={`size-5 transition-colors ${channel.enabled ? 'text-slate-200 group-hover:text-primary' : 'text-slate-300'}`} />
+                 <div className={`shrink-0 ${channel.enabled ? '' : 'flex items-center justify-center size-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/70 shadow-sm'}`}>
+                  {channel.enabled ? (
+                    <ChevronRight className="size-5 text-slate-200 group-hover:text-primary transition-colors" />
+                  ) : (
+                    <ShieldCheck className="size-4 text-slate-400 dark:text-slate-500" />
+                  )}
+                 </div>
               </button>
             ))}
           </div>
