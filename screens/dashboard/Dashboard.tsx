@@ -441,7 +441,7 @@ const Dashboard: React.FC = () => {
     try {
       const { data: slotsData } = await supabase
         .from('slots')
-        .select('*')
+        .select('slot_id, phone_number, plan_type, assigned_to, region, created_at')
         .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
@@ -464,7 +464,7 @@ const Dashboard: React.FC = () => {
 
       const { data: smsData } = await supabase
         .from('sms_logs')
-        .select('*')
+        .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
         .limit(3);

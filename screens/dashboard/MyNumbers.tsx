@@ -79,7 +79,7 @@ const MyNumbers: React.FC = () => {
         try {
             const { data: slotsData } = await supabase
                 .from('slots')
-                .select('*')
+                .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
                 .eq('assigned_to', user?.id)
                 .order('created_at', { ascending: false });
 

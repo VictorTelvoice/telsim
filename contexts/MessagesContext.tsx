@@ -37,7 +37,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const { count, error } = await supabase
         .from('sms_logs')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
 
@@ -82,10 +82,26 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Suscribirse a cambios en tiempo real en sms_logs
     const channel = supabase
-      .channel('sms_unread_changes')
+      .channel(`sms_unread_changes_${user.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
+        table: 'sms_logs',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        scheduleRefresh();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sms_logs',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        scheduleRefresh();
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
         table: 'sms_logs',
         filter: `user_id=eq.${user.id}`
       }, () => {
