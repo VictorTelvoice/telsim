@@ -272,8 +272,8 @@ const SubscriptionBillingCard: React.FC<{
     actionCount >= 4 ? 'grid grid-cols-2 sm:grid-cols-4 gap-2 items-center' : 'grid grid-cols-3 gap-2 items-center';
 
   const wrap = muted
-    ? 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 min-w-0 opacity-95 ring-1 ring-slate-100/80 dark:ring-slate-800/80'
-    : 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 min-w-0 shadow-sm shadow-slate-200/40 dark:shadow-none';
+    ? 'bg-white dark:bg-slate-900 rounded-[1.6rem] border border-slate-200 dark:border-slate-800 p-4 min-w-0 opacity-95 ring-1 ring-slate-100/80 dark:ring-slate-800/80'
+    : 'bg-white dark:bg-slate-900 rounded-[1.6rem] border border-slate-200 dark:border-slate-800 p-4 min-w-0 shadow-sm shadow-slate-200/40 dark:shadow-none';
 
   const invoiceStatusLabel = (() => {
     const st = String(latestInvoice?.status ?? '')
@@ -324,7 +324,7 @@ const SubscriptionBillingCard: React.FC<{
         </div>
       </div>
 
-      <div className="rounded-xl bg-slate-50/90 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/80 p-3">
+      <div className="rounded-2xl bg-slate-50/90 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/80 p-3">
         <p className="text-[10px] uppercase font-black text-slate-400">Última factura</p>
         {invoicesReady && latestInvoice ? (
           <div className="mt-0.5 space-y-0.5">
@@ -1029,7 +1029,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const mainClasses = isEmbedded
     ? 'px-0 py-0 space-y-6 max-w-none'
-    : 'px-6 max-w-lg mx-auto lg:max-w-5xl xl:max-w-7xl lg:px-12 pt-3 pb-6 space-y-8';
+    : 'px-5 max-w-lg mx-auto lg:max-w-5xl xl:max-w-7xl lg:px-12 pt-3 pb-6 space-y-7';
 
   const inner = (
     <main className={mainClasses}>
@@ -1038,8 +1038,13 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       )}
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Activas</p>
+        <div className="bg-white dark:bg-slate-900 rounded-[1.45rem] border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm shadow-slate-200/40 dark:shadow-none min-h-[7.5rem] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Activas</p>
+            <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Smartphone className="size-4" />
+            </div>
+          </div>
           <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{kpiStrictActiveSubs.length}</p>
           {pastDueCountKpi > 0 ? (
             <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400/90 mt-1 leading-snug">
@@ -1047,14 +1052,24 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             </p>
           ) : null}
         </div>
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Equivalente mensual</p>
+        <div className="bg-white dark:bg-slate-900 rounded-[1.45rem] border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm shadow-slate-200/40 dark:shadow-none min-h-[7.5rem] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Equivalente mensual</p>
+            <div className="size-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <CreditCard className="size-4" />
+            </div>
+          </div>
           <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
             {mrrEstimated ? formatCurrency(mrrEstimated.amount, mrrCurrency) : '—'}
           </p>
         </div>
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 min-h-[7rem] flex flex-col">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Proximo cobro</p>
+        <div className="bg-white dark:bg-slate-900 rounded-[1.45rem] border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm shadow-slate-200/40 dark:shadow-none min-h-[7.5rem] flex flex-col">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Proximo cobro</p>
+            <div className="size-8 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+              <History className="size-4" />
+            </div>
+          </div>
           {upcomingChargeSummary ? (
             <div className="mt-2 min-w-0 flex-1 flex flex-col justify-between gap-1">
               <p className="text-sm font-black text-slate-900 dark:text-white leading-snug">
@@ -1075,8 +1090,13 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
             </p>
           )}
         </div>
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex flex-col min-h-[7.5rem]">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Método de pago.</p>
+        <div className="bg-white dark:bg-slate-900 rounded-[1.45rem] border border-slate-200/80 dark:border-slate-800 p-4 flex flex-col min-h-[7.5rem] shadow-sm shadow-slate-200/40 dark:shadow-none">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Método de pago.</p>
+            <div className="size-8 rounded-xl bg-slate-900/5 dark:bg-slate-50/10 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+              <CreditCard className="size-4" />
+            </div>
+          </div>
           <div className="flex-1 flex flex-col justify-between gap-2 mt-1">
             {paymentMethod ? (
               <div className="flex items-start gap-2 min-w-0">
@@ -1110,10 +1130,15 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
       <section className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus suscripciones</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tus suscripciones</h3>
+            <span className="text-[9px] font-black bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full uppercase dark:bg-slate-700 dark:text-slate-200">
+              {paginatedMainSubscriptions.length} de {sortedDisplayedSubscriptions.length}
+            </span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <div
-              className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/80 p-0.5"
+              className="inline-flex rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 p-1 shadow-sm"
               role="tablist"
               aria-label="Filtro de suscripciones"
             >
@@ -1155,19 +1180,16 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                     onClick={() => setSubscriptionFilter(key)}
                     className={
                       selected
-                        ? 'rounded-lg bg-white dark:bg-slate-800 px-2.5 sm:px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-900 dark:text-white shadow-sm ring-2 ring-primary/35 ring-offset-1 ring-offset-slate-50 dark:ring-offset-slate-900'
-                        : 'rounded-lg px-2.5 sm:px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        ? 'rounded-xl bg-primary text-white px-2.5 sm:px-3 py-2 text-[10px] font-black uppercase tracking-wide shadow-sm'
+                        : 'rounded-xl px-2.5 sm:px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }
                   >
                     {label}{' '}
-                    <span className={selected ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}>({count})</span>
+                    <span className={selected ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}>({count})</span>
                   </button>
                 );
               })}
-            </div>          
-            <span className="text-[9px] font-black bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full uppercase dark:bg-slate-700 dark:text-slate-200">
-              {paginatedMainSubscriptions.length} de {sortedDisplayedSubscriptions.length} en vista
-            </span>
+            </div>
           </div>
         </div>
 
