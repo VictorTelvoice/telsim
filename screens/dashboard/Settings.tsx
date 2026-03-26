@@ -106,25 +106,27 @@ const Settings: React.FC = () => {
   }) => (
     <div
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-[13px] cursor-pointer active:bg-slate-50 dark:active:bg-slate-700"
+      className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800/70 transition-colors"
     >
-      <div className="w-9 h-9 rounded-[10px] bg-[#eef2f7] dark:bg-slate-700 flex items-center justify-center flex-shrink-0 [&_svg]:stroke-[#1e3a8a] dark:[&_svg]:stroke-blue-400">
+      <div className="w-10 h-10 rounded-xl bg-[#eef2f7] dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0 [&_svg]:stroke-[#1e3a8a] dark:[&_svg]:stroke-blue-400 shadow-sm">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-base font-semibold text-slate-900 dark:text-white leading-tight">{title}</p>
-        {sub && <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
+        <p className="text-[15px] font-black text-slate-900 dark:text-white leading-tight">{title}</p>
+        {sub && <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">{sub}</p>}
       </div>
       {right && <div className="flex items-center gap-1.5 flex-shrink-0">{right}</div>}
     </div>
   );
 
   const Chevron = () => (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <div className="size-8 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.4" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
   );
 
   const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
-    <div onClick={onToggle} className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-600'}`}>
+    <div onClick={onToggle} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-600'}`}>
       <div className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all duration-200 ${enabled ? 'right-[3px]' : 'left-[3px]'}`} />
     </div>
   );
@@ -214,7 +216,7 @@ const Settings: React.FC = () => {
         {/* CUENTA */}
         <div>
           <SectionLabel label={t('settings.section_account')} />
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none divide-y divide-slate-100 dark:divide-slate-800">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" fill={isDark ? "#60a5fa" : "#1e3a8a"} stroke="none"/></svg>} title={t('settings.security_title')} sub={t('settings.security_sub')} onClick={() => navigate('/dashboard/security')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>} title={t('settings.billing_title')} sub={t('settings.billing_sub')} onClick={() => navigate('/dashboard/billing')} right={<Chevron/>} />
           </div>
@@ -223,7 +225,7 @@ const Settings: React.FC = () => {
         {/* CONFIGURACIÓN */}
         <div>
           <SectionLabel label={t('settings.section_config')} />
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none divide-y divide-slate-100 dark:divide-slate-800">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M9.5 16.5l-2-6.5L20 6l-4 13-3.5-3.5L9.5 16.5z"/><path d="M7.5 10l5.5 3.5"/></svg>} title={t('profile.telegram_bot')} sub={t('settings.telegram_bot_sub')} onClick={() => navigate('/dashboard/telegram-config')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>} title={t('settings.api_webhooks_title')} sub={t('settings.api_webhooks_sub')} onClick={() => navigate('/dashboard/webhooks')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>} title={t('webhook_logs.title')} sub={t('webhook_logs.api_logs')} onClick={() => navigate('/dashboard/webhook-logs')} right={<Chevron/>} />
@@ -232,9 +234,9 @@ const Settings: React.FC = () => {
               icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>}
               title={t('settings.language_title')} sub={t('settings.language_sub')}
               right={
-                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden text-[10px] font-black">
-                  <span onClick={(e) => { e.stopPropagation(); setLang('es'); }} className={`px-2 py-1 cursor-pointer transition-all ${lang === 'es' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400 dark:text-slate-500'}`}>ES</span>
-                  <span onClick={(e) => { e.stopPropagation(); setLang('en'); }} className={`px-2 py-1 cursor-pointer transition-all ${lang === 'en' ? 'bg-primary text-white rounded-[7px]' : 'text-slate-400 dark:text-slate-500'}`}>EN</span>
+                <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 overflow-hidden text-[10px] font-black border border-slate-200 dark:border-slate-700">
+                  <span onClick={(e) => { e.stopPropagation(); setLang('es'); }} className={`px-2.5 py-1.5 cursor-pointer transition-all ${lang === 'es' ? 'bg-primary text-white rounded-[10px]' : 'text-slate-400 dark:text-slate-500'}`}>ES</span>
+                  <span onClick={(e) => { e.stopPropagation(); setLang('en'); }} className={`px-2.5 py-1.5 cursor-pointer transition-all ${lang === 'en' ? 'bg-primary text-white rounded-[10px]' : 'text-slate-400 dark:text-slate-500'}`}>EN</span>
                 </div>
               }
             />
@@ -245,7 +247,7 @@ const Settings: React.FC = () => {
         {/* AYUDA */}
         <div>
           <SectionLabel label={t('settings.section_help')} />
-          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none divide-y divide-slate-100 dark:divide-slate-800">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>} title={t('settings.support_title')} sub={t('settings.support_sub')} onClick={() => navigate('/dashboard/support')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3"/></svg>} title={t('settings.docs_title')} sub={t('settings.docs_sub')} onClick={() => window.open('https://docs.telsim.app', '_blank')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>} title={t('settings.terms_title')} sub={t('settings.terms_sub')} onClick={() => navigate('/dashboard/terms')} right={<Chevron/>} />
