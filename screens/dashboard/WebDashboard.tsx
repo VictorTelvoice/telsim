@@ -23,10 +23,12 @@ import TelegramStatusDot from '../../components/TelegramStatusDot';
 import UserBillingPanel from '../../components/billing/UserBillingPanel';
 import { dedupeLatestSubscriptionPerLine, isInventoryVisibleStatus } from '../../components/billing/subscriptionBillingUtils';
 import { resolveAvatarUrlForUi } from '../../lib/resolveAvatarUrl';
+import { HELP_FAQ_DATA } from '../../lib/helpFaqData';
 import RatingModal from '../../components/RatingModal';
 
 type HelpView = 'main' | 'tickets' | 'ticket-chat';
 type TicketStatus = 'open' | 'pending' | 'closed';
+type SupportTier = 'starter' | 'pro' | 'power' | 'none';
 type WebTicket = {
   id: string;
   subject: string;
@@ -43,6 +45,11 @@ type TicketMsg = {
   content: string;
   created_at: string;
 };
+type LockedSupportChannel = {
+  title: string;
+  requirement: string;
+  hint: string;
+} | null;
 
 type VisibleSubscription = {
   id: string;
@@ -380,6 +387,9 @@ const WebDashboard: React.FC = () => {
   const [releaseSuccessToast, setReleaseSuccessToast] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [helpSearch, setHelpSearch] = useState('');
+  const [supportTier, setSupportTier] = useState<SupportTier>('none');
+  const [loadingSupportTier, setLoadingSupportTier] = useState(false);
+  const [lockedSupportChannel, setLockedSupportChannel] = useState<LockedSupportChannel>(null);
 
   useEffect(() => {
     const targetTab = location.state?.activeTab;
@@ -464,6 +474,58 @@ const WebDashboard: React.FC = () => {
   const [apiLogsDrawerLog, setApiLogsDrawerLog] = useState<AutomationLogRow | null>(null);
   const [apiLogsRetryingId, setApiLogsRetryingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSupportTier = async () => {
+      if (!auth.user?.id) {
+        if (!cancelled) {
+          setSupportTier('none');
+          setLoadingSupportTier(false);
+        }
+        return;
+      }
+
+      setLoadingSupportTier(true);
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('plan_name, status')
+        .eq('user_id', auth.user.id)
+        .in('status', ['active', 'trialing'])
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[WebDashboard][Help] loadSupportTier error:', error);
+        if (!cancelled) {
+          setSupportTier('none');
+          setLoadingSupportTier(false);
+        }
+        return;
+      }
+
+      const normalized = (Array.isArray(data) ? data : []).map((row) =>
+        String(row.plan_name ?? '').trim().toLowerCase()
+      );
+      const tier: SupportTier = normalized.includes('power')
+        ? 'power'
+        : normalized.includes('pro')
+          ? 'pro'
+          : normalized.includes('starter')
+            ? 'starter'
+            : 'none';
+
+      if (!cancelled) {
+        setSupportTier(tier);
+        setLoadingSupportTier(false);
+      }
+    };
+
+    void loadSupportTier();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user?.id]);
+
   // ─── Ticket helper functions ────────────────────────────────────────────────
   const fetchHelpTickets = useCallback(async () => {
     if (!auth.user?.id) return;
@@ -475,16 +537,39 @@ const WebDashboard: React.FC = () => {
         .eq('user_id', auth.user.id)
         .order('updated_at', { ascending: false, nullsFirst: false });
       if (!data) return setHelpTickets([]);
-      const enriched = await Promise.all(
-        (data as WebTicket[]).map(async (t) => {
-          const { data: msgs } = await supabase
-            .from('support_messages').select('content, sender_type')
-            .eq('ticket_id', t.id).order('created_at', { ascending: false }).limit(1);
-          const last = msgs?.[0] as { content: string; sender_type: string } | undefined;
-          return { ...t, last_message: last?.content ?? null, unread: last?.sender_type === 'admin' };
+      const tickets = data as WebTicket[];
+      const ticketIds = tickets.map((t) => t.id);
+      if (ticketIds.length === 0) {
+        setHelpTickets([]);
+        return;
+      }
+
+      const { data: msgs } = await supabase
+        .from('support_messages')
+        .select('ticket_id, content, sender_type, created_at')
+        .in('ticket_id', ticketIds)
+        .order('created_at', { ascending: false });
+
+      const latestByTicket = new Map<string, { content: string; sender_type: string }>();
+      (msgs ?? []).forEach((msg) => {
+        const ticketId = String((msg as { ticket_id?: string }).ticket_id || '');
+        if (!ticketId || latestByTicket.has(ticketId)) return;
+        latestByTicket.set(ticketId, {
+          content: String((msg as { content?: string }).content || ''),
+          sender_type: String((msg as { sender_type?: string }).sender_type || ''),
+        });
+      });
+
+      setHelpTickets(
+        tickets.map((t) => {
+          const last = latestByTicket.get(t.id);
+          return {
+            ...t,
+            last_message: last?.content ?? null,
+            unread: last?.sender_type === 'admin',
+          };
         })
       );
-      setHelpTickets(enriched);
     } finally {
       setHelpTicketsLoading(false);
     }
@@ -534,6 +619,83 @@ const WebDashboard: React.FC = () => {
       setSendingTicketReply(false);
     }
   }, [ticketReply, selectedTicketId, sendingTicketReply, ticketStatus]);
+
+  const supportChannels = useMemo(() => [
+    {
+      id: 'ticket',
+      title: 'Enviar Ticket',
+      desc: 'Canal base para todos los clientes. Seguimiento dentro del panel.',
+      wait: '1-4 horas',
+      enabled: true,
+      badge: null as string | null,
+      hint: null as string | null,
+      icon: <TicketCheck size={18} />,
+      tone: isDark
+        ? 'from-slate-900 to-slate-800 border-slate-700'
+        : 'from-slate-50 to-white border-slate-200',
+      iconTone: 'bg-slate-900 text-white',
+    },
+    {
+      id: 'chat',
+      title: 'Chat en Vivo',
+      desc: supportTier === 'pro' || supportTier === 'power'
+        ? 'Atención operativa prioritaria desde el dashboard.'
+        : 'Disponible para clientes con plan Pro o Power.',
+      wait: '< 2 min',
+      enabled: supportTier === 'pro' || supportTier === 'power',
+      badge: supportTier === 'pro' || supportTier === 'power' ? null : 'Requiere Pro',
+      hint: supportTier === 'pro' || supportTier === 'power' ? null : 'Actualiza a Pro o Power para desbloquear atención en tiempo real.',
+      icon: <MessageSquare size={18} />,
+      tone: isDark
+        ? 'from-primary/15 to-sky-500/10 border-primary/25'
+        : 'from-blue-50 to-white border-blue-200',
+      iconTone: 'bg-primary text-white',
+    },
+    {
+      id: 'whatsapp',
+      title: 'WhatsApp 24/7',
+      desc: supportTier === 'power'
+        ? 'Canal prioritario directo con cobertura continua.'
+        : 'Reservado para clientes con plan Power.',
+      wait: '24/7',
+      enabled: supportTier === 'power',
+      badge: supportTier === 'power' ? null : 'Requiere Power',
+      hint: supportTier === 'power' ? null : 'Sube a Power para soporte inmediato por WhatsApp 24/7.',
+      icon: <Smartphone size={18} />,
+      tone: isDark
+        ? 'from-emerald-500/10 to-slate-900 border-emerald-500/20'
+        : 'from-emerald-50 to-white border-emerald-200',
+      iconTone: 'bg-emerald-500 text-white',
+    },
+  ], [isDark, supportTier]);
+
+  const handleSupportChannelClick = useCallback(async (channelId: 'ticket' | 'chat' | 'whatsapp', enabled: boolean) => {
+    if (channelId === 'ticket') {
+      setHelpView('tickets');
+      await fetchHelpTickets();
+      return;
+    }
+
+    if (!enabled) {
+      setLockedSupportChannel({
+        title: channelId === 'chat' ? 'Chat en Vivo' : 'WhatsApp 24/7',
+        requirement: channelId === 'chat' ? 'Disponible para clientes con plan Pro o Power.' : 'Disponible solo para clientes con plan Power.',
+        hint: channelId === 'chat'
+          ? 'Activa un plan Pro o Power para hablar con soporte en tiempo real desde tu dashboard.'
+          : 'Sube a Power para desbloquear atención prioritaria por WhatsApp 24/7.',
+      });
+      return;
+    }
+
+    if (channelId === 'chat') {
+      setHelpView('tickets');
+      await fetchHelpTickets();
+      setShowNewTicketForm(true);
+      return;
+    }
+
+    window.open('https://wa.me/56934449937?text=Hola%20equipo%20Telsim,%20necesito%20soporte%20Power%2024/7.', '_blank', 'noopener,noreferrer');
+  }, [fetchHelpTickets]);
 
   // ─── Language state ───────────────────────────────────────────────────────
   const [appLanguage, setAppLanguage] = useState<'es' | 'en'>(() =>
@@ -3477,30 +3639,16 @@ const WebDashboard: React.FC = () => {
             /* ── MAIN HELP VIEW ── */
             return (
             <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
-
-              {/* ── TICKET CTA (opción #1) ── */}
-              <button onClick={() => { setHelpView('tickets'); fetchHelpTickets(); }}
-                className="w-full flex items-center gap-5 p-6 rounded-2xl bg-gradient-to-r from-primary to-blue-600 text-white shadow-xl shadow-primary/25 hover:scale-[1.005] transition-all text-left">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
-                  <TicketCheck size={26} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-[15px] font-black uppercase tracking-tight">Soporte por Ticket</p>
-                    <span className="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wide">Recomendado</span>
-                  </div>
-                  <p className="text-[12px] font-medium text-white/70">Crea un ticket y nuestro equipo responde en menos de 4 horas. Seguimiento en tiempo real.</p>
-                </div>
-                <ChevronRight size={20} className="text-white/50 shrink-0" />
-              </button>
-
               {/* Hero + search */}
               <div className={`rounded-2xl p-8 text-center border ${isDark ? 'bg-gradient-to-br from-primary/10 to-sky-500/5 border-primary/20' : 'bg-gradient-to-br from-blue-50 to-sky-50 border-blue-100'}`}>
                 <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
                   <HelpCircle size={22} className="text-white" />
                 </div>
                 <h2 className="text-[22px] font-black mb-1">Centro de Ayuda</h2>
-                <p className={`text-[13px] mb-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>¿En qué podemos ayudarte hoy?</p>
+                <p className={`text-[13px] mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Soporte operativo, documentación y respuestas rápidas en un mismo panel.</p>
+                <p className={`text-[11px] mb-5 font-semibold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {loadingSupportTier ? 'Evaluando tu cobertura de soporte...' : supportTier === 'power' ? 'Cobertura actual: Power 24/7' : supportTier === 'pro' ? 'Cobertura actual: Pro en tiempo real' : 'Cobertura actual: soporte esencial'}
+                </p>
                 <div className="relative max-w-md mx-auto">
                   <input value={helpSearch} onChange={e => setHelpSearch(e.target.value)}
                     placeholder="Buscar en la documentación..."
@@ -3509,13 +3657,67 @@ const WebDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* Support channels */}
+              {!helpSearch && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  {supportChannels.map((channel) => (
+                    <button
+                      key={channel.id}
+                      onClick={() => { void handleSupportChannelClick(channel.id as 'ticket' | 'chat' | 'whatsapp', channel.enabled); }}
+                      className={`relative overflow-hidden text-left rounded-2xl border p-5 bg-gradient-to-br transition-all hover:scale-[1.01] ${channel.tone} ${isDark ? 'shadow-[0_20px_40px_rgba(2,6,23,0.35)]' : 'shadow-[0_18px_35px_rgba(15,23,42,0.08)]'}`}
+                    >
+                      {!channel.enabled && (
+                        <div className={`absolute inset-y-0 right-0 w-28 bg-gradient-to-l ${isDark ? 'from-slate-950/30' : 'from-white/60'} to-transparent pointer-events-none`} />
+                      )}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${channel.iconTone}`}>
+                          {channel.icon}
+                        </div>
+                        {channel.badge ? (
+                          <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-full uppercase tracking-wide shrink-0">
+                            {channel.badge}
+                          </span>
+                        ) : (
+                          <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
+                            Disponible
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-[15px] font-black tracking-tight">{channel.title}</p>
+                          <span className={`text-[10px] font-black uppercase tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{channel.wait}</span>
+                        </div>
+                        <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{channel.desc}</p>
+                        {channel.hint && (
+                          <p className="text-[11px] font-semibold text-primary leading-relaxed flex items-start gap-2">
+                            <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+                            <span>{channel.hint}</span>
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          {channel.id === 'ticket' ? 'Workflow base' : channel.id === 'chat' ? 'Tiempo real' : 'Prioridad total'}
+                        </span>
+                        {channel.enabled ? (
+                          <ChevronRight size={16} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
+                        ) : (
+                          <ShieldCheck size={16} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Quick guides */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([
-                  { icon: <Key size={16} />, color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', title: 'Primeros pasos', desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: undefined },
+                  { icon: <Key size={16} />, color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', title: 'Primeros pasos', desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: () => navigate('/onboarding/plan') },
                   { icon: <Bot size={16} />, color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50', title: 'Telegram Bot', desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
                   { icon: <Link2 size={16} />, color: 'text-violet-500', bg: isDark ? 'bg-violet-500/10' : 'bg-violet-50', title: 'API & Webhooks', desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
-                  { icon: <Zap size={16} />, color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', title: 'Planes y créditos', desc: 'Entiende cómo funcionan los planes y los créditos SMS.', action: () => navigate('/onboarding/plan') },
+                  { icon: <Zap size={16} />, color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', title: 'Planes y créditos', desc: 'Entiende upgrades, niveles de soporte y capacidad SMS.', action: () => setActiveTab('billing') },
                   { icon: <Shield size={16} />, color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', title: 'Seguridad', desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
                   { icon: <CreditCard size={16} />, color: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', title: 'Facturación', desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
                 ] as { icon: React.ReactNode; color: string; bg: string; title: string; desc: string; action?: () => void }[])
@@ -3534,24 +3736,22 @@ const WebDashboard: React.FC = () => {
 
               {/* FAQ */}
               <div className={`rounded-2xl border overflow-hidden shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                <div className={`px-5 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                <div className={`px-5 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                   <h3 className="text-[14px] font-black">Preguntas frecuentes</h3>
+                  <button
+                    onClick={() => navigate('/dashboard/faq')}
+                    className="text-[11px] font-black text-primary hover:underline"
+                  >
+                    Ver todas
+                  </button>
                 </div>
-                {([
-                  { q: '¿Son estas SIMs realmente físicas?', a: 'Sí, a diferencia de servicios VoIP, Telsim opera con infraestructura de puertos físicos reales. Las plataformas (WhatsApp, bancos, Google) detectan el número como un dispositivo móvil legítimo, sin bloqueos.' },
-                  { q: '¿Cómo recibo mis códigos SMS?', a: 'Una vez activado tu número, cualquier SMS llegará instantáneamente a la sección "Mensajes" del dashboard. También puedes configurar notificaciones por Telegram o recibir los SMS via webhook en tu sistema.' },
-                  { q: '¿Cuánto tarda en activarse una SIM?', a: 'La activación es inmediata una vez completado el pago. Recibirás el número asignado en tu dashboard en cuestión de segundos.' },
-                  { q: '¿Tengo API para automatizar la recepción de SMS?', a: 'Sí. El plan Pro incluye acceso completo a la API REST. Puedes listar números, leer SMS y configurar webhooks para recibir mensajes en tiempo real en tu servidor.' },
-                  { q: '¿Puedo cancelar mi suscripción en cualquier momento?', a: 'Sí. Cancela desde el panel de Facturación en cualquier momento. El acceso continúa hasta el fin del período pagado, sin penalizaciones.' },
-                  { q: '¿Qué pasa cuando expira mi SIM?', a: 'Al expirar, el número queda liberado. Puedes renovar antes del vencimiento desde el dashboard para mantener el mismo número si está disponible.' },
-                  { q: '¿Cómo configuro el webhook?', a: 'Ve a Ajustes → API & Webhooks, ingresa tu URL de endpoint y selecciona los eventos. Cada SMS dispara un POST con el contenido y el código extraído automáticamente.' },
-                  { q: '¿Ofrecen reembolsos?', a: 'Ofrecemos reembolso completo dentro de las primeras 24 horas si el servicio no funciona correctamente. Para casos fuera de ese plazo, crea un ticket de soporte con tu solicitud.' },
-                ] as { q: string; a: string }[])
-                  .filter(f => !helpSearch || f.q.toLowerCase().includes(helpSearch.toLowerCase()) || f.a.toLowerCase().includes(helpSearch.toLowerCase()))
+                {HELP_FAQ_DATA
+                  .filter(f => !helpSearch || f.question.toLowerCase().includes(helpSearch.toLowerCase()) || f.answer.toLowerCase().includes(helpSearch.toLowerCase()))
+                  .slice(0, 6)
                   .map((faq, i, arr) => (
                     <div key={i} className={`px-5 py-4 ${i < arr.length - 1 ? (isDark ? 'border-b border-slate-800' : 'border-b border-slate-100') : ''}`}>
-                      <p className="text-[13px] font-bold mb-1">{faq.q}</p>
-                      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{faq.a}</p>
+                      <p className="text-[13px] font-bold mb-1">{faq.question}</p>
+                      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{faq.answer}</p>
                     </div>
                   ))}
               </div>
@@ -3588,6 +3788,39 @@ const WebDashboard: React.FC = () => {
 
         </main>
       </div>
+
+      {lockedSupportChannel && (
+        <div className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm p-6">
+          <div className={`w-full max-w-md rounded-[28px] border overflow-hidden shadow-2xl ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className="px-7 pt-7 pb-5">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
+                <ShieldCheck size={22} className="text-primary" />
+              </div>
+              <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Canal Premium</p>
+              <h3 className={`text-[24px] font-black tracking-tight mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>{lockedSupportChannel.title}</h3>
+              <p className={`text-[14px] font-semibold leading-relaxed mb-3 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{lockedSupportChannel.requirement}</p>
+              <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{lockedSupportChannel.hint}</p>
+            </div>
+            <div className="px-7 pb-7 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setLockedSupportChannel(null)}
+                className={`h-12 rounded-xl text-[12px] font-black uppercase tracking-wide border ${isDark ? 'border-slate-700 text-slate-300 bg-slate-900' : 'border-slate-200 text-slate-600 bg-white'}`}
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  setLockedSupportChannel(null);
+                  setActiveTab('numbers');
+                }}
+                className="h-12 rounded-xl bg-primary text-white text-[12px] font-black uppercase tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+              >
+                Hacer upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isReleaseModalOpen && slotToRelease && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/50 backdrop-blur-md animate-in fade-in duration-300">
