@@ -1642,7 +1642,7 @@ const WebDashboard: React.FC = () => {
           <img
             src="/telsim-bot-logo.jpg"
             alt="Telsim"
-            className="h-[72px] w-[72px] rounded-[22px] object-cover object-left bg-white ring-1 ring-slate-200 shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)]"
+            className="h-[72px] w-auto object-contain"
           />
         </div>
 
