@@ -20,6 +20,14 @@ const Landing: React.FC = () => {
   const [planesPage, setPlanesPage] = useState(0);
   const [testimoniosPage, setTestimoniosPage] = useState(0);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    company: '',
+    email: '',
+    message: '',
+  });
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactFeedback, setContactFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     // En desktop/tablet, centrar en PRO inmediatamente sin animación
@@ -144,6 +152,65 @@ const Landing: React.FC = () => {
     localStorage.setItem('post_login_redirect', nextPath);
     localStorage.setItem('selected_billing', billing);
     navigate(nextPath);
+  };
+
+  const handleContactFieldChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setContactForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setContactFeedback(null);
+    setContactSubmitting(true);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...contactForm,
+          language,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          typeof result?.error === 'string'
+            ? result.error
+            : language === 'en'
+              ? 'We could not send your message.'
+              : 'No pudimos enviar tu mensaje.'
+        );
+      }
+      setContactFeedback({
+        type: 'success',
+        message:
+          typeof result?.message === 'string'
+            ? result.message
+            : language === 'en'
+              ? 'Your message has been sent.'
+              : 'Tu mensaje fue enviado.',
+      });
+      setContactForm({
+        name: '',
+        company: '',
+        email: '',
+        message: '',
+      });
+    } catch (error: any) {
+      setContactFeedback({
+        type: 'error',
+        message:
+          error?.message ||
+          (language === 'en'
+            ? 'We could not send your message right now.'
+            : 'No pudimos enviar tu mensaje en este momento.'),
+      });
+    } finally {
+      setContactSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -955,35 +1022,59 @@ const Landing: React.FC = () => {
                 Escala tu infraestructura de agentes autónomos con soporte técnico especializado.
               </p>
               <form
-                onSubmit={(e) => e.preventDefault()}
+                onSubmit={handleContactSubmit}
                 className="flex flex-col gap-5"
               >
                 <input
                   type="text"
+                  name="name"
                   placeholder="Nombre"
+                  value={contactForm.name}
+                  onChange={handleContactFieldChange}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <input
                   type="text"
+                  name="company"
                   placeholder="Empresa"
+                  value={contactForm.company}
+                  onChange={handleContactFieldChange}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <input
                   type="email"
                   placeholder="Email Corporativo"
+                  name="email"
+                  value={contactForm.email}
+                  onChange={handleContactFieldChange}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
                 <textarea
+                  name="message"
                   placeholder="Mensaje"
                   rows={4}
+                  value={contactForm.message}
+                  onChange={handleContactFieldChange}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
                 />
+                {contactFeedback && (
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
+                      contactFeedback.type === 'success'
+                        ? 'bg-emerald-500/15 text-emerald-100 border border-emerald-400/30'
+                        : 'bg-rose-500/15 text-rose-100 border border-rose-400/30'
+                    }`}
+                  >
+                    {contactFeedback.message}
+                  </div>
+                )}
                 <button
                   type="submit"
+                  disabled={contactSubmitting}
                   className="w-full inline-flex items-center justify-center gap-2 bg-white text-primary font-black py-4 px-8 rounded-2xl shadow-xl hover:bg-blue-50 transition-all mt-2"
                 >
                   <span className="material-symbols-rounded text-[20px]">send</span>
-                  Enviar Mensaje
+                  {contactSubmitting ? 'Enviando...' : 'Enviar Mensaje'}
                 </button>
               </form>
             </div>
@@ -1271,7 +1362,7 @@ const Landing: React.FC = () => {
             {t('common.try_free')}
             <span className="material-symbols-rounded">arrow_forward</span>
           </button>
-          <p className="text-xs text-slate-400 font-medium">¿Tienes preguntas? <a href="mailto:info@telsim.io" className="text-primary hover:underline">info@telsim.io</a></p>
+          <p className="text-xs text-slate-400 font-medium">¿Tienes preguntas? <a href="mailto:support@telsim.io" className="text-primary hover:underline">support@telsim.io</a></p>
         </div>
       </section>
 
