@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { 
   ArrowLeft, 
   MessageSquare, 
@@ -15,40 +17,126 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+type SupportTier = 'starter' | 'pro' | 'power' | 'none';
+
 const Support: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [supportTier, setSupportTier] = useState<SupportTier>('none');
+  const [loadingTier, setLoadingTier] = useState(true);
 
-  const supportChannels = [
-    {
-      id: 'chat',
-      icon: <MessageSquare className="size-6" />,
-      title: t('support.live_chat'),
-      desc: t('support.live_chat_desc'),
-      wait: "< 2 min",
-      primary: true,
-      color: "bg-primary text-white",
-      tag: t('support.recommended')
-    },
-    {
-      id: 'whatsapp',
-      icon: <Smartphone className="size-6" />,
-      title: t('support.whatsapp'),
-      desc: t('support.whatsapp_desc'),
-      wait: "~ 5 min",
-      primary: false,
-      color: "bg-emerald-500 text-white",
-    },
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSupportTier = async () => {
+      if (!user?.id) {
+        if (!cancelled) {
+          setSupportTier('none');
+          setLoadingTier(false);
+        }
+        return;
+      }
+
+      setLoadingTier(true);
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('plan_name, status')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'trialing'])
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[Support] loadSupportTier error:', error);
+        if (!cancelled) {
+          setSupportTier('none');
+          setLoadingTier(false);
+        }
+        return;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      const normalized = rows.map((row) => String(row.plan_name ?? '').trim().toLowerCase());
+      const tier: SupportTier = normalized.includes('power')
+        ? 'power'
+        : normalized.includes('pro')
+          ? 'pro'
+          : normalized.includes('starter')
+            ? 'starter'
+            : 'none';
+
+      if (!cancelled) {
+        setSupportTier(tier);
+        setLoadingTier(false);
+      }
+    };
+
+    void loadSupportTier();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const supportChannels = useMemo(() => [
     {
       id: 'ticket',
       icon: <Mail className="size-6" />,
       title: t('support.send_ticket'),
-      desc: t('support.send_ticket_desc'),
-      wait: "1-4 hours",
-      primary: false,
-      color: "bg-slate-900 dark:bg-slate-800 text-white",
+      desc: 'Siempre disponible para todos los planes.',
+      wait: '1-4 horas',
+      color: 'bg-slate-900 dark:bg-slate-800 text-white',
+      enabled: true,
+      tag: 'Siempre disponible',
+      upgradeHint: null,
+    },
+    {
+      id: 'chat',
+      icon: <MessageSquare className="size-6" />,
+      title: t('support.live_chat'),
+      desc: supportTier === 'pro' || supportTier === 'power'
+        ? t('support.live_chat_desc')
+        : 'Disponible para clientes con plan Pro o Power.',
+      wait: '< 2 min',
+      color: 'bg-primary text-white',
+      enabled: supportTier === 'pro' || supportTier === 'power',
+      tag: supportTier === 'pro' || supportTier === 'power' ? 'Pro / Power' : 'Requiere Pro',
+      upgradeHint: supportTier === 'pro' || supportTier === 'power' ? null : 'Activa un plan Pro o Power para soporte en tiempo real.',
+    },
+    {
+      id: 'whatsapp',
+      icon: <Smartphone className="size-6" />,
+      title: 'WhatsApp Directo',
+      desc: supportTier === 'power'
+        ? t('support.whatsapp_desc')
+        : 'Canal prioritario reservado para clientes Power.',
+      wait: '24/7',
+      color: 'bg-emerald-500 text-white',
+      enabled: supportTier === 'power',
+      tag: supportTier === 'power' ? 'Power' : 'Requiere Power',
+      upgradeHint: supportTier === 'power' ? null : 'Sube a Power para atención prioritaria por WhatsApp 24/7.',
+    },
+  ], [supportTier, t]);
+
+  const handleChannelClick = (channelId: string, enabled: boolean) => {
+    if (channelId === 'ticket') {
+      navigate('/dashboard/support/tickets');
+      return;
     }
-  ];
+
+    if (!enabled) {
+      navigate('/dashboard/billing');
+      return;
+    }
+
+    if (channelId === 'chat') {
+      navigate('/dashboard/support/tickets');
+      return;
+    }
+
+    if (channelId === 'whatsapp') {
+      window.open('https://wa.me/', '_blank');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-background-dark font-display pb-32">
@@ -72,7 +160,9 @@ const Support: React.FC = () => {
            <div className="relative z-10">
               <div className="flex items-center gap-2 mb-4">
                  <div className="size-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{t('support.operational_247')}</span>
+                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                   {loadingTier ? 'Evaluando cobertura' : supportTier === 'power' ? 'Power support activo' : supportTier === 'pro' ? 'Soporte Pro activo' : 'Soporte esencial activo'}
+                 </span>
               </div>
               <h2 className="text-2xl font-black mb-2 tracking-tight" dangerouslySetInnerHTML={{ __html: t('support.how_can_we_help').replace('?', '? <br/>') }}></h2>
            </div>
@@ -86,10 +176,12 @@ const Support: React.FC = () => {
             {supportChannels.map((channel) => (
               <button 
                 key={channel.id} 
-                onClick={() => {
-                  if (channel.id === 'ticket') navigate('/dashboard/support/tickets');
-                }}
-                className={`w-full bg-white dark:bg-surface-dark p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex items-center gap-5 shadow-soft hover:scale-[1.02] active:scale-[0.98] transition-all text-left relative overflow-hidden group`}
+                onClick={() => handleChannelClick(channel.id, channel.enabled)}
+                className={`w-full bg-white dark:bg-surface-dark p-6 rounded-[2rem] border flex items-center gap-5 shadow-soft transition-all text-left relative overflow-hidden group ${
+                  channel.enabled
+                    ? 'border-slate-100 dark:border-slate-800 hover:scale-[1.02] active:scale-[0.98]'
+                    : 'border-slate-200/80 dark:border-slate-700 opacity-90'
+                }`}
               >
                  <div className={`size-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${channel.color}`}>
                     {channel.icon}
@@ -107,9 +199,14 @@ const Support: React.FC = () => {
                        <Clock className="size-3 text-slate-300" />
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('support.wait_time')}: {channel.wait}</span>
                     </div>
+                    {channel.upgradeHint && (
+                      <p className="text-[10px] font-semibold text-primary mt-2">
+                        {channel.upgradeHint}
+                      </p>
+                    )}
                  </div>
 
-                 <ChevronRight className="size-5 text-slate-200 group-hover:text-primary transition-colors" />
+                 <ChevronRight className={`size-5 transition-colors ${channel.enabled ? 'text-slate-200 group-hover:text-primary' : 'text-slate-300'}`} />
               </button>
             ))}
           </div>
