@@ -18,12 +18,11 @@ const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: n
 
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = ({ small = false }: { small?: boolean }) => (
-  <div className="flex items-center gap-2.5">
-    <div className={`${small ? 'w-8 h-8' : 'w-9 h-9'} rounded-xl bg-primary flex items-center justify-center`}>
-      <span className={`material-symbols-rounded text-white ${small ? 'text-[17px]' : 'text-[20px]'}`}>sim_card</span>
-    </div>
-    <span className={`font-extrabold tracking-tight text-slate-900 ${small ? 'text-[16px]' : 'text-xl'}`}>Telsim</span>
-  </div>
+  <img
+    src="/telsim-bot-logo.jpg"
+    alt="Telsim"
+    className={`${small ? 'h-8' : 'h-10'} w-auto rounded-xl shadow-sm`}
+  />
 );
 
 // ─── Check icon ───────────────────────────────────────────────────────────────

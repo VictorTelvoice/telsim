@@ -6,14 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 // ─── Logo (igual que Landing) ─────────────────────────────────────────────────
 const TelsimLogo = () => (
-  <div className="flex items-center gap-3">
-    <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-      <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
-    </div>
-    <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">
-      Telsim
-    </span>
-  </div>
+  <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-10 w-auto rounded-xl shadow-sm" />
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────

@@ -1639,10 +1639,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <img src="/logo-512.png" alt="Telsim" style={{ height: 32, width: 'auto' }} />
-          <span className={`font-extrabold text-xl tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Telsim
-          </span>
+          <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-9 w-auto rounded-xl shadow-sm" />
         </div>
 
         {/* Infraestructura IA */}

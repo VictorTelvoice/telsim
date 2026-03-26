@@ -30,12 +30,7 @@ const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: n
 
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = () => (
-  <div className="flex items-center gap-2.5">
-    <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-      <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
-    </div>
-    <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
-  </div>
+  <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-10 w-auto rounded-xl shadow-sm" />
 );
 
 const ActivationSuccess: React.FC = () => {
