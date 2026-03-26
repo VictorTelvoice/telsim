@@ -146,8 +146,8 @@ const translations: Translations = {
     'landing.pricing.power.credits': '1,400 SMS Credits',
     'landing.pricing.power.desc': 'Fintech, Corporates and P2P Platforms',
     'landing.pricing.features.starter': ['Real SIM Number (no cheap VoIP)', 'Real-time notifications', 'SMS in App', 'Capacity: 150 monthly SMS', 'Technical support via Ticket'],
-    'landing.pricing.features.pro': ['Everything in Starter', '100% automated SMS (No intervention)', 'API, Webhooks, and TelegramBot access', 'Capacity: 400 monthly SMS', 'Technical support via Ticket and Live Chat'],
-    'landing.pricing.features.power': ['Everything in Pro', 'Enterprise Security and Control', 'Custom Integrations and Scalability', 'Capacity: 1,400 monthly SMS', '24/7 Priority Support'],
+    'landing.pricing.features.pro': ['Everything in Starter', '100% automated SMS', 'API, Webhooks, and TelegramBot access', 'Capacity: 400 monthly SMS', 'Technical support via Ticket and Live Chat'],
+    'landing.pricing.features.power': ['Everything in Pro', 'Enterprise Security and Control', 'Custom Integrations', 'Capacity: 1,400 monthly SMS', '24/7 Priority Support'],
     'landing.pricing.pro.popular': 'MOST POPULAR',
     'landing.pricing.power.premium': 'TOTAL POWER',
 
@@ -1042,8 +1042,8 @@ const translations: Translations = {
     'landing.pricing.power.credits': '1,400 Créditos SMS',
     'landing.pricing.power.desc': 'Fintech, Corporativos y Plataformas P2P',
     'landing.pricing.features.starter': ['Número SIM Real (no VoIP baratos)', 'Notificaciones en tiempo real', 'Visualización en App', 'Capacidad: 150 SMS mensuales', 'Soporte técnico vía Ticket'],
-    'landing.pricing.features.pro': ['Todo lo incluido en Starter', 'SMS 100% automatizados (Sin intervención)', 'Acceso a API, Webhooks, y TelegramBot', 'Capacidad: 400 SMS mensuales', 'Soporte técnico vía Ticket y Chat en vivo'],
-    'landing.pricing.features.power': ['Todo lo incluido en Pro', 'Seguridad y Control Empresarial', 'Integraciones Personalizadas y Escalabilidad', 'Capacidad: 1,400 SMS mensuales', 'Soporte Prioritario 24/7'],
+    'landing.pricing.features.pro': ['Todo lo incluido en Starter', 'SMS 100% automatizados', 'Acceso a API, Webhooks, y TelegramBot', 'Capacidad: 400 SMS mensuales', 'Soporte técnico vía Ticket y Chat en vivo'],
+    'landing.pricing.features.power': ['Todo lo incluido en Pro', 'Seguridad y Control Empresarial', 'Integraciones Personalizadas', 'Capacidad: 1,400 SMS mensuales', 'Soporte Prioritario 24/7'],
     'landing.pricing.pro.popular': 'MÁS POPULAR',
     'landing.pricing.power.premium': 'POTENCIA TOTAL',
 
