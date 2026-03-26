@@ -17,7 +17,7 @@ import {
   Bot, Key, User, Save, Loader2, Info, LayoutGrid, List, Trash2,
   Globe, Lock, Eye, EyeOff, ExternalLink, ShieldCheck,
   HelpCircle, TrendingUp, Code2, TicketCheck,
-  AlertCircle, AlertTriangle, Activity, Volume2, VolumeX
+  AlertCircle, AlertTriangle, Activity, Volume2, VolumeX, Headphones
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
 import UserBillingPanel from '../../components/billing/UserBillingPanel';
@@ -322,7 +322,7 @@ const KpiCard: React.FC<{
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
-type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'notifications' | 'help' | 'settings';
+type TabId = 'overview' | 'messages' | 'numbers' | 'billing' | 'notifications' | 'support' | 'help' | 'settings';
 type SettingsSection = 'profile' | 'profile-edit' | 'telegram' | 'api' | 'api-logs' | 'notifications' | 'billing' | 'language' | 'security';
 
 type AutomationLogRow = {
@@ -1665,14 +1665,15 @@ const WebDashboard: React.FC = () => {
           <NavItem icon={<Smartphone size={17} />} label="Mis SIMs" active={activeTab === 'numbers'} badge={activeSlots.length} onClick={() => setActiveTab('numbers')} />
           <NavItem icon={<CreditCard size={17} />} label="Facturación" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
           <NavItem icon={<Bell size={17} />} label="Notificaciones" active={activeTab === 'notifications'} badge={notifUnread} onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }} />
-
-          <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
-
-          <NavItem icon={<Settings size={17} />} label="Ajustes" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
+          <NavItem icon={<Headphones size={17} />} label="Soporte 24/7" active={activeTab === 'support'} onClick={() => { setActiveTab('support'); setHelpView('main'); }} />
 
           <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
 
           <NavItem icon={<HelpCircle size={17} />} label="Centro de Ayuda" active={activeTab === 'help'} onClick={() => setActiveTab('help')} />
+
+          <div className={`my-2 h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
+          <NavItem icon={<Settings size={17} />} label="Ajustes" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setSettingsSection('profile'); }} />
 
           {(user?.id || '').toLowerCase() === '8e7bcada-3f7a-482f-93a7-9d0fd4828231'.toLowerCase() && (
             <>
@@ -3459,8 +3460,8 @@ const WebDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ── HELP CENTER TAB ──────────────────────────────────────────── */}
-          {activeTab === 'help' && (() => {
+          {/* ── SUPPORT TAB ──────────────────────────────────────────── */}
+          {activeTab === 'support' && (() => {
             const ticketStatusCfg = {
               open:    { label: 'Abierto',    color: 'text-blue-500',    bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50' },
               pending: { label: 'Respondido', color: 'text-amber-500',   bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
@@ -3644,14 +3645,14 @@ const WebDashboard: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
                   <HelpCircle size={22} className="text-white" />
                 </div>
-                <h2 className="text-[22px] font-black mb-1">Centro de Ayuda</h2>
-                <p className={`text-[13px] mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Soporte operativo, documentación y respuestas rápidas en un mismo panel.</p>
+                <h2 className="text-[22px] font-black mb-1">Soporte 24/7</h2>
+                <p className={`text-[13px] mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Canales operativos, tickets y escalamiento según el plan activo.</p>
                 <p className={`text-[11px] mb-5 font-semibold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                   {loadingSupportTier ? 'Evaluando tu cobertura de soporte...' : supportTier === 'power' ? 'Cobertura actual: Power 24/7' : supportTier === 'pro' ? 'Cobertura actual: Pro en tiempo real' : 'Cobertura actual: soporte esencial'}
                 </p>
                 <div className="relative max-w-md mx-auto">
                   <input value={helpSearch} onChange={e => setHelpSearch(e.target.value)}
-                    placeholder="Buscar en la documentación..."
+                    placeholder="Buscar en soporte..."
                     className={`w-full pl-10 pr-4 py-3 rounded-xl text-[13px] border outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-primary' : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-primary'}`} />
                   <Search size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </div>
@@ -3711,51 +3712,6 @@ const WebDashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* Quick guides */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {([
-                  { icon: <Key size={16} />, color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', title: 'Primeros pasos', desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: () => navigate('/onboarding/plan') },
-                  { icon: <Bot size={16} />, color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50', title: 'Telegram Bot', desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
-                  { icon: <Link2 size={16} />, color: 'text-violet-500', bg: isDark ? 'bg-violet-500/10' : 'bg-violet-50', title: 'API & Webhooks', desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
-                  { icon: <Zap size={16} />, color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', title: 'Planes y créditos', desc: 'Entiende upgrades, niveles de soporte y capacidad SMS.', action: () => setActiveTab('billing') },
-                  { icon: <Shield size={16} />, color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', title: 'Seguridad', desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
-                  { icon: <CreditCard size={16} />, color: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', title: 'Facturación', desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
-                ] as { icon: React.ReactNode; color: string; bg: string; title: string; desc: string; action?: () => void }[])
-                  .filter(c => !helpSearch || c.title.toLowerCase().includes(helpSearch.toLowerCase()) || c.desc.toLowerCase().includes(helpSearch.toLowerCase()))
-                  .map(card => (
-                    <button key={card.title} onClick={card.action}
-                      className={`text-left p-4 rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${card.bg}`}>
-                        <span className={card.color}>{card.icon}</span>
-                      </div>
-                      <p className="text-[13px] font-bold mb-1">{card.title}</p>
-                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{card.desc}</p>
-                    </button>
-                  ))}
-              </div>
-
-              {/* FAQ */}
-              <div className={`rounded-2xl border overflow-hidden shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                <div className={`px-5 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                  <h3 className="text-[14px] font-black">Preguntas frecuentes</h3>
-                  <button
-                    onClick={() => navigate('/dashboard/faq')}
-                    className="text-[11px] font-black text-primary hover:underline"
-                  >
-                    Ver todas
-                  </button>
-                </div>
-                {HELP_FAQ_DATA
-                  .filter(f => !helpSearch || f.question.toLowerCase().includes(helpSearch.toLowerCase()) || f.answer.toLowerCase().includes(helpSearch.toLowerCase()))
-                  .slice(0, 6)
-                  .map((faq, i, arr) => (
-                    <div key={i} className={`px-5 py-4 ${i < arr.length - 1 ? (isDark ? 'border-b border-slate-800' : 'border-b border-slate-100') : ''}`}>
-                      <p className="text-[13px] font-bold mb-1">{faq.question}</p>
-                      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{faq.answer}</p>
-                    </div>
-                  ))}
-              </div>
-
               {/* Contact + docs links */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button onClick={() => { setHelpView('tickets'); fetchHelpTickets(); setShowNewTicketForm(true); }}
@@ -3785,6 +3741,68 @@ const WebDashboard: React.FC = () => {
             </div>
             );
           })()}
+
+          {/* ── HELP CENTER TAB ──────────────────────────────────────────── */}
+          {activeTab === 'help' && (
+            <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+              <div className={`rounded-2xl p-8 text-center border ${isDark ? 'bg-gradient-to-br from-primary/10 to-sky-500/5 border-primary/20' : 'bg-gradient-to-br from-blue-50 to-sky-50 border-blue-100'}`}>
+                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
+                  <HelpCircle size={22} className="text-white" />
+                </div>
+                <h2 className="text-[22px] font-black mb-1">Centro de Ayuda</h2>
+                <p className={`text-[13px] mb-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Documentación, preguntas frecuentes y guías clave para operar Telsim.</p>
+                <div className="relative max-w-md mx-auto">
+                  <input value={helpSearch} onChange={e => setHelpSearch(e.target.value)}
+                    placeholder="Buscar en la documentación..."
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl text-[13px] border outline-none transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-primary' : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-primary'}`} />
+                  <Search size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {([
+                  { icon: <Key size={16} />, color: 'text-primary', bg: isDark ? 'bg-primary/10' : 'bg-blue-50', title: 'Primeros pasos', desc: 'Configura tu primera SIM y recibe SMS en minutos.', action: () => navigate('/onboarding/plan') },
+                  { icon: <Bot size={16} />, color: 'text-sky-500', bg: isDark ? 'bg-sky-500/10' : 'bg-sky-50', title: 'Telegram Bot', desc: 'Recibe SMS de tus SIMs directamente en Telegram.', action: () => { setActiveTab('settings'); setSettingsSection('telegram'); } },
+                  { icon: <Link2 size={16} />, color: 'text-violet-500', bg: isDark ? 'bg-violet-500/10' : 'bg-violet-50', title: 'API & Webhooks', desc: 'Integra Telsim con tus apps vía REST API o webhooks.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <Zap size={16} />, color: 'text-amber-500', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50', title: 'Planes y créditos', desc: 'Entiende upgrades, niveles de soporte y capacidad SMS.', action: () => setActiveTab('billing') },
+                  { icon: <Shield size={16} />, color: 'text-emerald-500', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50', title: 'Seguridad', desc: 'Firma de webhooks, autenticación y buenas prácticas.', action: () => navigate('/dashboard/api-guide') },
+                  { icon: <CreditCard size={16} />, color: 'text-rose-500', bg: isDark ? 'bg-rose-500/10' : 'bg-rose-50', title: 'Facturación', desc: 'Facturas, métodos de pago y gestión de suscripciones.', action: () => setActiveTab('billing') },
+                ] as { icon: React.ReactNode; color: string; bg: string; title: string; desc: string; action?: () => void }[])
+                  .filter(c => !helpSearch || c.title.toLowerCase().includes(helpSearch.toLowerCase()) || c.desc.toLowerCase().includes(helpSearch.toLowerCase()))
+                  .map(card => (
+                    <button key={card.title} onClick={card.action}
+                      className={`text-left p-4 rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${card.bg}`}>
+                        <span className={card.color}>{card.icon}</span>
+                      </div>
+                      <p className="text-[13px] font-bold mb-1">{card.title}</p>
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{card.desc}</p>
+                    </button>
+                  ))}
+              </div>
+
+              <div className={`rounded-2xl border overflow-hidden shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                <div className={`px-5 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                  <h3 className="text-[14px] font-black">Preguntas frecuentes</h3>
+                  <button
+                    onClick={() => navigate('/dashboard/faq')}
+                    className="text-[11px] font-black text-primary hover:underline"
+                  >
+                    Ver todas
+                  </button>
+                </div>
+                {HELP_FAQ_DATA
+                  .filter(f => !helpSearch || f.question.toLowerCase().includes(helpSearch.toLowerCase()) || f.answer.toLowerCase().includes(helpSearch.toLowerCase()))
+                  .slice(0, 6)
+                  .map((faq, i, arr) => (
+                    <div key={i} className={`px-5 py-4 ${i < arr.length - 1 ? (isDark ? 'border-b border-slate-800' : 'border-b border-slate-100') : ''}`}>
+                      <p className="text-[13px] font-bold mb-1">{faq.question}</p>
+                      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{faq.answer}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
         </main>
       </div>
