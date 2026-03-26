@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
 import UserBillingPanel from '../../components/billing/UserBillingPanel';
+import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
 import { resolveAvatarUrlForUi } from '../../lib/resolveAvatarUrl';
 import RatingModal from '../../components/RatingModal';
 
@@ -603,18 +604,20 @@ const WebDashboard: React.FC = () => {
         .from('subscriptions')
         .select('id, user_id, slot_id, phone_number, plan_name, monthly_limit, credits_used, status, billing_type, created_at, amount, trial_end, current_period_end, next_billing_date, activation_state, stripe_subscription_id, stripe_session_id')
         .eq('user_id', user?.id)
-        .in('status', ['active', 'trialing'])
         .order('created_at', { ascending: false })
         .abortSignal(signal);
 
       if (signal.aborted) return;
-      if (!subsData || subsData.length === 0) {
+      const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as any[]) || [])
+        .filter((sub) => isTodasTabStatus(sub.status));
+
+      if (!visibleSubs || visibleSubs.length === 0) {
         setSlots([]);
         setLoading(false);
         return;
       }
 
-      const uniqueSubs = Array.from(new Map(subsData.map((s: { slot_id: string }) => [s.slot_id, s])).values());
+      const uniqueSubs = Array.from(new Map(visibleSubs.map((s: { slot_id: string }) => [s.slot_id, s])).values());
 
       const { data: slotsData } = await supabase
         .from('slots')

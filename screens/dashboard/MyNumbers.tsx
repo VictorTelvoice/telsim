@@ -8,6 +8,7 @@ import { useMessagesCount } from '../../contexts/MessagesContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot } from '../../types';
 import SideDrawer from '../../components/SideDrawer';
+import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
 import {
     Copy,
     Trash2,
@@ -40,6 +41,7 @@ interface SlotWithPlan extends Slot {
 }
 
 type SubscriptionSnapshot = {
+    id: string;
     phone_number: string;
     plan_name: string;
     monthly_limit: number;
@@ -47,6 +49,7 @@ type SubscriptionSnapshot = {
     slot_id: string;
     billing_type: string;
     created_at: string;
+    status?: string | null;
 };
 
 const MyNumbers: React.FC = () => {
@@ -89,12 +92,12 @@ const MyNumbers: React.FC = () => {
         try {
             const { data: subsData } = await supabase
                 .from('subscriptions')
-                .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at')
+                .select('id, phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at, status')
                 .eq('user_id', user?.id)
-                .in('status', ['active', 'trialing'])
                 .order('created_at', { ascending: false });
 
-            const liveSubs = (subsData as SubscriptionSnapshot[] | null) || [];
+            const liveSubs = dedupeLatestSubscriptionPerLine((subsData as SubscriptionSnapshot[] | null) || [])
+                .filter((sub) => isTodasTabStatus(sub.status));
             const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
 
             let slotsData: Slot[] = [];
@@ -119,9 +122,11 @@ const MyNumbers: React.FC = () => {
                 slotsData = (assignedSlots as Slot[]) || [];
             }
 
-            const slotsById = new Map(slotsData.map((slot) => [slot.slot_id, slot]));
+            const slotsById = new Map<string, Slot>(slotsData.map((slot) => [slot.slot_id, slot]));
 
-            const mergedFromSubscriptions = liveSubs.map((subscription) => {
+            const mergedFromSubscriptions: SlotWithPlan[] = liveSubs
+                .filter((subscription) => Boolean(subscription.slot_id))
+                .map((subscription) => {
                 const slot = slotsById.get(subscription.slot_id);
                 return {
                     slot_id: subscription.slot_id,
@@ -141,7 +146,7 @@ const MyNumbers: React.FC = () => {
                 };
             });
 
-            const fallbackAssignedSlots = slotsData
+            const fallbackAssignedSlots: SlotWithPlan[] = slotsData
                 .filter((slot) => !liveSubs.some((subscription) => subscription.slot_id === slot.slot_id))
                 .map((slot) => ({
                     ...slot,
