@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
 import NotificationsMenu from '../../components/NotificationsMenu';
 import SideDrawer from '../../components/SideDrawer';
+import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
 import { 
   ShieldCheck, 
   Bot, 
@@ -52,6 +53,16 @@ interface UseCaseCardData {
   tag?: string;
   isPro?: boolean;
 }
+
+type DashboardVisibleSubscription = {
+  id: string;
+  user_id: string;
+  slot_id: string;
+  phone_number: string;
+  plan_name: string;
+  status?: string | null;
+  created_at: string;
+};
 
 const USE_CASES: Record<CategoryId, UseCaseCardData[]> = {
   privacy: [
@@ -439,27 +450,57 @@ const Dashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: slotsData } = await supabase
-        .from('slots')
-        .select('slot_id, phone_number, plan_type, assigned_to, region, created_at')
-        .eq('assigned_to', user.id)
+      const { data: subsData } = await supabase
+        .from('subscriptions')
+        .select('id, user_id, slot_id, phone_number, plan_name, status, created_at')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (slotsData) {
-        setAllSlots(slotsData);
-        
-        // Prioridad: 1.forcedLine (del parámetro), 2.activeSlot actual, 3.primero de la lista
-        const targetLine = forcedLine || searchParams.get('new_line');
-        
-        if (targetLine) {
-          const matchingSlot = slotsData.find(s => 
-            s.phone_number.replace(/\D/g, '').includes(targetLine.replace(/\D/g, ''))
-          );
-          if (matchingSlot) setActiveSlot(matchingSlot);
-          else if (slotsData.length > 0) setActiveSlot(slotsData[0]);
-        } else if (!activeSlot && slotsData.length > 0) {
-          setActiveSlot(slotsData[0]);
-        }
+      const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as DashboardVisibleSubscription[] | null) || [])
+        .filter((sub) => isTodasTabStatus(sub.status));
+
+      const slotIds = Array.from(new Set(visibleSubs.map((sub) => sub.slot_id).filter(Boolean)));
+      const { data: slotsData } = slotIds.length > 0
+        ? await supabase
+            .from('slots')
+            .select('slot_id, phone_number, plan_type, assigned_to, region, created_at, status')
+            .in('slot_id', slotIds)
+            .order('created_at', { ascending: false })
+        : { data: [] as Slot[] };
+
+      const slotsById = new Map<string, Slot>(((slotsData as Slot[] | null) || []).map((slot) => [slot.slot_id, slot]));
+      const visibleSlots: Slot[] = visibleSubs
+        .filter((sub) => Boolean(sub.slot_id))
+        .map((sub) => {
+          const slot = slotsById.get(sub.slot_id);
+          if (slot) return slot;
+          return {
+            slot_id: sub.slot_id,
+            phone_number: sub.phone_number,
+            plan_type: sub.plan_name,
+            assigned_to: sub.user_id,
+            region: undefined,
+            created_at: sub.created_at,
+            status: 'ocupado',
+          };
+        });
+
+      setAllSlots(visibleSlots);
+
+      const targetLine = forcedLine || searchParams.get('new_line');
+      if (targetLine) {
+        const matchingSlot = visibleSlots.find(s =>
+          s.phone_number.replace(/\D/g, '').includes(targetLine.replace(/\D/g, ''))
+        );
+        if (matchingSlot) setActiveSlot(matchingSlot);
+        else if (visibleSlots.length > 0) setActiveSlot(visibleSlots[0]);
+      } else if (!activeSlot && visibleSlots.length > 0) {
+        setActiveSlot(visibleSlots[0]);
+      } else if (activeSlot) {
+        const refreshedActive = visibleSlots.find((slot) => slot.slot_id === activeSlot.slot_id);
+        setActiveSlot(refreshedActive || visibleSlots[0] || null);
+      } else if (visibleSlots.length === 0) {
+        setActiveSlot(null);
       }
 
       const { data: smsData } = await supabase
