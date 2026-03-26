@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, X } from 'lucide-react';
 
 const isMobileDeviceUA = (): boolean => {
   if (typeof navigator === 'undefined') return false;
@@ -16,6 +16,7 @@ const ReactivateLine: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Preparando tu reactivación…');
   const [nextUrl, setNextUrl] = useState(isMobileDeviceUA() ? '/#/dashboard/numbers' : '/#/web');
+  const closeUrl = isMobileDeviceUA() ? '/#/dashboard/billing' : '/#/web';
 
   useEffect(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -73,7 +74,16 @@ const ReactivateLine: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
-      <div className="max-w-md w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-8 text-center">
+      <div className="max-w-md w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-8 text-center relative">
+        {status === 'success' && (
+          <a
+            href={closeUrl}
+            aria-label="Cerrar y volver a facturación"
+            className="absolute top-4 right-4 inline-flex items-center justify-center size-9 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </a>
+        )}
         {status === 'loading' ? (
           <>
             <Loader2 className="w-10 h-10 text-[#0074d4] animate-spin mx-auto mb-4" />
