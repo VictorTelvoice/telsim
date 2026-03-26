@@ -220,9 +220,10 @@ const UseCasesShowcase: React.FC = () => {
   );
 };
 
-const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
+const LiveOTPFeed: React.FC<{ messages: SMSLog[]; activePhoneNumber?: string | null }> = ({ messages, activePhoneNumber }) => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const handleCopy = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
@@ -350,6 +351,13 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
               </div>
             );
           })}
+          <button
+            type="button"
+            onClick={() => navigate(activePhoneNumber ? `/dashboard/messages?num=${encodeURIComponent(activePhoneNumber)}` : '/dashboard/messages')}
+            className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-dark py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+          >
+            Ver más en Mensajes
+          </button>
         </div>
       )}
     </div>
@@ -459,7 +467,7 @@ const Dashboard: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
       if (smsData) setRecentMessages(smsData);
     } catch (err) {
@@ -482,7 +490,7 @@ const Dashboard: React.FC = () => {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const newMsg = payload.new as SMSLog;
-        setRecentMessages(prev => [newMsg, ...prev.slice(0, 4)]);
+        setRecentMessages(prev => [newMsg, ...prev.slice(0, 2)]);
         showToast("Nuevo SMS Recibido");
       })
       .subscribe();
@@ -685,9 +693,7 @@ const Dashboard: React.FC = () => {
 
         <QuickAccessBar />
 
-        <LiveOTPFeed messages={recentMessages} />
-
-        <UseCasesShowcase />
+        <LiveOTPFeed messages={recentMessages} activePhoneNumber={activeSlot?.phone_number} />
       </main>
 
       <SideDrawer
