@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#1d4ed8',
-        'primary-dark': '#1e40af',
+        primary: '#1b3a8a',
+        'primary-dark': '#142a63',
         'background-light': '#F8FAFC',
         'background-dark': '#0f172a',
         'surface-light': '#FFFFFF',
@@ -25,7 +25,7 @@ export default {
       },
       boxShadow: {
         soft: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-        button: '0 10px 25px -5px rgba(29, 78, 216, 0.4)',
+        button: '0 10px 25px -5px rgba(27, 58, 138, 0.38)',
         glow: '0 0 50px -10px rgba(16, 185, 129, 0.4)',
       },
       animation: {
