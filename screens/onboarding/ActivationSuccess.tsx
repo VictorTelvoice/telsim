@@ -382,23 +382,25 @@ const ActivationSuccess: React.FC = () => {
           </div>
 
           <div className="text-center mb-6">
-            <div
-              className="mx-auto mb-4 size-20 rounded-[1.4rem] border bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm"
-              style={{ borderColor: colors.accentBorder, boxShadow: `0 12px 30px ${colors.accentBg}` }}
-            >
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <div
+                className="size-8 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm"
+                style={{ borderColor: colors.accentBorder, boxShadow: `0 8px 20px ${colors.accentBg}` }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                Tu linea activa
+              </p>
             </div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
-              Tu linea activa
-            </p>
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
               {formatPhone(data.phoneNumber)}
             </h2>
             <p className="mt-3 text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-              Tu SIM fisica ya esta operativa y lista para recibir SMS.
+              Tu SIM ya esta operativa y lista para recibir SMS.
             </p>
           </div>
 
