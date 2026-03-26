@@ -130,7 +130,9 @@ const Settings: React.FC = () => {
   );
 
   const SectionLabel = ({ label }: { label: string }) => (
-    <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-1.5 ml-1">{label}</p>
+    <div className="flex items-center justify-between gap-3 px-1 mb-2">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{label}</p>
+    </div>
   );
 
   return (
@@ -160,10 +162,10 @@ const Settings: React.FC = () => {
       </header>
 
       {/* Scroll body */}
-      <div className="flex-1 overflow-y-auto px-4 pb-28 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 pt-3 pb-28 space-y-5 max-w-lg mx-auto w-full">
 
         {/* Profile Card — sin tarjeta de plan */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-transparent flex items-center gap-3.5">
+        <div className="bg-white dark:bg-slate-900 rounded-[1.8rem] p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm shadow-slate-200/40 dark:shadow-none flex items-center gap-3.5">
           <div className="relative flex-shrink-0 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <input
               type="file"
@@ -194,16 +196,16 @@ const Settings: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[16px] font-black text-slate-900 dark:text-white truncate">{userName}</p>
-            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate mb-1.5">{userEmail}</p>
-            <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-700 px-2 py-[3px] rounded-full text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
+            <p className="text-[17px] font-black text-slate-900 dark:text-white truncate">{userName}</p>
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate mb-2">{userEmail}</p>
+            <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               {t('common.country_chile')}
             </span>
           </div>
           <button
             onClick={() => navigate('/dashboard/profile')}
-            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-primary dark:text-blue-400 text-[10px] font-black px-3.5 py-1.5 rounded-[10px] uppercase tracking-wider flex-shrink-0"
+            className="bg-primary/10 dark:bg-blue-500/10 border border-primary/15 dark:border-blue-500/25 text-primary dark:text-blue-400 text-[10px] font-black px-3.5 py-2 rounded-xl uppercase tracking-wider flex-shrink-0"
           >
             {t('settings.edit')}
           </button>
@@ -212,7 +214,7 @@ const Settings: React.FC = () => {
         {/* CUENTA */}
         <div>
           <SectionLabel label={t('settings.section_account')} />
-          <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" fill={isDark ? "#60a5fa" : "#1e3a8a"} stroke="none"/></svg>} title={t('settings.security_title')} sub={t('settings.security_sub')} onClick={() => navigate('/dashboard/security')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>} title={t('settings.billing_title')} sub={t('settings.billing_sub')} onClick={() => navigate('/dashboard/billing')} right={<Chevron/>} />
           </div>
@@ -221,7 +223,7 @@ const Settings: React.FC = () => {
         {/* CONFIGURACIÓN */}
         <div>
           <SectionLabel label={t('settings.section_config')} />
-          <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M9.5 16.5l-2-6.5L20 6l-4 13-3.5-3.5L9.5 16.5z"/><path d="M7.5 10l5.5 3.5"/></svg>} title={t('profile.telegram_bot')} sub={t('settings.telegram_bot_sub')} onClick={() => navigate('/dashboard/telegram-config')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>} title={t('settings.api_webhooks_title')} sub={t('settings.api_webhooks_sub')} onClick={() => navigate('/dashboard/webhooks')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>} title={t('webhook_logs.title')} sub={t('webhook_logs.api_logs')} onClick={() => navigate('/dashboard/webhook-logs')} right={<Chevron/>} />
@@ -243,7 +245,7 @@ const Settings: React.FC = () => {
         {/* AYUDA */}
         <div>
           <SectionLabel label={t('settings.section_help')} />
-          <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>} title={t('settings.support_title')} sub={t('settings.support_sub')} onClick={() => navigate('/dashboard/support')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3"/></svg>} title={t('settings.docs_title')} sub={t('settings.docs_sub')} onClick={() => window.open('https://docs.telsim.app', '_blank')} right={<Chevron/>} />
             <Row icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>} title={t('settings.terms_title')} sub={t('settings.terms_sub')} onClick={() => navigate('/dashboard/terms')} right={<Chevron/>} />
@@ -251,7 +253,7 @@ const Settings: React.FC = () => {
         </div>
 
         {/* LOGOUT */}
-        <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-transparent overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm shadow-slate-200/40 dark:shadow-none">
           <div
             onClick={handleLogout}
             aria-disabled={loggingOut}
