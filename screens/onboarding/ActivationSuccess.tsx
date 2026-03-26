@@ -336,134 +336,164 @@ const ActivationSuccess: React.FC = () => {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // MOBILE LAYOUT (original)
+  // MOBILE LAYOUT
   // ──────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display antialiased flex flex-col items-center" style={{ padding: '52px 20px 40px' }}>
-      <div className="w-full max-w-sm flex flex-col" style={{ minHeight: '100vh' }}>
+    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
+      <div
+        className="pointer-events-none fixed left-1/2 top-[-60px] z-0 h-[380px] w-[500px] -translate-x-1/2 rounded-full blur-[80px]"
+        style={{ background: `radial-gradient(circle, ${colors.accent}, transparent)`, opacity: 0.12 }}
+      />
 
-        {/* Glow */}
-        <div style={{ position:'fixed', top:'-60px', left:'50%', transform:'translateX(-50%)', width:'500px', height:'380px', borderRadius:'50%', background:`radial-gradient(circle, ${colors.accent}, transparent)`, filter:'blur(80px)', opacity:0.15, pointerEvents:'none', zIndex:0 }} />
+      <header className="grid grid-cols-[40px_1fr_40px] items-center gap-3 px-6 py-5 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="w-10 h-10 rounded-full border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-[#1e3a8a] dark:text-blue-400 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          aria-label="Ir al inicio"
+        >
+          <span className="material-icons-round text-[20px]">home</span>
+        </button>
+        <h1 className="text-center text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">
+          Activacion
+        </h1>
+        <div className="w-10" />
+      </header>
 
-        {/* Header */}
-        <div className="flex flex-col items-center text-center mb-6 relative z-10">
-          <div style={{ position:'relative', marginBottom:'18px' }}>
-            <div style={{ position:'absolute', inset:0, borderRadius:'22px', border:`2px solid ${colors.accentBorder}`, animation:'ping 2s ease-out infinite', pointerEvents:'none' }} />
-            <div className="dark:bg-[#1A2230] bg-white" style={{ width:'76px', height:'76px', borderRadius:'22px', border:`1.5px solid ${colors.accentBorder}`, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', zIndex:1 }}>
+      <main className="relative z-10 px-5 py-4 space-y-5 pb-10 max-w-lg mx-auto">
+        <section className="bg-surface-light dark:bg-surface-dark rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50">
+          <div className="flex items-center justify-between mb-6">
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border"
+              style={{ background: colors.accentBg, borderColor: colors.accentBorder }}
+            >
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: colors.accent }} />
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: colors.accent }}>
+                Activo
+              </span>
+            </div>
+            <button
+              onClick={handleCopyPhone}
+              className="size-8 rounded-lg items-center justify-center text-white flex shadow-sm hover:scale-110 active:scale-95 transition-transform"
+              style={{ background: colors.accent }}
+              aria-label={copied ? 'Numero copiado' : 'Copiar numero'}
+            >
+              <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
+            </button>
+          </div>
+
+          <div className="text-center mb-6">
+            <div
+              className="mx-auto mb-4 size-20 rounded-[1.4rem] border bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm"
+              style={{ borderColor: colors.accentBorder, boxShadow: `0 12px 30px ${colors.accentBg}` }}
+            >
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
+              Tu linea activa
+            </p>
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
+              {formatPhone(data.phoneNumber)}
+            </h2>
+            <p className="mt-3 text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+              Tu SIM fisica ya esta operativa y lista para recibir SMS.
+            </p>
           </div>
 
-          <div style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 12px', background:colors.accentBg, border:`1px solid ${colors.accentBorder}`, borderRadius:'999px', marginBottom:'14px' }}>
-            <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:colors.accent, animation:'pulse 1.8s ease-in-out infinite' }} />
-            <span style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em', color:colors.accent }}>Línea Activada</span>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/dashboard/numbers')}
+              className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            >
+              <span className="material-icons-round text-lg">sim_card</span>
+              <span>Mis Lineas</span>
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/billing')}
+              className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            >
+              <span className="material-icons-round text-lg">credit_card</span>
+              <span>Facturacion</span>
+            </button>
           </div>
+        </section>
 
-          <h1 className="text-slate-900 dark:text-white" style={{ fontSize:'26px', fontWeight:600, textTransform:'uppercase', letterSpacing:'-0.02em', lineHeight:1.15, marginBottom:'8px' }}>
-            ¡Activación<br/>Completa!
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize:'13px', fontWeight:400, lineHeight:1.5 }}>
-            Tu SIM física está operativa y lista para su uso.
-          </p>
-        </div>
-
-        {/* Número SIM */}
-        <button onClick={handleCopyPhone}
-          className="dark:bg-[#1A2230] bg-white relative z-10"
-          style={{ borderRadius:'20px', border:`2px solid ${colors.accentBorder}`, padding:'20px 16px', display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', marginBottom:'10px', width:'100%', transition:'transform 0.12s' }}
-        >
-          <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'10px' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em' }}>Tu Número SIM</span>
+        <section className="grid grid-cols-2 gap-3">
+          <div className="bg-white dark:bg-surface-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mb-2">
+              Plan
+            </p>
+            <p className="text-[18px] font-black uppercase tracking-tight mb-1" style={{ color: colors.accent }}>
+              {data.planName}
+            </p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {data.monthlyLimit} Creditos SMS
+            </p>
           </div>
-          <div className="text-slate-900 dark:text-white" style={{ fontSize:'22px', fontWeight:500, letterSpacing:'0.04em', fontVariantNumeric:'tabular-nums', marginBottom:'6px' }}>
-            {formatPhone(data.phoneNumber)}
-          </div>
-          <span style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.12em', color: copied ? colors.accent : undefined }} className={copied ? '' : 'text-slate-400'}>
-            {copied ? '✓ Copiado' : 'Toca para copiar'}
-          </span>
-        </button>
-
-        {/* Grid plan + precio */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' }} className="relative z-10">
-          <div className="dark:bg-[#1A2230] bg-white" style={{ borderRadius:'16px', border:'1px solid rgba(255,255,255,0.06)', padding:'14px 12px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'5px', marginBottom:'8px' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em' }}>Plan</span>
+          <div className="bg-white dark:bg-surface-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mb-2">
+              Facturacion
+            </p>
+            <div className="flex items-baseline gap-1 mb-1">
+              <span className="text-[18px] font-black text-slate-900 dark:text-white">
+                ${displayPrice > 0 ? displayPrice.toFixed(2) : '—'}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                {isAnnualCycle ? '/ano' : '/mes'}
+              </span>
             </div>
-            <p style={{ fontSize:'15px', fontWeight:800, letterSpacing:'-0.01em', color:colors.accent, marginBottom:'2px', textTransform:'uppercase' }}>{data.planName}</p>
-            <p className="text-slate-400 dark:text-slate-500" style={{ fontSize:'10px', fontWeight:500 }}>{data.monthlyLimit} Créditos SMS</p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Servicio prepago
+            </p>
           </div>
-          <div className="dark:bg-[#1A2230] bg-white" style={{ borderRadius:'16px', border:'1px solid rgba(255,255,255,0.06)', padding:'14px 12px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'5px', marginBottom:'8px' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.14em' }}>Precio</span>
-            </div>
-            <div style={{ display:'flex', alignItems:'baseline', gap:'3px', marginBottom:'2px' }}>
-              <span className="text-slate-900 dark:text-white" style={{ fontSize:'15px', fontWeight:500, letterSpacing:'-0.01em' }}>${displayPrice > 0 ? displayPrice.toFixed(2) : '—'}</span>
-              <span className="text-slate-400" style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>{isAnnualCycle ? '/AÑO' : '/MES'}</span>
-            </div>
-            <p className="text-slate-400 dark:text-slate-500" style={{ fontSize:'10px', fontWeight:500 }}>Servicio prepago</p>
-          </div>
-        </div>
+        </section>
 
-        {/* Timeline */}
-        <div className="dark:bg-[#1A2230] bg-white relative z-10" style={{ borderRadius:'16px', border:'1px solid rgba(255,255,255,0.06)', padding:'16px 14px', marginBottom:'10px' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span className="text-slate-900 dark:text-white" style={{ fontSize:'10px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em' }}>Ciclo de Facturación</span>
+        <section className="bg-white dark:bg-surface-dark rounded-3xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[18px]">calendar_month</span>
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                Ciclo de Facturacion
+              </h3>
+            </div>
           </div>
+
           {[
-            { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
-            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
-            { dot:'rgba(148,163,184,0.3)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
+            { dot:'#10b981', label:'HOY — ACTIVACION', desc:'$0.00 cobrado · Periodo de prueba inicia', color:'#10b981', line:true },
+            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency || 'USD').toUpperCase()}`, color:colors.accent, line:true },
+            { dot:'rgba(148,163,184,0.35)', label:fmt(renewal).toUpperCase(), desc:`Siguiente renovacion · cada ${isAnnualCycle ? '365 dias' : '30 dias'}`, color:'#94a3b8', line:false },
           ].map((row, i) => (
-            <div key={i} style={{ display:'flex', gap:'10px' }}>
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'10px', flexShrink:0, paddingTop:'2px' }}>
+            <div key={i} className="flex gap-3">
+              <div className="flex flex-col items-center w-3 shrink-0 pt-1">
                 <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:row.dot, flexShrink:0 }} />
-                {row.line && <div className="dark:bg-white/8 bg-slate-200" style={{ width:'1.5px', minHeight:'22px', margin:'3px 0' }} />}
+                {row.line && <div className="w-px flex-1 bg-slate-200 dark:bg-slate-700 my-1.5 min-h-[20px]" />}
               </div>
-              <div style={{ paddingBottom: row.line ? '12px' : 0 }}>
-                <p style={{ fontSize:'9px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.12em', color:row.color, marginBottom:'2px' }}>{row.label}</p>
-                <p className="text-slate-500 dark:text-slate-400" style={{ fontSize:'11px', fontWeight:400 }}>{row.desc}</p>
+              <div className={row.line ? 'pb-1' : ''}>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] mb-0.5" style={{ color: row.color }}>
+                  {row.label}
+                </p>
+                <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                  {row.desc}
+                </p>
               </div>
             </div>
           ))}
-        </div>
+        </section>
 
-        {/* Shield */}
-        <div className="relative z-10" style={{ borderRadius:'14px', border:`1px solid ${colors.accentBorder}`, background:colors.accentBg, padding:'14px', display:'flex', gap:'10px', marginBottom:'24px' }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:'1px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize:'11px', fontWeight:400, lineHeight:1.6 }}>
-            Servicio prepago. Cancela antes del <strong className="text-slate-900 dark:text-white" style={{ fontWeight:700 }}>{fmt(trialEnd)}</strong> y no se realiza ningún cobro. Sin permanencia mínima.
+        <section
+          className="rounded-2xl p-4 flex gap-3 border"
+          style={{ background: colors.accentBg, borderColor: colors.accentBorder }}
+        >
+          <span className="material-symbols-outlined text-[18px] mt-0.5" style={{ color: colors.accent }}>
+            verified_user
+          </span>
+          <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+            Servicio prepago. Cancela antes del <strong className="font-bold text-slate-900 dark:text-white">{fmt(trialEnd)}</strong> y no se realiza ningun cobro. Sin permanencia minima.
           </p>
-        </div>
-
-        <div style={{ flex:1 }} />
-
-        {/* Botones */}
-        <div className="relative z-10" style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-          <button onClick={() => navigate('/dashboard/numbers')}
-            style={{ width:'100%', height:'60px', background:'#1d4ed8', border:'none', borderRadius:'18px', color:'white', fontSize:'13px', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 8px', boxShadow:'0 8px 24px rgba(29,78,216,0.35)' }}
-          >
-            <div style={{ width:'44px' }} />
-            <span>Ver Mi Número</span>
-            <div style={{ width:'44px', height:'44px', borderRadius:'12px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </div>
-          </button>
-          <button onClick={() => navigate('/dashboard/billing')}
-            className="text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700"
-            style={{ width:'100%', height:'46px', background:'transparent', borderRadius:'14px', border:'1px solid', fontSize:'10px', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            Ver Facturación
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-      </div>
+        </section>
+      </main>
 
       <style>{`
         @keyframes ping { 0%{transform:scale(1);opacity:0.5;} 80%,100%{transform:scale(1.9);opacity:0;} }
