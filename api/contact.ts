@@ -5,11 +5,12 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM = process.env.RESEND_FROM_EMAIL
   ? `Telsim <${process.env.RESEND_FROM_EMAIL}>`
   : 'Telsim <noreply@telsim.io>';
 const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || 'support@telsim.io';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 function parseClientIp(req: any): string | null {
   const forwarded = req.headers['x-forwarded-for'];
@@ -109,32 +110,44 @@ export default async function handler(req: any, res: any) {
       </div>
     `;
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
+    const sendEmailRes = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        event: 'scheduled_event',
+        to_email: CONTACT_TO_EMAIL,
+        language,
         from: RESEND_FROM,
-        to: [CONTACT_TO_EMAIL],
-        reply_to: email,
         subject,
-        html,
+        html_body: html,
+        reply_to: email,
+        data: {
+          lead_name: name,
+          company,
+          email,
+        },
       }),
     });
 
-    const resendJson = await resendRes.json().catch(() => null);
+    const sendEmailJson = await sendEmailRes.json().catch(() => null);
 
-    if (!resendRes.ok) {
+    if (!sendEmailRes.ok) {
       await supabaseAdmin
         .from('contact_leads')
         .update({
-          last_error: typeof resendJson?.message === 'string' ? resendJson.message : `resend_${resendRes.status}`,
+          last_error:
+            typeof sendEmailJson?.error === 'string'
+              ? sendEmailJson.error
+              : typeof sendEmailJson?.message === 'string'
+                ? sendEmailJson.message
+                : `send_email_${sendEmailRes.status}`,
         })
         .eq('id', lead.id);
 
-      console.error('[CONTACT] resend error', resendJson || resendRes.statusText);
+      console.error('[CONTACT] send-email error', sendEmailJson || sendEmailRes.statusText);
       return res.status(502).json({
         error: 'Recibimos tu mensaje, pero no pudimos enviarlo al equipo. Intenta nuevamente en unos minutos.',
       });
@@ -143,7 +156,7 @@ export default async function handler(req: any, res: any) {
     await supabaseAdmin
       .from('contact_leads')
       .update({
-        resend_email_id: typeof resendJson?.id === 'string' ? resendJson.id : null,
+        resend_email_id: typeof sendEmailJson?.id === 'string' ? sendEmailJson.id : null,
         email_sent_at: new Date().toISOString(),
         last_error: null,
       })

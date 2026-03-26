@@ -507,6 +507,7 @@ Deno.serve(async (req) => {
       is_test: payloadIsTest,
       custom_content: payloadCustomContent,
       html_body: payloadHtmlBody,
+      reply_to: payloadReplyTo,
       contentBelowDetails,
       contentTitle,
     } = payload as Record<string, unknown>;
@@ -529,6 +530,10 @@ Deno.serve(async (req) => {
 
     // Remitente: payload (test) o constante. Formato Resend: "Telsim noreply@telsim.io" o "Telsim <noreply@telsim.io>"
     const fromAddress = payloadFrom != null && String(payloadFrom).trim() !== '' ? String(payloadFrom).trim() : RESEND_FROM;
+    const replyToAddress =
+      payloadReplyTo != null && String(payloadReplyTo).trim() !== ''
+        ? String(payloadReplyTo).trim()
+        : null;
 
     // Usar to_email si viene directo del webhook, sino intentar lookup
     let email: string | null = to_email ?? (payload.email as string) ?? payload.to ?? null;
@@ -825,6 +830,7 @@ Deno.serve(async (req) => {
         to: [email],
         subject,
         html,
+        ...(replyToAddress ? { reply_to: replyToAddress } : {}),
         headers: {
           'List-Unsubscribe': '<mailto:unsubscribe@telsim.io?subject=unsubscribe>',
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
