@@ -39,6 +39,16 @@ interface SlotWithPlan extends Slot {
     subscription_created_at?: string | null;
 }
 
+type SubscriptionSnapshot = {
+    phone_number: string;
+    plan_name: string;
+    monthly_limit: number;
+    credits_used: number;
+    slot_id: string;
+    billing_type: string;
+    created_at: string;
+};
+
 const MyNumbers: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -84,7 +94,7 @@ const MyNumbers: React.FC = () => {
                 .in('status', ['active', 'trialing'])
                 .order('created_at', { ascending: false });
 
-            const liveSubs = subsData || [];
+            const liveSubs = (subsData as SubscriptionSnapshot[] | null) || [];
             const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
 
             let slotsData: Slot[] = [];
@@ -109,18 +119,41 @@ const MyNumbers: React.FC = () => {
                 slotsData = (assignedSlots as Slot[]) || [];
             }
 
-            const enrichedSlots = slotsData.map(slot => {
-                const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);
+            const slotsById = new Map(slotsData.map((slot) => [slot.slot_id, slot]));
+
+            const mergedFromSubscriptions = liveSubs.map((subscription) => {
+                const slot = slotsById.get(subscription.slot_id);
                 return {
-                    ...slot,
-                    actual_plan_name: subscription?.plan_name || slot.plan_type || 'Starter',
-                    monthly_limit: subscription?.monthly_limit || 150,
-                    credits_used: subscription?.credits_used || 0,
-                    billing_type: subscription?.billing_type || 'monthly',
-                    subscription_created_at: subscription?.created_at || null,
-                    forwarding_active: slot.forwarding_active || false
+                    slot_id: subscription.slot_id,
+                    phone_number: slot?.phone_number || subscription.phone_number,
+                    plan_type: slot?.plan_type || subscription.plan_name || 'Starter',
+                    assigned_to: slot?.assigned_to || user.id,
+                    created_at: slot?.created_at || subscription.created_at,
+                    status: slot?.status || 'ocupado',
+                    region: slot?.region,
+                    label: slot?.label,
+                    forwarding_active: slot?.forwarding_active || false,
+                    actual_plan_name: subscription.plan_name || slot?.plan_type || 'Starter',
+                    monthly_limit: subscription.monthly_limit || 150,
+                    credits_used: subscription.credits_used || 0,
+                    billing_type: subscription.billing_type || 'monthly',
+                    subscription_created_at: subscription.created_at || null,
                 };
             });
+
+            const fallbackAssignedSlots = slotsData
+                .filter((slot) => !liveSubs.some((subscription) => subscription.slot_id === slot.slot_id))
+                .map((slot) => ({
+                    ...slot,
+                    actual_plan_name: slot.plan_type || 'Starter',
+                    monthly_limit: 150,
+                    credits_used: 0,
+                    billing_type: 'monthly',
+                    subscription_created_at: null,
+                    forwarding_active: slot.forwarding_active || false,
+                }));
+
+            const enrichedSlots = [...mergedFromSubscriptions, ...fallbackAssignedSlots];
 
             setSlots(enrichedSlots);
             return enrichedSlots;
