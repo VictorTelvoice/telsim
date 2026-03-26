@@ -77,19 +77,39 @@ const MyNumbers: React.FC = () => {
         if (!user?.id) return [];
         setLoading(true);
         try {
-            const { data: slotsData } = await supabase
-                .from('slots')
-                .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
-                .eq('assigned_to', user?.id)
-                .order('created_at', { ascending: false });
-
             const { data: subsData } = await supabase
                 .from('subscriptions')
                 .select('phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at')
                 .eq('user_id', user?.id)
-                .in('status', ['active', 'trialing']);
+                .in('status', ['active', 'trialing'])
+                .order('created_at', { ascending: false });
 
-            const enrichedSlots = (slotsData || []).map(slot => {
+            const liveSubs = subsData || [];
+            const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
+
+            let slotsData: Slot[] = [];
+
+            if (slotIdsFromSubs.length > 0) {
+                const { data: slotsBySubs } = await supabase
+                    .from('slots')
+                    .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+                    .in('slot_id', slotIdsFromSubs)
+                    .order('created_at', { ascending: false });
+
+                slotsData = (slotsBySubs as Slot[]) || [];
+            }
+
+            if (slotsData.length === 0) {
+                const { data: assignedSlots } = await supabase
+                    .from('slots')
+                    .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+                    .eq('assigned_to', user?.id)
+                    .order('created_at', { ascending: false });
+
+                slotsData = (assignedSlots as Slot[]) || [];
+            }
+
+            const enrichedSlots = slotsData.map(slot => {
                 const subscription = subsData?.find(s => s.slot_id === slot.slot_id || s.phone_number === slot.phone_number);
                 return {
                     ...slot,
