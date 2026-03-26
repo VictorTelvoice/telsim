@@ -533,7 +533,11 @@ const Landing: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-[72px] w-auto rounded-2xl shadow-sm" />
+            <img
+              src="/telsim-bot-logo.jpg"
+              alt="Telsim"
+              className="h-[72px] w-[72px] rounded-[22px] object-cover object-left bg-white ring-1 ring-slate-200 shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)]"
+            />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button
