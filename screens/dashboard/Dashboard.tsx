@@ -371,7 +371,7 @@ const QuickAccessBar: React.FC = () => {
     {
       icon: <Smartphone className="size-4" />,
       label: 'Adquirir una SIM',
-      path: '/onboarding/region',
+      path: '/onboarding/plan',
       color: 'text-blue-500',
     },
     {
@@ -634,7 +634,7 @@ const Dashboard: React.FC = () => {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500/20">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                        {activeSlot ? t('dashboard.node_active') : t('dashboard.no_assignment')}
+                        {activeSlot ? 'ACTIVO' : t('dashboard.no_assignment')}
                     </span>
                 </div>
                 <button 
@@ -666,18 +666,18 @@ const Dashboard: React.FC = () => {
             {activeSlot ? (
               <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => { navigator.clipboard.writeText(formatPhoneNumber(activeSlot.phone_number)); showToast(t('dashboard.number_copied')); }}
-                  className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                >
-                    <span className="material-icons-round text-lg">content_copy</span>
-                    <span>{t('common.copy')}</span>
-                </button>
-                <button 
                   onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`)}
                   className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">chat_bubble</span>
                     <span>{t('dashboard.inbox')}</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/dashboard/numbers')}
+                  className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                >
+                    <span className="material-icons-round text-lg">sim_card</span>
+                    <span>MIS LÍNEAS</span>
                 </button>
               </div>
             ) : (
