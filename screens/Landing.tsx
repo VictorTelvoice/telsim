@@ -140,10 +140,10 @@ const Landing: React.FC = () => {
     localStorage.setItem('selected_plan_price_id', isAnnual ? selected.annual : selected.monthly);
 
     const billing = isAnnual ? 'annual' : 'monthly';
-    localStorage.setItem('post_login_redirect', '/onboarding/region');
+    const nextPath = `/onboarding/region?plan=${planId}&billing=${billing}`;
+    localStorage.setItem('post_login_redirect', nextPath);
     localStorage.setItem('selected_billing', billing);
-    const url = `https://www.telsim.io/dashboard#/onboarding/region?plan=${planId}&billing=${billing}`;
-    window.location.href = url;
+    navigate(nextPath);
   };
 
   useEffect(() => {
