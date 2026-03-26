@@ -360,6 +360,59 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[] }> = ({ messages }) => {
   );
 };
 
+const QuickAccessBar: React.FC = () => {
+  const navigate = useNavigate();
+
+  const links = [
+    {
+      icon: <Smartphone className="size-4" />,
+      label: 'Adquirir una SIM',
+      path: '/onboarding/region',
+      color: 'text-blue-500',
+    },
+    {
+      icon: <CreditCard className="size-4" />,
+      label: 'Ver Facturación',
+      path: '/dashboard/billing',
+      color: 'text-emerald-500',
+    },
+    {
+      icon: <Bot className="size-4" />,
+      label: 'Bot de Telegram',
+      path: '/dashboard/telegram-config',
+      color: 'text-cyan-500',
+    },
+    {
+      icon: <ShieldCheck className="size-4" />,
+      label: 'Soporte 24/7',
+      path: '/dashboard/support',
+      color: 'text-violet-500',
+    },
+  ];
+
+  return (
+    <section className="space-y-3">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">
+        Accesos Rápidos
+      </p>
+      <div className="grid grid-cols-4 gap-2">
+        {links.map((link) => (
+          <button
+            key={link.path}
+            onClick={() => navigate(link.path)}
+            className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-surface-dark border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <span className={link.color}>{link.icon}</span>
+            <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide text-center leading-tight">
+              {link.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -633,6 +686,8 @@ const Dashboard: React.FC = () => {
               </button>
             )}
         </div>
+
+        <QuickAccessBar />
 
         <LiveOTPFeed messages={recentMessages} />
 
