@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 
@@ -24,6 +25,7 @@ const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 10
 const PlanSelect: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [isAnnual, setIsAnnual] = useState(false);
   const [selected, setSelected] = useState<'starter' | 'pro' | 'power'>('pro');
   const [desktop, setDesktop] = useState(isDesktop());
@@ -61,7 +63,7 @@ const PlanSelect: React.FC = () => {
     localStorage.setItem('selected_plan_price', String(isAnnual ? cfg.amountAnnual : cfg.amount));
     localStorage.setItem('selected_plan_annual', String(isAnnual));
     localStorage.setItem('selected_plan_price_id', isAnnual ? cfg.stripePriceIdAnnual : cfg.stripePriceId);
-    navigate('/login');
+    navigate(user ? '/onboarding/region' : '/login');
   };
 
   // ─── Toggle mensual/anual ──────────────────────────────────────────────────
