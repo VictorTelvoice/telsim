@@ -44,6 +44,26 @@ type TicketMsg = {
   created_at: string;
 };
 
+type VisibleSubscription = {
+  id: string;
+  user_id: string;
+  slot_id: string;
+  phone_number: string;
+  plan_name: string;
+  monthly_limit?: number | null;
+  credits_used?: number | null;
+  status?: string | null;
+  billing_type?: string | null;
+  created_at: string;
+  amount?: number | null;
+  trial_end?: string | null;
+  current_period_end?: string | null;
+  next_billing_date?: string | null;
+  activation_state?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_session_id?: string | null;
+};
+
 // ─── Brand Logos (SVG inline) ──────────────────────────────────────────────────
 
 const BrandLogo: React.FC<{ brand: string; size?: number }> = ({ brand, size = 18 }) => {
@@ -608,7 +628,7 @@ const WebDashboard: React.FC = () => {
         .abortSignal(signal);
 
       if (signal.aborted) return;
-      const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as any[]) || [])
+      const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as VisibleSubscription[] | null) || [])
         .filter((sub) => isTodasTabStatus(sub.status));
 
       if (!visibleSubs || visibleSubs.length === 0) {
@@ -617,7 +637,7 @@ const WebDashboard: React.FC = () => {
         return;
       }
 
-      const uniqueSubs = Array.from(new Map(visibleSubs.map((s: { slot_id: string }) => [s.slot_id, s])).values());
+      const uniqueSubs = Array.from(new Map(visibleSubs.map((s) => [s.slot_id, s])).values());
 
       const { data: slotsData } = await supabase
         .from('slots')
@@ -629,7 +649,16 @@ const WebDashboard: React.FC = () => {
       const finalData = uniqueSubs
         .map(sub => {
           const slot = slotsData?.find(s => s.slot_id === sub.slot_id);
-          return slot ? { ...slot, activeSub: sub } : null;
+          if (slot) return { ...slot, activeSub: sub };
+          return {
+            slot_id: sub.slot_id,
+            phone_number: sub.phone_number,
+            plan_type: sub.plan_name,
+            assigned_to: sub.user_id,
+            created_at: sub.created_at,
+            status: 'ocupado',
+            activeSub: sub,
+          };
         })
         .filter(Boolean);
 

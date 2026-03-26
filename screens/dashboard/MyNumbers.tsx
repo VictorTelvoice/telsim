@@ -112,16 +112,6 @@ const MyNumbers: React.FC = () => {
                 slotsData = (slotsBySubs as Slot[]) || [];
             }
 
-            if (slotsData.length === 0) {
-                const { data: assignedSlots } = await supabase
-                    .from('slots')
-                    .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
-                    .eq('assigned_to', user?.id)
-                    .order('created_at', { ascending: false });
-
-                slotsData = (assignedSlots as Slot[]) || [];
-            }
-
             const slotsById = new Map<string, Slot>(slotsData.map((slot) => [slot.slot_id, slot]));
 
             const mergedFromSubscriptions: SlotWithPlan[] = liveSubs
@@ -146,19 +136,7 @@ const MyNumbers: React.FC = () => {
                 };
             });
 
-            const fallbackAssignedSlots: SlotWithPlan[] = slotsData
-                .filter((slot) => !liveSubs.some((subscription) => subscription.slot_id === slot.slot_id))
-                .map((slot) => ({
-                    ...slot,
-                    actual_plan_name: slot.plan_type || 'Starter',
-                    monthly_limit: 150,
-                    credits_used: 0,
-                    billing_type: 'monthly',
-                    subscription_created_at: null,
-                    forwarding_active: slot.forwarding_active || false,
-                }));
-
-            const enrichedSlots = [...mergedFromSubscriptions, ...fallbackAssignedSlots];
+            const enrichedSlots = mergedFromSubscriptions;
 
             setSlots(enrichedSlots);
             return enrichedSlots;
