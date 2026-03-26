@@ -1029,7 +1029,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
 
   const mainClasses = isEmbedded
     ? 'px-0 py-0 space-y-6 max-w-none'
-    : 'px-6 max-w-lg mx-auto lg:max-w-5xl xl:max-w-7xl lg:px-12 py-6 space-y-8';
+    : 'px-6 max-w-lg mx-auto lg:max-w-5xl xl:max-w-7xl lg:px-12 pt-3 pb-6 space-y-8';
 
   const inner = (
     <main className={mainClasses}>

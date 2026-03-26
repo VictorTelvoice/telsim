@@ -75,9 +75,6 @@ const Support: React.FC = () => {
                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{t('support.operational_247')}</span>
               </div>
               <h2 className="text-2xl font-black mb-2 tracking-tight" dangerouslySetInnerHTML={{ __html: t('support.how_can_we_help').replace('?', '? <br/>') }}></h2>
-              <p className="text-white/50 text-xs font-medium leading-relaxed max-w-[28ch]">
-                 {t('support.engineers_ready')}
-              </p>
            </div>
         </section>
 
