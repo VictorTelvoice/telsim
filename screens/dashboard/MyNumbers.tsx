@@ -8,7 +8,7 @@ import { useMessagesCount } from '../../contexts/MessagesContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { Slot } from '../../types';
 import SideDrawer from '../../components/SideDrawer';
-import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
+import { dedupeLatestSubscriptionPerLine, isInventoryVisibleStatus } from '../../components/billing/subscriptionBillingUtils';
 import {
     Copy,
     Trash2,
@@ -97,7 +97,7 @@ const MyNumbers: React.FC = () => {
                 .order('created_at', { ascending: false });
 
             const liveSubs = dedupeLatestSubscriptionPerLine((subsData as SubscriptionSnapshot[] | null) || [])
-                .filter((sub) => isTodasTabStatus(sub.status));
+                .filter((sub) => isInventoryVisibleStatus(sub.status));
             const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
 
             let slotsData: Slot[] = [];

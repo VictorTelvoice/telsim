@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import TelegramStatusDot from '../../components/TelegramStatusDot';
 import UserBillingPanel from '../../components/billing/UserBillingPanel';
-import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
+import { dedupeLatestSubscriptionPerLine, isInventoryVisibleStatus } from '../../components/billing/subscriptionBillingUtils';
 import { resolveAvatarUrlForUi } from '../../lib/resolveAvatarUrl';
 import RatingModal from '../../components/RatingModal';
 
@@ -629,7 +629,7 @@ const WebDashboard: React.FC = () => {
 
       if (signal.aborted) return;
       const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as VisibleSubscription[] | null) || [])
-        .filter((sub) => isTodasTabStatus(sub.status));
+        .filter((sub) => isInventoryVisibleStatus(sub.status));
 
       if (!visibleSubs || visibleSubs.length === 0) {
         setSlots([]);

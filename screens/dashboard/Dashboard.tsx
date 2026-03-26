@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { Slot, SMSLog } from '../../types';
 import NotificationsMenu from '../../components/NotificationsMenu';
 import SideDrawer from '../../components/SideDrawer';
-import { dedupeLatestSubscriptionPerLine, isTodasTabStatus } from '../../components/billing/subscriptionBillingUtils';
+import { dedupeLatestSubscriptionPerLine, isInventoryVisibleStatus } from '../../components/billing/subscriptionBillingUtils';
 import { 
   ShieldCheck, 
   Bot, 
@@ -457,7 +457,7 @@ const Dashboard: React.FC = () => {
         .order('created_at', { ascending: false });
 
       const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as DashboardVisibleSubscription[] | null) || [])
-        .filter((sub) => isTodasTabStatus(sub.status));
+        .filter((sub) => isInventoryVisibleStatus(sub.status));
 
       const slotIds = Array.from(new Set(visibleSubs.map((sub) => sub.slot_id).filter(Boolean)));
       const { data: slotsData } = slotIds.length > 0

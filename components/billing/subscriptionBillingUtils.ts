@@ -49,6 +49,17 @@ export function isTodasTabStatus(status: string | null | undefined): boolean {
 }
 
 /**
+ * Inventario del usuario (`Inicio`, `Mis Números`, `Dashboard web`):
+ * muestra solo líneas realmente usables en producto.
+ * Excluye `pending_reactivation_cancel` porque ya salió del inventario
+ * y debe gestionarse desde Facturación.
+ */
+export function isInventoryVisibleStatus(status: string | null | undefined): boolean {
+  const n = normalizeSubscriptionStatus(status);
+  return n === 'active' || n === 'trialing' || n === 'past_due';
+}
+
+/**
  * KPI “Suscripciones activas”: solo `active` y `trialing`.
  * `past_due` no entra aquí (cobro fallido; se informa aparte si aplica).
  */
