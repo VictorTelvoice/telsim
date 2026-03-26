@@ -104,16 +104,16 @@ const Settings: React.FC = () => {
     icon: React.ReactNode; title: string; sub?: string;
     onClick?: () => void; right?: React.ReactNode;
   }) => (
-    <div
-      onClick={onClick}
-      className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800/70 transition-colors"
-    >
+      <div
+        onClick={onClick}
+        className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800/70 transition-colors"
+      >
       <div className="w-10 h-10 rounded-xl bg-[#eef2f7] dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0 [&_svg]:stroke-[#1e3a8a] dark:[&_svg]:stroke-blue-400 shadow-sm">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[15px] font-black text-slate-900 dark:text-white leading-tight">{title}</p>
-        {sub && <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">{sub}</p>}
+        <p className="text-[15px] font-semibold text-slate-900 dark:text-white leading-tight">{title}</p>
+        {sub && <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1 leading-snug">{sub}</p>}
       </div>
       {right && <div className="flex items-center gap-1.5 flex-shrink-0">{right}</div>}
     </div>
@@ -133,7 +133,7 @@ const Settings: React.FC = () => {
 
   const SectionLabel = ({ label }: { label: string }) => (
     <div className="flex items-center justify-between gap-3 px-1 mb-2">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{label}</p>
     </div>
   );
 
@@ -198,16 +198,16 @@ const Settings: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[17px] font-black text-slate-900 dark:text-white truncate">{userName}</p>
-            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate mb-2">{userEmail}</p>
-            <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
+            <p className="text-[17px] font-semibold text-slate-900 dark:text-white truncate">{userName}</p>
+            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate mb-2">{userEmail}</p>
+            <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full text-[9.5px] font-medium text-slate-500 dark:text-slate-400">
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               {t('common.country_chile')}
             </span>
           </div>
           <button
             onClick={() => navigate('/dashboard/profile')}
-            className="bg-primary/10 dark:bg-blue-500/10 border border-primary/15 dark:border-blue-500/25 text-primary dark:text-blue-400 text-[10px] font-black px-3.5 py-2 rounded-xl uppercase tracking-wider flex-shrink-0"
+            className="bg-primary/10 dark:bg-blue-500/10 border border-primary/15 dark:border-blue-500/25 text-primary dark:text-blue-400 text-[10px] font-bold px-3.5 py-2 rounded-xl uppercase tracking-wider flex-shrink-0"
           >
             {t('settings.edit')}
           </button>
@@ -262,11 +262,11 @@ const Settings: React.FC = () => {
             className="flex items-center justify-center gap-2 py-[13px] cursor-pointer active:bg-red-50 dark:active:bg-red-900/20"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.3" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            <span className="text-[13px] font-bold text-red-500">{t('settings.logout')}</span>
+            <span className="text-[13px] font-semibold text-red-500">{t('settings.logout')}</span>
           </div>
         </div>
 
-        <p className="text-center text-[9px] font-bold text-slate-300 dark:text-slate-600 tracking-widest uppercase pb-2">{t('settings.version')}</p>
+        <p className="text-center text-[9px] font-medium text-slate-300 dark:text-slate-600 tracking-widest uppercase pb-2">{t('settings.version')}</p>
       </div>
 
       <SideDrawer
