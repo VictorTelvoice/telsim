@@ -1639,7 +1639,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-9 w-auto rounded-xl shadow-sm" />
+          <img src="/telsim-bot-logo.jpg" alt="Telsim" className="h-[72px] w-auto rounded-2xl shadow-sm" />
         </div>
 
         {/* Infraestructura IA */}
