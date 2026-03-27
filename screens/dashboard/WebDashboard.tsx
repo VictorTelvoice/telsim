@@ -1568,7 +1568,6 @@ const WebDashboard: React.FC = () => {
       const persistedForwarding = Boolean((body as { forwardingActive?: boolean }).forwardingActive);
 
       setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, forwarding_active: persistedForwarding } : s));
-      void fetchData({ silent: true });
     } catch (e) {
       console.error(e);
       alert(e instanceof Error && e.message ? e.message : 'No se pudo actualizar el Bot de Telegram.');

@@ -453,7 +453,6 @@ const MyNumbers: React.FC = () => {
             setSlots(prev => prev.map(slot => (
                 slot.slot_id === slotId ? { ...slot, forwarding_active: persistedForwarding } : slot
             )));
-            await fetchSlots({ silent: true });
         } catch (err) {
             console.error(err);
             const message = err instanceof Error && err.message ? err.message : t('common.error');
@@ -497,7 +496,6 @@ const MyNumbers: React.FC = () => {
 
             showToast(getAppTemplate('automation_saved', t('mynumbers.automation_saved')));
             setIsFwdModalOpen(false);
-            await fetchSlots({ silent: true });
         } catch (err) {
             console.error(err);
             const message = err instanceof Error && err.message ? err.message : t('common.error');
