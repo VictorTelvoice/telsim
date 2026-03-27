@@ -444,10 +444,12 @@ const MyNumbers: React.FC = () => {
 
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error((body as { error?: string }).error || t('common.error'));
+            const persistedForwarding = Boolean((body as { forwardingActive?: boolean }).forwardingActive);
 
             setSlots(prev => prev.map(slot => (
-                slot.slot_id === slotId ? { ...slot, forwarding_active: newVal } : slot
+                slot.slot_id === slotId ? { ...slot, forwarding_active: persistedForwarding } : slot
             )));
+            await fetchSlots();
         } catch (err) {
             console.error(err);
             const message = err instanceof Error && err.message ? err.message : t('common.error');
@@ -482,14 +484,16 @@ const MyNumbers: React.FC = () => {
 
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error((body as { error?: string }).error || t('common.error'));
+            const persistedForwarding = Boolean((body as { forwardingActive?: boolean }).forwardingActive);
 
             setSlots(prev => prev.map(slot => (
-                slot.slot_id === activeConfigSlot.slot_id ? { ...slot, forwarding_active: slotFwdActive } : slot
+                slot.slot_id === activeConfigSlot.slot_id ? { ...slot, forwarding_active: persistedForwarding } : slot
             )));
+            setSlotFwdActive(persistedForwarding);
 
             showToast(getAppTemplate('automation_saved', t('mynumbers.automation_saved')));
             setIsFwdModalOpen(false);
-            fetchSlots();
+            await fetchSlots();
         } catch (err) {
             console.error(err);
             const message = err instanceof Error && err.message ? err.message : t('common.error');
