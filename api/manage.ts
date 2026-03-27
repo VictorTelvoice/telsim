@@ -107,7 +107,9 @@ const supabaseAdmin = createClient(
 /** Valida Bearer de Supabase y devuelve el user id autenticado (o null). */
 async function getRequestAuthUserId(req: any): Promise<string | null> {
   const authHeader = req.headers?.authorization;
-  const token = authHeader?.replace(/^Bearer\s+/i, '');
+  const bodyToken = typeof req.body?.accessToken === 'string' ? req.body.accessToken.trim() : '';
+  const headerToken = authHeader?.replace(/^Bearer\s+/i, '') || '';
+  const token = headerToken || bodyToken;
   if (!token) return null;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const url = process.env.SUPABASE_URL;

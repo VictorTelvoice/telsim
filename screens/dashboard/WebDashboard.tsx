@@ -1558,6 +1558,7 @@ const WebDashboard: React.FC = () => {
           action: 'set-slot-forwarding',
           slotId,
           forwardingActive: newVal,
+          accessToken: session?.access_token || null,
         }),
       });
       const body = await res.json().catch(() => ({}));

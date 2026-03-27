@@ -438,6 +438,7 @@ const MyNumbers: React.FC = () => {
                     action: 'set-slot-forwarding',
                     slotId,
                     forwardingActive: newVal,
+                    accessToken: session?.access_token || null,
                 }),
             });
 
@@ -475,6 +476,7 @@ const MyNumbers: React.FC = () => {
                     action: 'set-slot-forwarding',
                     slotId: activeConfigSlot.slot_id,
                     forwardingActive: slotFwdActive,
+                    accessToken: session?.access_token || null,
                 }),
             });
 
