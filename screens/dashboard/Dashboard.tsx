@@ -345,10 +345,10 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[]; activePhoneNumber?: string | n
                                 e.stopPropagation();
                                 handleCopy(msg.verification_code!, msg.id);
                               }}
-                              className={`size-7 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                              className={`size-7 rounded-lg flex items-center justify-center shrink-0 transition-all border border-slate-200 dark:border-slate-700 ${
                                 copyingId === msg.id
-                                  ? 'bg-emerald-500 text-white shadow-lg'
-                                  : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-90 dark:bg-slate-950'
+                                  ? 'bg-emerald-50 text-emerald-600 shadow-sm border-emerald-200'
+                                  : 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:text-slate-300 dark:hover:bg-slate-800'
                               }`}
                               aria-label={copyingId === msg.id ? 'Código copiado' : 'Copiar código'}
                             >
@@ -365,9 +365,9 @@ const LiveOTPFeed: React.FC<{ messages: SMSLog[]; activePhoneNumber?: string | n
           <button
             type="button"
             onClick={() => navigate(activePhoneNumber ? `/dashboard/messages?num=${encodeURIComponent(activePhoneNumber)}` : '/dashboard/messages')}
-            className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-dark py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            className="w-full py-2 text-[11px] font-bold text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-white transition-colors"
           >
-            Ver más en Mensajes
+            Ver más
           </button>
         </div>
       )}
@@ -616,6 +616,9 @@ const Dashboard: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col items-start truncate">
                                       <span className="truncate tracking-tight leading-none text-[13px]">{formatPhoneNumber(activeSlot.phone_number)}</span>
+                                      <span className="truncate tracking-tight leading-none text-[9px] text-slate-400 uppercase mt-0.5">
+                                        {t('dashboard.port')}: {activeSlot.slot_id}
+                                      </span>
                                     </div>
                                 </>
                             ) : (
@@ -646,7 +649,7 @@ const Dashboard: React.FC = () => {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-900 dark:text-white truncate tabular-nums">{formatPhoneNumber(slot.phone_number)}</span>
-                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate">
+                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate mt-0.5">
                                             {t('dashboard.port')}: {slot.slot_id}
                                           </span>
                                       </div>
@@ -718,7 +721,7 @@ const Dashboard: React.FC = () => {
                   className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">sim_card</span>
-                    <span>MIS LÍNEAS</span>
+                    <span>Mis lineas</span>
                 </button>
               </div>
             ) : (
