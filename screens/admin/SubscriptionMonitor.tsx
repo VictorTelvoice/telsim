@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { CreditCard, Loader2, ChevronUp, ChevronDown, Copy, X, Download, XCircle, ArrowUpCircle, Trash2, Fingerprint, Zap } from 'lucide-react';
 import AdminFicha360 from '../../components/admin/AdminFicha360';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
@@ -252,10 +251,8 @@ type SortDir = 'asc' | 'desc';
 
 /**
  * Monitor de suscripciones: Fecha Creación, USER_ID (tooltip nombre/email), Plan, Ciclo, Precio, Próximo Cobro, Estado.
- * Ordenamiento por columnas. Gráfico de notificaciones últimos 7 días.
  */
 const SubscriptionMonitor: React.FC = () => {
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchFromUrl = searchParams.get('search')?.trim() ?? '';
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -266,7 +263,6 @@ const SubscriptionMonitor: React.FC = () => {
   useEffect(() => {
     if (searchFromUrl) setSearchQuery(searchFromUrl);
   }, [searchFromUrl]);
-  const [last7Days, setLast7Days] = useState<Array<{ date: string; count: number }>>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(() => {
     try {
@@ -640,30 +636,10 @@ const SubscriptionMonitor: React.FC = () => {
     }
   }, [upgradeRow, upgradePlanSelected, showToast]);
 
-  const fetchNotificationStats = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const res = await fetch('/api/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get-notification-stats', userId: user.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(data.last7Days)) setLast7Days(data.last7Days);
-      else setLast7Days([]);
-    } catch {
-      setLast7Days([]);
-    }
-  }, [user?.id]);
-
   useEffect(() => {
     setLoading(true);
     fetchSubs().finally(() => setLoading(false));
   }, [fetchSubs]);
-
-  useEffect(() => {
-    fetchNotificationStats();
-  }, [fetchNotificationStats]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(filteredAndSorted.length / pageSize));
@@ -692,8 +668,6 @@ const SubscriptionMonitor: React.FC = () => {
     }
   };
 
-  const maxCount = Math.max(1, ...last7Days.map((d) => d.count));
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -707,27 +681,6 @@ const SubscriptionMonitor: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 mb-4">Suscripciones (Ventas)</h2>
-
-          {/* Gráfico últimos 7 días: notificaciones enviadas (notification_history) */}
-          {last7Days.length > 0 && (
-            <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Notificaciones enviadas (últimos 7 días)</p>
-              <div className="flex items-end gap-1 h-16">
-                {last7Days.map(({ date, count }) => (
-                  <div key={date} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full min-h-[4px] rounded-t bg-slate-200 overflow-hidden"
-                      style={{ height: `${Math.max(4, (count / maxCount) * 48)}px` }}
-                      title={`${date}: ${count}`}
-                    >
-                      <div className="h-full w-full bg-emerald-500 rounded-t" />
-                    </div>
-                    <span className="text-[10px] text-slate-500">{date.slice(8)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Rango de fechas (Fecha Creación) + Limpiar filtros */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
