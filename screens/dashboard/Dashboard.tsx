@@ -616,9 +616,6 @@ const Dashboard: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col items-start truncate">
                                       <span className="truncate tracking-tight leading-none text-[13px]">{formatPhoneNumber(activeSlot.phone_number)}</span>
-                                      <span className="truncate tracking-tight leading-none text-[9px] text-slate-400 uppercase mt-0.5">
-                                        {t('dashboard.port')}: {activeSlot.slot_id}
-                                      </span>
                                     </div>
                                 </>
                             ) : (
@@ -649,9 +646,6 @@ const Dashboard: React.FC = () => {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-900 dark:text-white truncate tabular-nums">{formatPhoneNumber(slot.phone_number)}</span>
-                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block truncate mt-0.5">
-                                            {t('dashboard.port')}: {slot.slot_id}
-                                          </span>
                                       </div>
                                       {activeSlot?.slot_id === slot.slot_id && (
                                         <span className="material-icons-round text-primary text-sm shrink-0">check_circle</span>
@@ -718,7 +712,7 @@ const Dashboard: React.FC = () => {
                 </button>
                 <button 
                   onClick={() => navigate('/dashboard/numbers')}
-                  className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                     <span className="material-icons-round text-lg">sim_card</span>
                     <span>Mis lineas</span>
