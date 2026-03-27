@@ -798,6 +798,49 @@ export default async function handler(req: any, res: any) {
         });
       }
 
+      case 'get-owned-slots': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const slotIds = Array.isArray(req.body?.slotIds)
+          ? req.body.slotIds.map((value: unknown) => String(value || '').trim()).filter(Boolean)
+          : [];
+
+        if (slotIds.length === 0) {
+          return res.status(200).json({ slots: [] });
+        }
+
+        const { data: ownedSubs, error: ownedSubsError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('slot_id')
+          .eq('user_id', authUid)
+          .in('slot_id', slotIds);
+
+        if (ownedSubsError) {
+          return res.status(500).json({ error: 'No se pudieron validar las líneas.' });
+        }
+
+        const allowedSlotIds = Array.from(new Set((ownedSubs ?? []).map((row: any) => row?.slot_id).filter(Boolean)));
+
+        if (allowedSlotIds.length === 0) {
+          return res.status(200).json({ slots: [] });
+        }
+
+        const { data: slots, error: slotsError } = await supabaseAdmin
+          .from('slots')
+          .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active, forwarding_channel, forwarding_config')
+          .in('slot_id', allowedSlotIds)
+          .order('created_at', { ascending: false });
+
+        if (slotsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las líneas.' });
+        }
+
+        return res.status(200).json({ slots: slots ?? [] });
+      }
+
       case 'invoice-history': {
         const stripe = await getStripeClient();
         const { userId, limit } = req.body || {};
