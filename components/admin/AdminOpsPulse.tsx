@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Activity, BellRing, Headset, Loader2, MessageSquareText, ShieldAlert } from 'lucide-react';
 
@@ -45,17 +46,23 @@ const AdminOpsPulse: React.FC = () => {
       subscription_status?: string | null;
     }>;
 
+    const getOperationalStatus = (row: { status?: string | null; subscription_status?: string | null }) => {
+      const primary = String(row.status ?? '').toLowerCase().trim();
+      if (primary === 'active' || primary === 'trialing' || primary === 'pending_reactivation_cancel') return primary;
+      return String(row.subscription_status ?? row.status ?? '').toLowerCase().trim();
+    };
+
     const isLive = (row: { status?: string | null; subscription_status?: string | null }) => {
-      const status = String(row.subscription_status ?? row.status ?? '').toLowerCase();
+      const status = getOperationalStatus(row);
       return status === 'active' || status === 'trialing';
     };
 
     const liveSubs = subs.filter(isLive);
 
     setMetrics({
-      activeSubs: liveSubs.filter((row) => String(row.subscription_status ?? row.status ?? '').toLowerCase() === 'active').length,
-      trialingSubs: liveSubs.filter((row) => String(row.subscription_status ?? row.status ?? '').toLowerCase() === 'trialing').length,
-      pendingReactivation: subs.filter((row) => String(row.status ?? '').toLowerCase() === 'pending_reactivation_cancel').length,
+      activeSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'active').length,
+      trialingSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'trialing').length,
+      pendingReactivation: subs.filter((row) => getOperationalStatus(row) === 'pending_reactivation_cancel').length,
       sms24h: smsRes.count ?? 0,
       notifications24h: notifRes.count ?? 0,
       openTickets: ticketsRes.count ?? 0,
@@ -176,7 +183,16 @@ const AdminOpsPulse: React.FC = () => {
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
-          <h3 className="text-sm font-bold text-slate-900">Alertas rápidas</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-slate-900">Alertas rápidas</h3>
+            <Link
+              to="/admin/support"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wide hover:bg-slate-800 transition-colors"
+            >
+              <Headset size={14} />
+              Chat en vivo
+            </Link>
+          </div>
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between rounded-xl bg-white border border-slate-200 px-4 py-3">
               <div>
