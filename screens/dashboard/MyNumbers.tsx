@@ -427,12 +427,22 @@ const MyNumbers: React.FC = () => {
                 await enableTelegramForUserIfConfigured();
             }
 
-            const { error } = await supabase
-                .from('slots')
-                .update({ forwarding_active: newVal })
-                .eq('slot_id', slotId);
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-            if (error) throw error;
+            const res = await fetch('/api/manage', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    action: 'set-slot-forwarding',
+                    slotId,
+                    forwardingActive: newVal,
+                }),
+            });
+
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((body as { error?: string }).error || t('common.error'));
 
             setSlots(prev => prev.map(slot => (
                 slot.slot_id === slotId ? { ...slot, forwarding_active: newVal } : slot
@@ -454,12 +464,26 @@ const MyNumbers: React.FC = () => {
                 await enableTelegramForUserIfConfigured();
             }
 
-            const { error: slotErr } = await supabase
-                .from('slots')
-                .update({ forwarding_active: slotFwdActive })
-                .eq('slot_id', activeConfigSlot.slot_id);
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-            if (slotErr) throw slotErr;
+            const res = await fetch('/api/manage', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    action: 'set-slot-forwarding',
+                    slotId: activeConfigSlot.slot_id,
+                    forwardingActive: slotFwdActive,
+                }),
+            });
+
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((body as { error?: string }).error || t('common.error'));
+
+            setSlots(prev => prev.map(slot => (
+                slot.slot_id === activeConfigSlot.slot_id ? { ...slot, forwarding_active: slotFwdActive } : slot
+            )));
 
             showToast(getAppTemplate('automation_saved', t('mynumbers.automation_saved')));
             setIsFwdModalOpen(false);

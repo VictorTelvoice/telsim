@@ -732,6 +732,59 @@ export default async function handler(req: any, res: any) {
         });
       }
 
+      case 'set-slot-forwarding': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const slotId = typeof req.body?.slotId === 'string' ? req.body.slotId.trim() : '';
+        const forwardingActive = Boolean(req.body?.forwardingActive);
+
+        if (!slotId) {
+          return res.status(400).json({ error: 'slotId requerido.' });
+        }
+
+        const { data: ownedSubs, error: ownedSubsError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('slot_id, status')
+          .eq('user_id', authUid)
+          .eq('slot_id', slotId);
+
+        if (ownedSubsError) {
+          return res.status(500).json({ error: 'No se pudo validar la línea.' });
+        }
+
+        const ownsSlot = (ownedSubs ?? []).some((row: any) =>
+          row?.slot_id === slotId && ['active', 'trialing', 'past_due', 'pending_reactivation_cancel'].includes(String(row?.status ?? ''))
+        );
+
+        if (!ownsSlot) {
+          return res.status(403).json({ error: 'La línea no pertenece a este usuario.' });
+        }
+
+        const { data: updatedSlot, error: updateError } = await supabaseAdmin
+          .from('slots')
+          .update({ forwarding_active: forwardingActive })
+          .eq('slot_id', slotId)
+          .select('slot_id, forwarding_active')
+          .maybeSingle();
+
+        if (updateError) {
+          return res.status(500).json({ error: 'No se pudo guardar el Bot de Telegram.' });
+        }
+
+        if (!updatedSlot) {
+          return res.status(404).json({ error: 'Línea no encontrada.' });
+        }
+
+        return res.status(200).json({
+          success: true,
+          slotId,
+          forwardingActive: Boolean((updatedSlot as { forwarding_active?: boolean } | null)?.forwarding_active),
+        });
+      }
+
       case 'invoice-history': {
         const stripe = await getStripeClient();
         const { userId, limit } = req.body || {};

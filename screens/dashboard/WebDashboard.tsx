@@ -1547,7 +1547,22 @@ const WebDashboard: React.FC = () => {
         }
       }
 
-      await supabase.from('slots').update({ forwarding_active: newVal }).eq('slot_id', slotId);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'set-slot-forwarding',
+          slotId,
+          forwardingActive: newVal,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((body as { error?: string }).error || 'No se pudo guardar el Bot de Telegram.');
+
       setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, forwarding_active: newVal } : s));
     } catch (e) {
       console.error(e);
