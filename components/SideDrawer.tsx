@@ -96,6 +96,8 @@ export default function SideDrawer({
   );
 
   const Divider = () => <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-1.5" />;
+  const nextLang = currentLang === 'es' ? 'en' : 'es';
+  const languageSub = currentLang === 'es' ? 'Español activo' : 'English active';
 
   return (
     <>
@@ -148,7 +150,7 @@ export default function SideDrawer({
             icon={<div className="relative"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><IconBadge count={unreadNotifications}/></div>}
             title="Notificaciones" sub={unreadNotifications > 0 ? `${unreadNotifications} nuevas sin leer` : 'Sin notificaciones nuevas'} onClick={() => navigate('/dashboard/notifications')}
           />
-          <NavItem icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="9" y="7" width="6" height="4" rx="1"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="12" y2="18"/></svg>} title="Mis Números" sub="Gestiona tus SIMs" onClick={() => navigate('/dashboard/numbers')} right={<Badge label="1" color="blue"/>} />
+          <NavItem icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="9" y="7" width="6" height="4" rx="1"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="12" y2="18"/></svg>} title="Mis Números" sub="Gestiona tus SIMs" onClick={() => navigate('/dashboard/numbers')} />
 
           <Divider />
           <SectionLabel label="Herramientas" />
@@ -161,7 +163,7 @@ export default function SideDrawer({
           <SectionLabel label="Preferencias" />
           <NavItem
             icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>}
-            title="Idioma" sub="Español / English" onClick={() => {}}
+            title="Idioma" sub={languageSub} onClick={() => onLangChange(nextLang)}
             right={
               <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 overflow-hidden text-[10px] font-bold border border-slate-200 dark:border-slate-700">
                 <span onClick={(e) => { e.stopPropagation(); onLangChange('es'); }} className={`px-2 py-1.5 cursor-pointer transition-all ${currentLang==='es' ? 'bg-primary text-white rounded-[10px]' : 'text-slate-400 dark:text-slate-500'}`}>ES</span>

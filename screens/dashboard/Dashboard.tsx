@@ -435,6 +435,7 @@ const Dashboard: React.FC = () => {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [recentMessages, setRecentMessages] = useState<SMSLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bestPlan, setBestPlan] = useState('Starter');
   
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -444,7 +445,6 @@ const Dashboard: React.FC = () => {
   const { unreadCount: unreadNotificationsCount } = useNotifications();
 
   const userName = user?.user_metadata?.full_name || user?.email || 'Usuario';
-  const userPlan = user?.user_metadata?.plan || 'Starter';
 
   const fetchData = useCallback(async (forcedLine?: string) => {
     if (!user) return;
@@ -458,6 +458,13 @@ const Dashboard: React.FC = () => {
 
       const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as DashboardVisibleSubscription[] | null) || [])
         .filter((sub) => isInventoryVisibleStatus(sub.status));
+
+      const planPriority: Record<string, number> = { starter: 1, pro: 2, power: 3 };
+      const highestPlan = visibleSubs.reduce<string>((best, sub) => {
+        const current = String(sub.plan_name ?? '').toLowerCase();
+        return (planPriority[current] ?? 0) > (planPriority[best] ?? 0) ? current : best;
+      }, 'starter');
+      setBestPlan(highestPlan === 'power' ? 'Power' : highestPlan === 'pro' ? 'Pro' : 'Starter');
 
       const slotIds = Array.from(new Set(visibleSubs.map((sub) => sub.slot_id).filter(Boolean)));
       const { data: slotsData } = slotIds.length > 0
@@ -737,7 +744,7 @@ const Dashboard: React.FC = () => {
       <SideDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        user={{ name: userName, plan: userPlan }}
+        user={{ name: userName, plan: bestPlan }}
         unreadMessages={unreadSmsCount}
         unreadNotifications={unreadNotificationsCount}
         currentLang={currentLang}
