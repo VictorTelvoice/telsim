@@ -105,26 +105,37 @@ const MyNumbers: React.FC = () => {
             let slotsData: Slot[] = [];
 
             if (slotIdsFromSubs.length > 0) {
-                const { data: { session } } = await supabase.auth.getSession();
-                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-                const res = await fetch('/api/manage', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        action: 'get-owned-slots',
-                        slotIds: slotIdsFromSubs,
-                        accessToken: session?.access_token || null,
-                    }),
-                });
+                    const res = await fetch('/api/manage', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            action: 'get-owned-slots',
+                            slotIds: slotIdsFromSubs,
+                            accessToken: session?.access_token || null,
+                        }),
+                    });
 
-                const body = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    throw new Error((body as { error?: string }).error || 'No se pudieron cargar las líneas.');
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        throw new Error((body as { error?: string }).error || 'No se pudieron cargar las líneas.');
+                    }
+
+                    slotsData = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
+                } catch (backendErr) {
+                    console.warn('[MyNumbers] fallback to client slots query', backendErr);
+                    const { data: slotsBySubs } = await supabase
+                        .from('slots')
+                        .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+                        .in('slot_id', slotIdsFromSubs)
+                        .order('created_at', { ascending: false });
+
+                    slotsData = (slotsBySubs as Slot[]) || [];
                 }
-
-                slotsData = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
             }
 
             const slotsById = new Map<string, Slot>(slotsData.map((slot) => [slot.slot_id, slot]));

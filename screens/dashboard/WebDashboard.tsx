@@ -803,28 +803,40 @@ const WebDashboard: React.FC = () => {
 
       const uniqueSubs = Array.from(new Map(visibleSubs.map((s) => [s.slot_id, s])).values());
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      let slotsData: Slot[] = [];
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-      const slotsRes = await fetch('/api/manage', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'get-owned-slots',
-          slotIds: uniqueSubs.map(s => s.slot_id),
-          accessToken: session?.access_token || null,
-        }),
-        signal,
-      });
-      if (signal.aborted) return;
+        const slotsRes = await fetch('/api/manage', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'get-owned-slots',
+            slotIds: uniqueSubs.map(s => s.slot_id),
+            accessToken: session?.access_token || null,
+          }),
+          signal,
+        });
+        if (signal.aborted) return;
 
-      const slotsBody = await slotsRes.json().catch(() => ({}));
-      if (!slotsRes.ok) {
-        throw new Error((slotsBody as { error?: string }).error || 'No se pudieron cargar las líneas.');
+        const slotsBody = await slotsRes.json().catch(() => ({}));
+        if (!slotsRes.ok) {
+          throw new Error((slotsBody as { error?: string }).error || 'No se pudieron cargar las líneas.');
+        }
+
+        slotsData = (((slotsBody as { slots?: Slot[] }).slots) || []) as Slot[];
+      } catch (backendErr) {
+        console.warn('[WebDashboard] fallback to client slots query', backendErr);
+        const { data } = await supabase
+          .from('slots')
+          .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active, forwarding_channel, forwarding_config')
+          .in('slot_id', uniqueSubs.map(s => s.slot_id))
+          .abortSignal(signal);
+        if (signal.aborted) return;
+        slotsData = (data as Slot[]) || [];
       }
-
-      const slotsData = (((slotsBody as { slots?: Slot[] }).slots) || []) as Slot[];
 
       const finalData = uniqueSubs
         .map(sub => {
