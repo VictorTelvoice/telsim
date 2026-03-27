@@ -747,7 +747,7 @@ export default async function handler(req: any, res: any) {
 
         const { data: ownedSubs, error: ownedSubsError } = await supabaseAdmin
           .from('subscriptions')
-          .select('slot_id, status')
+          .select('slot_id, status, created_at')
           .eq('user_id', authUid)
           .eq('slot_id', slotId);
 
@@ -755,12 +755,23 @@ export default async function handler(req: any, res: any) {
           return res.status(500).json({ error: 'No se pudo validar la línea.' });
         }
 
-        const ownsSlot = (ownedSubs ?? []).some((row: any) =>
-          row?.slot_id === slotId && ['active', 'trialing', 'past_due', 'pending_reactivation_cancel'].includes(String(row?.status ?? ''))
-        );
+        const ownsSlot = (ownedSubs ?? []).some((row: any) => row?.slot_id === slotId);
 
         if (!ownsSlot) {
-          return res.status(403).json({ error: 'La línea no pertenece a este usuario.' });
+          const { data: ownedSlot, error: ownedSlotError } = await supabaseAdmin
+            .from('slots')
+            .select('slot_id, assigned_to')
+            .eq('slot_id', slotId)
+            .eq('assigned_to', authUid)
+            .maybeSingle();
+
+          if (ownedSlotError) {
+            return res.status(500).json({ error: 'No se pudo validar la línea.' });
+          }
+
+          if (!ownedSlot) {
+            return res.status(403).json({ error: 'La línea no pertenece a este usuario.' });
+          }
         }
 
         const { data: updatedSlot, error: updateError } = await supabaseAdmin
