@@ -749,9 +749,10 @@ const MyNumbers: React.FC = () => {
                                                     disabled={togglingSlot === slot.slot_id}
                                                     className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm backdrop-blur-sm ${
                                                         slot.forwarding_active
-                                                            ? 'bg-sky-500 text-white border-sky-400/60'
+                                                            ? 'bg-emerald-500 text-white border-emerald-400/80 ring-2 ring-white/60 shadow-lg shadow-emerald-500/30'
                                                             : 'bg-white/85 dark:bg-slate-900/80 border-white/40 dark:border-slate-700 text-slate-500'
                                                     } ${togglingSlot === slot.slot_id ? 'opacity-70' : ''}`}
+                                                    title={slot.forwarding_active ? 'Bot de Telegram activo' : 'Bot de Telegram inactivo'}
                                                 >
                                                     {togglingSlot === slot.slot_id ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
                                                 </button>
