@@ -9,6 +9,7 @@ import { STRIPE_PRICES } from '../../constants/stripePrices';
 export type SubRow = {
   id: string;
   user_id: string;
+  phone_number?: string | null;
   plan_name: string | null;
   amount: number | null;
   billing_type: string | null;
@@ -127,7 +128,6 @@ function SubscriptionTableRow({
   try {
     const rowId = s?.id ?? '';
     const userId = s?.user_id ?? '';
-    const ltv = s?.ltv ?? 0;
     const stripeId = s?.stripe_subscription_id ?? null;
     const nombre = (s?.user_nombre ?? s?.user_email) ? (s?.user_nombre ?? '—') : 'Desconocido';
     const email = s?.user_email ?? 'Desconocido';
@@ -155,8 +155,8 @@ function SubscriptionTableRow({
         <td className="px-4 py-2 text-sm font-semibold text-slate-900">
           {s?.plan_name ? (PLAN_LABEL[s.plan_name] ?? s.plan_name) : '—'}
         </td>
-        <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
-          {limit > 0 ? limit : '—'}
+        <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap font-mono">
+          {s?.phone_number && String(s.phone_number).trim() !== '' ? s.phone_number : '—'}
         </td>
         <td className="px-4 py-2">
           {limit > 0 ? (
@@ -182,23 +182,6 @@ function SubscriptionTableRow({
           <span className="text-sm font-semibold text-slate-900">
             {s?.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
           </span>
-        </td>
-        <td className="px-4 py-2 relative group">
-          {ltv > 0 ? (
-            <span
-              className={`text-sm font-semibold ${ltv >= 500 ? 'text-emerald-600 font-bold' : 'text-slate-700'}`}
-              title={`Este cliente ha generado $${Number(ltv).toFixed(2)} en ingresos totales`}
-            >
-              ${Number(ltv).toFixed(2)}
-            </span>
-          ) : (
-            <span className="text-sm text-slate-400">—</span>
-          )}
-          {ltv > 0 && (
-            <div className="absolute left-4 top-full z-20 mt-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-xs shadow-lg border border-slate-700 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Este cliente ha generado ${Number(ltv).toFixed(2)} en ingresos totales.
-            </div>
-          )}
         </td>
         <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
           {formatDDMMYYYY(s?.created_at)}
@@ -505,7 +488,7 @@ const SubscriptionMonitor: React.FC = () => {
   const fetchSubs = useCallback(async () => {
     const { data: subsData, error } = await supabase
       .from('subscriptions')
-      .select('id, plan_name, amount, billing_type, status, subscription_status, created_at, user_id, stripe_subscription_id, monthly_limit, credits_used, slot_id')
+      .select('id, phone_number, plan_name, amount, billing_type, status, subscription_status, created_at, user_id, stripe_subscription_id, monthly_limit, credits_used, slot_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -516,6 +499,7 @@ const SubscriptionMonitor: React.FC = () => {
 
     const rawRows = (subsData || []) as Array<{
       id?: string;
+      phone_number?: string | null;
       user_id?: string;
       plan_name?: string | null;
       amount?: number | null;
@@ -566,6 +550,7 @@ const SubscriptionMonitor: React.FC = () => {
         return {
           id: s?.id ?? '',
           user_id: uid,
+          phone_number: s?.phone_number ?? null,
           plan_name: s?.plan_name ?? null,
           amount: s?.amount ?? null,
           billing_type: s?.billing_type ?? null,
@@ -906,11 +891,10 @@ const SubscriptionMonitor: React.FC = () => {
                     </button>
                   </th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Plan</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Límite</th>
+                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Número</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Consumo</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Ciclo</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">Precio exacto</th>
-                  <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">LTV</th>
                   <th className="text-[10px] font-black uppercase tracking-wider text-slate-500 px-4 py-3">
                     <button
                       type="button"
