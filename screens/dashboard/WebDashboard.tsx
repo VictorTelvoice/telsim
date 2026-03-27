@@ -1079,7 +1079,15 @@ const WebDashboard: React.FC = () => {
     if (!user) return;
     setTgSaving(true);
     try {
-      const { error } = await supabase.from('users').update({ telegram_token: tgToken, telegram_chat_id: tgChatId }).eq('id', user.id);
+      const hasCompleteTelegramConfig = Boolean(tgToken?.trim() && tgChatId?.trim());
+      const { error } = await supabase
+        .from('users')
+        .update({
+          telegram_token: tgToken,
+          telegram_chat_id: tgChatId,
+          telegram_enabled: hasCompleteTelegramConfig,
+        })
+        .eq('id', user.id);
       if (error) throw error;
       setTgSaved(true);
       setTimeout(() => setTgSaved(false), 3000);
@@ -1515,9 +1523,36 @@ const WebDashboard: React.FC = () => {
   const handleToggleForwarding = async (slotId: string, newVal: boolean) => {
     setTogglingSlot(slotId);
     try {
+      if (newVal && user?.id) {
+        const { data: tgData, error: tgError } = await supabase
+          .from('users')
+          .select('telegram_token, telegram_chat_id, telegram_enabled')
+          .eq('id', user.id)
+          .single();
+
+        if (tgError) throw tgError;
+
+        const hasTelegramConfig = Boolean(tgData?.telegram_token?.trim() && tgData?.telegram_chat_id?.trim());
+        if (!hasTelegramConfig) {
+          throw new Error('Configura tu Bot de Telegram en Ajustes antes de activarlo en una línea.');
+        }
+
+        if (!tgData?.telegram_enabled) {
+          const { error: enableError } = await supabase
+            .from('users')
+            .update({ telegram_enabled: true })
+            .eq('id', user.id);
+
+          if (enableError) throw enableError;
+        }
+      }
+
       await supabase.from('slots').update({ forwarding_active: newVal }).eq('slot_id', slotId);
       setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, forwarding_active: newVal } : s));
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error && e.message ? e.message : 'No se pudo actualizar el Bot de Telegram.');
+    }
     finally { setTogglingSlot(null); }
   };
 

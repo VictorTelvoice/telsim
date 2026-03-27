@@ -148,6 +148,35 @@ const MyNumbers: React.FC = () => {
         }
     };
 
+    const enableTelegramForUserIfConfigured = async () => {
+        if (!user?.id) {
+            throw new Error(t('common.error'));
+        }
+
+        const { data: tgData, error: tgError } = await supabase
+            .from('users')
+            .select('telegram_token, telegram_chat_id, telegram_enabled')
+            .eq('id', user.id)
+            .single();
+
+        if (tgError) throw tgError;
+
+        const hasTelegramConfig = Boolean(tgData?.telegram_token?.trim() && tgData?.telegram_chat_id?.trim());
+
+        if (!hasTelegramConfig) {
+            throw new Error('Configura tu Bot de Telegram en Ajustes antes de activarlo en una línea.');
+        }
+
+        if (!tgData?.telegram_enabled) {
+            const { error: enableError } = await supabase
+                .from('users')
+                .update({ telegram_enabled: true })
+                .eq('id', user.id);
+
+            if (enableError) throw enableError;
+        }
+    };
+
     // Primera carga en cuanto user.id esté disponible; no se espera a auth loading
     useEffect(() => {
         if (user?.id) fetchSlots();
@@ -394,6 +423,10 @@ const MyNumbers: React.FC = () => {
     const handleToggleForwarding = async (slotId: string, newVal: boolean) => {
         setTogglingSlot(slotId);
         try {
+            if (newVal) {
+                await enableTelegramForUserIfConfigured();
+            }
+
             const { error } = await supabase
                 .from('slots')
                 .update({ forwarding_active: newVal })
@@ -406,7 +439,8 @@ const MyNumbers: React.FC = () => {
             )));
         } catch (err) {
             console.error(err);
-            showToast(getAppTemplate('common_error', t('common.error')), 'error');
+            const message = err instanceof Error && err.message ? err.message : t('common.error');
+            showToast(message, 'error');
         } finally {
             setTogglingSlot(null);
         }
@@ -416,6 +450,10 @@ const MyNumbers: React.FC = () => {
         if (!user || !activeConfigSlot) return;
         setSavingFwd(true);
         try {
+            if (slotFwdActive) {
+                await enableTelegramForUserIfConfigured();
+            }
+
             const { error: slotErr } = await supabase
                 .from('slots')
                 .update({ forwarding_active: slotFwdActive })
@@ -428,7 +466,8 @@ const MyNumbers: React.FC = () => {
             fetchSlots();
         } catch (err) {
             console.error(err);
-            showToast(getAppTemplate('common_error', t('common.error')), "error");
+            const message = err instanceof Error && err.message ? err.message : t('common.error');
+            showToast(message, "error");
         } finally {
             setSavingFwd(false);
         }
