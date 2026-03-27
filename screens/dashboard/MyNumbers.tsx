@@ -105,6 +105,17 @@ const MyNumbers: React.FC = () => {
             let slotsData: Slot[] = [];
 
             if (slotIdsFromSubs.length > 0) {
+                let clientRows: Slot[] = [];
+                let backendRows: Slot[] = [];
+
+                const { data: slotsBySubs } = await supabase
+                    .from('slots')
+                    .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+                    .in('slot_id', slotIdsFromSubs)
+                    .order('created_at', { ascending: false });
+
+                clientRows = (slotsBySubs as Slot[]) || [];
+
                 try {
                     const { data: { session } } = await supabase.auth.getSession();
                     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -121,21 +132,19 @@ const MyNumbers: React.FC = () => {
                     });
 
                     const body = await res.json().catch(() => ({}));
-                    if (!res.ok) {
-                        throw new Error((body as { error?: string }).error || 'No se pudieron cargar las líneas.');
+                    if (res.ok) {
+                        backendRows = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
+                    } else {
+                        console.warn('[MyNumbers] backend owned slots fetch failed', body);
                     }
-
-                    slotsData = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
                 } catch (backendErr) {
                     console.warn('[MyNumbers] fallback to client slots query', backendErr);
-                    const { data: slotsBySubs } = await supabase
-                        .from('slots')
-                        .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
-                        .in('slot_id', slotIdsFromSubs)
-                        .order('created_at', { ascending: false });
-
-                    slotsData = (slotsBySubs as Slot[]) || [];
                 }
+
+                const mergedSlotsById = new Map<string, Slot>();
+                clientRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
+                backendRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
+                slotsData = Array.from(mergedSlotsById.values());
             }
 
             const slotsById = new Map<string, Slot>(slotsData.map((slot) => [slot.slot_id, slot]));

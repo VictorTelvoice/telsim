@@ -804,6 +804,17 @@ const WebDashboard: React.FC = () => {
       const uniqueSubs = Array.from(new Map(visibleSubs.map((s) => [s.slot_id, s])).values());
 
       let slotsData: Slot[] = [];
+      let clientRows: Slot[] = [];
+      let backendRows: Slot[] = [];
+
+      const { data } = await supabase
+        .from('slots')
+        .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active, forwarding_channel, forwarding_config')
+        .in('slot_id', uniqueSubs.map(s => s.slot_id))
+        .abortSignal(signal);
+      if (signal.aborted) return;
+      clientRows = (data as Slot[]) || [];
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -822,21 +833,19 @@ const WebDashboard: React.FC = () => {
         if (signal.aborted) return;
 
         const slotsBody = await slotsRes.json().catch(() => ({}));
-        if (!slotsRes.ok) {
-          throw new Error((slotsBody as { error?: string }).error || 'No se pudieron cargar las líneas.');
+        if (slotsRes.ok) {
+          backendRows = (((slotsBody as { slots?: Slot[] }).slots) || []) as Slot[];
+        } else {
+          console.warn('[WebDashboard] backend owned slots fetch failed', slotsBody);
         }
-
-        slotsData = (((slotsBody as { slots?: Slot[] }).slots) || []) as Slot[];
       } catch (backendErr) {
         console.warn('[WebDashboard] fallback to client slots query', backendErr);
-        const { data } = await supabase
-          .from('slots')
-          .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active, forwarding_channel, forwarding_config')
-          .in('slot_id', uniqueSubs.map(s => s.slot_id))
-          .abortSignal(signal);
-        if (signal.aborted) return;
-        slotsData = (data as Slot[]) || [];
       }
+
+      const mergedSlotsById = new Map<string, Slot>();
+      clientRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
+      backendRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
+      slotsData = Array.from(mergedSlotsById.values());
 
       const finalData = uniqueSubs
         .map(sub => {
