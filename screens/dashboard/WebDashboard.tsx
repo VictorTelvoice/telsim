@@ -771,14 +771,16 @@ const WebDashboard: React.FC = () => {
     inFlightRef.current = false;
   }, [user?.id]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!user?.id) {
       setLoading(false);
       return;
     }
     if (inFlightRef.current) return;
     inFlightRef.current = true;
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
     const signal = fetchAbortRef.current.signal;
     try {
       setFetchError(null);
@@ -862,7 +864,7 @@ const WebDashboard: React.FC = () => {
         'Error cargando datos. Intenta nuevamente.';
       setFetchError(msg);
     } finally {
-      if (!signal.aborted) setLoading(false);
+      if (!signal.aborted && !options?.silent) setLoading(false);
       inFlightRef.current = false;
     }
   }, [user?.id]);
@@ -1566,7 +1568,7 @@ const WebDashboard: React.FC = () => {
       const persistedForwarding = Boolean((body as { forwardingActive?: boolean }).forwardingActive);
 
       setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, forwarding_active: persistedForwarding } : s));
-      void fetchData();
+      void fetchData({ silent: true });
     } catch (e) {
       console.error(e);
       alert(e instanceof Error && e.message ? e.message : 'No se pudo actualizar el Bot de Telegram.');
@@ -1804,7 +1806,7 @@ const WebDashboard: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               className={`bg-transparent text-[12px] outline-none flex-1 ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`} />
           </div>
-          <button onClick={fetchData} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
+          <button type="button" onClick={() => void fetchData()} className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}><RefreshCw size={15} className="text-slate-400" /></button>
           <button
             onClick={() => setIsMuted(m => !m)}
             className={`p-2 rounded-xl ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} transition-colors`}
