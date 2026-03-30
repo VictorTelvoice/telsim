@@ -97,13 +97,13 @@ const Register: React.FC = () => {
             <img 
               src="/telsim-logo.png" 
               alt="TELSIM" 
-              className="w-24 h-24 object-contain drop-shadow-2xl relative z-10" 
+              className="w-[130px] h-[130px] object-contain drop-shadow-2xl relative z-10" 
               onError={(e) => {
                 (e.target as any).style.display = 'none';
                 (e.target as any).nextSibling.style.display = 'flex';
               }}
             />
-            <div style={{ display: 'none' }} className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
+            <div style={{ display: 'none' }} className="w-[130px] h-[130px] bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
               <span className="material-symbols-outlined text-[48px]">sim_card</span>
             </div>
           </div>

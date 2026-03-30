@@ -536,7 +536,7 @@ const Landing: React.FC = () => {
             <img
               src="/telsim-logo.png"
               alt="Telsim"
-              className="h-[72px] w-auto object-contain"
+              className="h-[97px] w-auto object-contain"
             />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">

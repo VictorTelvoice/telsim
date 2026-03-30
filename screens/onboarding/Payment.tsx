@@ -13,7 +13,7 @@ const TelsimLogo = ({ small = false }: { small?: boolean }) => (
   <img
     src="/telsim-logo.png"
     alt="Telsim"
-    className={`${small ? 'h-16' : 'h-20'} w-auto object-contain`}
+    className={`${small ? 'h-[86px]' : 'h-[108px]'} w-auto object-contain`}
   />
 );
 
