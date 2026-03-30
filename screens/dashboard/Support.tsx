@@ -12,9 +12,7 @@ import {
   ShieldCheck, 
   ChevronRight,
   Headphones,
-  Zap,
-  HelpCircle,
-  ExternalLink
+  Zap
 } from 'lucide-react';
 
 type SupportTier = 'starter' | 'pro' | 'power' | 'none';
@@ -267,35 +265,11 @@ const Support: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-primary/5 dark:bg-blue-950/10 rounded-[2.5rem] p-8 border border-primary/10 space-y-6">
-           <div className="grid grid-cols-1 gap-3">
-              <button 
-                onClick={() => navigate('/dashboard/help')}
-                className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 group"
-              >
-                 <div className="flex items-center gap-3">
-                    <HelpCircle className="size-4 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('support.explore_help')}</span>
-                 </div>
-                 <ExternalLink className="size-3 text-slate-300 group-hover:text-primary" />
-              </button>
-              
-              <button className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 group">
-                 <div className="flex items-center gap-3">
-                    <ShieldCheck className="size-4 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('support.report_bug')}</span>
-                 </div>
-                 <ExternalLink className="size-3 text-slate-300 group-hover:text-primary" />
-              </button>
-           </div>
-        </div>
-
         {/* FOOTER INFO */}
         <div className="flex flex-col items-center gap-6 pt-8">
            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('support.available_languages')}</span>
            </div>
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] text-center px-12">{t('support.node_id')}: TS-SUP-GLOBAL-882</p>
         </div>
 
       </main>
