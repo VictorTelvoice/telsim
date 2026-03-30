@@ -449,6 +449,7 @@ const WebDashboard: React.FC = () => {
   const [retryingAll, setRetryingAll] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [messagePulse, setMessagePulse] = useState(false);
+  const feedbackStorageKey = user?.id ? `telsim_feedback_completed:${user.id}` : null;
   const PING_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -1258,14 +1259,33 @@ const WebDashboard: React.FC = () => {
 
   const handleLogout = async () => {
     if (loggingOut) return;
-    // Only show rating if user hasn't rated before
+    if (feedbackStorageKey && localStorage.getItem(feedbackStorageKey)) {
+      doLogout();
+      return;
+    }
+
+    // Only show rating if user hasn't completed it before
     if (user?.id) {
-      const { data } = await supabase
-        .from('user_ratings')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (data) { doLogout(); return; }
+      const [{ data: ratingData }, { data: feedbackStatus }] = await Promise.all([
+        supabase
+          .from('user_ratings')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_feedback_status')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
+
+      if (ratingData || feedbackStatus) {
+        if (feedbackStorageKey) {
+          localStorage.setItem(feedbackStorageKey, feedbackStatus?.status || 'rated');
+        }
+        doLogout();
+        return;
+      }
     }
     setShowRating(true);
   };

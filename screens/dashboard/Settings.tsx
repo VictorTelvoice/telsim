@@ -38,6 +38,7 @@ const Settings: React.FC = () => {
   const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
   const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
+  const feedbackStorageKey = user?.id ? `telsim_feedback_completed:${user.id}` : null;
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
@@ -55,14 +56,33 @@ const Settings: React.FC = () => {
 
   const handleLogout = async () => {
     if (loggingOut) return;
-    // Only show rating if user hasn't rated before
+    if (feedbackStorageKey && localStorage.getItem(feedbackStorageKey)) {
+      doLogout();
+      return;
+    }
+
+    // Only show rating if user hasn't completed it before
     if (user?.id) {
-      const { data } = await supabase
-        .from('user_ratings')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (data) { doLogout(); return; }
+      const [{ data: ratingData }, { data: feedbackStatus }] = await Promise.all([
+        supabase
+          .from('user_ratings')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_feedback_status')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
+
+      if (ratingData || feedbackStatus) {
+        if (feedbackStorageKey) {
+          localStorage.setItem(feedbackStorageKey, feedbackStatus?.status || 'rated');
+        }
+        doLogout();
+        return;
+      }
     }
     setShowRating(true);
   };

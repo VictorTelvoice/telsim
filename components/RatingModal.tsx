@@ -16,6 +16,9 @@ const LABELS: Record<number, string> = {
   5: 'Excelente',
 };
 
+const feedbackStorageKey = (userId?: string | null) =>
+  userId ? `telsim_feedback_completed:${userId}` : 'telsim_feedback_completed:guest';
+
 const RatingModal: React.FC<RatingModalProps> = ({ onDone }) => {
   const { user } = useAuth();
   const [hovered, setHovered] = useState(0);
@@ -26,17 +29,53 @@ const RatingModal: React.FC<RatingModalProps> = ({ onDone }) => {
 
   const activeStars = hovered || selected;
 
+  const persistFeedbackCompletion = async (status: 'rated' | 'dismissed') => {
+    if (!user?.id) return;
+    localStorage.setItem(feedbackStorageKey(user.id), status);
+    const { error } = await supabase
+      .from('user_feedback_status')
+      .upsert({
+        user_id: user.id,
+        status,
+        completed_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.warn('[RatingModal] feedback status persistence failed', error);
+    }
+  };
+
   const submit = async () => {
     if (!selected || submitting) return;
     setSubmitting(true);
-    await supabase.from('user_ratings').insert({
-      user_id: user?.id ?? null,
-      rating: selected,
-      comment: comment.trim() || null,
-    });
-    setDone(true);
-    setSubmitting(false);
-    setTimeout(onDone, 1600);
+    try {
+      const { error } = await supabase.from('user_ratings').insert({
+        user_id: user?.id ?? null,
+        rating: selected,
+        comment: comment.trim() || null,
+      });
+
+      if (error) throw error;
+
+      await persistFeedbackCompletion('rated');
+      setDone(true);
+      setTimeout(onDone, 1600);
+    } catch (error) {
+      console.error('[RatingModal] submit failed', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const dismiss = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await persistFeedbackCompletion('dismissed');
+    } finally {
+      setSubmitting(false);
+      onDone();
+    }
   };
 
   return (
@@ -67,7 +106,7 @@ const RatingModal: React.FC<RatingModalProps> = ({ onDone }) => {
                 </p>
               </div>
               <button
-                onClick={onDone}
+                onClick={dismiss}
                 className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
               >
                 <X className="size-4" />
@@ -120,7 +159,7 @@ const RatingModal: React.FC<RatingModalProps> = ({ onDone }) => {
             {/* Actions */}
             <div className="flex gap-2 px-5 pb-5">
               <button
-                onClick={onDone}
+                onClick={dismiss}
                 className="flex-1 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Omitir
