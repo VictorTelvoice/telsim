@@ -14,14 +14,14 @@ const TelsimBrandLogo: React.FC<TelsimBrandLogoProps> = ({
   compact = false,
 }) => {
   return (
-    <div className={`flex items-center ${compact ? 'gap-2.5' : 'gap-3.5'} ${className}`.trim()}>
+    <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'} ${className}`.trim()}>
       <img
         src="/telsim-isotipo.png"
         alt="Telsim"
-        className={`${compact ? 'h-10 w-10 rounded-xl' : 'h-14 w-14 rounded-2xl'} object-contain ${iconClassName}`.trim()}
+        className={`${compact ? 'h-9 w-9 rounded-[0.9rem]' : 'h-[3.15rem] w-[3.15rem] rounded-[1.15rem]'} object-contain ${iconClassName}`.trim()}
       />
       <span
-        className={`font-display leading-none tracking-tight text-slate-950 dark:text-white ${compact ? 'text-[1.4rem]' : 'text-[1.75rem]'} ${textClassName}`.trim()}
+        className={`font-display leading-none tracking-tight text-slate-900 dark:text-white ${compact ? 'text-[1.4rem]' : 'text-[1.75rem]'} ${textClassName}`.trim()}
         style={{ fontWeight: 950 }}
       >
         telsim
