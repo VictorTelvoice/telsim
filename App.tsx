@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
@@ -28,19 +28,25 @@ const Processing = React.lazy(() => import('./screens/onboarding/Processing'));
 const Success = React.lazy(() => import('./screens/onboarding/Success'));
 const ActivationSuccess = React.lazy(() => import('./screens/onboarding/ActivationSuccess'));
 const QuickCheckout = React.lazy(() => import('./screens/onboarding/QuickCheckout'));
-const Dashboard = React.lazy(() => import('./screens/dashboard/Dashboard'));
-const MyNumbers = React.lazy(() => import('./screens/dashboard/MyNumbers'));
+const loadDashboard = () => import('./screens/dashboard/Dashboard');
+const loadMyNumbers = () => import('./screens/dashboard/MyNumbers');
+const loadMessages = () => import('./screens/dashboard/Messages');
+const loadBilling = () => import('./screens/dashboard/Billing');
+const loadSettingsScreen = () => import('./screens/dashboard/Settings');
+
+const Dashboard = React.lazy(loadDashboard);
+const MyNumbers = React.lazy(loadMyNumbers);
 const Profile = React.lazy(() => import('./screens/dashboard/Profile'));
-const Messages = React.lazy(() => import('./screens/dashboard/Messages'));
+const Messages = React.lazy(loadMessages);
 const Notifications = React.lazy(() => import('./screens/dashboard/Notifications'));
-const Billing = React.lazy(() => import('./screens/dashboard/Billing'));
+const Billing = React.lazy(loadBilling);
 const Security = React.lazy(() => import('./screens/dashboard/Security'));
 const IdentityVerification = React.lazy(() => import('./screens/dashboard/IdentityVerification'));
 const Support = React.lazy(() => import('./screens/dashboard/Support'));
 const HelpCenter = React.lazy(() => import('./screens/dashboard/HelpCenter'));
 const FAQ = React.lazy(() => import('./screens/dashboard/FAQ'));
 const TermsPrivacy = React.lazy(() => import('./screens/dashboard/TermsPrivacy'));
-const SettingsScreen = React.lazy(() => import('./screens/dashboard/Settings'));
+const SettingsScreen = React.lazy(loadSettingsScreen);
 const MobileNotificationSettings = React.lazy(() => import('./screens/dashboard/MobileNotificationSettings'));
 const UpgradeSummary = React.lazy(() => import('./screens/dashboard/UpgradeSummary'));
 const UpgradeSuccess = React.lazy(() => import('./screens/dashboard/UpgradeSuccess'));
@@ -85,6 +91,34 @@ const RouteFallback = () => (
     </div>
   </div>
 );
+
+const MOBILE_ROUTE_PRELOADERS = [
+  loadDashboard,
+  loadMessages,
+  loadMyNumbers,
+  loadSettingsScreen,
+  loadBilling,
+];
+
+type IdleCallbackLike = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
+
+const scheduleIdle = (callback: IdleCallbackLike) => {
+  if (typeof window === 'undefined') return () => {};
+
+  if ('requestIdleCallback' in window) {
+    const id = (window as Window & {
+      requestIdleCallback: (cb: IdleCallbackLike, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    }).requestIdleCallback(callback, { timeout: 1200 });
+
+    return () => {
+      (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id);
+    };
+  }
+
+  const id = globalThis.setTimeout(() => callback({ didTimeout: false, timeRemaining: () => 0 }), 250);
+  return () => globalThis.clearTimeout(id);
+};
 
 const LandingOrDash_v2: React.FC = () => {
   const { user, loading } = useAuth();
@@ -233,6 +267,26 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   );
 };
 
+const MobileRoutePreloader = () => {
+  const { user, loading } = useAuth();
+  const preloadedForUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loading || !user?.id || !isMobileDeviceUA()) return;
+    if (preloadedForUserRef.current === user.id) return;
+
+    preloadedForUserRef.current = user.id;
+
+    const cancel = scheduleIdle(() => {
+      void Promise.allSettled(MOBILE_ROUTE_PRELOADERS.map((preload) => preload()));
+    });
+
+    return cancel;
+  }, [user?.id, loading]);
+
+  return null;
+};
+
 const App: React.FC = () => {
   React.useEffect(() => {
     const lockOrientation = async () => {
@@ -256,6 +310,7 @@ const App: React.FC = () => {
             <MessagesProvider>
               <HashRouter>
                 <ImpersonationProvider>
+                  <MobileRoutePreloader />
                   <ScrollToTop />
                   <ImpersonationBanner />
                   <ImpersonationBannerSpacer />
