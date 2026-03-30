@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 interface ActivationData {
   phoneNumber: string;
@@ -27,15 +28,6 @@ const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: n
   Pro:     { monthly: 39.90, annual: 399, limit: 400 },
   Power:   { monthly: 99.00, annual: 990, limit: 1400 }
 };
-
-// ─── Logo ────────────────────────────────────────────────────────────────────
-const TelsimLogo = () => (
-  <img
-    src="/telsim-logo.png"
-    alt="Telsim"
-    className="h-[108px] w-auto object-contain"
-  />
-);
 
 const ActivationSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -171,7 +163,7 @@ const ActivationSuccess: React.FC = () => {
 
         {/* Top nav */}
         <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between relative z-10">
-          <TelsimLogo />
+          <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.8rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>

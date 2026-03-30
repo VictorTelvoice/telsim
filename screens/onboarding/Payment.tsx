@@ -5,17 +5,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { Loader2, ShieldCheck, Lock } from 'lucide-react';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
-
-// ─── Logo ────────────────────────────────────────────────────────────────────
-const TelsimLogo = ({ small = false }: { small?: boolean }) => (
-  <img
-    src="/telsim-logo.png"
-    alt="Telsim"
-    className={`${small ? 'h-[86px]' : 'h-[108px]'} w-auto object-contain`}
-  />
-);
 
 const Payment: React.FC = () => {
   const navigate = useNavigate();
@@ -115,7 +107,7 @@ const Payment: React.FC = () => {
       <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
         {/* Top nav */}
         <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
-          <TelsimLogo />
+          <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.8rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>

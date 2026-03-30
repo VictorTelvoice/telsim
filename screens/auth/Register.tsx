@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -94,17 +95,8 @@ const Register: React.FC = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-6 transform -rotate-2 relative">
             <div className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl animate-pulse scale-110"></div>
-            <img 
-              src="/telsim-logo.png" 
-              alt="TELSIM" 
-              className="w-[130px] h-[130px] object-contain drop-shadow-2xl relative z-10" 
-              onError={(e) => {
-                (e.target as any).style.display = 'none';
-                (e.target as any).nextSibling.style.display = 'flex';
-              }}
-            />
-            <div style={{ display: 'none' }} className="w-[130px] h-[130px] bg-gradient-to-br from-primary to-blue-600 rounded-[2rem] items-center justify-center text-white shadow-2xl border-2 border-white/20 relative z-10">
-              <span className="material-symbols-outlined text-[48px]">sim_card</span>
+            <div className="relative z-10">
+              <TelsimBrandLogo className="flex-col gap-4" iconClassName="h-[104px] w-[104px] rounded-[1.85rem] drop-shadow-2xl" textClassName="text-[2.7rem]" />
             </div>
           </div>
           

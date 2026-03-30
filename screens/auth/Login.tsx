@@ -3,15 +3,7 @@ import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-
-// ─── Logo (igual que Landing) ─────────────────────────────────────────────────
-const TelsimLogo = () => (
-  <img
-    src="/telsim-logo.png"
-    alt="Telsim"
-    className="h-[108px] w-auto object-contain"
-  />
-);
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -201,7 +193,7 @@ const Login = () => {
         <div className="w-full max-w-[400px] mx-auto">
           {/* Logo + heading */}
           <div className="flex flex-col items-center mb-8">
-            <TelsimLogo />
+            <TelsimBrandLogo className="flex-col gap-4" iconClassName="h-[92px] w-[92px] rounded-[1.75rem]" textClassName="text-[2.7rem]" />
             <h1 className="mt-6 text-[26px] font-black text-slate-900 dark:text-white tracking-tight text-center">
               {step === 'register' ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}
             </h1>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, Loader2, ShieldCheck, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -28,14 +29,6 @@ const PLAN_CONFIG: Record<string, { color: string; bg: string; border: string; l
     features: ['1,400 SMS mensuales', 'Seguridad empresarial', 'Integraciones personalizadas', 'Soporte prioritario 24/7'],
   },
 };
-
-const TelsimLogo = ({ small = false }: { small?: boolean }) => (
-  <img
-    src="/telsim-logo.png"
-    alt="Telsim"
-    className={`${small ? 'h-[86px]' : 'h-[108px]'} w-auto object-contain`}
-  />
-);
 
 const CheckIcon = () => (
   <span className="material-symbols-outlined text-emerald-500" style={{ fontSize: '16px' }}>
@@ -207,7 +200,7 @@ export default function UpgradeSummary() {
     return (
       <div className="flex min-h-screen flex-col bg-[#F0F4F8] font-display">
         <header className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
-          <TelsimLogo />
+          <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.8rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400">
               <span className="text-[10px] text-white">✓</span>

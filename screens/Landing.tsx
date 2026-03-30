@@ -6,6 +6,7 @@ import { getPostAuthRoute, isMobileDevice } from '../lib/routing';
 import { STRIPE_PRICES } from '../constants/stripePrices';
 
 import { useLanguage } from '../contexts/LanguageContext';
+import TelsimBrandLogo from '../components/TelsimBrandLogo';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
@@ -532,13 +533,11 @@ const Landing: React.FC = () => {
       {/* NAV */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-5xl mx-auto h-16 px-3 sm:px-6 flex items-center justify-between">
-          <div className="flex items-center justify-start gap-3 shrink-0">
-            <img
-              src="/telsim-logo.png"
-              alt="Telsim"
-              className="h-[97px] w-auto object-contain"
-            />
-          </div>
+          <TelsimBrandLogo
+            className="shrink-0"
+            iconClassName="h-11 w-11 rounded-[0.95rem]"
+            textClassName="text-[1.9rem]"
+          />
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button
               onClick={() => document.getElementById('usos')?.scrollIntoView({ behavior: 'smooth' })}

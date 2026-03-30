@@ -4,6 +4,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -15,15 +16,6 @@ const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: n
   Pro: { monthly: 39.90, annual: 399, limit: 400, monthlyId: STRIPE_PRICES.PRO.MONTHLY, annualId: STRIPE_PRICES.PRO.ANNUAL },
   Power: { monthly: 99.00, annual: 990, limit: 1400, monthlyId: STRIPE_PRICES.POWER.MONTHLY, annualId: STRIPE_PRICES.POWER.ANNUAL },
 };
-
-// ─── Logo ────────────────────────────────────────────────────────────────────
-const TelsimLogo = ({ small = false }: { small?: boolean }) => (
-  <img
-    src="/telsim-logo.png"
-    alt="Telsim"
-    className={`${small ? 'h-[86px]' : 'h-[108px]'} w-auto object-contain`}
-  />
-);
 
 // ─── Check icon ───────────────────────────────────────────────────────────────
 const Check = () => (
@@ -215,7 +207,7 @@ const Summary: React.FC = () => {
       <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
         {/* Top nav */}
         <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
-          <TelsimLogo />
+          <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.8rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>

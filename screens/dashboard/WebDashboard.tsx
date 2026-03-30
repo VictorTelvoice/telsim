@@ -23,6 +23,7 @@ import TelegramStatusDot from '../../components/TelegramStatusDot';
 import UserBillingPanel from '../../components/billing/UserBillingPanel';
 import { dedupeLatestSubscriptionPerLine, isInventoryVisibleStatus } from '../../components/billing/subscriptionBillingUtils';
 import { resolveAvatarUrlForUi } from '../../lib/resolveAvatarUrl';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 import { HELP_FAQ_DATA } from '../../lib/helpFaqData';
 import RatingModal from '../../components/RatingModal';
 
@@ -1750,11 +1751,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <img
-            src="/telsim-logo.png"
-            alt="Telsim"
-            className="h-[97px] w-auto object-contain"
-          />
+          <TelsimBrandLogo iconClassName="h-11 w-11 rounded-[0.95rem]" textClassName="text-[1.9rem]" />
         </div>
 
         {/* Infraestructura IA */}
