@@ -531,7 +531,7 @@ const Landing: React.FC = () => {
 
       {/* NAV */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-5xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto h-16 px-3 sm:px-6 flex items-center justify-between">
           <div className="flex items-center justify-start gap-3 shrink-0">
             <img
               src="/telsim-logo.png"
