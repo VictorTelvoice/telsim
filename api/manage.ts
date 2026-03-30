@@ -42,6 +42,36 @@ function collectPhoneNumberVariantsForQuery(raw: string): string[] {
   return [...out];
 }
 
+function normalizeSubscriptionStatusForInventory(status: unknown): string {
+  const value = String(status ?? '').trim().toLowerCase();
+  return value === 'cancelled' ? 'canceled' : value;
+}
+
+function isInventoryVisibleStatusForManage(status: unknown): boolean {
+  const value = normalizeSubscriptionStatusForInventory(status);
+  return value === 'active' || value === 'trialing' || value === 'past_due';
+}
+
+function dedupeLatestSubscriptionsForManage<T extends { id: string; slot_id?: string | null; phone_number?: string | null; created_at: string }>(rows: T[]): T[] {
+  const sorted = [...rows].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const seen = new Set<string>();
+  const out: T[] = [];
+
+  for (const row of sorted) {
+    const slotId = String(row.slot_id ?? '').trim();
+    const phone = String(row.phone_number ?? '').trim();
+    const key = slotId ? `slot:${slotId}` : phone ? `phone:${phone}` : `id:${row.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+
+  return out;
+}
+
 /** Datos de prueba solo para send-notification-test (email); inline para evitar imports fuera de /api en Vercel. */
 function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unknown> {
   const base = {
@@ -732,6 +762,138 @@ export default async function handler(req: any, res: any) {
             exp_year: pm.card?.exp_year,
           },
         });
+      }
+
+      case 'mobile-home-snapshot': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const [{ data: subsData, error: subsError }, { data: smsData, error: smsError }] = await Promise.all([
+          supabaseAdmin
+            .from('subscriptions')
+            .select('id, user_id, slot_id, phone_number, plan_name, status, created_at')
+            .eq('user_id', authUid)
+            .order('created_at', { ascending: false }),
+          supabaseAdmin
+            .from('sms_logs')
+            .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+            .eq('user_id', authUid)
+            .order('received_at', { ascending: false })
+            .limit(3),
+        ]);
+
+        if (subsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las suscripciones.' });
+        }
+
+        if (smsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar los SMS recientes.' });
+        }
+
+        const visibleSubs = dedupeLatestSubscriptionsForManage((subsData as any[] | null) ?? [])
+          .filter((sub) => isInventoryVisibleStatusForManage(sub?.status));
+
+        const slotIds = Array.from(new Set(visibleSubs.map((sub: any) => String(sub?.slot_id ?? '').trim()).filter(Boolean)));
+        const { data: slotsData, error: slotsError } = slotIds.length > 0
+          ? await supabaseAdmin
+              .from('slots')
+              .select('slot_id, phone_number, plan_type, assigned_to, region, created_at, status')
+              .in('slot_id', slotIds)
+              .order('created_at', { ascending: false })
+          : { data: [], error: null };
+
+        if (slotsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las líneas.' });
+        }
+
+        const slotsById = new Map<string, any>(((slotsData as any[] | null) ?? []).map((slot) => [String(slot.slot_id), slot]));
+        const slots = visibleSubs
+          .filter((sub: any) => Boolean(sub?.slot_id))
+          .map((sub: any) => {
+            const slot = slotsById.get(String(sub.slot_id));
+            if (slot) return slot;
+            return {
+              slot_id: sub.slot_id,
+              phone_number: sub.phone_number,
+              plan_type: sub.plan_name,
+              assigned_to: sub.user_id,
+              region: null,
+              created_at: sub.created_at,
+              status: 'ocupado',
+            };
+          });
+
+        const planPriority: Record<string, number> = { starter: 1, pro: 2, power: 3 };
+        const bestPlan = visibleSubs.reduce<string>((best, sub: any) => {
+          const current = String(sub?.plan_name ?? '').toLowerCase();
+          return (planPriority[current] ?? 0) > (planPriority[best] ?? 0) ? current : best;
+        }, 'starter');
+
+        return res.status(200).json({
+          bestPlan: bestPlan === 'power' ? 'Power' : bestPlan === 'pro' ? 'Pro' : 'Starter',
+          slots,
+          recentMessages: smsData ?? [],
+        });
+      }
+
+      case 'mobile-numbers-snapshot': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const { data: subsData, error: subsError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at, status')
+          .eq('user_id', authUid)
+          .order('created_at', { ascending: false });
+
+        if (subsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las suscripciones.' });
+        }
+
+        const liveSubs = dedupeLatestSubscriptionsForManage((subsData as any[] | null) ?? [])
+          .filter((sub) => isInventoryVisibleStatusForManage(sub?.status));
+
+        const slotIds = Array.from(new Set(liveSubs.map((sub: any) => String(sub?.slot_id ?? '').trim()).filter(Boolean)));
+        const { data: slotsData, error: slotsError } = slotIds.length > 0
+          ? await supabaseAdmin
+              .from('slots')
+              .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+              .in('slot_id', slotIds)
+              .order('created_at', { ascending: false })
+          : { data: [], error: null };
+
+        if (slotsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las líneas.' });
+        }
+
+        const slotsById = new Map<string, any>(((slotsData as any[] | null) ?? []).map((slot) => [String(slot.slot_id), slot]));
+        const slots = liveSubs
+          .filter((sub: any) => Boolean(sub?.slot_id))
+          .map((sub: any) => {
+            const slot = slotsById.get(String(sub.slot_id));
+            return {
+              slot_id: sub.slot_id,
+              phone_number: slot?.phone_number || sub.phone_number,
+              plan_type: slot?.plan_type || sub.plan_name || 'Starter',
+              assigned_to: slot?.assigned_to || authUid,
+              created_at: slot?.created_at || sub.created_at,
+              status: slot?.status || 'ocupado',
+              region: slot?.region ?? null,
+              label: slot?.label ?? null,
+              forwarding_active: Boolean(slot?.forwarding_active),
+              actual_plan_name: sub.plan_name || slot?.plan_type || 'Starter',
+              monthly_limit: sub.monthly_limit || 150,
+              credits_used: sub.credits_used || 0,
+              billing_type: sub.billing_type || 'monthly',
+              subscription_created_at: sub.created_at || null,
+            };
+          });
+
+        return res.status(200).json({ slots });
       }
 
       case 'set-slot-forwarding': {

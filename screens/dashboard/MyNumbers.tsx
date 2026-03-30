@@ -92,89 +92,76 @@ const MyNumbers: React.FC = () => {
             setLoading(true);
         }
         try {
-            const { data: subsData } = await supabase
-                .from('subscriptions')
-                .select('id, phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at, status')
-                .eq('user_id', user?.id)
-                .order('created_at', { ascending: false });
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-            const liveSubs = dedupeLatestSubscriptionPerLine((subsData as SubscriptionSnapshot[] | null) || [])
-                .filter((sub) => isInventoryVisibleStatus(sub.status));
-            const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
+                const res = await fetch('/api/manage', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        action: 'mobile-numbers-snapshot',
+                        accessToken: session?.access_token || null,
+                    }),
+                });
 
-            let slotsData: Slot[] = [];
-
-            if (slotIdsFromSubs.length > 0) {
-                let clientRows: Slot[] = [];
-                let backendRows: Slot[] = [];
-
-                const { data: slotsBySubs } = await supabase
-                    .from('slots')
-                    .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
-                    .in('slot_id', slotIdsFromSubs)
-                    .order('created_at', { ascending: false });
-
-                clientRows = (slotsBySubs as Slot[]) || [];
-
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-
-                    const res = await fetch('/api/manage', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            action: 'get-owned-slots',
-                            slotIds: slotIdsFromSubs,
-                            accessToken: session?.access_token || null,
-                        }),
-                    });
-
-                    const body = await res.json().catch(() => ({}));
-                    if (res.ok) {
-                        backendRows = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
-                    } else {
-                        console.warn('[MyNumbers] backend owned slots fetch failed', body);
-                    }
-                } catch (backendErr) {
-                    console.warn('[MyNumbers] fallback to client slots query', backendErr);
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error((body as { error?: string }).error || 'No se pudieron cargar las líneas.');
                 }
 
-                const mergedSlotsById = new Map<string, Slot>();
-                clientRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
-                backendRows.forEach((slot) => mergedSlotsById.set(slot.slot_id, slot));
-                slotsData = Array.from(mergedSlotsById.values());
+                const snapshotSlots = (((body as { slots?: SlotWithPlan[] }).slots) || []) as SlotWithPlan[];
+                setSlots(snapshotSlots);
+                return snapshotSlots;
+            } catch (snapshotError) {
+                console.warn('[MyNumbers] mobile-numbers-snapshot fallback', snapshotError);
+
+                const { data: subsData } = await supabase
+                    .from('subscriptions')
+                    .select('id, phone_number, plan_name, monthly_limit, credits_used, slot_id, billing_type, created_at, status')
+                    .eq('user_id', user?.id)
+                    .order('created_at', { ascending: false });
+
+                const liveSubs = dedupeLatestSubscriptionPerLine((subsData as SubscriptionSnapshot[] | null) || [])
+                    .filter((sub) => isInventoryVisibleStatus(sub.status));
+                const slotIdsFromSubs = Array.from(new Set(liveSubs.map((sub) => sub.slot_id).filter(Boolean)));
+
+                const { data: slotsBySubs } = slotIdsFromSubs.length > 0
+                    ? await supabase
+                        .from('slots')
+                        .select('slot_id, phone_number, plan_type, assigned_to, created_at, status, region, label, forwarding_active')
+                        .in('slot_id', slotIdsFromSubs)
+                        .order('created_at', { ascending: false })
+                    : { data: [] as Slot[] };
+
+                const slotsById = new Map<string, Slot>(((slotsBySubs as Slot[] | null) || []).map((slot) => [slot.slot_id, slot]));
+
+                const mergedFromSubscriptions: SlotWithPlan[] = liveSubs
+                    .filter((subscription) => Boolean(subscription.slot_id))
+                    .map((subscription) => {
+                    const slot = slotsById.get(subscription.slot_id);
+                    return {
+                        slot_id: subscription.slot_id,
+                        phone_number: slot?.phone_number || subscription.phone_number,
+                        plan_type: slot?.plan_type || subscription.plan_name || 'Starter',
+                        assigned_to: slot?.assigned_to || user.id,
+                        created_at: slot?.created_at || subscription.created_at,
+                        status: slot?.status || 'ocupado',
+                        region: slot?.region,
+                        label: slot?.label,
+                        forwarding_active: slot?.forwarding_active || false,
+                        actual_plan_name: subscription.plan_name || slot?.plan_type || 'Starter',
+                        monthly_limit: subscription.monthly_limit || 150,
+                        credits_used: subscription.credits_used || 0,
+                        billing_type: subscription.billing_type || 'monthly',
+                        subscription_created_at: subscription.created_at || null,
+                    };
+                });
+
+                setSlots(mergedFromSubscriptions);
+                return mergedFromSubscriptions;
             }
-
-            const slotsById = new Map<string, Slot>(slotsData.map((slot) => [slot.slot_id, slot]));
-
-            const mergedFromSubscriptions: SlotWithPlan[] = liveSubs
-                .filter((subscription) => Boolean(subscription.slot_id))
-                .map((subscription) => {
-                const slot = slotsById.get(subscription.slot_id);
-                return {
-                    slot_id: subscription.slot_id,
-                    phone_number: slot?.phone_number || subscription.phone_number,
-                    plan_type: slot?.plan_type || subscription.plan_name || 'Starter',
-                    assigned_to: slot?.assigned_to || user.id,
-                    created_at: slot?.created_at || subscription.created_at,
-                    status: slot?.status || 'ocupado',
-                    region: slot?.region,
-                    label: slot?.label,
-                    forwarding_active: slot?.forwarding_active || false,
-                    actual_plan_name: subscription.plan_name || slot?.plan_type || 'Starter',
-                    monthly_limit: subscription.monthly_limit || 150,
-                    credits_used: subscription.credits_used || 0,
-                    billing_type: subscription.billing_type || 'monthly',
-                    subscription_created_at: subscription.created_at || null,
-                };
-            });
-
-            const enrichedSlots = mergedFromSubscriptions;
-
-            setSlots(enrichedSlots);
-            return enrichedSlots;
         } catch (err) {
             console.error(err);
             return [];

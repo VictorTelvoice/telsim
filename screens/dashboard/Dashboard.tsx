@@ -450,49 +450,87 @@ const Dashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: subsData } = await supabase
-        .from('subscriptions')
-        .select('id, user_id, slot_id, phone_number, plan_name, status, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      let visibleSlots: Slot[] = [];
 
-      const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as DashboardVisibleSubscription[] | null) || [])
-        .filter((sub) => isInventoryVisibleStatus(sub.status));
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-      const planPriority: Record<string, number> = { starter: 1, pro: 2, power: 3 };
-      const highestPlan = visibleSubs.reduce<string>((best, sub) => {
-        const current = String(sub.plan_name ?? '').toLowerCase();
-        return (planPriority[current] ?? 0) > (planPriority[best] ?? 0) ? current : best;
-      }, 'starter');
-      setBestPlan(highestPlan === 'power' ? 'Power' : highestPlan === 'pro' ? 'Pro' : 'Starter');
-
-      const slotIds = Array.from(new Set(visibleSubs.map((sub) => sub.slot_id).filter(Boolean)));
-      const { data: slotsData } = slotIds.length > 0
-        ? await supabase
-            .from('slots')
-            .select('slot_id, phone_number, plan_type, assigned_to, region, created_at, status')
-            .in('slot_id', slotIds)
-            .order('created_at', { ascending: false })
-        : { data: [] as Slot[] };
-
-      const slotsById = new Map<string, Slot>(((slotsData as Slot[] | null) || []).map((slot) => [slot.slot_id, slot]));
-      const visibleSlots: Slot[] = visibleSubs
-        .filter((sub) => Boolean(sub.slot_id))
-        .map((sub) => {
-          const slot = slotsById.get(sub.slot_id);
-          if (slot) return slot;
-          return {
-            slot_id: sub.slot_id,
-            phone_number: sub.phone_number,
-            plan_type: sub.plan_name,
-            assigned_to: sub.user_id,
-            region: undefined,
-            created_at: sub.created_at,
-            status: 'ocupado',
-          };
+        const response = await fetch('/api/manage', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'mobile-home-snapshot',
+            accessToken: session?.access_token || null,
+          }),
         });
 
-      setAllSlots(visibleSlots);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error((body as { error?: string }).error || 'No se pudo cargar Inicio.');
+        }
+
+        visibleSlots = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
+        setAllSlots(visibleSlots);
+        setBestPlan((body as { bestPlan?: string }).bestPlan || 'Starter');
+        setRecentMessages((((body as { recentMessages?: SMSLog[] }).recentMessages) || []) as SMSLog[]);
+      } catch (snapshotError) {
+        console.warn('[Dashboard] mobile-home-snapshot fallback', snapshotError);
+
+        const { data: subsData } = await supabase
+          .from('subscriptions')
+          .select('id, user_id, slot_id, phone_number, plan_name, status, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        const visibleSubs = dedupeLatestSubscriptionPerLine((subsData as DashboardVisibleSubscription[] | null) || [])
+          .filter((sub) => isInventoryVisibleStatus(sub.status));
+
+        const planPriority: Record<string, number> = { starter: 1, pro: 2, power: 3 };
+        const highestPlan = visibleSubs.reduce<string>((best, sub) => {
+          const current = String(sub.plan_name ?? '').toLowerCase();
+          return (planPriority[current] ?? 0) > (planPriority[best] ?? 0) ? current : best;
+        }, 'starter');
+        setBestPlan(highestPlan === 'power' ? 'Power' : highestPlan === 'pro' ? 'Pro' : 'Starter');
+
+        const slotIds = Array.from(new Set(visibleSubs.map((sub) => sub.slot_id).filter(Boolean)));
+        const { data: slotsData } = slotIds.length > 0
+          ? await supabase
+              .from('slots')
+              .select('slot_id, phone_number, plan_type, assigned_to, region, created_at, status')
+              .in('slot_id', slotIds)
+              .order('created_at', { ascending: false })
+          : { data: [] as Slot[] };
+
+        const slotsById = new Map<string, Slot>(((slotsData as Slot[] | null) || []).map((slot) => [slot.slot_id, slot]));
+        visibleSlots = visibleSubs
+          .filter((sub) => Boolean(sub.slot_id))
+          .map((sub) => {
+            const slot = slotsById.get(sub.slot_id);
+            if (slot) return slot;
+            return {
+              slot_id: sub.slot_id,
+              phone_number: sub.phone_number,
+              plan_type: sub.plan_name,
+              assigned_to: sub.user_id,
+              region: undefined,
+              created_at: sub.created_at,
+              status: 'ocupado',
+            };
+          });
+
+        setAllSlots(visibleSlots);
+
+        const { data: smsData } = await supabase
+          .from('sms_logs')
+          .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+          .eq('user_id', user.id)
+          .order('received_at', { ascending: false })
+          .limit(3);
+
+        if (smsData) setRecentMessages(smsData);
+      }
 
       const targetLine = forcedLine || searchParams.get('new_line');
       if (targetLine) {
@@ -509,15 +547,6 @@ const Dashboard: React.FC = () => {
       } else if (visibleSlots.length === 0) {
         setActiveSlot(null);
       }
-
-      const { data: smsData } = await supabase
-        .from('sms_logs')
-        .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
-        .eq('user_id', user.id)
-        .order('received_at', { ascending: false })
-        .limit(3);
-
-      if (smsData) setRecentMessages(smsData);
     } catch (err) {
       console.debug("Dashboard fetch error", err);
     } finally {
