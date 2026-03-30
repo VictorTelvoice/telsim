@@ -90,9 +90,9 @@ const Register: React.FC = () => {
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
 
-      <div className="w-full max-w-sm relative z-10">
-        <div className="mb-8 text-left sm:text-center">
-          <div className="relative mb-6 inline-flex items-center justify-start transform -rotate-2 sm:justify-center">
+      <div className="w-full max-w-sm mx-auto relative z-10">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center mb-6 transform -rotate-2 relative">
             <div className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl animate-pulse scale-110"></div>
             <img 
               src="/telsim-logo.png" 
@@ -108,10 +108,10 @@ const Register: React.FC = () => {
             </div>
           </div>
           
-          <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white sm:text-center">
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
             Únete a TELSIM
           </h1>
-          <p className="mt-2 font-bold italic leading-relaxed text-slate-500 dark:text-slate-400 sm:text-center">
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold italic leading-relaxed">
             Automatizaciones Inteligentes
           </p>
         </div>

@@ -198,14 +198,14 @@ const Login = () => {
 
       {/* Form card */}
       <div className="flex-1 flex items-center justify-center px-5 py-8">
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[400px] mx-auto">
           {/* Logo + heading */}
-          <div className="mb-8 flex flex-col items-start text-left sm:items-center sm:text-center">
+          <div className="flex flex-col items-center mb-8">
             <TelsimLogo />
-            <h1 className="mt-6 text-[26px] font-black tracking-tight text-slate-900 dark:text-white sm:text-center">
+            <h1 className="mt-6 text-[26px] font-black text-slate-900 dark:text-white tracking-tight text-center">
               {step === 'register' ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}
             </h1>
-            <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500 sm:text-center">
+            <p className="text-slate-400 dark:text-slate-500 text-[13px] mt-1.5 text-center">
               {step === 'register'
                 ? 'Empieza a gestionar tus SIMs en minutos.'
                 : 'Ingresa a tu panel de gestión de SIMs.'}
