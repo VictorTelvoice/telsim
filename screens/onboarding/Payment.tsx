@@ -11,7 +11,7 @@ const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 10
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = ({ small = false }: { small?: boolean }) => (
   <img
-    src="/telsim-logo.svg"
+    src="/telsim-logo.png"
     alt="Telsim"
     className={`${small ? 'h-16' : 'h-20'} w-auto object-contain`}
   />

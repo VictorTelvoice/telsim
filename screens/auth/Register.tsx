@@ -95,7 +95,7 @@ const Register: React.FC = () => {
           <div className="inline-flex items-center justify-center mb-6 transform -rotate-2 relative">
             <div className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl animate-pulse scale-110"></div>
             <img 
-              src="/telsim-logo.svg" 
+              src="/telsim-logo.png" 
               alt="TELSIM" 
               className="w-24 h-24 object-contain drop-shadow-2xl relative z-10" 
               onError={(e) => {

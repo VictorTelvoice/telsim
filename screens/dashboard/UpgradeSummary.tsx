@@ -31,7 +31,7 @@ const PLAN_CONFIG: Record<string, { color: string; bg: string; border: string; l
 
 const TelsimLogo = ({ small = false }: { small?: boolean }) => (
   <img
-    src="/telsim-logo.svg"
+    src="/telsim-logo.png"
     alt="Telsim"
     className={`${small ? 'h-16' : 'h-20'} w-auto object-contain`}
   />
