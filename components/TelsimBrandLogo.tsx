@@ -14,7 +14,7 @@ const TelsimBrandLogo: React.FC<TelsimBrandLogoProps> = ({
   compact = false,
 }) => {
   return (
-    <div className={`flex items-center ${compact ? 'gap-1' : 'gap-1.5'} ${className}`.trim()}>
+    <div className={`flex items-center ${compact ? 'gap-[0.2rem]' : 'gap-1'} ${className}`.trim()}>
       <img
         src="/telsim-isotipo.png"
         alt="Telsim"
