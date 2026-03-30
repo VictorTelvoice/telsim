@@ -1376,10 +1376,7 @@ const Landing: React.FC = () => {
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
           >
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <span className="material-symbols-rounded text-white text-[16px]">sim_card</span>
-            </div>
-            <span className="font-extrabold text-slate-900">Telsim</span>
+            <TelsimBrandLogo compact iconClassName="h-8 w-8 rounded-[0.8rem]" textClassName="text-[1.2rem]" />
             <span className="text-slate-300">·</span>
             <span className="text-slate-400 text-xs font-medium">{t('landing.compatibility.tag')}</span>
           </button>
