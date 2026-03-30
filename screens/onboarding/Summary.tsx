@@ -19,7 +19,7 @@ const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: n
 // ─── Logo ────────────────────────────────────────────────────────────────────
 const TelsimLogo = ({ small = false }: { small?: boolean }) => (
   <img
-    src="/telsim-logo.png"
+    src="/telsim-logo.svg"
     alt="Telsim"
     className={`${small ? 'h-16' : 'h-20'} w-auto object-contain`}
   />

@@ -1751,7 +1751,7 @@ const WebDashboard: React.FC = () => {
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
           <img
-            src="/telsim-logo.png"
+            src="/telsim-logo.svg"
             alt="Telsim"
             className="h-[72px] w-auto object-contain"
           />

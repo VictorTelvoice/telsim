@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 // ─── Logo (igual que Landing) ─────────────────────────────────────────────────
 const TelsimLogo = () => (
   <img
-    src="/telsim-logo.png"
+    src="/telsim-logo.svg"
     alt="Telsim"
     className="h-20 w-auto object-contain"
   />

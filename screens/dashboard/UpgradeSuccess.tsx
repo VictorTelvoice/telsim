@@ -28,7 +28,7 @@ const PLAN_COLORS: Record<string, string> = {
 
 const TelsimLogo = () => (
   <img
-    src="/telsim-logo.png"
+    src="/telsim-logo.svg"
     alt="Telsim"
     className="h-20 w-auto object-contain"
   />
