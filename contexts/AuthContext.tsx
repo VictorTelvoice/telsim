@@ -220,7 +220,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Evita carreras en carga de profile cuando cambie el usuario rápidamente
   const profileReqIdRef = useRef(0);
   const lastProfileErrorAtRef = useRef<number | null>(null);
+  const lastProfileRefreshAtRef = useRef(0);
   const PROFILE_ERROR_BACKOFF_MS = 60 * 1000;
+  const PROFILE_REFRESH_MIN_MS = 60 * 1000;
   // Dedupe: evita múltiples fetch concurrentes para el mismo userId
   const profileFetchInFlightUserIdRef = useRef<string | null>(null);
   // Marca el último userId cuyo perfil ya quedó resuelto (null real o objeto)
@@ -371,8 +373,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
+    const now = Date.now();
     const lastErrAt = lastProfileErrorAtRef.current;
     if (lastErrAt != null && Date.now() - lastErrAt < PROFILE_ERROR_BACKOFF_MS) {
+      return;
+    }
+    if (now - lastProfileRefreshAtRef.current < PROFILE_REFRESH_MIN_MS) {
       return;
     }
 
@@ -391,6 +397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       lastProfileErrorAtRef.current = null;
       lastProfileLoadedUserIdRef.current = userId;
+      lastProfileRefreshAtRef.current = Date.now();
 
       setProfile(p);
       setUser((prev: any) => (prev ? enrichUser(prev, p) : null));

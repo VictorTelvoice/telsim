@@ -18,9 +18,11 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const lastRefreshAtRef = useRef(0);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastErrorAtRef = useRef(0);
+  const lastFocusRefreshAtRef = useRef(0);
 
   const MIN_REFRESH_MS = 2500;
   const ERROR_BACKOFF_MS = 10000;
+  const FOCUS_REFRESH_MS = 45000;
 
   const refreshUnreadCount = useCallback(async () => {
     if (!user?.id) {
@@ -73,14 +75,15 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refreshUnreadCount();
 
     const handleFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       const now = Date.now();
-      if (now - lastRefreshAtRef.current < MIN_REFRESH_MS) return;
+      if (now - lastFocusRefreshAtRef.current < FOCUS_REFRESH_MS) return;
       if (now - lastErrorAtRef.current < ERROR_BACKOFF_MS) return;
+      lastFocusRefreshAtRef.current = now;
       scheduleRefresh();
     };
     window.addEventListener('focus', handleFocus);
 
-    // Suscribirse a cambios en tiempo real en sms_logs
     const channel = supabase
       .channel(`sms_unread_changes_${user.id}`)
       .on('postgres_changes', { 
@@ -88,15 +91,28 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         schema: 'public', 
         table: 'sms_logs',
         filter: `user_id=eq.${user.id}`
-      }, () => {
-        scheduleRefresh();
+      }, (payload) => {
+        const next = payload.new as { is_read?: boolean } | null;
+        if (next?.is_read) return;
+        setUnreadSmsCount((prev) => prev + 1);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'sms_logs',
         filter: `user_id=eq.${user.id}`
-      }, () => {
+      }, (payload) => {
+        const previous = payload.old as { is_read?: boolean } | null;
+        const next = payload.new as { is_read?: boolean } | null;
+        if (previous?.is_read === next?.is_read) return;
+        if (previous?.is_read === false && next?.is_read === true) {
+          setUnreadSmsCount((prev) => Math.max(0, prev - 1));
+          return;
+        }
+        if (previous?.is_read === true && next?.is_read === false) {
+          setUnreadSmsCount((prev) => prev + 1);
+          return;
+        }
         scheduleRefresh();
       })
       .on('postgres_changes', {
@@ -104,7 +120,12 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         schema: 'public',
         table: 'sms_logs',
         filter: `user_id=eq.${user.id}`
-      }, () => {
+      }, (payload) => {
+        const previous = payload.old as { is_read?: boolean } | null;
+        if (previous?.is_read === false) {
+          setUnreadSmsCount((prev) => Math.max(0, prev - 1));
+          return;
+        }
         scheduleRefresh();
       })
       .subscribe();
