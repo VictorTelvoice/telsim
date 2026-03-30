@@ -536,7 +536,7 @@ const Landing: React.FC = () => {
           <TelsimBrandLogo
             className="shrink-0"
             iconClassName="h-11 w-11 rounded-[0.95rem]"
-            textClassName="text-[1.9rem]"
+            textClassName="text-[1.75rem]"
           />
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
             <button

@@ -1751,7 +1751,7 @@ const WebDashboard: React.FC = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <TelsimBrandLogo iconClassName="h-11 w-11 rounded-[0.95rem]" textClassName="text-[1.9rem]" />
+          <TelsimBrandLogo iconClassName="h-11 w-11 rounded-[0.95rem]" textClassName="text-[1.75rem]" />
         </div>
 
         {/* Infraestructura IA */}
