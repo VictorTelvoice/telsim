@@ -360,7 +360,7 @@ const WebDashboard: React.FC = () => {
   const safeAvatarUrl = resolvedAvatarUrl;
   const { refreshProfile, invalidateProfile, version: authVersion, signOut } = auth;
   const { theme, toggleTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language: appLanguage, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === 'dark';
@@ -699,10 +699,6 @@ const WebDashboard: React.FC = () => {
     window.open('https://wa.me/56934449937?text=Hola%20equipo%20Telsim,%20necesito%20soporte%20Power%2024/7.', '_blank', 'noopener,noreferrer');
   }, [fetchHelpTickets]);
 
-  // ─── Language state ───────────────────────────────────────────────────────
-  const [appLanguage, setAppLanguage] = useState<'es' | 'en'>(() =>
-    (localStorage.getItem('telsim_language') as 'es' | 'en') || 'es'
-  );
   const [langSaved, setLangSaved] = useState(false);
 
   // ─── Security / Password state ────────────────────────────────────────────
@@ -1441,8 +1437,7 @@ const WebDashboard: React.FC = () => {
   // ─── Language handler ─────────────────────────────────────────────────────────
 
   const handleLanguageSave = (lang: 'es' | 'en') => {
-    setAppLanguage(lang);
-    localStorage.setItem('telsim_language', lang);
+    setLanguage(lang);
     setLangSaved(true);
     setTimeout(() => setLangSaved(false), 3000);
   };
@@ -3114,7 +3109,7 @@ const WebDashboard: React.FC = () => {
                         { code: 'es', label: 'Español', flag: '🇪🇸', desc: 'Interfaz en español latinoamericano' },
                         { code: 'en', label: 'English', flag: '🇺🇸', desc: 'Interface in English' },
                       ] as { code: 'es' | 'en'; label: string; flag: string; desc: string }[]).map(lang => (
-                        <button key={lang.code} onClick={() => setAppLanguage(lang.code)}
+                        <button key={lang.code} onClick={() => setLanguage(lang.code)}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${appLanguage === lang.code
                             ? 'border-primary bg-primary/5'
                             : (isDark ? 'border-slate-700 hover:border-slate-600' : 'border-slate-200 hover:border-slate-300')
@@ -3145,7 +3140,7 @@ const WebDashboard: React.FC = () => {
                       <Save size={13} /> Guardar preferencia
                     </button>
                     <p className={`text-[10px] mt-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                      El cambio de idioma se aplicará al recargar la aplicación.
+                      El cambio de idioma se aplica inmediatamente en toda la app.
                     </p>
                   </div>
                 )}
