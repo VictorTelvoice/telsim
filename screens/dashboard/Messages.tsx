@@ -34,7 +34,7 @@ const Messages: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { t, language, setLanguage } = useLanguage();
-  const { refreshUnreadCount } = useMessagesCount();
+  const { refreshUnreadCount, setUnreadSmsCount } = useMessagesCount();
   const { unreadCount: unreadNotificationsCount } = useNotifications();
   
   const [messages, setMessages] = useState<SMSLog[]>([]);
@@ -45,71 +45,123 @@ const Messages: React.FC = () => {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'all' | 'verifications' | 'others'>('verifications');
   const [messageSearch, setMessageSearch] = useState('');
-  const [markingRead, setMarkingRead] = useState(false);
-  const messagesRef = useRef<SMSLog[]>([]);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  const markTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingReadIdsRef = useRef<Set<string>>(new Set());
+  const markingReadRef = useRef(false);
 
   const filterNum = searchParams.get('num');
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const savedPlanId = localStorage.getItem('selected_plan') || 'starter';
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
 
-  const markMessagesAsRead = useCallback(async (ids: string[]) => {
-    if (!user || ids.length === 0) return;
-    const uniqueIds = [...new Set(ids.filter(Boolean))];
+  const flushPendingReadMarks = useCallback(async () => {
+    if (!user || markingReadRef.current) return;
+    const uniqueIds = [...pendingReadIdsRef.current].filter(Boolean);
     if (uniqueIds.length === 0) return;
-    setMarkingRead(true);
+
+    pendingReadIdsRef.current.clear();
+    markingReadRef.current = true;
+
     const { error } = await supabase
       .from('sms_logs')
       .update({ is_read: true })
       .eq('user_id', user.id)
       .in('id', uniqueIds)
       .eq('is_read', false);
+
     if (error) {
       console.error('Error marking messages as read:', error);
-    } else {
       refreshUnreadCount();
+    } else {
+      setMessages((prev) => prev.map((msg) => (
+        uniqueIds.includes(msg.id) ? { ...msg, is_read: true } : msg
+      )));
+      setUnreadSmsCount((prev) => Math.max(0, prev - uniqueIds.length));
     }
-    setMarkingRead(false);
-  }, [user, refreshUnreadCount]);
+
+    markingReadRef.current = false;
+  }, [user, refreshUnreadCount, setUnreadSmsCount]);
+
+  const scheduleMarkMessagesAsRead = useCallback((ids: string[]) => {
+    if (!user || ids.length === 0) return;
+
+    ids.filter(Boolean).forEach((id) => pendingReadIdsRef.current.add(id));
+    if (markTimerRef.current) return;
+
+    markTimerRef.current = setTimeout(() => {
+      markTimerRef.current = null;
+      void flushPendingReadMarks();
+    }, 800);
+  }, [user, flushPendingReadMarks]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Obtener solo los slots que pertenecen al usuario actual
-      const { data: slotsData } = await supabase
-        .from('slots')
-        .select('slot_id, phone_number, plan_type, assigned_to, created_at')
-        .eq('assigned_to', user.id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-      if (slotsData) {
-        setUserSlots(slotsData);
-        const mapping = slotsData.reduce((acc, s) => {
+        const response = await fetch('/api/manage', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'mobile-messages-snapshot',
+            accessToken: session?.access_token || null,
+          }),
+        });
+
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error((body as { error?: string }).error || 'No se pudieron cargar los mensajes.');
+        }
+
+        const nextSlots = (((body as { slots?: Slot[] }).slots) || []) as Slot[];
+        const nextMessages = (((body as { messages?: SMSLog[] }).messages) || []) as SMSLog[];
+
+        setUserSlots(nextSlots);
+        setSlotMap(nextSlots.reduce((acc, s) => {
           acc[s.slot_id] = s.phone_number;
           return acc;
-        }, {} as Record<string, string>);
-        setSlotMap(mapping);
-      }
+        }, {} as Record<string, string>));
+        setMessages(nextMessages);
 
-      // 2. PRIVACIDAD CRÍTICA: Filtro obligatorio por user_id
-      // Evita que un nuevo dueño vea SMS de un dueño anterior del mismo hardware/número
-      const { data, error } = await supabase
-        .from('sms_logs')
-        .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
-        .eq('user_id', user.id)
-        .order('received_at', { ascending: false });
+        const unreadIds = nextMessages.filter((msg) => !msg.is_read).map((msg) => msg.id);
+        if (unreadIds.length > 0) {
+          scheduleMarkMessagesAsRead(unreadIds);
+        }
+      } catch (snapshotError) {
+        console.warn('[Messages] mobile-messages-snapshot fallback', snapshotError);
 
-      if (error) throw error;
-      const nextMessages = data || [];
-      setMessages(nextMessages);
+        const { data: slotsData } = await supabase
+          .from('slots')
+          .select('slot_id, phone_number, plan_type, assigned_to, created_at')
+          .eq('assigned_to', user.id);
 
-      const unreadIds = nextMessages.filter((msg) => !msg.is_read).map((msg) => msg.id);
-      if (unreadIds.length > 0) {
-        void markMessagesAsRead(unreadIds);
+        if (slotsData) {
+          setUserSlots(slotsData);
+          const mapping = slotsData.reduce((acc, s) => {
+            acc[s.slot_id] = s.phone_number;
+            return acc;
+          }, {} as Record<string, string>);
+          setSlotMap(mapping);
+        }
+
+        const { data, error } = await supabase
+          .from('sms_logs')
+          .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+          .eq('user_id', user.id)
+          .order('received_at', { ascending: false });
+
+        if (error) throw error;
+        const nextMessages = data || [];
+        setMessages(nextMessages);
+
+        const unreadIds = nextMessages.filter((msg) => !msg.is_read).map((msg) => msg.id);
+        if (unreadIds.length > 0) {
+          scheduleMarkMessagesAsRead(unreadIds);
+        }
       }
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -117,25 +169,15 @@ const Messages: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, markMessagesAsRead]);
+  }, [user, scheduleMarkMessagesAsRead]);
 
   useEffect(() => {
     // Reset local state on user change for clean load
     setMessages([]);
     fetchData();
 
-    if (!user) return;
+    if (!user) return () => undefined;
 
-    // También marcar al enfocar la ventana
-    const handleFocus = () => {
-      const unreadIds = messagesRef.current.filter((msg) => !msg.is_read).map((msg) => msg.id);
-      if (unreadIds.length > 0 && !markingRead) {
-        void markMessagesAsRead(unreadIds);
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-
-    // 3. Suscripción Realtime con filtro por user_id
     const channel = supabase
       .channel(`private_messages_${user.id}`)
       .on('postgres_changes', { 
@@ -147,16 +189,21 @@ const Messages: React.FC = () => {
         const newMsg = payload.new as SMSLog;
         setMessages(prev => [newMsg, ...prev]);
         if (!newMsg.is_read) {
-          void markMessagesAsRead([newMsg.id]);
+          scheduleMarkMessagesAsRead([newMsg.id]);
         }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
-      window.removeEventListener('focus', handleFocus);
+      if (markTimerRef.current) {
+        clearTimeout(markTimerRef.current);
+        markTimerRef.current = null;
+      }
+      pendingReadIdsRef.current.clear();
+      markingReadRef.current = false;
     };
-  }, [user, fetchData, markMessagesAsRead, markingRead]);
+  }, [user, fetchData, scheduleMarkMessagesAsRead]);
 
   useEffect(() => {
     if (filterNum) {

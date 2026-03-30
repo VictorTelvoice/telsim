@@ -896,6 +896,55 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ slots });
       }
 
+      case 'mobile-messages-snapshot': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const [{ data: subsData, error: subsError }, { data: messagesData, error: messagesError }] = await Promise.all([
+          supabaseAdmin
+            .from('subscriptions')
+            .select('id, user_id, slot_id, phone_number, created_at, status')
+            .eq('user_id', authUid)
+            .order('created_at', { ascending: false }),
+          supabaseAdmin
+            .from('sms_logs')
+            .select('id, user_id, sender, content, received_at, slot_id, service_name, verification_code, is_read')
+            .eq('user_id', authUid)
+            .order('received_at', { ascending: false }),
+        ]);
+
+        if (subsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las líneas del usuario.' });
+        }
+
+        if (messagesError) {
+          return res.status(500).json({ error: 'No se pudieron cargar los mensajes.' });
+        }
+
+        const visibleSubs = dedupeLatestSubscriptionsForManage((subsData as any[] | null) ?? [])
+          .filter((sub) => isInventoryVisibleStatusForManage(sub?.status));
+        const slotIds = Array.from(new Set(visibleSubs.map((sub: any) => String(sub?.slot_id ?? '').trim()).filter(Boolean)));
+
+        const { data: slotsData, error: slotsError } = slotIds.length > 0
+          ? await supabaseAdmin
+              .from('slots')
+              .select('slot_id, phone_number, plan_type, assigned_to, created_at')
+              .in('slot_id', slotIds)
+              .order('created_at', { ascending: false })
+          : { data: [], error: null };
+
+        if (slotsError) {
+          return res.status(500).json({ error: 'No se pudieron cargar las líneas.' });
+        }
+
+        return res.status(200).json({
+          slots: slotsData ?? [],
+          messages: messagesData ?? [],
+        });
+      }
+
       case 'set-slot-forwarding': {
         const authUid = await getRequestAuthUserId(req);
         if (!authUid) {
