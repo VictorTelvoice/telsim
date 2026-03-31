@@ -170,9 +170,9 @@ const RegionSelect: React.FC = () => {
           <div className="absolute bottom-[-60px] right-[-60px] w-[300px] h-[300px] rounded-full opacity-15"
             style={{ background: 'radial-gradient(circle, #0ea5e9 0%, transparent 70%)' }} />
 
-          <div className="relative z-10 flex flex-col h-full px-10 py-10">
+          <div className="relative z-10 flex h-full flex-col px-10 py-10">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className="flex min-h-[72px] items-center">
               <TelsimBrandLogo
                 compact
                 iconClassName="h-10 w-10 rounded-xl"
