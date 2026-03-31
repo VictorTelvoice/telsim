@@ -174,8 +174,9 @@ const RegionSelect: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center">
               <TelsimBrandLogo
-                iconClassName="h-9 w-9 rounded-xl"
-                textClassName="text-[1.4rem] text-white"
+                compact
+                iconClassName="h-10 w-10 rounded-xl"
+                textClassName="text-[1.65rem] text-white"
               />
             </div>
 

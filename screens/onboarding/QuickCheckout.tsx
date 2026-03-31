@@ -217,8 +217,9 @@ const QuickCheckout: React.FC = () => {
       {!mobile && (
         <div className="mb-4">
           <TelsimBrandLogo
-            iconClassName="h-8 w-8 rounded-[0.85rem]"
-            textClassName="text-[1.1rem] text-white"
+            compact
+            iconClassName="h-10 w-10 rounded-xl"
+            textClassName="text-[1.65rem] text-white"
           />
         </div>
       )}

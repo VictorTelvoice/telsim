@@ -96,7 +96,7 @@ const PlanSelect: React.FC = () => {
         {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
         <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center">
-            <TelsimBrandLogo iconClassName="h-9 w-9 rounded-xl" textClassName="text-[1.4rem]" />
+            <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
           <div className="flex items-center gap-2 text-[12px] text-slate-500">
             <span>¿Ya tienes cuenta?</span>
