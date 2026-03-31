@@ -11,7 +11,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+const ADMIN_UIDS = [
+  '8e7bcada-3f7a-482f-93a7-9d0fd4828231',
+  'd310eaf8-2c82-4c29-9ea8-6d64616774da',
+];
+
+function isAdminUid(uid: string | null | undefined): boolean {
+  return ADMIN_UIDS.some((adminUid) => adminUid.toLowerCase() === String(uid || '').toLowerCase());
+}
 
 async function getRequester(req: any) {
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
@@ -28,7 +35,7 @@ async function getRequester(req: any) {
 
 export default async function handler(req: any, res: any) {
   const requester = await getRequester(req);
-  const isAdmin = String(requester?.id || '').toLowerCase() === ADMIN_UID.toLowerCase();
+  const isAdmin = isAdminUid(requester?.id);
   if (!requester || !isAdmin) {
     return res.status(403).json({ error: 'Forbidden' });
   }

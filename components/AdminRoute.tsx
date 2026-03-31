@@ -2,10 +2,13 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+const ADMIN_UIDS = [
+  '8e7bcada-3f7a-482f-93a7-9d0fd4828231',
+  'd310eaf8-2c82-4c29-9ea8-6d64616774da',
+];
 
 /**
- * Solo permite el acceso si el usuario autenticado es el admin (UID de Supabase).
+ * Solo permite el acceso si el usuario autenticado está dentro de la lista de admins.
  * Si no, redirige a /dashboard.
  */
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -21,7 +24,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  if (!user || (user.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+  if (!user || !ADMIN_UIDS.some((adminUid) => adminUid.toLowerCase() === String(user.id || '').toLowerCase())) {
     return <Navigate to="/dashboard" replace />;
   }
 
