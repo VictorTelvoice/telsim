@@ -762,7 +762,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
       const stripeSubId = String(s.stripe_subscription_id ?? '').trim();
       const nextChargeIso = resolveChargeableNextBillingIso(s);
       const nextChargeMs = nextChargeIso ? new Date(nextChargeIso).getTime() : Number.NaN;
-      const hasStaleChargeDate = !Number.isNaN(nextChargeMs) && nextChargeMs <= Date.now();
+      const hasStaleChargeDate = status === 'active' && !Number.isNaN(nextChargeMs) && nextChargeMs <= Date.now();
       return (
         (status === 'active' || status === 'trialing') &&
         (!resolveSubscriptionNextBillingIso(s) || hasStaleChargeDate) &&
