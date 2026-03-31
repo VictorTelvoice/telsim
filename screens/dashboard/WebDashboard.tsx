@@ -1264,7 +1264,7 @@ const WebDashboard: React.FC = () => {
       console.error('Logout error:', err);
     } finally {
       setLoggingOut(false);
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
     }
   };
 
