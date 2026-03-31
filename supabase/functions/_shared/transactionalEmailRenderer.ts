@@ -17,8 +17,8 @@ export type CanonicalTransactionalEvent =
   | 'invoice_paid'
   | 'reactivation_success';
 
-/** Logo público absoluto (email-safe). */
-export const TELSIM_LOGO_URL = 'https://www.telsim.io/logo-192.png';
+/** Isotipo público absoluto (email-safe) usado en el lockup horizontal del correo. */
+export const TELSIM_ISOTIPO_URL = 'https://www.telsim.io/telsim-isotipo.png';
 
 /** CTA principal: app web (mismo destino para todos los eventos canónicos). */
 export const TELSIM_WEB_APP_URL = 'https://www.telsim.io/#/web';
@@ -319,11 +319,11 @@ function buildMasterHtml(innerHtml: string): string {
                         <td style="padding:28px 32px 20px 32px;background:#ffffff;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="width:100%;">
                                 <tr>
-                                    <td width="40" style="width:40px;vertical-align:middle;padding:0 14px 0 0;line-height:0;font-size:0;">
-                                        <img src="${TELSIM_LOGO_URL}" width="40" height="40" alt="Telsim" style="display:block;width:40px;height:40px;max-width:40px;max-height:40px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+                                    <td width="42" style="width:42px;vertical-align:middle;padding:0 10px 0 0;line-height:0;font-size:0;">
+                                        <img src="${TELSIM_ISOTIPO_URL}" width="42" height="42" alt="Telsim" style="display:block;width:42px;height:42px;max-width:42px;max-height:42px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;border-radius:12px;" />
                                     </td>
                                     <td style="vertical-align:middle;padding:0;line-height:40px;mso-line-height-rule:exactly;">
-                                        <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;line-height:40px;display:inline-block;vertical-align:middle;">Telsim</span>
+                                        <span style="font-size:23px;font-weight:900;color:#0f172a;letter-spacing:-0.04em;line-height:40px;display:inline-block;vertical-align:middle;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">telsim</span>
                                     </td>
                                 </tr>
                             </table>

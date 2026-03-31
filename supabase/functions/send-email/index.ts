@@ -41,8 +41,7 @@ const MASTER_TEMPLATE = `<!DOCTYPE html>
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
         .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .header { background-color: #0074d4; padding: 30px; text-align: center; }
-        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: bold; }
+        .header { background-color: #ffffff; padding: 24px 30px 18px; }
         .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
         .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
         .button { display: inline-block; padding: 12px 25px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
@@ -52,7 +51,16 @@ const MASTER_TEMPLATE = `<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="header">
-            <h1>TELSIM</h1>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:auto;">
+                <tr>
+                    <td style="width:42px;padding:0 10px 0 0;line-height:0;font-size:0;vertical-align:middle;">
+                        <img src="https://www.telsim.io/telsim-isotipo.png" width="42" height="42" alt="Telsim" style="display:block;width:42px;height:42px;border:0;outline:none;text-decoration:none;border-radius:12px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                        <span style="font-size:23px;font-weight:900;color:#0f172a;letter-spacing:-0.04em;line-height:42px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">telsim</span>
+                    </td>
+                </tr>
+            </table>
         </div>
         <div class="content">
             {{content}}
