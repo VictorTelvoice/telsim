@@ -92,30 +92,35 @@ const AdminFicha360: React.FC<AdminFicha360Props> = ({ open, onClose, userId }) 
         .eq('user_id', uid)
         .gte('received_at', startOfLastMonth.toISOString());
 
-      const auditFilter = email ? { user_email: email } : {};
       let securityLogs: { id: string; event_type: string; message: string | null; created_at: string }[];
-      if (email) {
-        const { data: auditData } = await supabase
-          .from('audit_logs')
-          .select('id, event_type, message, created_at')
-          .ilike('user_email', email)
-          .order('created_at', { ascending: false })
-          .limit(5);
-        securityLogs = (auditData || []) as { id: string; event_type: string; message: string | null; created_at: string }[];
-      } else {
-        const { data: auditAll } = await supabase
-          .from('audit_logs')
-          .select('id, event_type, message, created_at, payload')
-          .order('created_at', { ascending: false })
-          .limit(50);
-        const filtered = (auditAll || []).filter((a: { payload?: { user_id?: string } }) => (a.payload as { user_id?: string } | null)?.user_id === uid);
-        securityLogs = filtered.slice(0, 5).map((a: { id: string; event_type: string; message: string | null; created_at: string }) => ({
-          id: a.id,
-          event_type: a.event_type,
-          message: a.message,
-          created_at: a.created_at,
-        }));
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const auditRes = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'list-audit-logs',
+          emailSearch: email || undefined,
+          payloadUserId: email ? undefined : uid,
+          limit: email ? 5 : 50,
+          accessToken: session?.access_token || null,
+        }),
+      });
+      const auditBody = await auditRes.json().catch(() => ({}));
+      const auditLogs = (auditRes.ok ? ((auditBody as { logs?: any[] }).logs || []) : []) as Array<{
+        id: string;
+        event_type: string;
+        message: string | null;
+        created_at: string;
+      }>;
+      securityLogs = auditLogs.slice(0, 5).map((a) => ({
+        id: a.id,
+        event_type: a.event_type,
+        message: a.message,
+        created_at: a.created_at,
+      }));
 
       setData({
         financial: {

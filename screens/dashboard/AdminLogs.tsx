@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { ChevronLeft, RefreshCw, X, FileJson, Terminal, Wifi } from 'lucide-react';
 
 export type AuditLogRow = {
@@ -70,6 +71,7 @@ const PAYMENT_EVENT_PREFIX = 'PAYMENT';
 
 const AdminLogs: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mainSection, setMainSection] = useState<MainSection>('audit');
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,12 +81,26 @@ const AdminLogs: React.FC = () => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
 
   const fetchLogs = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('id, event_type, severity, message, user_email, payload, source, created_at')
-      .order('created_at', { ascending: false })
-      .limit(200);
-    if (!error && data) setLogs((data as AuditLogRow[]) || []);
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+    const res = await fetch('/api/manage', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'list-audit-logs',
+        limit: 200,
+        accessToken: session?.access_token || null,
+      }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray((body as { logs?: unknown[] }).logs)) {
+      setLogs((((body as { logs?: AuditLogRow[] }).logs) || []) as AuditLogRow[]);
+    } else {
+      setLogs([]);
+    }
   }, []);
 
   const fetchNetworkLogs = useCallback(async () => {
@@ -98,9 +114,10 @@ const AdminLogs: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
     fetchLogs().finally(() => setLoading(false));
-  }, [fetchLogs]);
+  }, [fetchLogs, user]);
 
   useEffect(() => {
     const interval = setInterval(() => {

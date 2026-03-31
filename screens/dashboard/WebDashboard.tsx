@@ -753,6 +753,31 @@ const WebDashboard: React.FC = () => {
   const inFlightRef = useRef(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const fetchUserAutomationLogs = useCallback(async (limit = 50) => {
+    if (!user?.id) return [] as AutomationLogRow[];
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+    const res = await fetch('/api/manage', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'list-automation-logs',
+        limit,
+        accessToken: session?.access_token || null,
+      }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { error?: string }).error || 'No se pudieron cargar los logs webhook.');
+    }
+
+    return (((body as { logs?: AutomationLogRow[] }).logs) || []) as AutomationLogRow[];
+  }, [user?.id]);
+
   // Cleanup de unmount: abortar requests en vuelo
   useEffect(() => {
     return () => {
@@ -880,15 +905,9 @@ const WebDashboard: React.FC = () => {
       if (signal.aborted) return;
       if (msgs) setMessages(msgs as SMSLog[]);
 
-      const { data: logsData } = await supabase
-        .from('automation_logs')
-        .select('id, user_id, slot_id, status, payload, response_body, created_at')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
-        .abortSignal(signal);
+      const logsData = await fetchUserAutomationLogs(50);
       if (signal.aborted) return;
-      if (logsData) setAutomationLogsOverview((logsData as AutomationLogRow[]) || []);
+      setAutomationLogsOverview(logsData || []);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       console.error(e);
@@ -902,7 +921,7 @@ const WebDashboard: React.FC = () => {
       if (!signal.aborted && !options?.silent) setLoading(false);
       inFlightRef.current = false;
     }
-  }, [user?.id]);
+  }, [user?.id, fetchUserAutomationLogs]);
 
   // Primera carga en cuanto user.id esté disponible; no se espera a auth loading
   useEffect(() => {
@@ -1177,19 +1196,14 @@ const WebDashboard: React.FC = () => {
     setApiLogsLoading(true);
     (async () => {
       try {
-        const { data } = await supabase
-          .from('automation_logs')
-          .select('id, user_id, slot_id, status, payload, response_body, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        if (!cancelled && data) setApiLogs((data as AutomationLogRow[]) || []);
+        const data = await fetchUserAutomationLogs(100);
+        if (!cancelled) setApiLogs(data || []);
       } finally {
         if (!cancelled) setApiLogsLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [settingsSection, user?.id]);
+  }, [settingsSection, user?.id, fetchUserAutomationLogs]);
 
   // ─── API section: load api_secret_key from users ─────────────────────────
   useEffect(() => {
@@ -1291,10 +1305,36 @@ const WebDashboard: React.FC = () => {
 
   const handleSaveLabel = async (slotId: string) => {
     setSavingLabel(true);
-    await supabase.from('slots').update({ label: labelDraft.trim() || null }).eq('slot_id', slotId);
-    setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: labelDraft.trim() || undefined } : s));
-    setEditingSlotId(null);
-    setSavingLabel(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'update-slot-label',
+          slotId,
+          label: labelDraft.trim() || null,
+          accessToken: session?.access_token || null,
+        }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((body as { error?: string }).error || 'No se pudo guardar la etiqueta.');
+      }
+
+      const savedLabel = ((body as { label?: string | null }).label ?? null) || undefined;
+      setSlots(prev => prev.map(s => s.slot_id === slotId ? { ...s, label: savedLabel } : s));
+      setEditingSlotId(null);
+    } catch (err) {
+      console.error('[WebDashboard] save label error', err);
+      alert('No se pudo guardar la etiqueta.');
+    } finally {
+      setSavingLabel(false);
+    }
   };
 
   // ─── Webhook handlers ────────────────────────────────────────────────────────

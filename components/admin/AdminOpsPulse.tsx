@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { Activity, BellRing, Headset, Loader2, MessageSquareText, ShieldAlert } from 'lucide-react';
 
 type OpsMetrics = {
@@ -16,66 +17,37 @@ type OpsMetrics = {
 };
 
 const AdminOpsPulse: React.FC = () => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<OpsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMetrics = useCallback(async () => {
-    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-    const [subsRes, smsRes, notifRes, ticketsRes] = await Promise.all([
-      supabase
-        .from('subscriptions')
-        .select('plan_name, status, subscription_status'),
-      supabase
-        .from('sms_logs')
-        .select('id', { count: 'exact', head: true })
-        .gte('received_at', since24h),
-      supabase
-        .from('notification_history')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', since24h),
-      supabase
-        .from('support_tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'open'),
-    ]);
-
-    const subs = (subsRes.data || []) as Array<{
-      plan_name?: string | null;
-      status?: string | null;
-      subscription_status?: string | null;
-    }>;
-
-    const getOperationalStatus = (row: { status?: string | null; subscription_status?: string | null }) => {
-      const primary = String(row.status ?? '').toLowerCase().trim();
-      if (primary === 'active' || primary === 'trialing' || primary === 'pending_reactivation_cancel') return primary;
-      return String(row.subscription_status ?? row.status ?? '').toLowerCase().trim();
-    };
-
-    const isLive = (row: { status?: string | null; subscription_status?: string | null }) => {
-      const status = getOperationalStatus(row);
-      return status === 'active' || status === 'trialing';
-    };
-
-    const liveSubs = subs.filter(isLive);
-
-    setMetrics({
-      activeSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'active').length,
-      trialingSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'trialing').length,
-      pendingReactivation: subs.filter((row) => getOperationalStatus(row) === 'pending_reactivation_cancel').length,
-      sms24h: smsRes.count ?? 0,
-      notifications24h: notifRes.count ?? 0,
-      openTickets: ticketsRes.count ?? 0,
-      starterLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'starter').length,
-      proLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'pro').length,
-      powerLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'power').length,
+    const res = await fetch('/api/manage', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'get-admin-ops-pulse',
+        accessToken: session?.access_token || null,
+      }),
     });
+
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && (body as { metrics?: OpsMetrics }).metrics) {
+      setMetrics((body as { metrics: OpsMetrics }).metrics);
+    } else {
+      setMetrics(null);
+    }
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
     fetchMetrics().finally(() => setLoading(false));
-  }, [fetchMetrics]);
+  }, [fetchMetrics, user]);
 
   const totalLive = useMemo(() => {
     if (!metrics) return 0;

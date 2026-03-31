@@ -65,15 +65,25 @@ const UserDetail: React.FC = () => {
     }
 
     if (email) {
-      const { data: auditData } = await supabase
-        .from('audit_logs')
-        .select('id, event_type, message, created_at')
-        .ilike('user_email', email)
-        .in('event_type', ['PAYMENT_RECEIVED', 'SIM_ACTIVATED'])
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-      (auditData || []).forEach((a: { id: string; event_type: string; message: string | null; created_at: string }) => {
+      const auditRes = await fetch('/api/manage', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'list-audit-logs',
+          emailSearch: email,
+          eventTypes: ['PAYMENT_RECEIVED', 'SIM_ACTIVATED'],
+          limit: 50,
+          accessToken: session?.access_token || null,
+        }),
+      });
+      const auditBody = await auditRes.json().catch(() => ({}));
+      const auditData = auditRes.ok ? (((auditBody as { logs?: unknown[] }).logs) || []) as Array<{ id: string; event_type: string; message: string | null; created_at: string }> : [];
+
+      auditData.forEach((a: { id: string; event_type: string; message: string | null; created_at: string }) => {
         const label = a.event_type === 'SIM_ACTIVATED' ? 'SIM activada (Stripe)' : a.event_type === 'PAYMENT_RECEIVED' ? 'Pago recibido (Stripe)' : 'Evento Stripe';
         items.push({
           id: a.id,

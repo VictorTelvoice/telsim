@@ -153,6 +153,14 @@ async function getRequestAuthUserId(req: any): Promise<string | null> {
   return user.id;
 }
 
+async function requireAdminAuthUserId(req: any): Promise<string | null> {
+  const authUid = await getRequestAuthUserId(req);
+  if (!authUid || String(authUid).toLowerCase() !== ADMIN_UID.toLowerCase()) {
+    return null;
+  }
+  return authUid;
+}
+
 async function assertSlotCancelAllowed(
   req: any,
   slotId: string
@@ -1050,6 +1058,92 @@ export default async function handler(req: any, res: any) {
         }
 
         return res.status(200).json({ slots: slots ?? [] });
+      }
+
+      case 'list-automation-logs': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const limit = Math.min(Math.max(Number(req.body?.limit) || 50, 1), 200);
+        const { data, error } = await supabaseAdmin
+          .from('automation_logs')
+          .select('id, user_id, slot_id, status, payload, response_body, created_at')
+          .eq('user_id', authUid)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (error) {
+          return res.status(500).json({ error: 'No se pudieron cargar los logs webhook.' });
+        }
+
+        return res.status(200).json({ logs: data ?? [] });
+      }
+
+      case 'update-slot-label': {
+        const authUid = await getRequestAuthUserId(req);
+        if (!authUid) {
+          return res.status(401).json({ error: 'No autorizado.' });
+        }
+
+        const slotId = typeof req.body?.slotId === 'string' ? req.body.slotId.trim() : '';
+        const labelValue = typeof req.body?.label === 'string' ? req.body.label.trim() : '';
+        const normalizedLabel = labelValue || null;
+
+        if (!slotId) {
+          return res.status(400).json({ error: 'slotId requerido.' });
+        }
+
+        const { data: ownedSubs, error: ownedSubsError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('slot_id')
+          .eq('user_id', authUid)
+          .eq('slot_id', slotId);
+
+        if (ownedSubsError) {
+          return res.status(500).json({ error: 'No se pudo validar la línea.' });
+        }
+
+        const ownsSlot = (ownedSubs ?? []).some((row: any) => row?.slot_id === slotId);
+
+        if (!ownsSlot) {
+          const { data: ownedSlot, error: ownedSlotError } = await supabaseAdmin
+            .from('slots')
+            .select('slot_id, assigned_to')
+            .eq('slot_id', slotId)
+            .eq('assigned_to', authUid)
+            .maybeSingle();
+
+          if (ownedSlotError) {
+            return res.status(500).json({ error: 'No se pudo validar la línea.' });
+          }
+
+          if (!ownedSlot) {
+            return res.status(403).json({ error: 'La línea no pertenece a este usuario.' });
+          }
+        }
+
+        const { data: updatedSlot, error: updateError } = await supabaseAdmin
+          .from('slots')
+          .update({ label: normalizedLabel })
+          .eq('slot_id', slotId)
+          .select('slot_id, label')
+          .maybeSingle();
+
+        if (updateError) {
+          return res.status(500).json({ error: 'No se pudo guardar la etiqueta.' });
+        }
+
+        if (!updatedSlot) {
+          return res.status(404).json({ error: 'Línea no encontrada.' });
+        }
+
+        return res.status(200).json({
+          success: true,
+          slotId,
+          label: (updatedSlot as { label?: string | null } | null)?.label ?? null,
+        });
       }
 
       case 'invoice-history': {
@@ -2305,6 +2399,109 @@ export default async function handler(req: any, res: any) {
               : null,
         }));
         return res.status(200).json({ list });
+      }
+
+      case 'list-audit-logs': {
+        const authUid = await requireAdminAuthUserId(req);
+        if (!authUid) {
+          return res.status(403).json({ error: 'Solo el administrador puede consultar auditoría.', code: 'FORBIDDEN' });
+        }
+
+        const limit = Math.min(Math.max(Number(req.body?.limit) || 200, 1), 500);
+        const emailSearch = typeof req.body?.emailSearch === 'string' ? req.body.emailSearch.trim() : '';
+        const payloadUserId = typeof req.body?.payloadUserId === 'string' ? req.body.payloadUserId.trim() : '';
+        const eventTypes = Array.isArray(req.body?.eventTypes)
+          ? req.body.eventTypes.map((value: unknown) => String(value || '').trim()).filter(Boolean)
+          : [];
+
+        let query = supabaseAdmin
+          .from('audit_logs')
+          .select('id, event_type, severity, message, user_email, payload, source, created_at')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (emailSearch) {
+          query = query.ilike('user_email', emailSearch.includes('%') ? emailSearch : `%${emailSearch}%`);
+        }
+
+        if (eventTypes.length > 0) {
+          query = query.in('event_type', eventTypes);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          return res.status(500).json({ error: error.message, code: 'DB_ERROR' });
+        }
+
+        const list = payloadUserId
+          ? (data ?? []).filter((row: any) => String(row?.payload?.user_id ?? '').trim() === payloadUserId)
+          : (data ?? []);
+
+        return res.status(200).json({ logs: list });
+      }
+
+      case 'get-admin-ops-pulse': {
+        const authUid = await requireAdminAuthUserId(req);
+        if (!authUid) {
+          return res.status(403).json({ error: 'Solo el administrador.', code: 'FORBIDDEN' });
+        }
+
+        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        const [subsRes, smsRes, notifRes, ticketsRes] = await Promise.all([
+          supabaseAdmin
+            .from('subscriptions')
+            .select('plan_name, status, subscription_status'),
+          supabaseAdmin
+            .from('sms_logs')
+            .select('id', { count: 'exact', head: true })
+            .gte('received_at', since24h),
+          supabaseAdmin
+            .from('notification_history')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', since24h),
+          supabaseAdmin
+            .from('support_tickets')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'open'),
+        ]);
+
+        if (subsRes.error || smsRes.error || notifRes.error || ticketsRes.error) {
+          return res.status(500).json({ error: 'No se pudo cargar el pulso operativo.' });
+        }
+
+        const subs = (subsRes.data || []) as Array<{
+          plan_name?: string | null;
+          status?: string | null;
+          subscription_status?: string | null;
+        }>;
+
+        const getOperationalStatus = (row: { status?: string | null; subscription_status?: string | null }) => {
+          const primary = String(row.status ?? '').toLowerCase().trim();
+          if (primary === 'active' || primary === 'trialing' || primary === 'pending_reactivation_cancel') return primary;
+          return String(row.subscription_status ?? row.status ?? '').toLowerCase().trim();
+        };
+
+        const isLive = (row: { status?: string | null; subscription_status?: string | null }) => {
+          const status = getOperationalStatus(row);
+          return status === 'active' || status === 'trialing';
+        };
+
+        const liveSubs = subs.filter(isLive);
+
+        return res.status(200).json({
+          metrics: {
+            activeSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'active').length,
+            trialingSubs: liveSubs.filter((row) => getOperationalStatus(row) === 'trialing').length,
+            pendingReactivation: subs.filter((row) => getOperationalStatus(row) === 'pending_reactivation_cancel').length,
+            sms24h: smsRes.count ?? 0,
+            notifications24h: notifRes.count ?? 0,
+            openTickets: ticketsRes.count ?? 0,
+            starterLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'starter').length,
+            proLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'pro').length,
+            powerLines: liveSubs.filter((row) => String(row.plan_name ?? '').toLowerCase() === 'power').length,
+          },
+        });
       }
 
       case 'get-notification-stats': {

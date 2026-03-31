@@ -30,13 +30,26 @@ const WebhookLogs: React.FC = () => {
 
   const fetchLogs = useCallback(async () => {
     if (!user?.id) return;
-    const { data, error } = await supabase
-      .from('automation_logs')
-      .select('id, user_id, slot_id, status, payload, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(80);
-    if (!error && data) setLogs((data as AutomationLogRow[]) || []);
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+    const res = await fetch('/api/manage', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'list-automation-logs',
+        limit: 80,
+        accessToken: session?.access_token || null,
+      }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray((body as { logs?: unknown[] }).logs)) {
+      setLogs((((body as { logs?: AutomationLogRow[] }).logs) || []) as AutomationLogRow[]);
+    } else {
+      setLogs([]);
+    }
   }, [user?.id]);
 
   useEffect(() => {
