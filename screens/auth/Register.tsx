@@ -96,7 +96,7 @@ const Register: React.FC = () => {
           <div className="inline-flex items-center justify-center mb-6 transform -rotate-2 relative">
             <div className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl animate-pulse scale-110"></div>
             <div className="relative z-10">
-              <TelsimBrandLogo iconClassName="h-[4.9rem] w-[4.9rem] rounded-[1.45rem] drop-shadow-2xl" textClassName="text-[2.45rem]" />
+              <TelsimBrandLogo iconClassName="h-[3.95rem] w-[3.95rem] rounded-[1.16rem] drop-shadow-2xl" textClassName="text-[2.45rem]" />
             </div>
           </div>
           

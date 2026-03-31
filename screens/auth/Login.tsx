@@ -193,7 +193,7 @@ const Login = () => {
         <div className="w-full max-w-[400px] mx-auto">
           {/* Logo + heading */}
           <div className="flex flex-col items-center mb-8">
-            <TelsimBrandLogo iconClassName="h-[4.6rem] w-[4.6rem] rounded-[1.35rem]" textClassName="text-[2.45rem]" />
+            <TelsimBrandLogo iconClassName="h-[3.7rem] w-[3.7rem] rounded-[1.08rem]" textClassName="text-[2.45rem]" />
             <h1 className="mt-6 text-[26px] font-black text-slate-900 dark:text-white tracking-tight text-center">
               {step === 'register' ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}
             </h1>
