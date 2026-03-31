@@ -1,18 +1,16 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Database, Users, History, MessageSquare, Settings, ChevronLeft, UserCircle, BellRing, LayoutTemplate, TrendingUp, Inbox } from 'lucide-react';
+import { LayoutDashboard, Database, Users, History, MessageSquare, ChevronLeft, UserCircle, BellRing, LayoutTemplate, Inbox } from 'lucide-react';
 import AdminGlobalSearch from '../../screens/admin/AdminGlobalSearch';
 
 const nav = [
   { to: 'overview', label: 'Overview', icon: LayoutDashboard },
   { to: 'inventory', label: 'Inventario', icon: Database },
-  { to: 'finance', label: 'Revenue Ops', icon: TrendingUp },
   { to: 'users', label: 'Usuarios', icon: UserCircle },
   { to: 'subscriptions', label: 'Suscripciones', icon: Users },
   { to: 'incoming-sms', label: 'SMS Entrantes', icon: Inbox },
   { to: 'logs', label: 'Logs de Sistema', icon: History },
   { to: 'support', label: 'Soporte / Tickets', icon: MessageSquare },
-  { to: 'content', label: 'CMS de Contenidos', icon: Settings },
   { to: 'notifications', label: 'Notificaciones', icon: BellRing },
   { to: 'templates', label: 'Plantillas', icon: LayoutTemplate },
 ];
