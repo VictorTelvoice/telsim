@@ -1,5 +1,29 @@
 import type Stripe from 'stripe';
 
+function addRecurringInterval(baseIso: string, stripeSub: Stripe.Subscription): string | null {
+  const baseMs = new Date(baseIso).getTime();
+  if (Number.isNaN(baseMs)) return null;
+
+  const recurring = stripeSub.items?.data?.[0]?.price?.recurring;
+  const interval = String(recurring?.interval ?? '').toLowerCase();
+  const intervalCount = Number(recurring?.interval_count ?? 1) || 1;
+
+  const next = new Date(baseMs);
+  if (interval === 'year') {
+    next.setFullYear(next.getFullYear() + intervalCount);
+  } else if (interval === 'month') {
+    next.setMonth(next.getMonth() + intervalCount);
+  } else if (interval === 'week') {
+    next.setDate(next.getDate() + 7 * intervalCount);
+  } else if (interval === 'day') {
+    next.setDate(next.getDate() + intervalCount);
+  } else {
+    return null;
+  }
+
+  return next.toISOString();
+}
+
 /**
  * Deriva campos de facturación para `public.subscriptions` desde la suscripción Stripe.
  *
@@ -28,6 +52,7 @@ const STATUS_MAP: Record<string, string> = {
 
 export function subscriptionBillingSnapshotFromStripe(stripeSub: Stripe.Subscription): SubscriptionBillingSnapshot {
   const nowSec = Math.floor(Date.now() / 1000);
+  const nowMs = Date.now();
   const trialEndSec = stripeSub.trial_end ?? null;
   const trialEndIso =
     trialEndSec != null && trialEndSec > 0 ? new Date(trialEndSec * 1000).toISOString() : null;
@@ -59,6 +84,16 @@ export function subscriptionBillingSnapshotFromStripe(stripeSub: Stripe.Subscrip
     nextBilling = trialEndIso ?? currentPeriodEndIso ?? null;
   } else {
     nextBilling = currentPeriodEndIso ?? trialEndIso ?? null;
+  }
+
+  const nextBillingMs = nextBilling ? new Date(nextBilling).getTime() : Number.NaN;
+  if (dbStatus === 'active' && (Number.isNaN(nextBillingMs) || nextBillingMs <= nowMs)) {
+    const derived =
+      addRecurringInterval(currentPeriodEndIso ?? '', stripeSub) ??
+      addRecurringInterval(trialEndIso ?? '', stripeSub);
+    if (derived) {
+      nextBilling = derived;
+    }
   }
 
   return {
