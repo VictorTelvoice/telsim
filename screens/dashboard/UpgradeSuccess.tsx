@@ -129,7 +129,7 @@ export default function UpgradeSuccess() {
           }}
         />
 
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between relative z-10">
+        <header className="relative z-10 flex min-h-[72px] items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">

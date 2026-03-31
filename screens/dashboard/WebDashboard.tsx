@@ -1785,7 +1785,7 @@ const WebDashboard: React.FC = () => {
       <aside className={`w-56 flex-shrink-0 flex flex-col border-r ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
 
         {/* Logo */}
-        <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
+        <div className="flex min-h-[72px] items-center px-8 py-4">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
         </div>
 

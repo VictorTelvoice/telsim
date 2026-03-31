@@ -199,7 +199,7 @@ export default function UpgradeSummary() {
   if (desktop) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F0F4F8] font-display">
-        <header className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
+        <header className="flex min-h-[72px] items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400">
