@@ -1637,13 +1637,15 @@ export default async function handler(req: any, res: any) {
       }, 'stripe');
     }
 
-    const dNext = new Date();
-    if (isAnnualBilling) {
-      dNext.setFullYear(dNext.getFullYear() + 1);
-    } else {
-      dNext.setDate(dNext.getDate() + 30);
+    if (!nextDateForEmail) {
+      const dNext = new Date();
+      if (isAnnualBilling) {
+        dNext.setFullYear(dNext.getFullYear() + 1);
+      } else {
+        dNext.setDate(dNext.getDate() + 30);
+      }
+      nextDateForEmail = dNext.toLocaleDateString('es-CL');
     }
-    nextDateForEmail = dNext.toLocaleDateString('es-CL');
 
     // FUERA del try/catch — siempre correo y Telegram (incluso con amount_total 0 / trials / promos)
     let phoneForEmail = phoneFromMeta || '';
@@ -1664,15 +1666,18 @@ export default async function handler(req: any, res: any) {
 
     if (activationSucceeded) {
       let profileNombre = '';
-      let profileEmail = customerEmail;
+      let profileEmail = '';
       try {
         const { data: prof } = await supabaseAdmin.from('users').select('nombre, email').eq('id', userId).maybeSingle();
         profileNombre = String((prof as { nombre?: string } | null)?.nombre ?? '').trim();
-        if (!profileEmail && (prof as { email?: string } | null)?.email) {
-          profileEmail = String((prof as { email?: string }).email);
+        if ((prof as { email?: string } | null)?.email) {
+          profileEmail = String((prof as { email?: string }).email).trim();
         }
       } catch {
         /* ignore */
+      }
+      if (!profileEmail) {
+        profileEmail = String(customerEmail ?? '').trim();
       }
       const displayPhoneRaw = phoneForEmail || phoneFromMeta || '';
       const displayPhone = displayPhoneRaw
