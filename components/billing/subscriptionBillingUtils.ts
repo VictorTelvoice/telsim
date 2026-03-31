@@ -187,8 +187,21 @@ export interface SubscriptionSortable {
  */
 export function resolveChargeableNextBillingIso(s: SubscriptionSortable): string | null {
   const st = normalizeSubscriptionStatus(s.status);
-  if (st === 'trialing') return s.trial_end ?? null;
-  if (st === 'active') return s.next_billing_date ?? s.current_period_end ?? null;
+  const now = Date.now();
+  const asFutureIso = (value: string | null | undefined): string | null => {
+    const iso = String(value ?? '').trim();
+    if (!iso) return null;
+    const ms = new Date(iso).getTime();
+    if (Number.isNaN(ms) || ms <= now) return null;
+    return iso;
+  };
+
+  if (st === 'trialing') {
+    return asFutureIso(s.trial_end) ?? asFutureIso(s.current_period_end) ?? s.trial_end ?? s.current_period_end ?? null;
+  }
+  if (st === 'active') {
+    return asFutureIso(s.next_billing_date) ?? asFutureIso(s.current_period_end) ?? s.next_billing_date ?? s.current_period_end ?? null;
+  }
   return null;
 }
 

@@ -2476,9 +2476,19 @@ export default async function handler(req: any, res: any) {
       if (nbErr) throw nbErr;
     }
 
+    const canonicalNextBillingIso =
+      billingSnap?.next_billing_date ??
+      billingSnap?.current_period_end ??
+      billingSnap?.trial_end ??
+      null;
+    const canonicalNextBillingMs = canonicalNextBillingIso ? new Date(canonicalNextBillingIso).getTime() : Number.NaN;
     const periodEndMs = (fullInv.period_end ?? invoice.period_end ?? 0) * 1000;
     const next_date =
-      periodEndMs > 0 ? new Date(periodEndMs).toLocaleDateString('es-CL') : '';
+      !Number.isNaN(canonicalNextBillingMs) && canonicalNextBillingMs > 0
+        ? new Date(canonicalNextBillingMs).toLocaleDateString('es-CL')
+        : periodEndMs > 0
+          ? new Date(periodEndMs).toLocaleDateString('es-CL')
+          : '';
 
     let skipPurchaseNotifs = false;
     let skipInvoicePaidNotifs = false;
