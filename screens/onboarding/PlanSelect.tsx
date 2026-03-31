@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
-
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 // Precios vinculados a Stripe — no modificar
 const OFFICIAL_PLANS = {
@@ -95,11 +95,8 @@ const PlanSelect: React.FC = () => {
 
         {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
         <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
-            </div>
-            <span className="font-extrabold text-xl tracking-tight text-slate-900">Telsim</span>
+          <button onClick={() => navigate('/')} className="flex items-center">
+            <TelsimBrandLogo iconClassName="h-9 w-9 rounded-xl" textClassName="text-[1.4rem]" />
           </button>
           <div className="flex items-center gap-2 text-[12px] text-slate-500">
             <span>¿Ya tienes cuenta?</span>

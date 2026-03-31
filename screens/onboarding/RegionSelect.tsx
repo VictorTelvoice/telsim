@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -171,11 +172,11 @@ const RegionSelect: React.FC = () => {
 
           <div className="relative z-10 flex flex-col h-full px-10 py-10">
             {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-                <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
-              </div>
-              <span className="text-white text-xl font-black tracking-tight">Telsim</span>
+            <div className="flex items-center">
+              <TelsimBrandLogo
+                iconClassName="h-9 w-9 rounded-xl"
+                textClassName="text-[1.4rem] text-white"
+              />
             </div>
 
             {/* Plan badge */}

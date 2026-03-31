@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 type Step = 'email' | 'password' | 'register' | 'confirm';
 
@@ -214,11 +215,11 @@ const QuickCheckout: React.FC = () => {
 
       {/* Logo (solo desktop) */}
       {!mobile && (
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-[9px] bg-blue-600 border border-white/20 flex items-center justify-center">
-            <span className="material-symbols-rounded text-white text-[17px]">sim_card</span>
-          </div>
-          <span className="font-extrabold text-[17px] tracking-tight text-white">Telsim</span>
+        <div className="mb-4">
+          <TelsimBrandLogo
+            iconClassName="h-8 w-8 rounded-[0.85rem]"
+            textClassName="text-[1.1rem] text-white"
+          />
         </div>
       )}
 
