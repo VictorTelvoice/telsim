@@ -152,13 +152,13 @@ const CTA_URLS: Record<CanonicalTransactionalEvent, string> = {
 };
 
 const DEFAULT_SUBJECTS: Record<CanonicalTransactionalEvent, { es: string; en: string }> = {
-  new_purchase: { es: '[Telsim] Tu línea está activa', en: '[Telsim] Your line is active' },
-  cancellation: { es: '[Telsim] Cancelación confirmada', en: '[Telsim] Cancellation confirmed' },
-  upgrade_success: { es: '[Telsim] Plan actualizado', en: '[Telsim] Plan updated' },
-  invoice_paid: { es: '[Telsim] Pago confirmado', en: '[Telsim] Payment confirmed' },
+  new_purchase: { es: '[telsim] Tu línea está activa', en: '[telsim] Your line is active' },
+  cancellation: { es: '[telsim] Cancelación confirmada', en: '[telsim] Cancellation confirmed' },
+  upgrade_success: { es: '[telsim] Plan actualizado', en: '[telsim] Plan updated' },
+  invoice_paid: { es: '[telsim] Pago confirmado', en: '[telsim] Payment confirmed' },
   reactivation_success: {
-    es: '[Telsim] Reactivación exitosa de tu línea {{phone}}',
-    en: '[Telsim] Successful reactivation of your line {{phone}}',
+    es: '[telsim] Reactivación exitosa de tu línea {{phone}}',
+    en: '[telsim] Successful reactivation of your line {{phone}}',
   },
 };
 
@@ -308,7 +308,7 @@ function buildMasterHtml(innerHtml: string): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telsim</title>
+    <title>telsim</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f7f9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f7f9;padding:24px 12px;">
@@ -320,7 +320,7 @@ function buildMasterHtml(innerHtml: string): string {
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="width:100%;">
                                 <tr>
                                     <td width="36" style="width:36px;vertical-align:middle;padding:0 6px 0 0;line-height:0;font-size:0;">
-                                        <img src="${TELSIM_ISOTIPO_URL}" width="36" height="36" alt="Telsim" style="display:block;width:36px;height:36px;max-width:36px;max-height:36px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;border-radius:10px;" />
+                                        <img src="${TELSIM_ISOTIPO_URL}" width="36" height="36" alt="telsim" style="display:block;width:36px;height:36px;max-width:36px;max-height:36px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;border-radius:10px;" />
                                     </td>
                                     <td style="vertical-align:middle;padding:0;line-height:36px;mso-line-height-rule:exactly;">
                                         <span style="font-size:21px;font-weight:900;color:#0f172a;letter-spacing:-0.055em;line-height:36px;display:inline-block;vertical-align:middle;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">telsim</span>
@@ -340,7 +340,7 @@ function buildMasterHtml(innerHtml: string): string {
                     <tr>
                         <td style="background-color:#f8fafc;padding:22px 24px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">
                             <p style="margin:0 0 8px 0;">© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
-                            <p style="margin:0;">Has recibido este correo porque eres cliente de Telsim.io</p>
+                            <p style="margin:0;">Has recibido este correo porque eres cliente de telsim.io</p>
                         </td>
                     </tr>
                 </table>
@@ -394,7 +394,7 @@ export function renderTransactionalEmail(params: RenderTransactionalEmailParams)
   const rawBody =
     params.contentHtml != null && String(params.contentHtml).trim() !== ''
       ? String(params.contentHtml)
-      : `<p>${lang === 'es' ? 'Actualización de tu cuenta TELSIM.' : 'An update regarding your TELSIM account.'}</p>`;
+      : `<p>${lang === 'es' ? 'Actualización de tu cuenta telsim.' : 'An update regarding your telsim account.'}</p>`;
 
   const { topHtml: splitTop, bottomHtml: splitBottom } = splitEmailBodySections(rawBody);
 

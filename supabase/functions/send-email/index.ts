@@ -26,7 +26,7 @@ import {
 } from '../_shared/transactionalEmailRenderer.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
-const RESEND_FROM = 'Telsim <noreply@telsim.io>';
+const RESEND_FROM = 'telsim <noreply@telsim.io>';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 // service_role — bypasea RLS, puede leer public.users
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -54,7 +54,7 @@ const MASTER_TEMPLATE = `<!DOCTYPE html>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:auto;">
                 <tr>
                     <td style="width:36px;padding:0 6px 0 0;line-height:0;font-size:0;vertical-align:middle;">
-                        <img src="https://www.telsim.io/telsim-isotipo.png" width="36" height="36" alt="Telsim" style="display:block;width:36px;height:36px;border:0;outline:none;text-decoration:none;border-radius:10px;" />
+                        <img src="https://www.telsim.io/telsim-isotipo.png" width="36" height="36" alt="telsim" style="display:block;width:36px;height:36px;border:0;outline:none;text-decoration:none;border-radius:10px;" />
                     </td>
                     <td style="vertical-align:middle;">
                         <span style="font-size:21px;font-weight:900;color:#0f172a;letter-spacing:-0.055em;line-height:36px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">telsim</span>
@@ -67,7 +67,7 @@ const MASTER_TEMPLATE = `<!DOCTYPE html>
         </div>
         <div class="footer">
             <p>© 2026 Telvoice Telecom LLC. Todos los derechos reservados.</p>
-            <p>Has recibido este correo porque eres cliente de Telsim.io</p>
+            <p>Has recibido este correo porque eres cliente de telsim.io</p>
         </div>
     </div>
 </body>
@@ -120,7 +120,7 @@ const DEFAULT_INFO_BG = '#f0f4ff';
 const i18n = {
   es: {
     purchase_success: {
-      subject: 'Tu número SIM Telsim está activo',
+      subject: 'Tu número SIM telsim está activo',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
@@ -156,7 +156,7 @@ const i18n = {
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
-      subject: (d: Record<string, unknown>) => `[Telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
+      subject: (d: Record<string, unknown>) => `[telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
       title: 'Suscripción cancelada',
       body: (d: Record<string, unknown>) =>
         `Tu suscripción al plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
@@ -167,7 +167,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: (d: Record<string, unknown>) => `[Telsim] Pago confirmado`,
+      subject: (d: Record<string, unknown>) => `[telsim] Pago confirmado`,
       title: 'Pago recibido',
       body: (d: Record<string, unknown>) =>
         `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
@@ -178,7 +178,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
-      subject: 'Acción requerida: problema con tu pago en Telsim',
+      subject: 'Acción requerida: problema con tu pago en telsim',
       title: 'Pago fallido',
       body: (d: Record<string, unknown>) =>
         `Hubo un problema al cobrar <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Por favor actualiza tu método de pago para evitar interrupciones.`,
@@ -189,7 +189,7 @@ const i18n = {
       infoRightValue: () => 'Actualizar pago',
     },
     scheduled_event: {
-      subject: 'Tu renovación Telsim se acerca',
+      subject: 'Tu renovación telsim se acerca',
       title: 'Recordatorio de renovación',
       body: (d: Record<string, unknown>) =>
         `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> por <strong>$${d.amount ?? ''} USD</strong>.`,
@@ -201,10 +201,10 @@ const i18n = {
     },
     reactivation_success: {
       subject: (d: Record<string, unknown>) =>
-        `[Telsim] Reactivación exitosa de tu línea ${d.phone ?? d.phone_number ?? ''}`,
+        `[telsim] Reactivación exitosa de tu línea ${d.phone ?? d.phone_number ?? ''}`,
       title: 'Reactivación exitosa',
       body: (d: Record<string, unknown>) =>
-        `Hola <strong>${d.nombre ?? ''}</strong>, tu línea fue reactivada correctamente en Telsim.`,
+        `Hola <strong>${d.nombre ?? ''}</strong>, tu línea fue reactivada correctamente en telsim.`,
       cta: 'Ir a mis números',
       useTableRows: true,
       tableRows: [
@@ -223,7 +223,7 @@ const i18n = {
       infoRightValue: () => '',
     },
     low_credit: {
-      subject: 'Saldo bajo en tu cuenta Telsim',
+      subject: 'Saldo bajo en tu cuenta telsim',
       title: 'Saldo bajo',
       body: (d: Record<string, unknown>) =>
         `Tu saldo actual es de <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Recarga tu cuenta para mantener tu servicio activo.`,
@@ -236,7 +236,7 @@ const i18n = {
   },
   en: {
     purchase_success: {
-      subject: 'Your Telsim SIM number is active',
+      subject: 'Your telsim SIM number is active',
       title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
@@ -278,7 +278,7 @@ const i18n = {
       infoRow4Value: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     subscription_cancelled: {
-      subject: (d: Record<string, unknown>) => `[Telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
+      subject: (d: Record<string, unknown>) => `[telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
       title: 'Subscription cancelled',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
@@ -289,7 +289,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.end_date ?? ''),
     },
     invoice_paid: {
-      subject: '[Telsim] Payment confirmed',
+      subject: '[telsim] Payment confirmed',
       title: 'Payment received',
       body: (d: Record<string, unknown>) =>
         `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
@@ -300,7 +300,7 @@ const i18n = {
       infoRightValue: (d: Record<string, unknown>) => String(d.next_date ?? ''),
     },
     invoice_failed: {
-      subject: 'Action required: payment issue on Telsim',
+      subject: 'Action required: payment issue on telsim',
       title: 'Payment failed',
       body: (d: Record<string, unknown>) =>
         `There was a problem charging <strong style="color:#dc2626;">$${d.amount ?? ''} USD</strong>. Please update your payment method to avoid service interruptions.`,
@@ -311,7 +311,7 @@ const i18n = {
       infoRightValue: () => 'Update payment',
     },
     scheduled_event: {
-      subject: 'Your Telsim renewal is coming up',
+      subject: 'Your telsim renewal is coming up',
       title: 'Renewal reminder',
       body: (d: Record<string, unknown>) =>
         `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> for <strong>$${d.amount ?? ''} USD</strong>.`,
@@ -323,10 +323,10 @@ const i18n = {
     },
     reactivation_success: {
       subject: (d: Record<string, unknown>) =>
-        `[Telsim] Successful reactivation of your line ${d.phone ?? d.phone_number ?? ''}`,
+        `[telsim] Successful reactivation of your line ${d.phone ?? d.phone_number ?? ''}`,
       title: 'Reactivation successful',
       body: (d: Record<string, unknown>) =>
-        `Hello <strong>${d.nombre ?? ''}</strong>, your line was successfully reactivated on Telsim.`,
+        `Hello <strong>${d.nombre ?? ''}</strong>, your line was successfully reactivated on telsim.`,
       cta: 'Go to my numbers',
       useTableRows: true,
       tableRows: [
@@ -345,7 +345,7 @@ const i18n = {
       infoRightValue: () => '',
     },
     low_credit: {
-      subject: 'Low balance on your Telsim account',
+      subject: 'Low balance on your telsim account',
       title: 'Low balance',
       body: (d: Record<string, unknown>) =>
         `Your current balance is <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Top up your account to keep your service running.`,
@@ -536,7 +536,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'event is required' }), { status: 400 });
     }
 
-    // Remitente: payload (test) o constante. Formato Resend: "Telsim noreply@telsim.io" o "Telsim <noreply@telsim.io>"
+    // Remitente: payload (test) o constante. Formato Resend: "telsim noreply@telsim.io" o "telsim <noreply@telsim.io>"
     const fromAddress = payloadFrom != null && String(payloadFrom).trim() !== '' ? String(payloadFrom).trim() : RESEND_FROM;
     const replyToAddress =
       payloadReplyTo != null && String(payloadReplyTo).trim() !== ''
@@ -714,8 +714,8 @@ Deno.serve(async (req) => {
       ) {
         resolvedBelowDetails =
           lang === 'en'
-            ? '<p>You can use your line again and receive SMS as usual.</p><p>Telsim Team</p>'
-            : '<p>Ya puedes volver a usar tu línea y recibir SMS normalmente.</p><p>Equipo Telsim</p>';
+            ? '<p>You can use your line again and receive SMS as usual.</p><p>telsim team</p>'
+            : '<p>Ya puedes volver a usar tu línea y recibir SMS normalmente.</p><p>equipo telsim</p>';
       }
       const titleKeyPrimary = payloadTid ? `${payloadTid}_title` : `${canonicalTplId}_title`;
       const titleKeyFallback = `${canonicalTplId}_title`;
@@ -785,7 +785,7 @@ Deno.serve(async (req) => {
           : subjectOverride != null && subjectOverride !== ''
           ? subjectOverride
           : t && (typeof t.subject === 'function' ? (t.subject as (d: Record<string, unknown>) => string)(data) : (t.subject as string)) || rawEvent;
-      const footerText = 'Telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 Telsim.';
+      const footerText = 'telsim: Donde la privacidad y la autonomía de tus agentes se encuentran. © 2026 telsim.';
 
       const tAny = (t || {}) as Record<string, unknown>;
       const rowVal = (key: string) => {
