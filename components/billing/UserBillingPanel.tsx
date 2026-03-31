@@ -34,6 +34,7 @@ import {
   isStrictKpiActiveStatus,
   isTodasTabStatus,
   normalizeSubscriptionStatus,
+  resolveChargeableNextBillingIso,
   resolveEstimatedMrrMonthlyEquivalent,
   resolveSubscriptionNextBillingIso,
   resolveUpcomingChargeSummary,
@@ -759,9 +760,12 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     const candidates = subscriptions.filter((s) => {
       const status = normalizeSubscriptionStatus(s.status);
       const stripeSubId = String(s.stripe_subscription_id ?? '').trim();
+      const nextChargeIso = resolveChargeableNextBillingIso(s);
+      const nextChargeMs = nextChargeIso ? new Date(nextChargeIso).getTime() : Number.NaN;
+      const hasStaleChargeDate = !Number.isNaN(nextChargeMs) && nextChargeMs <= Date.now();
       return (
         (status === 'active' || status === 'trialing') &&
-        !resolveSubscriptionNextBillingIso(s) &&
+        (!resolveSubscriptionNextBillingIso(s) || hasStaleChargeDate) &&
         stripeSubId.startsWith('sub_') &&
         !billingSyncAttemptedRef.current.has(s.id)
       );
