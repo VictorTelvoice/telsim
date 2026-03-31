@@ -1,6 +1,6 @@
 {
-  "name": "TELSIM",
-  "short_name": "TELSIM",
+  "name": "Telsim",
+  "short_name": "Telsim",
   "description": "Infraestructura de Simulación Física para Privacidad y Verificaciones SMS.",
   "start_url": "/",
   "scope": "/",
