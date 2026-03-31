@@ -10,46 +10,18 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function currentHashPath(): string {
-  if (typeof window === 'undefined') return '/';
-  const hash = window.location.hash || '';
-  if (!hash.startsWith('#')) return '/';
-  const raw = hash.slice(1) || '/';
-  return raw.startsWith('/') ? raw : `/${raw}`;
-}
-
-function allowsDarkTheme(path: string): boolean {
-  return path.startsWith('/dashboard') || path.startsWith('/web') || path.startsWith('/admin');
-}
-
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
     const saved = localStorage.getItem('telsim_theme');
     if (saved === 'light' || saved === 'dark') return saved;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
-  const [path, setPath] = useState<string>(() => currentHashPath());
 
   useEffect(() => {
-    const syncPath = () => setPath(currentHashPath());
-    window.addEventListener('hashchange', syncPath);
-    window.addEventListener('popstate', syncPath);
-    return () => {
-      window.removeEventListener('hashchange', syncPath);
-      window.removeEventListener('popstate', syncPath);
-    };
-  }, []);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    const canUseDark = allowsDarkTheme(path);
-    if (theme === 'dark' && canUseDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    if (typeof window === 'undefined') return;
     localStorage.setItem('telsim_theme', theme);
-  }, [theme, path]);
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
