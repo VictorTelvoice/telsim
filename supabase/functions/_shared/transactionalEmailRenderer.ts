@@ -110,7 +110,7 @@ function getPlanColor(plan: string): string {
   const p = String(plan ?? '').trim().toLowerCase();
   if (p.includes('power')) return '#d97706';
   if (p.includes('starter')) return '#6b7280';
-  if (p.includes('pro')) return '#2563eb';
+  if (p.includes('pro')) return '#1b3a8a';
   return '#0f172a';
 }
 
@@ -230,7 +230,7 @@ function detailRows(
   }
 }
 
-const ACCENT_PRIMARY = '#0074d4';
+const ACCENT_PRIMARY = '#1b3a8a';
 
 function buildInnerBlock(params: {
   title: string;
@@ -267,7 +267,7 @@ function buildInnerBlock(params: {
       ? `<div style="margin:24px 0 24px 0;${bodyTextStyle}">${params.bottomHtml}</div>`
       : '';
 
-  const secondaryOutline = '#2563eb';
+  const secondaryOutline = '#1b3a8a';
   const secondaryBlock =
     params.secondaryCta != null
       ? `<div style="text-align:center;margin:0 0 24px 0;">
@@ -296,7 +296,7 @@ function buildInnerBlock(params: {
 
           <div style="text-align:center;margin:0 0 4px 0;">
             <a href="${params.ctaUrl}" class="button"
-               style="display:inline-block;background:${ACCENT_PRIMARY};color:#ffffff !important;font-size:16px;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(0,116,212,0.28);">
+               style="display:inline-block;background:${ACCENT_PRIMARY};color:#ffffff !important;font-size:16px;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(27,58,138,0.28);">
               ${params.ctaText}
             </a>
           </div>`;

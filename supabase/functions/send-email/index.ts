@@ -44,8 +44,8 @@ const MASTER_TEMPLATE = `<!DOCTYPE html>
         .header { background-color: #ffffff; padding: 22px 30px 16px; }
         .content { padding: 40px; line-height: 1.6; color: #333333; font-size: 16px; }
         .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
-        .button { display: inline-block; padding: 12px 25px; background-color: #0074d4; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
-        .highlight { color: #0074d4; font-weight: bold; }
+        .button { display: inline-block; padding: 12px 25px; background-color: #1b3a8a; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        .highlight { color: #1b3a8a; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -113,7 +113,7 @@ const eventInfoBoxBg: Partial<Record<EventType, string>> = {
   invoice_failed: '#fff5f5',
   low_credit: '#fffbeb',
 };
-const DEFAULT_INFO_BG = '#f0f4ff';
+const DEFAULT_INFO_BG = '#edf2ff';
 
 // ─── Traducciones ─────────────────────────────────────────────────────────────
 
@@ -123,7 +123,7 @@ const i18n = {
       subject: 'Tu número SIM telsim está activo',
       title: '¡Suscripción activada!',
       body: (d: Record<string, unknown>) =>
-        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
+        `Tu plan <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> está activo. Ya puedes acceder a tu número SIM y comenzar a recibir SMS.`,
       cta: 'Ir al Dashboard',
       useTableRows: true,
       tableRows: [
@@ -142,7 +142,7 @@ const i18n = {
       subject: 'Tu plan ha sido actualizado',
       title: '¡Plan actualizado!',
       body: (d: Record<string, unknown>) =>
-        `Tu plan se ha actualizado a <strong style="color:#1d4ed8;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Mensual'}. Tu línea está activa.`,
+        `Tu plan se ha actualizado a <strong style="color:#1b3a8a;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Mensual'}. Tu línea está activa.`,
       cta: 'Ir al Dashboard',
       infoLeftLabel: 'PLAN ACTIVO',
       infoRightLabel: 'ESTADO',
@@ -159,7 +159,7 @@ const i18n = {
       subject: (d: Record<string, unknown>) => `[telsim] Aviso de baja: SIM ${d.phone_number ?? ''}.`,
       title: 'Suscripción cancelada',
       body: (d: Record<string, unknown>) =>
-        `Tu suscripción al plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
+        `Tu suscripción al plan <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> ha sido cancelada. Tu número estará activo hasta el <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'Ver planes',
       infoLeftLabel: 'PLAN',
       infoRightLabel: 'FECHA VENCIMIENTO',
@@ -170,7 +170,7 @@ const i18n = {
       subject: (d: Record<string, unknown>) => `[telsim] Pago confirmado`,
       title: 'Pago recibido',
       body: (d: Record<string, unknown>) =>
-        `Hemos recibido tu pago de <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
+        `Hemos recibido tu pago de <strong style="color:#1b3a8a;">$${d.amount ?? ''} USD</strong> para el plan <strong>${d.plan ?? ''}</strong>. Tu suscripción se ha renovado hasta el <strong>${d.next_date ?? ''}</strong>.`,
       cta: 'Ver facturación',
       infoLeftLabel: 'MONTO',
       infoRightLabel: 'PRÓXIMO COBRO',
@@ -192,7 +192,7 @@ const i18n = {
       subject: 'Tu renovación telsim se acerca',
       title: 'Recordatorio de renovación',
       body: (d: Record<string, unknown>) =>
-        `Tu plan <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> por <strong>$${d.amount ?? ''} USD</strong>.`,
+        `Tu plan <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> se renovará el <strong>${d.renewal_date ?? ''}</strong> por <strong>$${d.amount ?? ''} USD</strong>.`,
       cta: 'Ver suscripción',
       infoLeftLabel: 'FECHA',
       infoRightLabel: 'MONTO',
@@ -226,7 +226,7 @@ const i18n = {
       subject: 'Saldo bajo en tu cuenta telsim',
       title: 'Saldo bajo',
       body: (d: Record<string, unknown>) =>
-        `Tu saldo actual es de <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Recarga tu cuenta para mantener tu servicio activo.`,
+        `Tu saldo actual es de <strong style="color:#1b3a8a;">$${d.balance ?? ''} USD</strong>. Recarga tu cuenta para mantener tu servicio activo.`,
       cta: 'Recargar saldo',
       infoLeftLabel: 'SALDO ACTUAL',
       infoRightLabel: 'ACCIÓN',
@@ -239,7 +239,7 @@ const i18n = {
       subject: 'Your telsim SIM number is active',
       title: 'Subscription activated!',
       body: (d: Record<string, unknown>) =>
-        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
+        `Your <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> plan is now active. You can access your SIM number and start receiving SMS messages.`,
       cta: 'Go to Dashboard',
       infoLeftLabel: 'ACTIVE PLAN',
       infoRightLabel: 'STATUS',
@@ -264,7 +264,7 @@ const i18n = {
       subject: 'Your plan has been updated',
       title: 'Plan updated!',
       body: (d: Record<string, unknown>) =>
-        `Your plan has been updated to <strong style="color:#1d4ed8;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Monthly'}. Your line is active.`,
+        `Your plan has been updated to <strong style="color:#1b3a8a;">${d.plan_name ?? d.plan ?? ''}</strong> · ${d.billing_type ?? 'Monthly'}. Your line is active.`,
       cta: 'Go to Dashboard',
       infoLeftLabel: 'ACTIVE PLAN',
       infoRightLabel: 'STATUS',
@@ -281,7 +281,7 @@ const i18n = {
       subject: (d: Record<string, unknown>) => `[telsim] Cancellation notice: SIM ${d.phone_number ?? ''}.`,
       title: 'Subscription cancelled',
       body: (d: Record<string, unknown>) =>
-        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
+        `Your <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> plan subscription has been cancelled. Your number will remain active until <strong>${d.end_date ?? ''}</strong>.`,
       cta: 'View plans',
       infoLeftLabel: 'PLAN',
       infoRightLabel: 'END DATE',
@@ -292,7 +292,7 @@ const i18n = {
       subject: '[telsim] Payment confirmed',
       title: 'Payment received',
       body: (d: Record<string, unknown>) =>
-        `We received your payment of <strong style="color:#1d4ed8;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
+        `We received your payment of <strong style="color:#1b3a8a;">$${d.amount ?? ''} USD</strong> for the <strong>${d.plan ?? ''}</strong> plan. Your subscription has been renewed until <strong>${d.next_date ?? ''}</strong>.`,
       cta: 'View billing',
       infoLeftLabel: 'AMOUNT',
       infoRightLabel: 'NEXT CHARGE',
@@ -314,7 +314,7 @@ const i18n = {
       subject: 'Your telsim renewal is coming up',
       title: 'Renewal reminder',
       body: (d: Record<string, unknown>) =>
-        `Your <strong style="color:#1d4ed8;">${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> for <strong>$${d.amount ?? ''} USD</strong>.`,
+        `Your <strong style="color:#1b3a8a;">${d.plan ?? ''}</strong> plan will renew on <strong>${d.renewal_date ?? ''}</strong> for <strong>$${d.amount ?? ''} USD</strong>.`,
       cta: 'View subscription',
       infoLeftLabel: 'DATE',
       infoRightLabel: 'AMOUNT',
@@ -348,7 +348,7 @@ const i18n = {
       subject: 'Low balance on your telsim account',
       title: 'Low balance',
       body: (d: Record<string, unknown>) =>
-        `Your current balance is <strong style="color:#1d4ed8;">$${d.balance ?? ''} USD</strong>. Top up your account to keep your service running.`,
+        `Your current balance is <strong style="color:#1b3a8a;">$${d.balance ?? ''} USD</strong>. Top up your account to keep your service running.`,
       cta: 'Top up balance',
       infoLeftLabel: 'CURRENT BALANCE',
       infoRightLabel: 'ACTION',
@@ -359,7 +359,7 @@ const i18n = {
 };
 
 // ─── Contenido interno (se inyecta en MASTER_TEMPLATE {{content}}) ─────────────
-// Azul corporativo #0074d4 para botones y destacados; compatible con HTML del editor.
+// Azul corporativo #1b3a8a para botones y destacados; compatible con HTML del editor.
 function buildInnerContent(params: {
   icon: string;
   title: string;
@@ -381,7 +381,7 @@ function buildInnerContent(params: {
   footerText: string;
   year: number;
 }): string {
-  const primaryBlue = '#0074d4';
+  const primaryBlue = '#1b3a8a';
   const valueColor = '#111827';
   const labelStyle = 'font-size:11px;color:#6b7280;font-weight:700;padding:12px 0 4px 0;vertical-align:top;';
   const valueStyle = `font-size:14px;font-weight:700;color:${valueColor};padding:4px 0 12px 0;text-align:right;vertical-align:top;`;
@@ -441,7 +441,7 @@ function buildInnerContent(params: {
 
           <div style="text-align:center;margin-bottom:8px;">
             <a href="${params.ctaUrl}" class="button"
-               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(0,116,212,0.35);">
+               style="display:inline-block;background:${primaryBlue};color:#fff !important;font-size:17px;font-weight:700;padding:16px 42px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(27,58,138,0.35);">
               ${params.ctaText} →
             </a>
           </div>`;
