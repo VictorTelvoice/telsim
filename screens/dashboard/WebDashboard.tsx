@@ -1718,7 +1718,7 @@ const WebDashboard: React.FC = () => {
   // Header title map
   const TAB_TITLES: Partial<Record<TabId, string>> = {
     overview: 'Dashboard', messages: 'Mensajes SMS',
-    numbers: 'Mis SIMs', settings: 'Ajustes'
+    numbers: 'Mis números', settings: 'Ajustes'
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1766,7 +1766,7 @@ const WebDashboard: React.FC = () => {
         <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
           <NavItem icon={<LayoutDashboard size={17} />} label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
           <NavItem icon={<MessageSquare size={17} />} label="Mensajes" active={activeTab === 'messages'} badge={unreadCount} onClick={() => setActiveTab('messages')} />
-          <NavItem icon={<Smartphone size={17} />} label="Mis SIMs" active={activeTab === 'numbers'} onClick={() => setActiveTab('numbers')} />
+          <NavItem icon={<Smartphone size={17} />} label="Mis números" active={activeTab === 'numbers'} onClick={() => setActiveTab('numbers')} />
           <NavItem icon={<CreditCard size={17} />} label="Facturación" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
           <NavItem icon={<Bell size={17} />} label="Notificaciones" active={activeTab === 'notifications'} badge={notifUnread} onClick={() => { setActiveTab('notifications'); if (notifUnread > 0) markAllNotifRead(); }} />
           <NavItem icon={<Headphones size={17} />} label="Soporte 24/7" active={activeTab === 'support'} onClick={() => { setActiveTab('support'); setHelpView('main'); }} />
@@ -2164,7 +2164,7 @@ const WebDashboard: React.FC = () => {
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-[16px] font-black">Mis SIMs</h2>
+                  <h2 className="text-[16px] font-black">Mis números</h2>
                   <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                     {activeSlots.length} activas · {slots.length} total
                   </p>
