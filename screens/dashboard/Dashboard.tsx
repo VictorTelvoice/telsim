@@ -737,7 +737,12 @@ const Dashboard: React.FC = () => {
                 )}
             </div>
             
-            {activeSlot ? (
+            {loading ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl h-[54px] animate-pulse" />
+                <div className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl h-[54px] animate-pulse" />
+              </div>
+            ) : activeSlot ? (
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(activeSlot.phone_number)}`)}
