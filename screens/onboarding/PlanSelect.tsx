@@ -115,9 +115,6 @@ const PlanSelect: React.FC = () => {
           {/* Title */}
           <div className="mb-7 text-center xl:mb-6">
             <h1 className="text-[36px] font-black text-slate-900 dark:text-white tracking-tight">Elige tu plan</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-[15px] mt-2 font-medium">
-              {t('landing.pricing.subtitle')}
-            </p>
           </div>
 
           {/* Toggle */}
@@ -321,9 +318,6 @@ const PlanSelect: React.FC = () => {
         {/* Título */}
         <div className="text-center px-6 pt-3 pb-4">
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Elige tu plan</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
-            {t('landing.pricing.subtitle')}
-          </p>
         </div>
 
         {/* Toggle */}

@@ -14,6 +14,7 @@ interface ActivationData {
   monthlyLimit: number;
   isAnnual?: boolean;
   activationState?: string | null;
+  nextBillingDate?: string | null;
 }
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -48,14 +49,23 @@ const ActivationSuccess: React.FC = () => {
 
   const sessionId = new URLSearchParams(location.search).get('session_id');
 
-  // Ciclo de facturación: 7 días de prueba, luego el ciclo se repite (mensual o anual)
-  const trialEnd = new Date();
-  trialEnd.setDate(trialEnd.getDate() + 7);
-
-  // Próximo cobro: después de trial, se renueva en el ciclo (30 días para mensual, 365 para anual)
-  const renewal = new Date();
   const isAnnualCycle = data?.isAnnual === true;
-  renewal.setDate(renewal.getDate() + (isAnnualCycle ? 372 : 37)); // 7 días prueba + 365 anual O 7 + 30 mensual
+  const nextBillingDate = (() => {
+    if (data?.nextBillingDate) return new Date(data.nextBillingDate);
+    const base = new Date();
+    if (isAnnualCycle) {
+      base.setFullYear(base.getFullYear() + 1);
+    } else {
+      base.setMonth(base.getMonth() + 1);
+    }
+    return base;
+  })();
+  const followingRenewal = new Date(nextBillingDate);
+  if (isAnnualCycle) {
+    followingRenewal.setFullYear(followingRenewal.getFullYear() + 1);
+  } else {
+    followingRenewal.setMonth(followingRenewal.getMonth() + 1);
+  }
 
   const fmt = (d: Date) => d.toLocaleDateString(language === 'es' ? 'es-CL' : 'en-US', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -82,7 +92,7 @@ const ActivationSuccess: React.FC = () => {
       if (user) {
         const { data: sub } = await supabase
           .from('subscriptions')
-          .select('phone_number, plan_name, amount, currency, monthly_limit, billing_type, activation_state')
+          .select('phone_number, plan_name, amount, currency, monthly_limit, billing_type, activation_state, next_billing_date')
           .eq('stripe_session_id', sessionId)
           .maybeSingle();
         if (sub) {
@@ -94,6 +104,7 @@ const ActivationSuccess: React.FC = () => {
             monthlyLimit: sub.monthly_limit,
             isAnnual: sub.billing_type === 'annual',
             activationState: sub.activation_state,
+            nextBillingDate: sub.next_billing_date,
           });
         }
       }
@@ -261,7 +272,7 @@ const ActivationSuccess: React.FC = () => {
                 <div className="rounded-2xl p-4 flex gap-3" style={{ background: colors.accentBg, border: `1px solid ${colors.accentBorder}` }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:'2px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Servicio prepago. Cancela antes del <strong className="text-slate-900 dark:text-white font-bold">{fmt(trialEnd)}</strong> y no se realiza ningún cobro. Sin permanencia mínima.
+                    Servicio prepago con cobro inmediato. Si no cumple lo esperado y hubo un uso legítimo, nuestro equipo puede revisar un reembolso del 100%.
                   </p>
                 </div>
               </div>
@@ -276,9 +287,9 @@ const ActivationSuccess: React.FC = () => {
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Ciclo de Facturación</span>
                   </div>
                   {[
-                    { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:'$0.00 cobrado · Período de prueba inicia', color:'#10b981', line:true },
-                    { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
-                    { dot:'rgba(148,163,184,0.4)', label:fmt(renewal).toUpperCase(), desc:`Segunda renovación · y así cada ${isAnnualCycle ? '365 días' : '30 días'}`, color:'#94a3b8', line:false },
+                    { dot:'#10b981', label:'HOY — ACTIVACIÓN', desc:`$${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} cobrado · Servicio operativo`, color:'#10b981', line:true },
+                    { dot:colors.accent, label:fmt(nextBillingDate).toUpperCase(), desc:`Próxima renovación · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency||'USD').toUpperCase()}`, color:colors.accent, line:true },
+                    { dot:'rgba(148,163,184,0.4)', label:fmt(followingRenewal).toUpperCase(), desc:`Renovación recurrente · cada ${isAnnualCycle ? '12 meses' : '30 días'}`, color:'#94a3b8', line:false },
                   ].map((row, i) => (
                     <div key={i} className="flex gap-3">
                       <div className="flex flex-col items-center w-3 shrink-0 pt-1">
@@ -454,9 +465,9 @@ const ActivationSuccess: React.FC = () => {
           </div>
 
           {[
-            { dot:'#10b981', label:'HOY — ACTIVACION', desc:'$0.00 cobrado · Periodo de prueba inicia', color:'#10b981', line:true },
-            { dot:colors.accent, label:fmt(trialEnd).toUpperCase(), desc:`Fin del trial · Primer cobro · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency || 'USD').toUpperCase()}`, color:colors.accent, line:true },
-            { dot:'rgba(148,163,184,0.35)', label:fmt(renewal).toUpperCase(), desc:`Siguiente renovacion · cada ${isAnnualCycle ? '365 dias' : '30 dias'}`, color:'#94a3b8', line:false },
+            { dot:'#10b981', label:'HOY — ACTIVACION', desc:`$${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} cobrado · Servicio operativo`, color:'#10b981', line:true },
+            { dot:colors.accent, label:fmt(nextBillingDate).toUpperCase(), desc:`Proxima renovacion · $${displayPrice > 0 ? displayPrice.toFixed(2) : '—'} ${(data.currency || 'USD').toUpperCase()}`, color:colors.accent, line:true },
+            { dot:'rgba(148,163,184,0.35)', label:fmt(followingRenewal).toUpperCase(), desc:`Renovacion recurrente · cada ${isAnnualCycle ? '12 meses' : '30 dias'}`, color:'#94a3b8', line:false },
           ].map((row, i) => (
             <div key={i} className="flex gap-3">
               <div className="flex flex-col items-center w-3 shrink-0 pt-1">
@@ -483,7 +494,7 @@ const ActivationSuccess: React.FC = () => {
             verified_user
           </span>
           <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-            Servicio prepago. Cancela antes del <strong className="font-bold text-slate-900 dark:text-white">{fmt(trialEnd)}</strong> y no se realiza ningun cobro. Sin permanencia minima.
+            Servicio prepago con cobro inmediato. Si no cumple lo esperado y hubo un uso legítimo, nuestro equipo puede revisar un reembolso del 100%.
           </p>
         </section>
       </main>

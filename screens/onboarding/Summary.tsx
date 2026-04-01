@@ -90,9 +90,13 @@ const Summary: React.FC = () => {
 
   const billingDate = useMemo(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 7);
+    if (isAnnual) {
+      date.setFullYear(date.getFullYear() + 1);
+    } else {
+      date.setMonth(date.getMonth() + 1);
+    }
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
-  }, []);
+  }, [isAnnual]);
 
   const handleNext = () => {
     if (isNavigating) return;
@@ -162,7 +166,7 @@ const Summary: React.FC = () => {
           ))}
         </div>
 
-        {/* Trial box */}
+        {/* Guarantee box */}
         <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-4">
           <div className="flex items-start gap-3 mb-3">
             <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{ fontSize: '20px' }}>verified_user</span>
@@ -187,14 +191,10 @@ const Summary: React.FC = () => {
         <span>{t('onboarding.subtotal')} {isAnnual ? '(Anual)' : '(Mensual)'}</span>
         <span>${planDetails.price.toFixed(2)}</span>
       </div>
-      <div className="flex justify-between items-center text-emerald-600 text-[11px] font-black uppercase tracking-widest">
-        <span>{t('onboarding.trial_discount')}</span>
-        <span>-${planDetails.price.toFixed(2)}</span>
-      </div>
       <div className="my-1 h-px w-full bg-slate-200 dark:bg-slate-800" />
       <div className="flex justify-between items-center">
         <span className="text-slate-900 dark:text-white text-lg font-black uppercase">{t('onboarding.total_today')}</span>
-        <span className="text-slate-900 dark:text-white text-3xl font-black">$0.00</span>
+        <span className="text-slate-900 dark:text-white text-3xl font-black">${planDetails.price.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -273,7 +273,7 @@ const Summary: React.FC = () => {
                   {[
                     { icon: '🔒', text: 'Pago seguro con SSL 256-bit' },
                     { icon: '↩️', text: 'Cancela cuando quieras' },
-                    { icon: '🛡️', text: 'Sin cargos durante la prueba' },
+                    { icon: '🛡️', text: 'Garantía de satisfacción sujeta a revisión' },
                   ].map(item => (
                       <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                       <span>{item.icon}</span><span>{item.text}</span>

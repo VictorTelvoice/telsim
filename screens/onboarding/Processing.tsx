@@ -77,7 +77,7 @@ const Processing: React.FC = () => {
     try {
       let query = supabase
         .from('subscriptions')
-        .select('id, slot_id, phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state');
+        .select('id, slot_id, phone_number, plan_name, amount, currency, monthly_limit, status, billing_type, activation_state, next_billing_date');
 
       // Orden: `stripe_session_id` antes que `slot_id` — el `session_id` de Stripe es la clave canónica
       // del retorno desde Checkout; priorizar `slot_id` rompía el match si hubiera divergencia.
@@ -151,6 +151,7 @@ const Processing: React.FC = () => {
               currency: data.currency,
               monthlyLimit: data.monthly_limit,
               isAnnual,
+              nextBillingDate: data.next_billing_date,
             }
           });
           return;
@@ -165,6 +166,7 @@ const Processing: React.FC = () => {
             currency: data.currency,
             monthlyLimit: data.monthly_limit,
             isAnnual,
+            nextBillingDate: data.next_billing_date,
           },
         });
       }

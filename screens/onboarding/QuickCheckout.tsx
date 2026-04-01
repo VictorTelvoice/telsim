@@ -109,9 +109,14 @@ const QuickCheckout: React.FC = () => {
   };
 
   const billingDate = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + 7);
+    const d = new Date();
+    if (isAnnual) {
+      d.setFullYear(d.getFullYear() + 1);
+    } else {
+      d.setMonth(d.getMonth() + 1);
+    }
     return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
-  }, []);
+  }, [isAnnual]);
 
   // STEP 1: Verificar si el email existe
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -265,17 +270,17 @@ const QuickCheckout: React.FC = () => {
         ))}
       </div>
 
-      {/* Trial badge */}
+      {/* Guarantee badge */}
       <div className="flex items-center justify-between bg-emerald-400/10 border border-emerald-400/20 rounded-[14px] px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-emerald-400 text-[16px]">verified_user</span>
           <div>
-            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">7 días gratis</div>
-            <div className="text-[9px] text-white/40 font-medium">Sin cargo hoy</div>
+            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Garantía 100%</div>
+            <div className="text-[9px] text-white/40 font-medium">Revisión de satisfacción y uso legítimo</div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Primer cobro</div>
+          <div className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Próxima renovación</div>
           <div className="text-[10px] font-black text-white/80">{billingDate}</div>
         </div>
       </div>
@@ -283,7 +288,7 @@ const QuickCheckout: React.FC = () => {
       {/* Total */}
       <div className="flex items-center justify-between pt-1">
         <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Total hoy</span>
-        <span className={`font-black text-white ${mobile ? 'text-xl' : 'text-2xl'}`}>$0.00</span>
+        <span className={`font-black text-white ${mobile ? 'text-xl' : 'text-2xl'}`}>${plan.price.toFixed(2)}</span>
       </div>
 
       {/* Trust (solo mobile) */}

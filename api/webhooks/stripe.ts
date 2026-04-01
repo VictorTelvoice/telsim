@@ -1570,8 +1570,8 @@ export default async function handler(req: any, res: any) {
           slot_id: slotId,
         }, 'stripe');
 
-        const trialMsg = trialEnd
-          ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
+        const activationMsg = nextBillingDateIso
+          ? `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS. Próxima renovación: ${new Date(nextBillingDateIso).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
           : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
 
         // activation_state = on_air
@@ -1579,7 +1579,7 @@ export default async function handler(req: any, res: any) {
           await createNotification(
             userId,
             '🚀 ¡Línea activada!',
-            trialMsg,
+            activationMsg,
             'activation',
             session.id,
             'activation_on_air'

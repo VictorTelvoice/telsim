@@ -145,7 +145,7 @@ const Payment: React.FC = () => {
           <div className="w-full max-w-3xl">
             <div className="mb-8">
               <h1 className="text-[30px] font-black text-slate-900 dark:text-white tracking-tight">{t('onboarding.secure_payment')}</h1>
-              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">Tu suscripción comienza con 7 días gratis. Sin cargos hasta entonces.</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">Tu suscripción se activa hoy y queda cubierta por nuestra garantía de satisfacción.</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
@@ -208,14 +208,10 @@ const Payment: React.FC = () => {
                       <span>Subtotal</span>
                       <span>${Number(price).toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between items-center text-emerald-600 text-[11px] font-black uppercase tracking-widest">
-                      <span>Descuento prueba</span>
-                      <span>-${Number(price).toFixed(2)}</span>
-                    </div>
                     <div className="my-1 h-px w-full bg-slate-100" />
                     <div className="flex justify-between items-center">
                       <span className="text-slate-900 dark:text-white text-lg font-black uppercase">Total hoy</span>
-                      <span className="text-slate-900 dark:text-white text-3xl font-black">$0.00</span>
+                      <span className="text-slate-900 dark:text-white text-3xl font-black">${Number(price).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -240,7 +236,7 @@ const Payment: React.FC = () => {
                   {[
                     { icon: '🔒', text: 'Pago seguro con SSL 256-bit' },
                     { icon: '↩️', text: 'Cancela cuando quieras' },
-                    { icon: '🛡️', text: 'Sin cargos durante la prueba' },
+                    { icon: '🛡️', text: 'Garantía de satisfacción sujeta a revisión' },
                   ].map(item => (
                     <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
                       <span>{item.icon}</span><span>{item.text}</span>

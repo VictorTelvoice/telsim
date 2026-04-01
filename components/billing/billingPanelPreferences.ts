@@ -8,7 +8,7 @@ import { safeReadLocalStorageJson, safeWriteLocalStorageJson } from '../../lib/l
  * - `BILLING_PAGE_STEP` = **6** cards por clic (ritmo uniforme con grid responsive 1 / md:2 / xl:3).
  *
  * Preferencias persistidas (ver `BillingPanelPreferences`):
- * 1) filtro de pestaña (activas / trialing / todas)
+ * 1) filtro de pestaña (activas / todas)
  * 2) tope visible lista principal
  * 3) historial de facturación abierto/cerrado
  * 4) **sección “suscripciones terminadas” abierta/cerrada** (`canceledSectionOpen`)
@@ -16,7 +16,7 @@ import { safeReadLocalStorageJson, safeWriteLocalStorageJson } from '../../lib/l
  */
 export const BILLING_PANEL_STORAGE_KEY = 'telsim.billingPanel.v1';
 
-export type SubscriptionFilterTabPersisted = 'activas' | 'trialing' | 'todas';
+export type SubscriptionFilterTabPersisted = 'activas' | 'todas';
 
 export type BillingPanelPreferences = {
   subscriptionFilter: SubscriptionFilterTabPersisted;
@@ -62,7 +62,7 @@ export function loadBillingPanelPreferences(): BillingPanelPreferences {
   const sort = raw.subscriptionSort;
   return {
     subscriptionFilter:
-      filter === 'activas' || filter === 'trialing' || filter === 'todas' ? filter : d.subscriptionFilter,
+      filter === 'activas' || filter === 'todas' ? filter : d.subscriptionFilter,
     subscriptionVisibleCount: clamp(
       Number(raw.subscriptionVisibleCount),
       BILLING_PAGE_INITIAL,
