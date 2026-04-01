@@ -96,15 +96,13 @@ const Support: React.FC = () => {
     {
       id: 'chat',
       icon: <MessageSquare className="size-6" />,
-      title: t('support.live_chat'),
-      desc: supportTier === 'pro' || supportTier === 'power'
-        ? t('support.live_chat_desc')
-        : 'Disponible para clientes con plan Pro o Power.',
-      wait: '< 2 min',
+      title: 'Bot de soporte IA',
+      desc: 'Atención automatizada por bot dentro de la app. Próximamente disponible.',
+      wait: 'Pronto',
       color: 'bg-primary text-white',
-      enabled: supportTier === 'pro' || supportTier === 'power',
-      tag: supportTier === 'pro' || supportTier === 'power' ? null : 'Requiere Pro',
-      upgradeHint: supportTier === 'pro' || supportTier === 'power' ? null : 'Activa un plan Pro o Power para soporte en tiempo real.',
+      enabled: false,
+      tag: 'Próximamente',
+      upgradeHint: 'Este canal será atendido por un bot y se habilitará pronto.',
     },
     {
       id: 'whatsapp',
@@ -129,10 +127,10 @@ const Support: React.FC = () => {
 
     if (!enabled) {
       setLockedChannel({
-        title: channelId === 'chat' ? 'Chat en Vivo' : 'WhatsApp Directo',
-        requirement: channelId === 'chat' ? 'Disponible para clientes con plan Pro o Power.' : 'Disponible solo para clientes con plan Power.',
+        title: channelId === 'chat' ? 'Bot de soporte IA' : 'WhatsApp Directo',
+        requirement: channelId === 'chat' ? 'Este canal será atendido por un bot y aún no está habilitado.' : 'Disponible solo para clientes con plan Power.',
         hint: channelId === 'chat'
-          ? 'Activa un plan Pro o Power para recibir soporte en tiempo real desde la app.'
+          ? 'Muy pronto podrás conversar con un asistente automatizado desde esta misma sección.'
           : 'Sube a Power para desbloquear soporte prioritario por WhatsApp 24/7.',
       });
       return;
