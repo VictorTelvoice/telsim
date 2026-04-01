@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, Loader2, ShieldCheck, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -40,8 +41,10 @@ export default function UpgradeSummary() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [desktop, setDesktop] = useState(isDesktop());
   const [isProcessing, setIsProcessing] = useState(false);
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     const handler = () => setDesktop(isDesktop());
@@ -198,23 +201,23 @@ export default function UpgradeSummary() {
 
   if (desktop) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F0F4F8] font-display">
-        <header className="flex min-h-[72px] items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
+      <div className={`flex min-h-screen flex-col font-display ${isDark ? 'bg-background-dark' : 'bg-[#F0F4F8]'}`}>
+        <header className={`flex min-h-[64px] items-center justify-between border-b px-8 py-3 ${isDark ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-white'}`}>
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
-          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+          <div className={`flex items-center gap-2 text-[12px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400">
               <span className="text-[10px] text-white">✓</span>
             </span>
             Plan upgrade
-            <span className="mx-1 text-slate-200">·</span>
+            <span className={`mx-1 ${isDark ? 'text-slate-700' : 'text-slate-200'}`}>·</span>
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
               <span className="text-[10px] font-black text-white">2</span>
             </span>
-            <span className="font-bold text-slate-700">Confirmación</span>
+            <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Confirmación</span>
           </div>
           <button
             onClick={() => !isProcessing && navigate(-1)}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400 transition-colors hover:text-primary"
+            className={`flex items-center gap-1.5 text-[12px] font-semibold transition-colors hover:text-primary ${isDark ? 'text-slate-400' : 'text-slate-400'}`}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="19" y1="12" x2="5" y2="12" />
@@ -224,11 +227,11 @@ export default function UpgradeSummary() {
           </button>
         </header>
 
-        <div className="flex flex-1 items-start justify-center px-8 py-12">
+        <div className="flex flex-1 items-start justify-center px-8 py-8 xl:py-7">
           <div className="w-full max-w-3xl">
-            <div className="mb-8">
-              <h1 className="text-[30px] font-black tracking-tight text-slate-900">Confirma tu upgrade</h1>
-              <p className="mt-1.5 text-[14px] text-slate-500">Revisa los detalles antes de aplicar el cambio a tu SIM.</p>
+            <div className="mb-6">
+              <h1 className={`text-[30px] font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Confirma tu upgrade</h1>
+              <p className={`mt-1.5 text-[14px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Revisa los detalles antes de aplicar el cambio a tu SIM.</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
@@ -245,7 +248,7 @@ export default function UpgradeSummary() {
                 <button
                   onClick={handleConfirmUpgrade}
                   disabled={isProcessing}
-                  className="group flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-black text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
+                  className={`group flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-black text-white transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70 ${isDark ? 'shadow-[0_18px_44px_-18px_rgba(37,99,235,0.7)]' : 'shadow-lg shadow-blue-200'}`}
                 >
                   <span>{isProcessing ? <Loader2 className="h-5 w-5 animate-spin text-white/80" /> : <span />}</span>
                   <span>{isProcessing ? 'Procesando...' : `Confirmar upgrade a ${planName}`}</span>

@@ -97,7 +97,8 @@ const PlanSelect: React.FC = () => {
         `}</style>
 
         {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
-        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+        <header className="border-b border-slate-100 bg-white px-8 py-3 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex min-h-[64px] items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center">
             <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
@@ -105,13 +106,14 @@ const PlanSelect: React.FC = () => {
             <span>¿Ya tienes cuenta?</span>
             <button onClick={() => navigate('/login')} className="font-bold text-primary hover:underline">Ingresar →</button>
           </div>
+          </div>
         </header>
 
         {/* ── BODY ────────────────────────────────────────────────────────── */}
-        <main className="max-w-6xl mx-auto px-8 py-12">
+        <main className="mx-auto max-w-6xl px-8 py-8 xl:py-7">
 
           {/* Title */}
-          <div className="text-center mb-10">
+          <div className="mb-7 text-center xl:mb-6">
             <h1 className="text-[36px] font-black text-slate-900 dark:text-white tracking-tight">Elige tu plan</h1>
             <p className="text-slate-500 dark:text-slate-400 text-[15px] mt-2 font-medium">
               {t('landing.pricing.subtitle')}
@@ -119,7 +121,7 @@ const PlanSelect: React.FC = () => {
           </div>
 
           {/* Toggle */}
-          <div className="flex justify-center mb-10">
+          <div className="mb-8 flex justify-center xl:mb-7">
             <Toggle />
           </div>
 
@@ -278,7 +280,7 @@ const PlanSelect: React.FC = () => {
           </div>
 
           {/* Trust bar */}
-          <div className={`flex items-center justify-center gap-8 mt-12 pt-8 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div className={`mt-10 flex items-center justify-center gap-8 border-t pt-6 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             {[
               { icon: '🔒', text: 'Pago seguro SSL' },
               { icon: '💳', text: 'Stripe certificado' },

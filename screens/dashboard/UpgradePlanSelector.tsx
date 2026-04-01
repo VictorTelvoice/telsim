@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const OFFICIAL_PLANS = {
   starter: {
@@ -316,27 +317,24 @@ export default function UpgradePlanSelector() {
   if (desktop) {
     return (
       <div className={`min-h-screen font-display ${isDark ? 'bg-background-dark' : 'bg-[#F0F4F8]'}`}>
-        <header className={`flex items-center justify-between px-8 py-4 ${isDark ? 'border-b border-slate-800 bg-slate-950' : 'border-b border-slate-100 bg-white'}`}>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-              <span className="material-symbols-rounded text-[20px] text-white">sim_card</span>
-            </div>
-            <span className={`text-xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Telsim</span>
+        <header className={`flex min-h-[72px] items-center justify-between px-8 py-4 ${isDark ? 'border-b border-slate-800 bg-slate-950' : 'border-b border-slate-100 bg-white'}`}>
+          <button onClick={() => navigate(-1)} className="flex items-center">
+            <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
           <div className={`flex items-center gap-2 text-[12px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             <span>{phoneNumber || 'Cambiar plan'}</span>
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-8 py-12">
-          <div className="mb-10 text-center">
+        <main className="mx-auto max-w-6xl px-8 py-8 xl:py-7">
+          <div className="mb-8 text-center">
             <h1 className={`text-[36px] font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Elige tu nuevo plan</h1>
             <p className={`mt-2 text-[15px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Plan actual: {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'} — El cambio es inmediato, sin días de prueba.
             </p>
           </div>
 
-          <div className="mb-10 flex justify-center">
+          <div className="mb-8 flex justify-center">
             <Toggle />
           </div>
 

@@ -21,7 +21,7 @@ const TelsimBrandLogo: React.FC<TelsimBrandLogoProps> = ({
         className={`${compact ? 'h-9 w-9 rounded-[0.9rem]' : 'h-[3.15rem] w-[3.15rem] rounded-[1.15rem]'} object-contain ${iconClassName}`.trim()}
       />
       <span
-        className={`font-display leading-none tracking-tight text-slate-900 ${compact ? 'text-[1.4rem]' : 'text-[1.75rem]'} ${textClassName}`.trim()}
+        className={`font-display leading-none tracking-tight text-slate-900 dark:text-white ${compact ? 'text-[1.4rem]' : 'text-[1.75rem]'} ${textClassName}`.trim()}
         style={{ fontWeight: 950 }}
       >
         telsim
