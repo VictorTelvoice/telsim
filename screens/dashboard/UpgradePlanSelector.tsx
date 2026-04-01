@@ -232,20 +232,21 @@ export default function UpgradePlanSelector() {
     </div>
   );
 
-  const renderCard = (plan: VisiblePlan, mobile = false) => {
+  const renderCard = (plan: VisiblePlan, mobile = false, index = 0) => {
     const theme = getPlanTheme(plan.key, isDark);
     const useAnnual = plan.forceBilling ? plan.forceBilling === 'annual' : isAnnual;
     const amount = useAnnual ? plan.amountAnnual : plan.amount;
     const priceLabel = useAnnual ? `/yr` : `/mo`;
     const featureTexts = t(plan.featuresKey) as unknown as string[];
     const descText = t(plan.descKey) as unknown as string;
+    const isFocusedCard = !mobile || currentPage === index;
 
     return (
       <button
         key={plan.key}
         data-plan-card
         onClick={() => handleSelect(plan)}
-        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl px-6 pb-6 pt-7' : 'rounded-3xl px-8 pb-7 pt-8 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
+        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-500 transform-gpu will-change-transform ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl px-6 pb-6 pt-7' : 'rounded-3xl px-8 pb-7 pt-8 hover:-translate-y-2 hover:scale-[1.015]'} border-2 ${theme.borderClass} ${theme.cardClass} ${mobile ? (isFocusedCard ? 'scale-[1.035] -translate-y-3 shadow-[0_34px_84px_-30px_rgba(15,23,42,0.48)]' : 'scale-[0.93] translate-y-3 opacity-80') : ''}`}
         style={plan.key === 'power' && !mobile
           ? { background: isDark ? 'linear-gradient(#0b1018,#0b1018) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' : 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
           : undefined}
@@ -379,9 +380,9 @@ export default function UpgradePlanSelector() {
           ref={scrollRef}
           onScroll={handleScroll}
           style={{ scrollPaddingInline: 'calc(50% - 36vw)' }}
-          className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[14vw] pb-4 pt-4"
+          className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[14vw] pb-6 pt-5 [perspective:1400px]"
         >
-          {visiblePlans.map((plan) => renderCard(plan, true))}
+          {visiblePlans.map((plan, index) => renderCard(plan, true, index))}
         </div>
 
         <div className="mt-3 flex justify-center gap-2">

@@ -334,15 +334,19 @@ const PlanSelect: React.FC = () => {
           ref={scrollRef}
           onScroll={handleScroll}
           style={{ scrollPaddingInline: 'calc(50% - 35vw)' }}
-          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pt-4 pb-4 px-[15vw] no-scrollbar"
+          className="flex gap-5 overflow-x-auto snap-x snap-mandatory pt-5 pb-6 px-[15vw] no-scrollbar [perspective:1400px]"
         >
           {/* STARTER */}
           <button
             onClick={() => { setSelected('starter'); handleSelect('starter'); }}
-            className={`group relative rounded-3xl p-6 border flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[70vw] snap-center shrink-0 bg-white dark:bg-surface-dark
+            className={`group relative rounded-3xl p-6 border flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-500 transform-gpu will-change-transform min-w-[70vw] snap-center shrink-0 bg-white dark:bg-surface-dark
               ${isDark
                 ? `${selected === 'starter' ? 'border-slate-500 shadow-[0_18px_45px_-22px_rgba(15,23,42,0.95)]' : 'border-slate-800 hover:border-slate-700'} bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950`
-                : `${selected === 'starter' ? 'border-2 border-slate-400 shadow-lg' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400'} bg-white`}`}
+                : `${selected === 'starter' ? 'border-2 border-slate-400 shadow-lg' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400'} bg-white`}
+              ${currentPage === 0
+                ? 'scale-[1.03] -translate-y-2 shadow-[0_28px_70px_-28px_rgba(15,23,42,0.45)]'
+                : 'scale-[0.92] opacity-75 translate-y-3'}`}
+            style={{ transformOrigin: 'center center' }}
           >
             <div className={`absolute -top-10 -right-10 w-36 h-36 rounded-full ${isDark ? 'bg-slate-800/70 blur-sm' : 'bg-slate-100/60'}`} />
             <div className="relative">
@@ -380,7 +384,10 @@ const PlanSelect: React.FC = () => {
           {/* PRO */}
           <button
             onClick={() => { setSelected('pro'); handleSelect('pro'); }}
-            className="group relative rounded-3xl p-6 border-2 border-primary flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_-10px_rgba(29,78,216,0.3)] min-w-[70vw] snap-center shrink-0"
+            className={`group relative rounded-3xl p-6 border-2 border-primary flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-500 transform-gpu will-change-transform min-w-[70vw] snap-center shrink-0
+              ${currentPage === 1
+                ? 'scale-[1.045] -translate-y-3 shadow-[0_30px_80px_-28px_rgba(29,78,216,0.38)]'
+                : 'scale-[0.93] opacity-80 translate-y-3'}`}
             style={{ background: isDark ? 'linear-gradient(160deg,#071226 0%,#0b1730 52%,#08101f 100%)' : 'linear-gradient(160deg,#eff6ff 0%,#ffffff 50%)' }}
           >
             {isDark && <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.12),transparent_28%)] pointer-events-none" />}
@@ -422,7 +429,10 @@ const PlanSelect: React.FC = () => {
           {/* POWER */}
           <button
             onClick={() => { setSelected('power'); handleSelect('power'); }}
-            className="group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 min-w-[70vw] snap-center shrink-0"
+            className={`group relative rounded-3xl p-6 flex flex-col gap-4 cursor-pointer overflow-hidden text-left transition-all duration-500 transform-gpu will-change-transform min-w-[70vw] snap-center shrink-0
+              ${currentPage === 2
+                ? 'scale-[1.03] -translate-y-2 shadow-[0_28px_70px_-28px_rgba(245,166,35,0.32)]'
+                : 'scale-[0.92] opacity-75 translate-y-3'}`}
             style={{ border: '2px solid transparent', background: isDark ? 'linear-gradient(#0b1018,#0b1018) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' : 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' }}
           >
             {isDark && <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,166,35,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.08),transparent_26%)] pointer-events-none" />}
