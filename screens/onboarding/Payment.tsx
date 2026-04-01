@@ -104,11 +104,11 @@ const Payment: React.FC = () => {
   // ──────────────────────────────────────────────────────────────────────────
   if (desktop) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
+      <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display flex flex-col">
         {/* Top nav */}
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
-          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400 dark:text-slate-500">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>
             </span>
@@ -127,11 +127,11 @@ const Payment: React.FC = () => {
             <span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
               <span className="text-white text-[10px] font-black">4</span>
             </span>
-            <span className="text-slate-700 font-bold">Pago</span>
+            <span className="text-slate-700 dark:text-slate-300 font-bold">Pago</span>
           </div>
           <button
             onClick={() => !isProcessing && navigate(-1)}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
+            className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors text-[12px] font-semibold"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
@@ -144,56 +144,56 @@ const Payment: React.FC = () => {
         <div className="flex-1 flex items-start justify-center px-8 py-12">
           <div className="w-full max-w-3xl">
             <div className="mb-8">
-              <h1 className="text-[30px] font-black text-slate-900 tracking-tight">{t('onboarding.secure_payment')}</h1>
-              <p className="text-slate-500 text-[14px] mt-1.5">Tu suscripción comienza con 7 días gratis. Sin cargos hasta entonces.</p>
+              <h1 className="text-[30px] font-black text-slate-900 dark:text-white tracking-tight">{t('onboarding.secure_payment')}</h1>
+              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">Tu suscripción comienza con 7 días gratis. Sin cargos hasta entonces.</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
               {/* Left: plan summary + stripe */}
               <div className="col-span-3 flex flex-col gap-5">
                 {/* Plan summary card */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Suscripción seleccionada</span>
                   </div>
                   <div className="px-6 py-5 flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-slate-900 font-black text-2xl uppercase tracking-tight">{planName}</span>
+                        <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">{planName}</span>
                         {isAnnual && (
                           <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full">Anual</span>
                         )}
                       </div>
-                      <span className="block text-[12px] font-bold text-slate-400">{monthlyLimit} OTPs / mes</span>
+                      <span className="block text-[12px] font-bold text-slate-400 dark:text-slate-500">{monthlyLimit} OTPs / mes</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-slate-900 font-black text-2xl">${Number(price).toFixed(2)}</span>
-                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{isAnnual ? '/año' : '/mes'}</span>
+                      <span className="text-slate-900 dark:text-white font-black text-2xl">${Number(price).toFixed(2)}</span>
+                      <span className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{isAnnual ? '/año' : '/mes'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Stripe payment node */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
                   <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400 mb-5">{t('onboarding.payment_node')}</h3>
-                  <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-5 text-center">
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100">
+                  <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-5 text-center">
+                    <div className="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700">
                       <img
                         src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg"
                         className="h-7"
                         alt="Stripe"
                       />
                     </div>
-                    <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-xs">
+                    <p className="text-sm font-bold text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs">
                       {t('onboarding.stripe_desc')}
                     </p>
                   </div>
                 </div>
 
                 {/* Shield note */}
-                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex gap-4">
+                <div className="p-5 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 flex gap-4">
                   <ShieldCheck className="size-5 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[11px] font-bold text-slate-600 leading-relaxed italic">
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed italic">
                     {t('onboarding.confirmation_desc')}
                   </p>
                 </div>
@@ -201,7 +201,7 @@ const Payment: React.FC = () => {
 
               {/* Right: total + CTA */}
               <div className="col-span-2 flex flex-col gap-5">
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
                   <h3 className="text-[13px] font-black uppercase tracking-wider text-slate-400 mb-5">Resumen de cobro</h3>
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-center text-slate-400 text-[11px] font-black uppercase tracking-widest">
@@ -214,8 +214,8 @@ const Payment: React.FC = () => {
                     </div>
                     <div className="my-1 h-px w-full bg-slate-100" />
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-900 text-lg font-black uppercase">Total hoy</span>
-                      <span className="text-slate-900 text-3xl font-black">$0.00</span>
+                      <span className="text-slate-900 dark:text-white text-lg font-black uppercase">Total hoy</span>
+                      <span className="text-slate-900 dark:text-white text-3xl font-black">$0.00</span>
                     </div>
                   </div>
                 </div>

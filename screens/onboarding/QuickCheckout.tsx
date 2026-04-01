@@ -306,26 +306,26 @@ const QuickCheckout: React.FC = () => {
 
   // ─── Auth Form ───
   const AuthForm = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className={`flex flex-col gap-5 ${mobile ? 'mx-4 mb-4 p-5 bg-white rounded-[24px] border border-slate-100' : 'p-10 justify-center'}`}>
+    <div className={`flex flex-col gap-5 ${mobile ? 'mx-4 mb-4 p-5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800' : 'p-10 justify-center'}`}>
 
       {/* Usuario ya autenticado → botón directo a pagar */}
       {user ? (
         <div className="flex flex-col gap-4">
           {!mobile && (
             <div className="mb-2">
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
                 ¡Listo para pagar!
               </h2>
-              <p className="text-[12px] text-slate-400 font-medium mt-1.5">
+              <p className="text-[12px] text-slate-400 dark:text-slate-500 font-medium mt-1.5">
                 Continúa para completar tu suscripción.
               </p>
             </div>
           )}
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-100">
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
             <span className="material-symbols-rounded text-blue-500 text-[18px]">account_circle</span>
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Cuenta activa</p>
-              <p className="text-[11px] font-semibold text-slate-600 truncate">{user.email}</p>
+              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">{user.email}</p>
             </div>
           </div>
           <button
@@ -334,11 +334,11 @@ const QuickCheckout: React.FC = () => {
             <span>Ir a pagar</span>
             <span className="material-symbols-rounded text-[18px]">arrow_forward</span>
           </button>
-          <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+          <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
             Al continuar, aceptas los{' '}
-            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Términos</button>
+            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors font-semibold">Términos</button>
             {' '}y la{' '}
-            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
+            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
             {' '}de Telsim.
           </p>
         </div>
@@ -346,17 +346,17 @@ const QuickCheckout: React.FC = () => {
         <>
           {!mobile && (
             <div className="mb-2">
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
                 Crea tu cuenta<br />y empieza ahora
               </h2>
-              <p className="text-[12px] text-slate-400 font-medium mt-1.5">
+              <p className="text-[12px] text-slate-400 dark:text-slate-500 font-medium mt-1.5">
                 Ingresa con tu correo o continúa con Google
               </p>
             </div>
           )}
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-300 text-[11px] font-bold flex items-center gap-2">
               <span className="material-symbols-rounded text-[16px]">error</span>
               {error}
             </div>
@@ -366,12 +366,12 @@ const QuickCheckout: React.FC = () => {
           {step === 'email' && (
             <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
               <div className="relative">
-                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">mail</span>
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-[19px]">mail</span>
                 <input
                   type="email" required value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="tu@email.com"
-                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans"
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans"
                 />
               </div>
               <button type="submit" disabled={loading}
@@ -382,14 +382,14 @@ const QuickCheckout: React.FC = () => {
                 }
               </button>
               <div className="flex items-center gap-3 py-1">
-                <div className="flex-1 h-px bg-slate-100" />
-                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">o</span>
-                <div className="flex-1 h-px bg-slate-100" />
+                <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                <span className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">o</span>
+                <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
               </div>
               <button type="button" onClick={handleGoogle} disabled={loading}
-                className="w-full h-12 rounded-[14px] border-[1.5px] border-slate-200 bg-white flex items-center justify-center gap-2.5 hover:border-blue-400 transition-colors disabled:opacity-50">
+                className="w-full h-12 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center gap-2.5 hover:border-blue-400 transition-colors disabled:opacity-50">
                 <GoogleIcon />
-                <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Continuar con Google</span>
+                <span className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Continuar con Google</span>
               </button>
             </form>
           )}
@@ -397,22 +397,22 @@ const QuickCheckout: React.FC = () => {
           {/* STEP: PASSWORD */}
           {step === 'password' && (
             <form onSubmit={handleLogin} className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
                 <span className="material-symbols-rounded text-blue-500 text-[16px]">person</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Cuenta encontrada</p>
-                  <p className="text-[11px] font-semibold text-slate-600 truncate">{email}</p>
+                  <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">{email}</p>
                 </div>
                 <button type="button" onClick={() => { setStep('email'); setError(null); }}
-                  className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 shrink-0">
+                  className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-blue-600 shrink-0">
                   Cambiar
                 </button>
               </div>
               <div className="relative">
-                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-[19px]">lock</span>
                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoFocus
                   placeholder="Tu contraseña"
-                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans" />
               </div>
               <button type="submit" disabled={loading}
                 className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
@@ -429,14 +429,14 @@ const QuickCheckout: React.FC = () => {
             <div className="flex flex-col items-center gap-4 py-4 text-center">
               <span className="material-symbols-rounded text-emerald-500 text-[48px]">mark_email_read</span>
               <div>
-                <p className="text-sm font-black text-slate-900 mb-1">¡Revisa tu correo!</p>
-                <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
-                  Enviamos un enlace a <strong className="text-slate-700">{email}</strong>.<br />
+                <p className="text-sm font-black text-slate-900 dark:text-white mb-1">¡Revisa tu correo!</p>
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Enviamos un enlace a <strong className="text-slate-700 dark:text-slate-200">{email}</strong>.<br />
                   Confírmalo para continuar con tu compra.
                 </p>
               </div>
               <button type="button" onClick={() => { setStep('email'); setError(null); }}
-                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors">
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-blue-600 transition-colors">
                 ← Usar otro correo
               </button>
             </div>
@@ -445,26 +445,26 @@ const QuickCheckout: React.FC = () => {
           {/* STEP: REGISTER */}
           {step === 'register' && (
             <form onSubmit={handleRegister} className="flex flex-col gap-3">
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
                 <span className="material-symbols-rounded text-emerald-500 text-[16px] mt-0.5">info</span>
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Cuenta nueva</p>
-                  <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
-                    Crearemos tu cuenta con <strong className="text-slate-700">{email}</strong> para continuar.
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Crearemos tu cuenta con <strong className="text-slate-700 dark:text-slate-200">{email}</strong> para continuar.
                   </p>
                 </div>
               </div>
               <div className="relative">
-                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">person</span>
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-[19px]">person</span>
                 <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
                   placeholder="Tu nombre completo"
-                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans" />
               </div>
               <div className="relative">
-                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[19px]">lock</span>
+                <span className="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-[19px]">lock</span>
                 <input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
                   placeholder="Elige una contraseña (mín. 6 caracteres)"
-                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition-all font-sans" />
+                  className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans" />
               </div>
               <button type="submit" disabled={loading}
                 className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
@@ -474,7 +474,7 @@ const QuickCheckout: React.FC = () => {
                 }
               </button>
               <button type="button" onClick={() => { setStep('email'); setError(null); }}
-                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors text-center">
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-blue-600 transition-colors text-center">
                 ← Usar otro correo
               </button>
             </form>
@@ -489,19 +489,19 @@ const QuickCheckout: React.FC = () => {
                 { icon: 'shield', label: 'SSL 256-bit' },
               ].map(b => (
                 <div key={b.label} className="flex items-center gap-1.5">
-                  <span className="material-symbols-rounded text-slate-300 text-[13px]">{b.icon}</span>
-                  <span className="text-[10px] font-semibold text-slate-400">{b.label}</span>
+                  <span className="material-symbols-rounded text-slate-300 dark:text-slate-600 text-[13px]">{b.icon}</span>
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">{b.label}</span>
                 </div>
               ))}
             </div>
           )}
 
           {/* Legal */}
-          <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+          <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
             Al continuar, aceptas los{' '}
-            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Términos</button>
+            <button onClick={() => navigate('/legal?tab=terms')} className="underline text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors font-semibold">Términos</button>
             {' '}y la{' '}
-            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
+            <button onClick={() => navigate('/legal?tab=privacy')} className="underline text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors font-semibold">Política de Privacidad</button>
             {' '}de Telsim.
           </p>
         </>
@@ -510,15 +510,15 @@ const QuickCheckout: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50 dark:bg-background-dark font-sans antialiased">
 
       {/* Header móvil */}
-      <div className="md:hidden sticky top-0 z-20 flex items-center bg-white/90 backdrop-blur-sm px-4 py-3 border-b border-slate-100">
+      <div className="md:hidden sticky top-0 z-20 flex items-center bg-white/90 dark:bg-slate-950/90 backdrop-blur-sm px-4 py-3 border-b border-slate-100 dark:border-slate-800">
         <button onClick={() => navigate('/')}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
-          <span className="material-symbols-rounded text-slate-600 text-[20px]">arrow_back</span>
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <span className="material-symbols-rounded text-slate-600 dark:text-slate-300 text-[20px]">arrow_back</span>
         </button>
-        <h2 className="flex-1 text-center text-[15px] font-black text-slate-900 pr-9">Completa tu pedido</h2>
+        <h2 className="flex-1 text-center text-[15px] font-black text-slate-900 dark:text-white pr-9">Completa tu pedido</h2>
       </div>
 
       {/* ── MOBILE: columna única ── */}
@@ -531,14 +531,14 @@ const QuickCheckout: React.FC = () => {
       <div className="hidden md:flex items-center justify-center min-h-screen p-8">
         <div className="w-full max-w-[860px] grid grid-cols-2 rounded-[28px] overflow-hidden shadow-2xl shadow-slate-900/20">
           <PlanPanel />
-          <div className="bg-white flex flex-col">
+          <div className="bg-white dark:bg-slate-950 flex flex-col">
             {/* Header desktop */}
             <div className="flex items-center gap-3 px-10 pt-10 pb-0">
               <button onClick={() => navigate('/')}
-                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
-                <span className="material-symbols-rounded text-slate-500 text-[20px]">arrow_back</span>
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-[20px]">arrow_back</span>
               </button>
-              <span className="text-[12px] font-bold text-slate-400">Volver al inicio</span>
+              <span className="text-[12px] font-bold text-slate-400 dark:text-slate-500">Volver al inicio</span>
             </div>
             <AuthForm />
           </div>

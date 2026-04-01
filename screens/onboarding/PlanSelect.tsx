@@ -88,17 +88,17 @@ const PlanSelect: React.FC = () => {
   // ──────────────────────────────────────────────────────────────────────────
   if (desktop) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] font-display">
+      <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display">
         <style>{`
           @keyframes floatBadge { from { transform: translateY(0); } to { transform: translateY(-5px); } }
         `}</style>
 
         {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center">
             <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
-          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+          <div className="flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
             <span>¿Ya tienes cuenta?</span>
             <button onClick={() => navigate('/login')} className="font-bold text-primary hover:underline">Ingresar →</button>
           </div>
@@ -109,8 +109,8 @@ const PlanSelect: React.FC = () => {
 
           {/* Title */}
           <div className="text-center mb-10">
-            <h1 className="text-[36px] font-black text-slate-900 tracking-tight">Elige tu plan</h1>
-            <p className="text-slate-500 text-[15px] mt-2 font-medium">
+            <h1 className="text-[36px] font-black text-slate-900 dark:text-white tracking-tight">Elige tu plan</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-[15px] mt-2 font-medium">
               {t('landing.pricing.subtitle')}
             </p>
           </div>

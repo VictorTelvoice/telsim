@@ -204,11 +204,11 @@ const Summary: React.FC = () => {
   // ──────────────────────────────────────────────────────────────────────────
   if (desktop) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
+      <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display flex flex-col">
         {/* Top nav */}
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
-          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400 dark:text-slate-500">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>
             </span>
@@ -222,11 +222,11 @@ const Summary: React.FC = () => {
             <span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
               <span className="text-white text-[10px] font-black">3</span>
             </span>
-            <span className="text-slate-700 font-bold">Resumen</span>
+            <span className="text-slate-700 dark:text-slate-300 font-bold">Resumen</span>
           </div>
           <button
             onClick={() => !isNavigating && navigate(-1)}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
+            className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors text-[12px] font-semibold"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
@@ -239,8 +239,8 @@ const Summary: React.FC = () => {
         <div className="flex-1 flex items-start justify-center px-8 py-12">
           <div className="w-full max-w-3xl">
             <div className="mb-8">
-              <h1 className="text-[30px] font-black text-slate-900 tracking-tight">{t('onboarding.review_subscription')}</h1>
-              <p className="text-slate-500 text-[14px] mt-1.5">{t('onboarding.confirm_details')}</p>
+              <h1 className="text-[30px] font-black text-slate-900 dark:text-white tracking-tight">{t('onboarding.review_subscription')}</h1>
+              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">{t('onboarding.confirm_details')}</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
@@ -275,7 +275,7 @@ const Summary: React.FC = () => {
                     { icon: '↩️', text: 'Cancela cuando quieras' },
                     { icon: '🛡️', text: 'Sin cargos durante la prueba' },
                   ].map(item => (
-                    <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                       <span>{item.icon}</span><span>{item.text}</span>
                     </div>
                   ))}

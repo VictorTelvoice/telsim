@@ -103,7 +103,8 @@ const ThemeRouteSync: React.FC = () => {
     const canUseDark =
       path.startsWith('/dashboard') ||
       path.startsWith('/web') ||
-      path.startsWith('/admin');
+      path.startsWith('/admin') ||
+      path.startsWith('/onboarding');
 
     if (theme === 'dark' && canUseDark) {
       root.classList.add('dark');
