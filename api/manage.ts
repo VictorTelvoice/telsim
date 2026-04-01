@@ -1741,17 +1741,37 @@ export default async function handler(req: any, res: any) {
         if (!userId || !slotId || !newPriceId || !newPlanName) {
           return res.status(400).json({ error: 'Faltan parámetros requeridos' });
         }
-        const { data: userRow, error: userError } = await supabaseAdmin
+        const { data: userRow } = await supabaseAdmin
           .from('users')
           .select('stripe_customer_id')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-        if (userError || !userRow?.stripe_customer_id) {
-          return res.status(400).json({ error: 'No se encontró customer de Stripe para este usuario' });
+        let customerId: string | null =
+          (userRow as { stripe_customer_id?: string | null } | null)?.stripe_customer_id || null;
+
+        // Fall back to profiles table — the Stripe webhook historically saved stripe_customer_id
+        // there only; users who subscribed before the dual-write fix only have it in profiles.
+        if (!customerId) {
+          const { data: profileRow } = await supabaseAdmin
+            .from('profiles')
+            .select('stripe_customer_id')
+            .eq('id', userId)
+            .maybeSingle();
+          customerId = (profileRow as { stripe_customer_id?: string | null } | null)?.stripe_customer_id || null;
+
+          // Back-fill users table so future calls don't need the fallback.
+          if (customerId) {
+            await supabaseAdmin
+              .from('users')
+              .update({ stripe_customer_id: customerId })
+              .eq('id', userId);
+          }
         }
 
-        const customerId = (userRow as { stripe_customer_id: string }).stripe_customer_id;
+        if (!customerId) {
+          return res.status(400).json({ error: 'No se encontró customer de Stripe para este usuario' });
+        }
         const { data: currentSub } = await supabaseAdmin
           .from('subscriptions')
           .select('id, stripe_subscription_id, stripe_session_id')

@@ -1218,8 +1218,13 @@ export default async function handler(req: any, res: any) {
       }
 
       if (session.customer) {
+        const stripeCustomerIdToSync = session.customer.toString();
         await supabaseAdmin.from('profiles').update({
-          stripe_customer_id: session.customer.toString()
+          stripe_customer_id: stripeCustomerIdToSync
+        }).eq('id', userId);
+        // Also sync to users table (upgrade & billing API reads from users.stripe_customer_id)
+        await supabaseAdmin.from('users').update({
+          stripe_customer_id: stripeCustomerIdToSync
         }).eq('id', userId);
       }
 
