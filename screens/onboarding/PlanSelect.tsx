@@ -278,14 +278,14 @@ const PlanSelect: React.FC = () => {
           </div>
 
           {/* Trust bar */}
-          <div className="flex items-center justify-center gap-8 mt-12 pt-8 border-t border-slate-200">
+          <div className={`flex items-center justify-center gap-8 mt-12 pt-8 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             {[
               { icon: '🔒', text: 'Pago seguro SSL' },
               { icon: '💳', text: 'Stripe certificado' },
               { icon: '↩️', text: 'Cancela cuando quieras' },
               { icon: '🏆', text: '500+ empresas activas' },
             ].map(item => (
-              <div key={item.text} className="flex items-center gap-2 text-[12px] text-slate-500 font-medium">
+              <div key={item.text} className={`flex items-center gap-2 text-[12px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 <span>{item.icon}</span><span>{item.text}</span>
               </div>
             ))}
@@ -371,7 +371,7 @@ const PlanSelect: React.FC = () => {
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Ideal para</p>
               <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('landing.pricing.starter.desc')}</p>
             </div>
-            <div className="relative flex items-center justify-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors pt-1">
+            <div className={`relative flex items-center justify-center gap-1.5 transition-colors pt-1 ${isDark ? 'text-slate-400 group-hover:text-white' : 'text-slate-400 group-hover:text-primary'}`}>
               <span className="text-sm font-black">Empezar gratis</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
             </div>
@@ -413,9 +413,9 @@ const PlanSelect: React.FC = () => {
               <p className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${isDark ? 'text-blue-200/55' : 'text-primary/50'}`}>Ideal para</p>
               <p className={`text-xs font-bold ${isDark ? 'text-blue-100' : 'text-primary'}`}>{t('landing.pricing.pro.desc')}</p>
             </div>
-            <div className="relative flex items-center justify-center gap-1.5 text-primary pt-1">
+            <div className={`relative flex items-center justify-center gap-1.5 pt-1 ${isDark ? 'text-blue-100' : 'text-primary'}`}>
               <span className="text-sm font-black">Empezar gratis</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke="#1152d4" strokeWidth="2" strokeLinecap="round" /></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke={isDark ? '#dbeafe' : '#1152d4'} strokeWidth="2" strokeLinecap="round" /><polyline points="12 5 19 12 12 19" stroke={isDark ? '#dbeafe' : '#1152d4'} strokeWidth="2" strokeLinecap="round" /></svg>
             </div>
           </button>
 
