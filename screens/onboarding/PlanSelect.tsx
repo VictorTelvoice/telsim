@@ -97,8 +97,7 @@ const PlanSelect: React.FC = () => {
         `}</style>
 
         {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
-        <header className="border-b border-slate-100 bg-white px-8 py-3 dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex min-h-[64px] items-center justify-between">
+        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center">
             <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
@@ -106,19 +105,18 @@ const PlanSelect: React.FC = () => {
             <span>¿Ya tienes cuenta?</span>
             <button onClick={() => navigate('/login')} className="font-bold text-primary hover:underline">Ingresar →</button>
           </div>
-          </div>
         </header>
 
         {/* ── BODY ────────────────────────────────────────────────────────── */}
-        <main className="mx-auto max-w-6xl px-8 py-8 xl:py-7">
+        <main className="mx-auto w-full max-w-[1120px] px-8 py-7 xl:py-6">
 
           {/* Title */}
-          <div className="mb-7 text-center xl:mb-6">
+          <div className="mx-auto mb-6 w-full max-w-[1040px] text-center xl:mb-5">
             <h1 className="text-[36px] font-black text-slate-900 dark:text-white tracking-tight">Elige tu plan</h1>
           </div>
 
           {/* Toggle */}
-          <div className="mb-8 flex justify-center xl:mb-7">
+          <div className="mx-auto mb-7 flex w-full max-w-[1040px] justify-center xl:mb-6">
             <Toggle />
           </div>
 
