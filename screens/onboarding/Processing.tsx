@@ -262,7 +262,7 @@ const Processing: React.FC = () => {
                 <h2 className="text-3xl font-black font-mono tracking-tighter text-slate-900 dark:text-white tabular-nums">{activatedNumber === 'Sincronizando...' ? activatedNumber : formatPhoneNumber(activatedNumber)}</h2>
              </div>
           </div>
-          <button onClick={() => navigate(`/dashboard/numbers`)} className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]">
+          <button onClick={() => navigate(`/dashboard/numbers`)} className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl flex items-center justify-between px-2 transition-all active:scale-[0.98]">
             <div className="size-12"></div><span className="text-[14px] uppercase tracking-widest">Entrar al Panel</span><div className="size-12 bg-white/20 rounded-xl flex items-center justify-center"><ArrowRight className="size-6" /></div>
           </button>
         </div>

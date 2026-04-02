@@ -335,7 +335,7 @@ const QuickCheckout: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/onboarding/region')}
-            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity">
+            className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
             <span>Ir a pagar</span>
             <span className="material-symbols-rounded text-[18px]">arrow_forward</span>
           </button>
@@ -380,7 +380,7 @@ const QuickCheckout: React.FC = () => {
                 />
               </div>
               <button type="submit" disabled={loading}
-                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50">
                 {loading
                   ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <><span>Continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
@@ -420,7 +420,7 @@ const QuickCheckout: React.FC = () => {
                   className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans" />
               </div>
               <button type="submit" disabled={loading}
-                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50">
                 {loading
                   ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <><span>Ingresar y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
@@ -472,7 +472,7 @@ const QuickCheckout: React.FC = () => {
                   className="w-full h-12 pl-11 pr-4 rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:border-blue-600 dark:focus:bg-slate-800 outline-none transition-all font-sans" />
               </div>
               <button type="submit" disabled={loading}
-                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200/60 hover:opacity-90 transition-opacity disabled:opacity-50">
+                className="w-full h-12 rounded-[14px] bg-[#1d4ed8] text-white font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50">
                 {loading
                   ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <><span>Crear cuenta y continuar</span><span className="material-symbols-rounded text-[18px]">arrow_forward</span></>
