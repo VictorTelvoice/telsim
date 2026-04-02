@@ -1679,7 +1679,7 @@ const WebDashboard: React.FC = () => {
       };
       case 'pro': return {
         cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00C8FF]',
-        chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
+        chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
         label: 'Pro',
         phoneColor: 'text-white',
         labelColor: 'text-white/80',
