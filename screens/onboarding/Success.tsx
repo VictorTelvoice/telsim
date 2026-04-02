@@ -156,7 +156,7 @@ const Success: React.FC = () => {
 
         <button 
           onClick={handleSuccessNavigation}
-          className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl shadow-button flex items-center justify-between px-2 transition-all active:scale-[0.98]"
+          className="group w-full h-16 bg-primary hover:bg-blue-700 text-white font-black rounded-2xl flex items-center justify-between px-2 transition-all active:scale-[0.98]"
         >
           <div className="size-12"></div>
           <span className="text-[14px] uppercase tracking-widest">Empezar ahora</span>

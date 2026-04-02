@@ -173,9 +173,9 @@ const Payment: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Stripe payment node */}
+                {/* Stripe payment */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400 mb-5">{t('onboarding.payment_node')}</h3>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400 mb-5">{t('onboarding.payment_node')}</h3>
                   <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-5 text-center">
                     <div className="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700">
                       <img
@@ -193,7 +193,7 @@ const Payment: React.FC = () => {
                 {/* Shield note */}
                 <div className="p-5 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 flex gap-4">
                   <ShieldCheck className="size-5 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
                     {t('onboarding.confirmation_desc')}
                   </p>
                 </div>
@@ -219,7 +219,7 @@ const Payment: React.FC = () => {
                 <button
                   onClick={handleCheckout}
                   disabled={isProcessing}
-                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5 disabled:opacity-70"
+                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl flex items-center justify-between px-5 disabled:opacity-70"
                 >
                   <span>
                     {isProcessing ? (
@@ -288,7 +288,7 @@ const Payment: React.FC = () => {
           </div>
 
           <div className="mb-8">
-            <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.1em] mb-4">{t('onboarding.payment_node')}</h3>
+            <h3 className="text-[#111318] dark:text-white font-black text-[13px] uppercase tracking-[0.06em] mb-4">{t('onboarding.payment_node')}</h3>
             <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-primary/20 flex flex-col items-center gap-6 text-center">
               <div className="size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-md">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-7" alt="Stripe" />
@@ -301,7 +301,7 @@ const Payment: React.FC = () => {
 
           <div className="mt-4 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex gap-4">
             <ShieldCheck className="size-6 text-primary shrink-0" />
-            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed">
               {t('onboarding.confirmation_desc')}
             </p>
           </div>
@@ -311,7 +311,7 @@ const Payment: React.FC = () => {
           <button
             onClick={handleCheckout}
             disabled={isProcessing}
-            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70"
+            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl flex items-center justify-between px-2 relative overflow-hidden disabled:opacity-70"
           >
             <div className="w-12 flex items-center justify-center">
               {isProcessing && <Loader2 className="size-5 animate-spin text-white/80" />}

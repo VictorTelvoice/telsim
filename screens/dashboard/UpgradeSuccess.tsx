@@ -227,7 +227,7 @@ export default function UpgradeSuccess() {
 
                 <button
                   onClick={() => navigate(dashboardDestination)}
-                  className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+                  className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 transition-all active:scale-[0.98]"
                 >
                   <span />
                   <span>Ir a Mis SIMs</span>

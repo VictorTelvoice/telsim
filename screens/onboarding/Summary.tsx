@@ -259,7 +259,7 @@ const Summary: React.FC = () => {
                 <button
                   onClick={handleNext}
                   disabled={isNavigating}
-                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5 disabled:opacity-70"
+                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl flex items-center justify-between px-5 disabled:opacity-70"
                 >
                   <span />
                   <span>{t('onboarding.start_free_trial')}</span>
@@ -322,7 +322,7 @@ const Summary: React.FC = () => {
 
         <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10">
           <button onClick={handleNext} disabled={isNavigating}
-            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 disabled:opacity-70">
+            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl flex items-center justify-between px-2 disabled:opacity-70">
             <div className="w-12" />
             <span className="text-[17px] tracking-wide uppercase">{t('onboarding.start_free_trial')}</span>
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">

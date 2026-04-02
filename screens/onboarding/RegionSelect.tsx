@@ -296,7 +296,7 @@ const RegionSelect: React.FC = () => {
               {/* CTA */}
               <button
                 onClick={handleContinue}
-                className="w-full h-14 bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5"
+                className="w-full h-14 bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] rounded-2xl flex items-center justify-between px-5"
               >
                 <span />
                 <span>Continuar</span>
@@ -370,7 +370,7 @@ const RegionSelect: React.FC = () => {
       <div className="mt-auto pt-8">
         <button
           onClick={handleContinue}
-          className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2"
+          className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl flex items-center justify-between px-2"
         >
           <div className="w-12" />
           <span className="text-[17px] tracking-wide uppercase font-bold">{t('onboarding.next')}</span>

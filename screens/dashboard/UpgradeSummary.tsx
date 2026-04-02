@@ -248,7 +248,7 @@ export default function UpgradeSummary() {
                 <button
                   onClick={handleConfirmUpgrade}
                   disabled={isProcessing}
-                  className={`group flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-black text-white transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70 ${isDark ? 'shadow-[0_18px_44px_-18px_rgba(37,99,235,0.7)]' : 'shadow-lg shadow-blue-200'}`}
+                  className="group flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-black text-white transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
                 >
                   <span>{isProcessing ? <Loader2 className="h-5 w-5 animate-spin text-white/80" /> : <span />}</span>
                   <span>{isProcessing ? 'Procesando...' : `Confirmar upgrade a ${planName}`}</span>
@@ -332,7 +332,7 @@ export default function UpgradeSummary() {
           <button
             onClick={handleConfirmUpgrade}
             disabled={isProcessing}
-            className="group flex h-16 w-full items-center justify-between rounded-2xl bg-primary px-2 font-bold text-white shadow-button transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
+            className="group flex h-16 w-full items-center justify-between rounded-2xl bg-primary px-2 font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
           >
             <div className="w-12">
               {isProcessing ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-white/80" /> : null}
