@@ -145,7 +145,7 @@ const Payment: React.FC = () => {
           <div className="w-full max-w-3xl">
             <div className="mb-8">
               <h1 className="text-[30px] font-black text-slate-900 dark:text-white tracking-tight">{t('onboarding.secure_payment')}</h1>
-              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">Tu suscripción se activa hoy. La garantía de satisfacción permite revisión de reembolso del 100% dentro de 24 horas para la primera compra, sujeta a uso legítimo.</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">Tu suscripción se activa hoy. La garantía de satisfacción permite revisión de reembolso del 100% dentro de 7 días para la primera compra, sujeta a uso legítimo.</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
