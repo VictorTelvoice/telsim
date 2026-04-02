@@ -13,6 +13,7 @@ import ScrollToTop from './components/ScrollToTop';
 import AdminLayout from './components/layouts/AdminLayout';
 import { ImpersonationProvider } from './contexts/ImpersonationContext';
 import ImpersonationBanner, { ImpersonationBannerSpacer } from './components/ImpersonationBanner';
+import { Analytics } from './components/Analytics';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
@@ -309,6 +310,7 @@ const App: React.FC = () => {
           <NotificationsProvider>
             <MessagesProvider>
               <HashRouter>
+                <Analytics />
                 <ImpersonationProvider>
                   <MobileRoutePreloader />
                   <ScrollToTop />
