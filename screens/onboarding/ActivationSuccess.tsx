@@ -307,7 +307,7 @@ const ActivationSuccess: React.FC = () => {
                 {/* CTAs */}
                 <button
                   onClick={() => navigate(dashboardDestination)}
-                  className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+                  className="w-full h-14 bg-primary hover:bg-blue-700 text-white font-black text-[14px] uppercase tracking-wide rounded-2xl flex items-center justify-between px-5 transition-all active:scale-[0.98]"
                 >
                   <span />
                   <span>Ir al Dashboard</span>
@@ -416,7 +416,7 @@ const ActivationSuccess: React.FC = () => {
             </button>
             <button
               onClick={() => navigate('/dashboard/billing')}
-              className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               <span className="material-icons-round text-lg">credit_card</span>
               <span>Facturacion</span>

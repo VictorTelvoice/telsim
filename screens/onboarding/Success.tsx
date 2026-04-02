@@ -108,7 +108,7 @@ const Success: React.FC = () => {
         <AlertTriangle className="size-12 text-amber-500 mb-6" />
         <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">Línea Vinculada</h1>
         <p className="text-sm font-medium text-slate-500 mb-8">Tu pago fue exitoso. Si no ves tu número de inmediato, aparecerá en el panel en unos segundos.</p>
-        <button onClick={handleSuccessNavigation} className="px-8 h-14 bg-primary text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95">Ir al Dashboard</button>
+        <button onClick={handleSuccessNavigation} className="px-8 h-14 bg-primary text-white font-black rounded-2xl uppercase text-[11px] tracking-widest active:scale-95">Ir al Dashboard</button>
       </div>
     );
   }
