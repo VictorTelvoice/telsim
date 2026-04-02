@@ -596,9 +596,9 @@ const MyNumbers: React.FC = () => {
             };
         }
         return {
-            cardBg: 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-100 dark:border-slate-800 shadow-soft',
+            cardBg: 'bg-gradient-to-br from-[#AEB8C8] via-[#D9E0EA] to-[#8E9AAF] text-white border border-white/35 shadow-xl',
             badgeBg: 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20',
-            accentText: 'text-primary',
+            accentText: 'text-white',
             chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
             icon: <Leaf className="size-3" />,
             label: 'START',
