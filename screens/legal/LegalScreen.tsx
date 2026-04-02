@@ -148,7 +148,7 @@ const TermsContent: React.FC = () => (
     />
     <Section
       title="5. Planes y Facturación"
-      content="Los planes de suscripción se facturan de forma recurrente (mensual o anual) a través de Stripe. Los precios están sujetos a cambios con previo aviso. No se realizan reembolsos por periodos no utilizados, salvo en casos expresamente previstos en nuestra política de reembolsos. La falta de pago puede resultar en la suspensión del servicio."
+      content="Los planes de suscripción se facturan de forma recurrente (mensual o anual) a través de Stripe. Los precios están sujetos a cambios con previo aviso. No se realizan reembolsos por periodos no utilizados, salvo en los casos expresamente previstos en nuestra garantía de satisfacción. Esta garantía permite solicitar un reembolso del 100% dentro de las primeras 24 horas desde la compra, sujeto a revisión técnica, válido solo para la primera compra o primera línea de la cuenta, y únicamente cuando el servicio no cumple lo prometido y hubo un uso legítimo y razonable. No aplica en casos de abuso, fraude, múltiples cuentas relacionadas, consumo sustancial del servicio o uso intensivo destinado únicamente a validaciones puntuales. La falta de pago puede resultar en la suspensión del servicio."
     />
     <Section
       title="6. Disponibilidad del Servicio"
