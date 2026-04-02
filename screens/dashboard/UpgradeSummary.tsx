@@ -12,22 +12,22 @@ const PLAN_CONFIG: Record<string, { color: string; bg: string; border: string; l
     color: '#64748b',
     bg: '#f8fafc',
     border: '#e2e8f0',
-    limit: 150,
-    features: ['150 SMS mensuales', 'Numero SIM real', 'Notificaciones en tiempo real', 'Soporte via ticket'],
+    limit: 200,
+    features: ['200 SMS mensuales', 'Número SIM real', 'Notificaciones en tiempo real', 'Soporte vía ticket'],
   },
   Pro: {
     color: '#0047FF',
     bg: '#eff6ff',
     border: '#0047FF',
-    limit: 400,
-    features: ['400 SMS mensuales', 'SMS 100% automatizados', 'Acceso a API y Webhooks', 'Soporte prioritario chat en vivo'],
+    limit: 1000,
+    features: ['1000 SMS mensuales', 'SMS 100% automatizados', 'Acceso a API y Webhooks', 'Soporte prioritario chat en vivo'],
   },
   Power: {
     color: '#f59e0b',
     bg: '#fffbeb',
     border: '#f59e0b',
-    limit: 1400,
-    features: ['1,400 SMS mensuales', 'Seguridad empresarial', 'Integraciones personalizadas', 'Soporte prioritario 24/7'],
+    limit: 5000,
+    features: ['5,000 SMS mensuales', 'Seguridad empresarial', 'Integraciones personalizadas', 'Soporte prioritario 24/7'],
   },
 };
 

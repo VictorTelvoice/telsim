@@ -41,8 +41,8 @@ const Payment: React.FC = () => {
 
   const planName = _state.planName || (_lsId ? _nameMap[_lsId] : null) || 'Starter';
   const isAnnual = _state.isAnnual ?? _lsAnnual;
-  const price = _state.price || _lsPrice || 19.90;
-  const monthlyLimit = _state.monthlyLimit || (({ Starter: 150, Pro: 400, Power: 1400 } as Record<string, number>)[planName] ?? 150);
+  const price = _state.price || _lsPrice || 49.90;
+  const monthlyLimit = _state.monthlyLimit || (({ Starter: 200, Pro: 1000, Power: 5000 } as Record<string, number>)[planName] ?? 200);
   const stripePriceId = _state.stripePriceId || _lsPriceId || '';
   const region =
     (typeof _state.region === 'string' ? _state.region : undefined) ||
@@ -159,7 +159,9 @@ const Payment: React.FC = () => {
                   <div className="px-6 py-5 flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">{planName}</span>
+                        <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">
+                          {t(`landing.pricing.${planName.toLowerCase()}.name`)}
+                        </span>
                         {isAnnual && (
                           <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full">Anual</span>
                         )}

@@ -12,9 +12,9 @@ import { STRIPE_PRICES } from '../../constants/stripePrices';
 
 // ─── Plan pricing catalogue (single source of truth across onboarding) ────────
 const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number; monthlyId: string; annualId: string }> = {
-  Starter: { monthly: 19.90, annual: 199, limit: 150, monthlyId: STRIPE_PRICES.STARTER.MONTHLY, annualId: STRIPE_PRICES.STARTER.ANNUAL },
-  Pro: { monthly: 39.90, annual: 399, limit: 400, monthlyId: STRIPE_PRICES.PRO.MONTHLY, annualId: STRIPE_PRICES.PRO.ANNUAL },
-  Power: { monthly: 99.00, annual: 990, limit: 1400, monthlyId: STRIPE_PRICES.POWER.MONTHLY, annualId: STRIPE_PRICES.POWER.ANNUAL },
+  Starter: { monthly: 49.90, annual: 199, limit: 200, monthlyId: STRIPE_PRICES.STARTER.MONTHLY, annualId: STRIPE_PRICES.STARTER.ANNUAL },
+  Pro: { monthly: 99.90, annual: 399, limit: 1000, monthlyId: STRIPE_PRICES.PRO.MONTHLY, annualId: STRIPE_PRICES.PRO.ANNUAL },
+  Power: { monthly: 149.90, annual: 990, limit: 5000, monthlyId: STRIPE_PRICES.POWER.MONTHLY, annualId: STRIPE_PRICES.POWER.ANNUAL },
 };
 
 // ─── Check icon ───────────────────────────────────────────────────────────────
@@ -135,7 +135,9 @@ const Summary: React.FC = () => {
         <div className="flex justify-between items-start">
           <div>
             <span className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-1 block">{t('onboarding.selected_plan')}</span>
-            <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">{planName}</span>
+            <span className="text-slate-900 dark:text-white font-black text-2xl uppercase tracking-tight">
+              {t(`landing.pricing.${planName.toLowerCase()}.name`)}
+            </span>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[11px] font-bold text-slate-500">{t('onboarding.monthly_credits', { limit: planDetails.limit })}</span>
               {isAnnual && (

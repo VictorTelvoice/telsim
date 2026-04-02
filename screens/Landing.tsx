@@ -123,23 +123,23 @@ const Landing: React.FC = () => {
       starter: {
         monthly: STRIPE_PRICES.STARTER.MONTHLY,
         annual: STRIPE_PRICES.STARTER.ANNUAL,
-        monthlyPrice: 19.90,
+        monthlyPrice: 49.90,
         annualPrice: 199.00,
-        limit: 150,
+        limit: 200,
       },
       pro: {
         monthly: STRIPE_PRICES.PRO.MONTHLY,
         annual: STRIPE_PRICES.PRO.ANNUAL,
-        monthlyPrice: 39.90,
+        monthlyPrice: 99.90,
         annualPrice: 399.00,
-        limit: 400,
+        limit: 1000,
       },
       power: {
         monthly: STRIPE_PRICES.POWER.MONTHLY,
         annual: STRIPE_PRICES.POWER.ANNUAL,
-        monthlyPrice: 99.00,
+        monthlyPrice: 149.90,
         annualPrice: 990.00,
-        limit: 1400,
+        limit: 5000,
       },
     };
     const selected = plans[planId];
@@ -609,61 +609,57 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* HERO CENTRADO */}
-      <section className="tech-bg pt-10 md:pt-16 pb-16 md:pb-28">
-        <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center fade-in">
+      <section className="tech-bg pt-10 md:pt-20 pb-16 md:pb-32">
+        <div className="max-w-5xl mx-auto px-6 flex flex-col items-center text-center fade-in">
           {/* Badge superior */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-bold mb-8">
-            <span className="material-symbols-rounded text-emerald-500 text-[15px]">smart_toy</span>
-            IA & Automatización
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-primary text-[13px] font-black mb-8 shadow-sm">
+            <span className="material-symbols-rounded text-primary text-[18px] animate-pulse">smart_toy</span>
+            {t('landing.hero.badge')}
           </div>
 
           {/* Título Principal */}
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-6 lg:px-12">
+          <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-tight mb-8">
             {t('landing.hero.title')}
           </h1>
 
           {/* Subtítulo / Descripción */}
-          <p className="text-slate-500 text-lg md:text-xl leading-relaxed font-medium max-w-[75ch] mb-10">
-            {t('landing.hero.subtitle')} <br className="hidden md:block" /> {t('landing.hero.desc')}
+          <p className="text-slate-500 text-lg md:text-2xl leading-relaxed font-medium max-w-[65ch] mb-12">
+            {t('landing.hero.subtitle')}
           </p>
 
           {/* Botones de Acción */}
-          <div className="flex flex-col items-center gap-4 w-full justify-center mb-12">
+          <div className="flex flex-col items-center gap-6 w-full justify-center mb-16">
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
               <button
                 onClick={() => document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-10 rounded-2xl shadow-button flex items-center justify-center gap-2 text-base transition-all active:scale-[0.98]"
+                className="bg-primary hover:bg-primary-dark text-white font-black py-5 px-12 rounded-[2rem] shadow-[0_20px_40px_-8px_rgba(29,78,216,0.3)] flex items-center justify-center gap-3 text-lg transition-all active:scale-[0.98]"
               >
-                {t('common.try_free')}
-                <span className="material-symbols-rounded text-[20px]">arrow_forward</span>
+                {t('landing.hero.cta_primary')}
+                <span className="material-symbols-rounded text-[24px]">arrow_forward</span>
               </button>
               <button
                 onClick={() => document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-white border border-slate-200 text-slate-700 font-bold py-4 px-10 rounded-2xl flex items-center justify-center gap-2 text-base hover:border-primary hover:text-primary transition-all shadow-sm"
+                className="bg-white border-2 border-slate-200 text-slate-700 font-black py-5 px-12 rounded-[2rem] flex items-center justify-center gap-3 text-lg hover:border-primary hover:text-primary transition-all shadow-sm"
               >
-                <span className="material-symbols-rounded text-[20px]">calendar_today</span>
-                Agenda una demo
+                <span className="material-symbols-rounded text-[24px]">videocam</span>
+                {t('landing.hero.cta_secondary')}
               </button>
             </div>
-            <div className="flex items-center gap-4 text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
-              <span className="w-1 h-1 rounded-full bg-slate-200" />
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-rounded text-primary text-[16px]">bolt</span>
-                {t('common.instant')}
-              </span>
-            </div>
+            <p className="text-slate-400 text-[13px] font-bold uppercase tracking-[0.2em]">
+              {t('landing.hero.microcopy')}
+            </p>
           </div>
 
           {/* Trust badges centrados */}
-          <div className="flex items-center justify-center gap-6 text-xs font-semibold text-slate-400 flex-wrap">
-            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Números reales</span>
-            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>API/Webhooks</span>
-            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Sin contratos</span>
-            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Onboarding rápido</span>
-            <span className="flex items-center gap-1.5"><span className="material-symbols-rounded text-emerald-500 text-[16px]">check_circle</span>Sin intervención humana</span>
+          <div className="flex items-center justify-center gap-8 text-[11px] font-black text-slate-400 flex-wrap uppercase tracking-widest">
+            <span className="flex items-center gap-2"><span className="material-symbols-rounded text-emerald-500 text-[18px]">check_circle</span>{t('landing.hero.feature1')}</span>
+            <span className="flex items-center gap-2"><span className="material-symbols-rounded text-emerald-500 text-[18px]">check_circle</span>{t('landing.hero.feature2')}</span>
+            <span className="flex items-center gap-2"><span className="material-symbols-rounded text-emerald-500 text-[18px]">check_circle</span>{t('landing.hero.feature5')}</span>
+            <span className="flex items-center gap-2"><span className="material-symbols-rounded text-emerald-500 text-[18px]">check_circle</span>{t('landing.hero.autonomy')}</span>
           </div>
         </div>
       </section>
+
 
       {/* TESTIMONIOS — carrusel con autoscroll 4s, 4 visibles en desktop, Dots debajo */}
       <section className="bg-white pt-8 md:pt-14 pb-16 md:pb-24">
@@ -706,150 +702,52 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* TABLA COMPARATIVA — La automatización se rompe... */}
-      <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
+      {/* DIFFERENTIATION — WITHOUT vs WITH */}
+      <section className="py-16 md:py-28 bg-[#0f172a] overflow-hidden">
         <div className="max-w-5xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
-              La automatización se rompe cuando llega un OTP
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
+              {t('landing.differentiation.without.title')} vs {t('landing.differentiation.with.title')}
             </h2>
-            <p className="text-slate-300 text-lg font-medium max-w-2xl mx-auto">
-              En un mundo globalizado, tu código no debería depender de tu celular físico.
-            </p>
-          </motion.div>
+          </div>
 
-          <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm">
-            {/* Desktop: tabla con filas animadas (stagger + slide) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-widest">Situación</th>
-                    <th className="py-4 px-6 text-xs font-bold text-red-400 uppercase tracking-widest">Método Manual</th>
-                    <th className="py-4 px-6 text-xs font-bold text-emerald-400 uppercase tracking-widest">Con Telsim</th>
-                  </tr>
-                </thead>
-                <motion.tbody
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, margin: '-40px' }}
-                  variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
-                >
-                  {[
-                    { label: 'Flujo de Trabajo', manual: 'El bot se detiene. Espera al humano.', telsim: 'El bot detecta el SMS y sigue operando automáticamente.' },
-                    { label: 'Disponibilidad', manual: 'Solo si estás atento al celular.', telsim: '24/7 real. Sin pausas, sin depender de humanos.' },
-                    { label: 'Escalabilidad', manual: 'Limitado por tus propias manos.', telsim: 'Ilimitado. Escala 100 procesos en paralelo.' },
-                  ].map((row, i) => (
-                    <motion.tr
-                      key={i}
-                      className="border-b border-white/10 last:border-b-0"
-                      variants={{ hidden: { opacity: 0, x: -24 }, visible: { opacity: 1, x: 0 } }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
-                    >
-                      <td className="py-4 px-6 font-semibold text-slate-200">{row.label}</td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-start gap-3">
-                          <span className="material-symbols-rounded text-red-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>close</span>
-                          <span className="text-slate-300 text-sm">{row.manual}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-start gap-3">
-                          <span className="material-symbols-rounded text-emerald-400 flex-shrink-0 mt-0.5" style={{ fontSize: 20 }}>check_circle</span>
-                          <span className="text-slate-100 text-sm font-medium">{row.telsim}</span>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </motion.tbody>
-              </table>
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* WITHOUT */}
+            <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 relative overflow-hidden group">
+              <div className="absolute -top-12 -right-12 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl"></div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center">
+                  <span className="material-symbols-rounded text-rose-500 text-[28px]">trending_down</span>
+                </div>
+                <h3 className="text-2xl font-black text-rose-400">{t('landing.differentiation.without.title')}</h3>
+              </div>
+              <div className="space-y-6">
+                {[1, 2, 3].map(idx => (
+                  <div key={idx} className="flex items-start gap-4">
+                    <span className="material-symbols-rounded text-rose-500/50 mt-1">close</span>
+                    <span className="text-slate-400 font-bold text-lg">{t(`landing.differentiation.without.item${idx}`)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Mobile: Interactive Before/After Toggle */}
-            <div className="md:hidden flex flex-col items-center gap-8 py-6">
-              {/* Premium Segmented Control */}
-              <div className="bg-white/5 p-1 rounded-2xl flex items-center gap-1 border border-white/10 shadow-lg">
-                <button
-                  onClick={() => setIsTelsim(false)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
-                    !isTelsim ? 'bg-white/10 text-white shadow-inner' : 'text-slate-400 hover:text-slate-300'
-                  }`}
-                >
-                  SIN TELSIM
-                </button>
-                <button
-                  onClick={() => setIsTelsim(true)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                    isTelsim ? 'bg-primary text-white shadow-[0_0_15px_rgba(29,78,216,0.4)]' : 'text-slate-400 hover:text-slate-300'
-                  }`}
-                >
-                  CON TELSIM
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse" />
-                </button>
+            {/* WITH */}
+            <div className="bg-primary/10 border-2 border-primary/30 rounded-[2.5rem] p-10 relative overflow-hidden group shadow-[0_0_50px_-10px_rgba(29,78,216,0.5)]">
+              <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/20 rounded-full blur-3xl"></div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+                  <span className="material-symbols-rounded text-white text-[28px]">trending_up</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">{t('landing.differentiation.with.title')}</h3>
               </div>
-
-              {/* Dynamic Comparison Cards */}
-              <motion.div
-                layout
-                className="w-full space-y-4 px-4"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-              >
-                {[
-                  {
-                    label: 'Flujo de Trabajo',
-                    icon: isTelsim ? 'sync_alt' : 'block',
-                    text: isTelsim ? 'El bot detecta el SMS y sigue operando automáticamente.' : 'El bot se detiene. Espera al humano.',
-                    color: isTelsim ? 'text-emerald-400' : 'text-red-400',
-                  },
-                  {
-                    label: 'Disponibilidad',
-                    icon: isTelsim ? 'schedule' : 'history',
-                    text: isTelsim ? '24/7 real. Sin pausas, sin depender de humanos.' : 'Solo si estás atento al celular.',
-                    color: isTelsim ? 'text-emerald-400' : 'text-red-400',
-                  },
-                  {
-                    label: 'Escalabilidad',
-                    icon: isTelsim ? 'trending_up' : 'back_hand',
-                    text: isTelsim ? 'Ilimitado. Escala 100 procesos en paralelo.' : 'Limitado por tus propias manos.',
-                    color: isTelsim ? 'text-emerald-400' : 'text-red-400',
-                  },
-                ].map((row, i) => (
-                  <motion.div
-                    key={i + (isTelsim ? '_on' : '_off')}
-                    initial={{ opacity: 0, x: isTelsim ? 20 : -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className={`p-5 rounded-2xl border backdrop-blur-sm transition-all duration-500 flex items-start gap-4 ${
-                      isTelsim 
-                        ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_20px_-10px_rgba(16,185,129,0.3)]' 
-                        : 'bg-white/5 border-white/5'
-                    }`}
-                  >
-                    <div className={`p-2.5 rounded-xl ${isTelsim ? 'bg-emerald-500/10' : 'bg-white/5'} transition-colors duration-500`}>
-                      <span className={`material-symbols-rounded ${row.color}`} style={{ fontSize: 24 }}>{row.icon}</span>
-                    </div>
-                    <div className="flex-1 pt-0.5">
-                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1.5 transition-colors duration-500 ${isTelsim ? 'text-emerald-500/80' : 'text-slate-400'}`}>
-                        {row.label}
-                      </p>
-                      <p className={`text-sm font-medium leading-relaxed transition-colors duration-500 ${isTelsim ? 'text-white' : 'text-slate-300 italic'}`}>
-                        {row.text}
-                      </p>
-                    </div>
-                    {isTelsim && (
-                      <div className="pt-2">
-                        <span className="material-symbols-rounded text-emerald-400" style={{ fontSize: 18 }}>check_circle</span>
-                      </div>
-                    )}
-                  </motion.div>
+              <div className="space-y-6">
+                {[1, 2, 3].map(idx => (
+                  <div key={idx} className="flex items-start gap-4">
+                    <span className="material-symbols-rounded text-emerald-400 mt-1">check_circle</span>
+                    <span className="text-white font-black text-lg">{t(`landing.differentiation.with.item${idx}`)}</span>
+                  </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
@@ -874,38 +772,75 @@ const Landing: React.FC = () => {
               ref={casosUsoRef}
               className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar -mx-6 px-6 md:mx-0 md:px-0 pb-4 md:pb-0"
               style={{ scrollbarWidth: 'none' }}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
-          >
-            {casosUso.map((c, i) => (
-              <motion.div
-                key={i}
-                variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="bg-[#FAFAFA] rounded-[2rem] border border-slate-100 p-8 flex flex-col hover-lift transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-200 relative overflow-hidden group min-w-[85vw] md:min-w-0 snap-start"
-              >
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-150 transition-transform duration-700 ease-out">{c.icon}</div>
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-sm shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
-                <h3 className="text-xl font-black text-slate-900 mb-6 relative z-10">{c.title}</h3>
-                <ul className="flex flex-col gap-4 relative z-10">
-                  {c.bullets.map((bullet, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="material-symbols-rounded text-emerald-500 text-[20px] shrink-0 mt-0.5" style={{fontVariationSettings: "'FILL' 1"}}>check_circle</span>
-                      <span className="text-[14px] font-medium text-slate-600 leading-snug">{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
-          </motion.div>
-          <div className="md:hidden">
-            <ScrollDots total={casosUso.length} current={casosPage} scrollRef={casosUsoRef} />
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
+            >
+              {[
+                {
+                  iconBg: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+                  icon: <span className="material-symbols-rounded text-blue-600 text-[28px]">smart_toy</span>,
+                  title: t('landing.use_cases.v2.col1.title'),
+                  bullets: [
+                    t('landing.use_cases.v2.col1.item1'),
+                    t('landing.use_cases.v2.col1.item2'),
+                    language === 'es' ? 'Gestión de múltiples identidades' : 'Multi-identity management',
+                    language === 'es' ? 'Bypass de bloqueos VoIP' : 'Bypass VoIP filtering',
+                    language === 'es' ? 'Escalabilidad programática' : 'Programmatic scalability'
+                  ]
+                },
+                {
+                  iconBg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+                  icon: <span className="material-symbols-rounded text-emerald-600 text-[28px]">hub</span>,
+                  title: t('landing.use_cases.v2.col2.title'),
+                  bullets: [
+                    t('landing.use_cases.v2.col2.item1'),
+                    t('landing.use_cases.v2.col2.item2'),
+                    language === 'es' ? 'Webhooks en tiempo real' : 'Real-time Webhooks',
+                    language === 'es' ? 'Integración con Telegram' : 'Telegram integration',
+                    language === 'es' ? 'Logs de auditoría' : 'Audit logs'
+                  ]
+                },
+                {
+                  iconBg: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
+                  icon: <span className="material-symbols-rounded text-amber-600 text-[28px]">trending_up</span>,
+                  title: t('landing.use_cases.v2.col3.title'),
+                  bullets: [
+                    t('landing.use_cases.v2.col3.item1'),
+                    t('landing.use_cases.v2.col3.item2'),
+                    language === 'es' ? 'Optimización de costes' : 'Cost optimization',
+                    language === 'es' ? 'Continuidad de negocio' : 'Business continuity',
+                    language === 'es' ? 'Seguridad empresarial' : 'Enterprise security'
+                  ]
+                }
+              ].map((c, i) => (
+                <motion.div
+                  key={i}
+                  variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="bg-[#FAFAFA] rounded-[2.5rem] border border-slate-100 p-10 flex flex-col hover-lift transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50 hover:border-slate-200 relative overflow-hidden group min-w-[85vw] md:min-w-0 snap-start"
+                >
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-150 transition-transform duration-700 ease-out">{c.icon}</div>
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8 shadow-sm shrink-0" style={{ background: c.iconBg }}>{c.icon}</div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-8 relative z-10 leading-tight">{c.title}</h3>
+                  <ul className="flex flex-col gap-5 relative z-10">
+                    {c.bullets.map((bullet, idx) => (
+                      <li key={idx} className="flex items-start gap-4">
+                        <span className="material-symbols-rounded text-emerald-500 text-[22px] shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                        <span className="text-[15px] font-bold text-slate-600 leading-snug">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              ))}
+            </motion.div>
+            <div className="md:hidden">
+              <ScrollDots total={casosUso.length} current={casosPage} scrollRef={casosUsoRef} />
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* TELEGRAM SECTION */}
       <section className="py-16 md:py-28 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1B3A6B 60%, #1d4ed8 100%)' }}>
@@ -1005,7 +940,7 @@ const Landing: React.FC = () => {
             className="text-center mb-12"
           >
             <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Flujo Funcional</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">El pipeline de tus SMS</h2>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('landing.how_it_works.pipeline_title')}</h2>
           </motion.div>
 
           <div className="relative">
@@ -1022,11 +957,11 @@ const Landing: React.FC = () => {
 
             <div className="flex flex-col md:flex-row items-stretch gap-8 md:gap-0 mb-4 relative z-10 w-full justify-between">
               {[
-                 { icon: 'sim_card', step: '1', title: 'Identidad Real', desc: 'SIMs físicas que saltan los filtros VoIP más exigentes.' },
-                 { icon: 'quick_reference', step: '2', title: 'Detección Instantánea', desc: 'Capturamos el código SMS en milisegundos directamente de la red.' },
-                 { icon: 'webhook', step: '3', title: 'Entrega Programática', desc: 'Payload JSON seguro directo a tu Webhook o API REST.' },
-                 { icon: 'memory', step: '4', title: 'Validación Autónoma', desc: 'Tu sistema extrae y procesa el OTP sin intervención humana.' },
-                 { icon: 'rocket_launch', step: '5', title: 'Escalado Global', desc: 'Tus agentes operan 24/7 sin cuellos de botella. Cero fallos, 100% ROI.' }
+                { icon: 'outbox', step: '1', title: t('landing.how_it_works.step1.title'), desc: t('landing.how_it_works.step1.desc') },
+                { icon: 'sim_card', step: '2', title: t('landing.how_it_works.step2.title'), desc: t('landing.how_it_works.step2.desc') },
+                { icon: 'smart_toy', step: '3', title: t('landing.how_it_works.step3.title'), desc: t('landing.how_it_works.step3.desc') },
+                { icon: 'webhook', step: '4', title: t('landing.how_it_works.step4.title'), desc: t('landing.how_it_works.step4.desc') },
+                { icon: 'rocket_launch', step: '5', title: t('landing.how_it_works.step5.title'), desc: t('landing.how_it_works.step5.desc') }
               ].map((item, i) => (
                 <motion.div
                   key={i}
@@ -1171,11 +1106,10 @@ const Landing: React.FC = () => {
                 />
                 {contactFeedback && (
                   <div
-                    className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                      contactFeedback.type === 'success'
-                        ? 'bg-emerald-500/15 text-emerald-100 border border-emerald-400/30'
-                        : 'bg-rose-500/15 text-rose-100 border border-rose-400/30'
-                    }`}
+                    className={`rounded-2xl px-4 py-3 text-sm font-semibold ${contactFeedback.type === 'success'
+                      ? 'bg-emerald-500/15 text-emerald-100 border border-emerald-400/30'
+                      : 'bg-rose-500/15 text-rose-100 border border-rose-400/30'
+                      }`}
                   >
                     {contactFeedback.message}
                   </div>
@@ -1211,13 +1145,30 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* TRUST & SECURITY markers before pricing */}
+      <section className="bg-white py-12 md:py-20">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-black text-slate-400 uppercase tracking-[0.3em] mb-8">{t('landing.trust.title')}</h2>
+            <div className="flex flex-wrap justify-center gap-x-12 gap-y-6">
+              {[1, 2, 3, 4, 5].map(idx => (
+                <div key={idx} className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <span className="material-symbols-rounded text-emerald-500 text-[20px]">verified</span>
+                  <span className="text-slate-900 font-black text-xs uppercase tracking-widest">{t(`landing.trust.item${idx}`)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* PRECIOS */}
-      <section id="precios" ref={pricingSectionRef} className="tech-bg py-16 md:py-28">
+      <section id="precios" ref={pricingSectionRef} className="tech-bg py-16 md:py-28 border-t border-slate-100">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
-            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">Planes</span>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Elige tu plan</h2>
-            <p className="text-slate-500 text-base mt-3 font-medium">{t('landing.pricing.subtitle')}</p>
+            <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">{t('landing.pricing.tag')}</span>
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">{t('landing.pricing.title')}</h2>
+            <p className="text-slate-500 text-lg mt-3 font-medium max-w-2xl mx-auto">{t('landing.pricing.subtitle')}</p>
           </div>
 
           <div className="flex items-center justify-center gap-3 mb-8">
@@ -1255,8 +1206,9 @@ const Landing: React.FC = () => {
                   <span className={`text-[11px] font-black ${starterCardColors.phoneColor}`}>{t('landing.pricing.starter.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1 flex-wrap">
+                  {!isAnnual && <span className="text-xl line-through text-slate-300 font-bold mr-1">$99.90</span>}
                   <span className={`text-5xl font-black group-hover:text-primary transition-colors duration-300 ${starterCardColors.phoneColor}`}>
-                    {isAnnual ? '$199' : '$19.90'}
+                    {isAnnual ? '$199' : '$49.90'}
                   </span>
                   <span className={`font-semibold ${starterCardColors.labelColor}`}>{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
@@ -1298,8 +1250,9 @@ const Landing: React.FC = () => {
                   <span className="text-[11px] font-black text-primary">{t('landing.pricing.pro.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1 flex-wrap">
+                  {!isAnnual && <span className="text-xl line-through text-slate-300 font-bold mr-1">$249.90</span>}
                   <span className="text-5xl font-black text-slate-900 group-hover:text-primary transition-colors duration-300">
-                    {isAnnual ? '$399' : '$39.90'}
+                    {isAnnual ? '$399' : '$99.90'}
                   </span>
                   <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
@@ -1341,8 +1294,9 @@ const Landing: React.FC = () => {
                   <span className="text-[11px] font-black" style={{ color: '#D97706' }}>{t('landing.pricing.power.credits')}</span>
                 </div>
                 <div className="flex items-baseline gap-1 flex-wrap">
+                  {!isAnnual && <span className="text-xl line-through font-bold mr-1 opacity-30">$499.90</span>}
                   <span className="text-5xl font-black text-slate-900 transition-colors duration-300">
-                    {isAnnual ? '$990' : '$99.00'}
+                    {isAnnual ? '$990' : '$149.90'}
                   </span>
                   <span className="text-slate-400 font-semibold">{isAnnual ? '/yr' : '/mo'}</span>
                 </div>
@@ -1492,23 +1446,27 @@ const Landing: React.FC = () => {
           </div>
         </div>
       </section>
-      <section className="bg-white py-16 md:py-28">
-        <div className="max-w-xl mx-auto px-6 text-center flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-button">
-            <span className="material-symbols-rounded text-white text-[32px]">sim_card</span>
+      {/* CTA FINAL */}
+      <section className="bg-white py-20 md:py-40">
+        <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center gap-10">
+          <div className="w-24 h-24 rounded-[2.5rem] bg-primary flex items-center justify-center shadow-[0_20px_40px_-8px_rgba(29,78,216,0.3)]">
+            <span className="material-symbols-rounded text-white text-[48px]">smart_toy</span>
           </div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            {t('landing.cta.title')}
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight px-6 lg:px-10">
+            {t('landing.cta_final.title')}
           </h2>
-          <p className="text-slate-500 text-base font-medium">{t('landing.hero.trial_footer')}</p>
-          <button
-            onClick={() => document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-2xl shadow-button flex items-center gap-2 text-base transition-all active:scale-[0.98]"
-          >
-            {t('common.try_free')}
-            <span className="material-symbols-rounded">arrow_forward</span>
-          </button>
+          <p className="text-slate-400 text-base font-medium">{t('landing.hero.trial_footer')}</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth' })}
+              className="bg-primary hover:bg-primary-dark text-white font-black py-5 px-12 rounded-[2rem] shadow-button flex items-center justify-center gap-3 text-lg transition-all active:scale-[0.98]"
+            >
+              {t('landing.cta_final.btn_demo')}
+              <span className="material-symbols-rounded text-[24px]">arrow_forward</span>
+            </button>
+          </div>
           <p className="text-xs text-slate-400 font-medium">¿Tienes preguntas? <a href="mailto:support@telsim.io" className="text-primary hover:underline">support@telsim.io</a></p>
+
         </div>
       </section>
 

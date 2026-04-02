@@ -91,8 +91,8 @@ const RegionSelect: React.FC = () => {
 
     const isAnnual = localStorage.getItem('selected_plan_annual') === 'true';
     const planNames: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' };
-    const limits: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
-    const monthlyPrices: Record<string, number> = { starter: 19.90, pro: 39.90, power: 99.00 };
+    const limits: Record<string, number> = { starter: 200, pro: 1000, power: 5000 };
+    const monthlyPrices: Record<string, number> = { starter: 49.90, pro: 99.90, power: 149.90 };
     const annualPrices: Record<string, number> = { starter: 199, pro: 399, power: 990 };
     const monthlyIds: Record<string, string> = {
       starter: STRIPE_PRICES.STARTER.MONTHLY,
@@ -110,9 +110,9 @@ const RegionSelect: React.FC = () => {
     const savedPriceId = localStorage.getItem('selected_plan_price_id') || '';
 
     const resolvedPlanName = planNames[planId] || 'Starter';
-    const resolvedPrice = savedPrice || (isAnnual ? (annualPrices[planId] || 19.90) : (monthlyPrices[planId] || 19.90));
+    const resolvedPrice = savedPrice || (isAnnual ? (annualPrices[planId] || 49.90) : (monthlyPrices[planId] || 49.90));
     const resolvedPriceId = savedPriceId || (isAnnual ? (annualIds[planId] || annualIds.starter) : (monthlyIds[planId] || monthlyIds.starter));
-    const resolvedLimit = limits[planId] || 150;
+    const resolvedLimit = limits[planId] || 200;
 
     navigate('/onboarding/summary', {
       state: {
