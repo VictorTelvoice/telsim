@@ -589,7 +589,7 @@ const MyNumbers: React.FC = () => {
                 cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00E0FF] text-white shadow-xl',
                 badgeBg: 'bg-white/20 backdrop-blur-md text-white border border-white/30',
                 accentText: 'text-blue-50',
-                chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
+                chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
                 icon: <Zap className="size-3" />,
                 label: 'PRO',
                 progressFill: 'bg-white'
@@ -760,11 +760,11 @@ const MyNumbers: React.FC = () => {
                                         </div>
 
                                         <div className="mt-2 flex items-center justify-end gap-2 flex-wrap">
-                                                <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <MessageSquare className="size-4 text-primary" />
+                                                <button onClick={() => navigate(`/dashboard/messages?num=${encodeURIComponent(slot.phone_number)}`)} className="w-11 h-11 rounded-2xl bg-white/88 dark:bg-white/12 border border-white/45 dark:border-white/15 flex items-center justify-center shadow-sm dark:shadow-[0_12px_30px_-16px_rgba(15,23,42,0.9)] backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-white/16">
+                                                    <MessageSquare className="size-4 text-primary dark:text-white" />
                                                 </button>
-                                                <button onClick={() => handleUpgradeSelect(slot)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <Zap className="size-4 text-primary" />
+                                                <button onClick={() => handleUpgradeSelect(slot)} className="w-11 h-11 rounded-2xl bg-white/88 dark:bg-white/12 border border-white/45 dark:border-white/15 flex items-center justify-center shadow-sm dark:shadow-[0_12px_30px_-16px_rgba(15,23,42,0.9)] backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-white/16">
+                                                    <Zap className="size-4 text-primary dark:text-white" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleToggleForwarding(slot.slot_id, !slot.forwarding_active)}
@@ -772,14 +772,14 @@ const MyNumbers: React.FC = () => {
                                                     className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm backdrop-blur-sm ${
                                                         slot.forwarding_active
                                                             ? 'bg-emerald-500 text-white border-emerald-400/80 ring-2 ring-white/60 shadow-lg shadow-emerald-500/30'
-                                                            : 'bg-white/85 dark:bg-slate-900/80 border-white/40 dark:border-slate-700 text-slate-500'
+                                                            : 'bg-white/88 dark:bg-white/12 border-white/45 dark:border-white/15 text-slate-500 dark:text-white'
                                                     } ${togglingSlot === slot.slot_id ? 'opacity-70' : ''}`}
                                                     title={slot.forwarding_active ? 'Bot de Telegram activo' : 'Bot de Telegram inactivo'}
                                                 >
                                                     {togglingSlot === slot.slot_id ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
                                                 </button>
-                                                <button onClick={() => handleCopy(slot.phone_number)} className="w-11 h-11 rounded-2xl bg-white/85 dark:bg-slate-900/80 border border-white/40 dark:border-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm">
-                                                    <Copy className="size-4 text-slate-500" />
+                                                <button onClick={() => handleCopy(slot.phone_number)} className="w-11 h-11 rounded-2xl bg-white/88 dark:bg-white/12 border border-white/45 dark:border-white/15 flex items-center justify-center shadow-sm dark:shadow-[0_12px_30px_-16px_rgba(15,23,42,0.9)] backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-white/16">
+                                                    <Copy className="size-4 text-slate-500 dark:text-white" />
                                                 </button>
                                                 <button onClick={() => { setSlotToRelease(slot); setIsReleaseModalOpen(true); }} className="w-11 h-11 rounded-2xl bg-rose-50/90 dark:bg-rose-900/20 border border-rose-200/70 dark:border-rose-900/30 text-rose-500 flex items-center justify-center shadow-sm backdrop-blur-sm">
                                                     <Trash2 className="size-4" />
