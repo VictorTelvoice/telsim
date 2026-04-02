@@ -17,6 +17,7 @@ import { Analytics } from './components/Analytics';
 
 // Importación de Lucide Icons para el Navbar (Fallback de alta fiabilidad)
 import { Home, MessageSquare, Plus, Smartphone, Settings } from 'lucide-react';
+import { useTheme } from './contexts/ThemeContext';
 
 const Landing = React.lazy(() => import('./screens/Landing'));
 const Login = React.lazy(() => import('./screens/auth/Login'));
@@ -92,6 +93,29 @@ const RouteFallback = () => (
     </div>
   </div>
 );
+
+const ThemeRouteSync: React.FC = () => {
+  const location = useLocation();
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const path = location.pathname || '/';
+    const canUseDark =
+      path.startsWith('/dashboard') ||
+      path.startsWith('/web') ||
+      path.startsWith('/admin') ||
+      path.startsWith('/onboarding');
+
+    if (theme === 'dark' && canUseDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [location.pathname, theme]);
+
+  return null;
+};
 
 const MOBILE_ROUTE_PRELOADERS = [
   loadDashboard,
@@ -312,6 +336,7 @@ const App: React.FC = () => {
               <HashRouter>
                 <Analytics />
                 <ImpersonationProvider>
+                  <ThemeRouteSync />
                   <MobileRoutePreloader />
                   <ScrollToTop />
                   <ImpersonationBanner />

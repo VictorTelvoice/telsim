@@ -27,7 +27,15 @@ import {
   invoiceTaxCents,
 } from './_helpers/stripeInvoice.js';
 
-const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+const PRIMARY_ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+const ADMIN_UIDS = [
+  PRIMARY_ADMIN_UID,
+  'd310eaf8-2c82-4c29-9ea8-6d64616774da',
+];
+
+function isAdminUid(uid: string | null | undefined): boolean {
+  return ADMIN_UIDS.some((adminUid) => adminUid.toLowerCase() === String(uid || '').toLowerCase());
+}
 
 /** Variantes de `phone_number` en BD para buscar por número (ej. 569… vs +569…). */
 function collectPhoneNumberVariantsForQuery(raw: string): string[] {
@@ -155,7 +163,7 @@ async function getRequestAuthUserId(req: any): Promise<string | null> {
 
 async function requireAdminAuthUserId(req: any): Promise<string | null> {
   const authUid = await getRequestAuthUserId(req);
-  if (!authUid || String(authUid).toLowerCase() !== ADMIN_UID.toLowerCase()) {
+  if (!authUid || !isAdminUid(authUid)) {
     return null;
   }
   return authUid;
@@ -169,7 +177,7 @@ async function assertSlotCancelAllowed(
   if (!authUid) {
     return { ok: false, status: 401, error: 'Se requiere sesión para liberar por slot_id.' };
   }
-  if ((authUid || '').toLowerCase() === ADMIN_UID.toLowerCase()) {
+  if (isAdminUid(authUid)) {
     return { ok: true };
   }
   const { data: slotRow, error } = await supabaseAdmin
@@ -652,7 +660,7 @@ async function sendTelegramAlertInBackground(
       await fetch(`https://api.telegram.org/bot${adminToken}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }) });
       return;
     }
-    const { data } = await supabaseAdmin.from('users').select('telegram_token, telegram_chat_id').eq('id', ADMIN_UID).maybeSingle();
+    const { data } = await supabaseAdmin.from('users').select('telegram_token, telegram_chat_id').eq('id', PRIMARY_ADMIN_UID).maybeSingle();
     if (!data?.telegram_token?.trim() || !data?.telegram_chat_id?.trim()) return;
     const token = data.telegram_token.trim();
     const chatId = data.telegram_chat_id.trim();
@@ -1273,7 +1281,7 @@ export default async function handler(req: any, res: any) {
         if (!anonKey) return res.status(500).json({ error: 'Configuración de auth faltante.' });
         const supabaseAuth = createClient(process.env.SUPABASE_URL!, anonKey, { global: { fetch } });
         const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-        if (authError || !user || (user.id || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (authError || !user || !isAdminUid(user.id)) {
           return res.status(403).json({ error: 'Solo el administrador puede enviar esta notificación.' });
         }
         const { ticket_id: ticketId } = req.body;
@@ -1733,17 +1741,37 @@ export default async function handler(req: any, res: any) {
         if (!userId || !slotId || !newPriceId || !newPlanName) {
           return res.status(400).json({ error: 'Faltan parámetros requeridos' });
         }
-        const { data: userRow, error: userError } = await supabaseAdmin
+        const { data: userRow } = await supabaseAdmin
           .from('users')
           .select('stripe_customer_id')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-        if (userError || !userRow?.stripe_customer_id) {
-          return res.status(400).json({ error: 'No se encontró customer de Stripe para este usuario' });
+        let customerId: string | null =
+          (userRow as { stripe_customer_id?: string | null } | null)?.stripe_customer_id || null;
+
+        // Fall back to profiles table — the Stripe webhook historically saved stripe_customer_id
+        // there only; users who subscribed before the dual-write fix only have it in profiles.
+        if (!customerId) {
+          const { data: profileRow } = await supabaseAdmin
+            .from('profiles')
+            .select('stripe_customer_id')
+            .eq('id', userId)
+            .maybeSingle();
+          customerId = (profileRow as { stripe_customer_id?: string | null } | null)?.stripe_customer_id || null;
+
+          // Back-fill users table so future calls don't need the fallback.
+          if (customerId) {
+            await supabaseAdmin
+              .from('users')
+              .update({ stripe_customer_id: customerId })
+              .eq('id', userId);
+          }
         }
 
-        const customerId = (userRow as { stripe_customer_id: string }).stripe_customer_id;
+        if (!customerId) {
+          return res.status(400).json({ error: 'No se encontró customer de Stripe para este usuario' });
+        }
         const { data: currentSub } = await supabaseAdmin
           .from('subscriptions')
           .select('id, stripe_subscription_id, stripe_session_id')
@@ -2175,7 +2203,7 @@ export default async function handler(req: any, res: any) {
 
       case 'retry-notification': {
         const { logId, userId: reqUserId } = req.body || {};
-        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador puede reintentar.', code: 'FORBIDDEN' });
         }
         if (!logId || typeof logId !== 'string') {
@@ -2243,7 +2271,7 @@ export default async function handler(req: any, res: any) {
 
       case 'list-notification-history': {
         const { userId: reqUserId, emailSearch, eventSearch, filterUserId, limit: limitParam } = req.body || {};
-        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador puede consultar el historial.', code: 'FORBIDDEN' });
         }
         const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
@@ -2317,7 +2345,7 @@ export default async function handler(req: any, res: any) {
           hideSpam,
           limit: limitParam,
         } = req.body || {};
-        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador.', code: 'FORBIDDEN' });
         }
         const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
@@ -2506,7 +2534,7 @@ export default async function handler(req: any, res: any) {
 
       case 'get-notification-stats': {
         const { userId: reqUserId } = req.body || {};
-        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador.', code: 'FORBIDDEN' });
         }
         const now = new Date();
@@ -2732,11 +2760,11 @@ export default async function handler(req: any, res: any) {
        * Solo admin: releer suscripción en Stripe y alinear `subscriptions` (status, trial_end, fechas).
        * No toca slots ni filas canceladas localmente ni `pending_reactivation_cancel`.
        *
-       * Body: { userId: ADMIN_UID, phone_numbers?: string[], stripe_subscription_ids?: string[], subscription_ids?: string[] }
+       * Body: { userId: admin_uid, phone_numbers?: string[], stripe_subscription_ids?: string[], subscription_ids?: string[] }
        */
       case 'admin-sync-subscriptions-from-stripe': {
         const { userId: reqUserId, phone_numbers, stripe_subscription_ids, subscription_ids } = req.body || {};
-        if (!reqUserId || String(reqUserId).toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador.' });
         }
         const phonesIn: string[] = Array.isArray(phone_numbers)
@@ -2995,7 +3023,7 @@ export default async function handler(req: any, res: any) {
       case 'admin-stripe-cancel-subscriptions': {
         const stripe = await getStripeClient();
         const { userId: reqUserId, stripeSubscriptionIds } = req.body || {};
-        if (!reqUserId || (reqUserId || '').toLowerCase() !== ADMIN_UID.toLowerCase()) {
+        if (!reqUserId || !isAdminUid(reqUserId)) {
           return res.status(403).json({ error: 'Solo el administrador.' });
         }
         const ids = Array.isArray(stripeSubscriptionIds) ? stripeSubscriptionIds : [];
@@ -3055,7 +3083,7 @@ export default async function handler(req: any, res: any) {
         }
 
         const ownerId = String((subRow as { user_id?: string | null }).user_id ?? '');
-        const isAdmin = authUid.toLowerCase() === ADMIN_UID.toLowerCase();
+        const isAdmin = isAdminUid(authUid);
         if (!isAdmin && ownerId !== authUid) {
           return res.status(403).json({ error: 'No autorizado para sincronizar esta suscripción.' });
         }

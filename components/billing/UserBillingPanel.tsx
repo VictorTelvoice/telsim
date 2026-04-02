@@ -482,7 +482,7 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   const [invoicesReady, setInvoicesReady] = useState(false);
   const [isCreatingPortal, setIsCreatingPortal] = useState(false);
   const [resolvingInvoiceId, setResolvingInvoiceId] = useState<string | null>(null);
-  type SubscriptionFilterTab = 'activas' | 'trialing' | 'todas';
+  type SubscriptionFilterTab = 'activas' | 'todas';
 
   const [bootPrefs] = useState(() => loadBillingPanelPreferences());
   const [subscriptionFilter, setSubscriptionFilter] = useState<SubscriptionFilterTab>(bootPrefs.subscriptionFilter);
@@ -529,15 +529,11 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
   /**
    * Pestañas principales (siempre dedupe por línea / slot / stripe_subscription_id):
    * - Activas: solo status active
-   * - Trialing: solo trialing
-   * - Todas: active + trialing + past_due (past_due explícito; no mezclado con Activas/Trialing)
+   * - Todas: active + trialing + past_due (past_due explícito; no mezclado con Activas)
    */
   const displayedSubscriptions = useMemo(() => {
     if (subscriptionFilter === 'activas') {
       return subscriptionsDedupedByLine.filter((s) => normalizeSubscriptionStatus(s.status) === 'active');
-    }
-    if (subscriptionFilter === 'trialing') {
-      return subscriptionsDedupedByLine.filter((s) => normalizeSubscriptionStatus(s.status) === 'trialing');
     }
     return subscriptionsDedupedByLine.filter((s) => isTodasTabStatus(s.status));
   }, [subscriptionsDedupedByLine, subscriptionFilter]);
@@ -554,7 +550,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
     const dl = subscriptionsDedupedByLine;
     return {
       activas: dl.filter((s) => normalizeSubscriptionStatus(s.status) === 'active').length,
-      trialing: dl.filter((s) => normalizeSubscriptionStatus(s.status) === 'trialing').length,
       todas: dl.filter((s) => isTodasTabStatus(s.status)).length,
     };
   }, [subscriptionsDedupedByLine]);
@@ -1155,12 +1150,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
                     hint: 'Solo estado active (una fila por línea)',
                   },
                   {
-                    key: 'trialing' as const,
-                    label: 'Trialing',
-                    count: subscriptionFilterCounts.trialing,
-                    hint: 'Solo en periodo de prueba (una fila por línea)',
-                  },
-                  {
                     key: 'todas' as const,
                     label: 'Todas',
                     count: subscriptionFilterCounts.todas,
@@ -1201,7 +1190,6 @@ const UserBillingPanel: React.FC<UserBillingPanelProps> = ({
           <div className="py-10 text-center bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-400 italic">
               {subscriptionFilter === 'activas' && t('billing.no_services')}
-              {subscriptionFilter === 'trialing' && 'No hay suscripciones en periodo de prueba.'}
               {subscriptionFilter === 'todas' &&
                 'No hay suscripciones operativas (active / trialing / baja programada / past due) en tu cuenta.'}
             </p>

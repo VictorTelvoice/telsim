@@ -639,14 +639,12 @@ const WebDashboard: React.FC = () => {
     },
     {
       id: 'chat',
-      title: 'Chat en Vivo',
-      desc: supportTier === 'pro' || supportTier === 'power'
-        ? 'Atención operativa prioritaria desde el dashboard.'
-        : 'Disponible para clientes con plan Pro o Power.',
-      wait: '< 2 min',
-      enabled: supportTier === 'pro' || supportTier === 'power',
-      badge: supportTier === 'pro' || supportTier === 'power' ? null : 'Requiere Pro',
-      hint: supportTier === 'pro' || supportTier === 'power' ? null : 'Actualiza a Pro o Power para desbloquear atención en tiempo real.',
+      title: 'Bot de soporte IA',
+      desc: 'Atención automatizada por bot dentro del dashboard. Próximamente disponible.',
+      wait: 'Pronto',
+      enabled: false,
+      badge: 'Próximamente',
+      hint: 'Este canal será atendido por un bot y se habilitará pronto.',
       icon: <MessageSquare size={18} />,
       tone: isDark
         ? 'from-primary/15 to-sky-500/10 border-primary/25'
@@ -680,10 +678,10 @@ const WebDashboard: React.FC = () => {
 
     if (!enabled) {
       setLockedSupportChannel({
-        title: channelId === 'chat' ? 'Chat en Vivo' : 'WhatsApp 24/7',
-        requirement: channelId === 'chat' ? 'Disponible para clientes con plan Pro o Power.' : 'Disponible solo para clientes con plan Power.',
+        title: channelId === 'chat' ? 'Bot de soporte IA' : 'WhatsApp 24/7',
+        requirement: channelId === 'chat' ? 'Este canal será atendido por un bot y aún no está habilitado.' : 'Disponible solo para clientes con plan Power.',
         hint: channelId === 'chat'
-          ? 'Activa un plan Pro o Power para hablar con soporte en tiempo real desde tu dashboard.'
+          ? 'Muy pronto podrás conversar con un asistente automatizado desde esta misma sección.'
           : 'Sube a Power para desbloquear atención prioritaria por WhatsApp 24/7.',
       });
       return;
@@ -1264,7 +1262,7 @@ const WebDashboard: React.FC = () => {
       console.error('Logout error:', err);
     } finally {
       setLoggingOut(false);
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
     }
   };
 
@@ -1681,7 +1679,7 @@ const WebDashboard: React.FC = () => {
       };
       case 'pro': return {
         cardBg: 'bg-gradient-to-br from-[#0047FF] via-[#0094FF] to-[#00C8FF]',
-        chip: 'bg-gradient-to-br from-slate-200 via-slate-100 to-white',
+        chip: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500',
         label: 'Pro',
         phoneColor: 'text-white',
         labelColor: 'text-white/80',
@@ -1785,8 +1783,8 @@ const WebDashboard: React.FC = () => {
       <aside className={`w-56 flex-shrink-0 flex flex-col border-r ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
 
         {/* Logo */}
-        <div className="px-5 pt-6 pb-4 flex items-center gap-2.5">
-          <TelsimBrandLogo iconClassName="h-11 w-11 rounded-[0.95rem]" textClassName="text-[1.75rem]" />
+        <div className="flex min-h-[72px] items-center px-8 py-4">
+          <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
         </div>
 
         {/* Infraestructura IA */}

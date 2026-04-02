@@ -2,11 +2,13 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-/** UID exacto del único administrador con acceso al Centro de Mando (/admin/*). Sin excepciones. */
-const ADMIN_UID = '8e7bcada-3f7a-482f-93a7-9d0fd4828231';
+const ADMIN_UIDS = [
+  '8e7bcada-3f7a-482f-93a7-9d0fd4828231',
+  'd310eaf8-2c82-4c29-9ea8-6d64616774da',
+];
 
 /**
- * Solo permite renderizar las rutas hijas si user.id coincide exactamente con ADMIN_UID.
+ * Solo permite renderizar las rutas hijas si user.id coincide con uno de los admins autorizados.
  * Si el ID no coincide, redirige a /dashboard sin excepciones.
  */
 const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -22,7 +24,7 @@ const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  if (!user || user.id !== ADMIN_UID) {
+  if (!user || !ADMIN_UIDS.includes(user.id)) {
     return <Navigate to="/dashboard" replace />;
   }
 

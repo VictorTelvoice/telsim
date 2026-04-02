@@ -1076,6 +1076,25 @@ export default async function handler(req: any, res: any) {
         slot_id: String(upgradeMeta.slot_id ?? ''),
       };
 
+      const upgradeDupWindowMs = 48 * 60 * 60 * 1000;
+      const skipUpgradeAppDup =
+        Boolean(upgradeMeta.user_id) &&
+        (await hasRecentAppNotificationDuplicate(supabaseAdmin, {
+          userId: String(upgradeMeta.user_id),
+          sourceNotificationKey: CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS,
+          windowMs: upgradeDupWindowMs,
+        }));
+
+      if (!skipUpgradeAppDup) {
+        await createNotificationFromTemplate(
+          CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS,
+          String(upgradeMeta.user_id),
+          upgradePayload,
+          'subscription',
+          stripeEventId
+        );
+      }
+
       if (userData?.email) {
         await triggerEmail(CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS, upgradeMeta.user_id as string, upgradePayload);
         console.log('[UPGRADE] Email enviado a:', userData.email);
@@ -1199,8 +1218,13 @@ export default async function handler(req: any, res: any) {
       }
 
       if (session.customer) {
+        const stripeCustomerIdToSync = session.customer.toString();
         await supabaseAdmin.from('profiles').update({
-          stripe_customer_id: session.customer.toString()
+          stripe_customer_id: stripeCustomerIdToSync
+        }).eq('id', userId);
+        // Also sync to users table (upgrade & billing API reads from users.stripe_customer_id)
+        await supabaseAdmin.from('users').update({
+          stripe_customer_id: stripeCustomerIdToSync
         }).eq('id', userId);
       }
 
@@ -1546,8 +1570,8 @@ export default async function handler(req: any, res: any) {
           slot_id: slotId,
         }, 'stripe');
 
-        const trialMsg = trialEnd
-          ? `Tu trial gratuito de 7 días comienza ahora. El primer cobro será el ${new Date(trialEnd).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
+        const activationMsg = nextBillingDateIso
+          ? `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS. Próxima renovación: ${new Date(nextBillingDateIso).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.`
           : `Tu línea ${slot?.phone_number || ''} está activa y lista para recibir SMS.`;
 
         // activation_state = on_air
@@ -1555,7 +1579,7 @@ export default async function handler(req: any, res: any) {
           await createNotification(
             userId,
             '🚀 ¡Línea activada!',
-            trialMsg,
+            activationMsg,
             'activation',
             session.id,
             'activation_on_air'
@@ -1637,13 +1661,15 @@ export default async function handler(req: any, res: any) {
       }, 'stripe');
     }
 
-    const dNext = new Date();
-    if (isAnnualBilling) {
-      dNext.setFullYear(dNext.getFullYear() + 1);
-    } else {
-      dNext.setDate(dNext.getDate() + 30);
+    if (!nextDateForEmail) {
+      const dNext = new Date();
+      if (isAnnualBilling) {
+        dNext.setFullYear(dNext.getFullYear() + 1);
+      } else {
+        dNext.setDate(dNext.getDate() + 30);
+      }
+      nextDateForEmail = dNext.toLocaleDateString('es-CL');
     }
-    nextDateForEmail = dNext.toLocaleDateString('es-CL');
 
     // FUERA del try/catch — siempre correo y Telegram (incluso con amount_total 0 / trials / promos)
     let phoneForEmail = phoneFromMeta || '';
@@ -1664,15 +1690,18 @@ export default async function handler(req: any, res: any) {
 
     if (activationSucceeded) {
       let profileNombre = '';
-      let profileEmail = customerEmail;
+      let profileEmail = '';
       try {
         const { data: prof } = await supabaseAdmin.from('users').select('nombre, email').eq('id', userId).maybeSingle();
         profileNombre = String((prof as { nombre?: string } | null)?.nombre ?? '').trim();
-        if (!profileEmail && (prof as { email?: string } | null)?.email) {
-          profileEmail = String((prof as { email?: string }).email);
+        if ((prof as { email?: string } | null)?.email) {
+          profileEmail = String((prof as { email?: string }).email).trim();
         }
       } catch {
         /* ignore */
+      }
+      if (!profileEmail) {
+        profileEmail = String(customerEmail ?? '').trim();
       }
       const displayPhoneRaw = phoneForEmail || phoneFromMeta || '';
       const displayPhone = displayPhoneRaw
@@ -1876,7 +1905,40 @@ export default async function handler(req: any, res: any) {
             .update({ plan_type: newPlanName })
             .eq('slot_id', slotId);
 
-          // Notificación de upgrade (opcional)
+          const { data: upgradeUserData } = await supabaseAdmin
+            .from('users')
+            .select('email, nombre')
+            .eq('id', String(sub.user_id))
+            .maybeSingle();
+
+          const upgradePayload = {
+            nombre: String((upgradeUserData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+            email: String(upgradeUserData?.email ?? ''),
+            phone: String((sub as { phone_number?: string | null }).phone_number ?? ''),
+            plan: String(newPlanName),
+            end_date: planChangeSnap.next_billing_date
+              ? new Date(String(planChangeSnap.next_billing_date)).toLocaleDateString('es-CL')
+              : '',
+            status: 'Activo',
+            slot_id: String(slotId),
+          };
+
+          const skipUpgradeAppDup = await hasRecentAppNotificationDuplicate(supabaseAdmin, {
+            userId: String(sub.user_id),
+            sourceNotificationKey: CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS,
+            windowMs: 48 * 60 * 60 * 1000,
+          });
+
+          if (!skipUpgradeAppDup) {
+            await createNotificationFromTemplate(
+              CANONICAL_TEMPLATE_EVENTS.UPGRADE_SUCCESS,
+              String(sub.user_id),
+              upgradePayload,
+              'subscription',
+              stripeEventId
+            );
+          }
+
           console.log(`[UPGRADE] slot ${slotId} → ${newPlanName}`, {
             next_billing_date: planChangeSnap.next_billing_date,
             current_period_end: planChangeSnap.current_period_end,
@@ -2069,7 +2131,53 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        // Email, Telegram e in-app de cancelación: solo en `customer.subscription.deleted` (plantillas canónicas).
+        const { data: cancellationUserData } = await supabaseAdmin
+          .from('users')
+          .select('email, nombre')
+          .eq('id', String(sub.user_id))
+          .maybeSingle();
+        const { data: cancellationSlotData } = await supabaseAdmin
+          .from('slots')
+          .select('phone_number, plan_type')
+          .eq('slot_id', String(sub.slot_id))
+          .maybeSingle();
+
+        const phoneRaw = String(
+          cancellationSlotData?.phone_number ??
+          (sub as { phone_number?: string | null }).phone_number ??
+          sub.slot_id ??
+          ''
+        );
+        const phoneFormatted = phoneRaw ? (phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`) : '';
+        const cancellationPayload = {
+          nombre: String((cancellationUserData as { nombre?: string } | null)?.nombre ?? '').trim() || 'Cliente',
+          email: String(cancellationUserData?.email ?? ''),
+          phone: phoneFormatted,
+          plan: String((sub as { plan_name?: string | null }).plan_name ?? cancellationSlotData?.plan_type ?? ''),
+          end_date: subscription.current_period_end
+            ? new Date(subscription.current_period_end * 1000).toLocaleDateString('es-CL')
+            : '',
+          status: 'Cancelado',
+          slot_id: String(sub.slot_id ?? ''),
+          plan_name: String(cancellationSlotData?.plan_type ?? (sub as { plan_name?: string | null }).plan_name ?? ''),
+          phone_number: phoneRaw,
+        };
+
+        const skipCancelAppDup = await hasRecentAppNotificationDuplicate(supabaseAdmin, {
+          userId: String(sub.user_id),
+          sourceNotificationKey: CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+          windowMs: 48 * 60 * 60 * 1000,
+        });
+
+        if (!skipCancelAppDup) {
+          await createNotificationFromTemplate(
+            CANONICAL_TEMPLATE_EVENTS.CANCELLATION,
+            String(sub.user_id),
+            cancellationPayload,
+            'error',
+            stripeEventId
+          );
+        }
       }
     } catch (err: any) {
       console.error('[WEBHOOK ERROR] customer.subscription.updated:', err.message);

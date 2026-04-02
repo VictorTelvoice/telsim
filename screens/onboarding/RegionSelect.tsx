@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -169,13 +170,14 @@ const RegionSelect: React.FC = () => {
           <div className="absolute bottom-[-60px] right-[-60px] w-[300px] h-[300px] rounded-full opacity-15"
             style={{ background: 'radial-gradient(circle, #0ea5e9 0%, transparent 70%)' }} />
 
-          <div className="relative z-10 flex flex-col h-full px-10 py-10">
+          <div className="relative z-10 flex h-full flex-col px-10 pt-8 pb-10">
             {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-                <span className="material-symbols-rounded text-white text-[20px]">sim_card</span>
-              </div>
-              <span className="text-white text-xl font-black tracking-tight">Telsim</span>
+            <div className="flex min-h-[64px] items-center">
+              <TelsimBrandLogo
+                compact
+                iconClassName="h-10 w-10 rounded-xl"
+                textClassName="text-[1.65rem] text-white"
+              />
             </div>
 
             {/* Plan badge */}
@@ -240,20 +242,20 @@ const RegionSelect: React.FC = () => {
         </div>
 
         {/* ── RIGHT PANEL ───────────────────────────────────────────────── */}
-        <div className="flex-1 bg-[#F0F4F8] flex flex-col">
+        <div className="flex-1 bg-[#F0F4F8] dark:bg-background-dark flex flex-col">
 
           {/* Nav */}
           <div className="flex items-center justify-between px-10 pt-8 pb-0">
             <button
               onClick={() => navigate('/onboarding/plan')}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
+              className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors text-[12px] font-semibold"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
               </svg>
               Cambiar plan
             </button>
-            <span className="text-[11px] font-bold text-slate-400 bg-white border border-slate-200 rounded-full px-3 py-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1">
               Paso 2 de 3
             </span>
           </div>
@@ -264,10 +266,10 @@ const RegionSelect: React.FC = () => {
 
               {/* Header */}
               <div className="mb-8">
-                <h2 className="text-[32px] font-black text-slate-900 tracking-tight leading-tight">
+                <h2 className="text-[32px] font-black text-slate-900 dark:text-white tracking-tight leading-tight">
                   Elige tu región
                 </h2>
-                <p className="text-slate-500 text-[14px] mt-2 leading-relaxed">
+                <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-2 leading-relaxed">
                   Selecciona el país donde necesitas un número real. Argentina, México, Brasil y más estarán disponibles próximamente.
                 </p>
               </div>
@@ -279,11 +281,11 @@ const RegionSelect: React.FC = () => {
 
               {/* Selected summary */}
               {selected && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-3">
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl flex items-center gap-3">
                   <span className="text-2xl">{REGIONS.find(r => r.id === selected)?.flag}</span>
                   <div>
-                    <p className="text-[13px] font-bold text-slate-900">{REGIONS.find(r => r.id === selected)?.name} seleccionado</p>
-                    <p className="text-[11px] text-slate-500">Recibirás un número local real de ese país</p>
+                    <p className="text-[13px] font-bold text-slate-900 dark:text-white">{REGIONS.find(r => r.id === selected)?.name} seleccionado</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Recibirás un número local real de ese país</p>
                   </div>
                   <div className="ml-auto">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" style={{ animation: 'pulse-dot 2s infinite' }} />
@@ -294,7 +296,7 @@ const RegionSelect: React.FC = () => {
               {/* CTA */}
               <button
                 onClick={handleContinue}
-                className="w-full h-14 bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5"
+                className="w-full h-14 bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] rounded-2xl flex items-center justify-between px-5"
               >
                 <span />
                 <span>Continuar</span>
@@ -304,7 +306,7 @@ const RegionSelect: React.FC = () => {
                 </svg>
               </button>
 
-              <p className="text-center text-[11px] text-slate-400 mt-4">
+              <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-4">
                 🔒 Tus datos están protegidos con cifrado SSL 256-bit
               </p>
             </div>
@@ -368,7 +370,7 @@ const RegionSelect: React.FC = () => {
       <div className="mt-auto pt-8">
         <button
           onClick={handleContinue}
-          className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2"
+          className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl flex items-center justify-between px-2"
         >
           <div className="w-12" />
           <span className="text-[17px] tracking-wide uppercase font-bold">{t('onboarding.next')}</span>

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
+import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
 const OFFICIAL_PLANS = {
   starter: {
@@ -63,37 +65,62 @@ const CheckIcon = () => (
 
 const isDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
-const getPlanTheme = (key: PlanKey) => {
+const getPlanTheme = (key: PlanKey, isDark: boolean) => {
   if (key === 'pro') {
     return {
       borderClass: 'border-primary',
-      cardClass: 'bg-[linear-gradient(160deg,#eff6ff_0%,#ffffff_50%)]',
-      badgeClass: 'bg-blue-100 text-primary',
-      idealClass: 'bg-blue-50 text-primary',
+      cardClass: isDark
+        ? 'bg-[linear-gradient(160deg,#071226_0%,#0b1730_52%,#08101f_100%)] shadow-[0_28px_70px_-28px_rgba(15,23,42,1)]'
+        : 'bg-[linear-gradient(160deg,#eff6ff_0%,#ffffff_50%)]',
+      badgeClass: isDark ? 'bg-primary/12 ring-1 ring-primary/25 text-blue-100' : 'bg-blue-100 text-primary',
+      idealClass: isDark ? 'bg-slate-950/55 ring-1 ring-primary/20 text-blue-100' : 'bg-blue-50 text-primary',
       titleClass: 'text-primary',
       ctaClass: 'text-primary',
       ctaBg: 'bg-primary',
+      dividerClass: isDark ? 'bg-gradient-to-r from-transparent via-primary/35 to-transparent' : 'bg-gradient-to-r from-transparent via-blue-200 to-transparent',
+      featureClass: isDark ? 'text-slate-200' : 'text-slate-700',
+      priceClass: isDark ? 'text-white' : 'text-slate-900',
+      overlayClass: isDark ? 'bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.12),transparent_28%)]' : '',
+      idealLabelClass: isDark ? 'text-blue-200/55' : 'text-primary/50',
     };
   }
   if (key === 'power') {
     return {
       borderClass: 'border-amber-400',
-      cardClass: 'bg-white',
-      badgeClass: 'bg-[linear-gradient(135deg,#FEF3C7,#FDE68A)] text-amber-600',
-      idealClass: 'bg-[linear-gradient(135deg,#FFFBEB,#FEF3C7)] text-amber-700',
+      cardClass: isDark
+        ? 'bg-[linear-gradient(180deg,#0b1018_0%,#0b1018_100%)] shadow-[0_24px_60px_-24px_rgba(245,166,35,0.25)]'
+        : 'bg-white',
+      badgeClass: isDark
+        ? 'text-amber-300'
+        : 'bg-[linear-gradient(135deg,#FEF3C7,#FDE68A)] text-amber-600',
+      idealClass: isDark
+        ? 'text-amber-50'
+        : 'bg-[linear-gradient(135deg,#FFFBEB,#FEF3C7)] text-amber-700',
       titleClass: 'bg-[linear-gradient(90deg,#F5A623,#D4A017)] bg-clip-text text-transparent',
       ctaClass: 'bg-[linear-gradient(90deg,#F5A623,#D4A017)] bg-clip-text text-transparent',
       ctaBg: 'bg-amber-500',
+      dividerClass: 'bg-[linear-gradient(90deg,transparent,#F5A623,transparent)]',
+      featureClass: isDark ? 'text-slate-200' : 'text-slate-700',
+      priceClass: isDark ? 'text-white' : 'text-slate-900',
+      overlayClass: isDark ? 'bg-[radial-gradient(circle_at_top_right,rgba(245,166,35,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.08),transparent_26%)]' : '',
+      idealLabelClass: isDark ? 'text-amber-300/70' : '',
     };
   }
   return {
-    borderClass: 'border-slate-200',
-    cardClass: 'bg-white',
-    badgeClass: 'bg-slate-100 text-slate-600',
-    idealClass: 'bg-slate-50 text-slate-600',
+    borderClass: isDark ? 'border-slate-800' : 'border-slate-200',
+    cardClass: isDark
+      ? 'bg-[linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] shadow-[0_28px_70px_-28px_rgba(15,23,42,1)]'
+      : 'bg-white',
+    badgeClass: isDark ? 'bg-slate-800 ring-1 ring-slate-700/80 text-slate-200' : 'bg-slate-100 text-slate-600',
+    idealClass: isDark ? 'bg-slate-900/90 ring-1 ring-slate-800/80 text-slate-300' : 'bg-slate-50 text-slate-600',
     titleClass: 'text-slate-400',
     ctaClass: 'text-slate-500',
     ctaBg: 'bg-slate-900',
+    dividerClass: isDark ? 'bg-gradient-to-r from-transparent via-slate-700 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent',
+    featureClass: isDark ? 'text-slate-300' : 'text-slate-700',
+    priceClass: isDark ? 'text-white' : 'text-slate-900',
+    overlayClass: isDark ? 'bg-[radial-gradient(circle_at_top_right,rgba(51,65,85,0.25),transparent_34%)]' : '',
+    idealLabelClass: 'text-slate-400',
   };
 };
 
@@ -101,6 +128,8 @@ export default function UpgradePlanSelector() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const phoneNumber = state?.phoneNumber as string | undefined;
   const slotId = state?.slot_id as string | undefined;
@@ -204,24 +233,26 @@ export default function UpgradePlanSelector() {
     </div>
   );
 
-  const renderCard = (plan: VisiblePlan, mobile = false) => {
-    const theme = getPlanTheme(plan.key);
+  const renderCard = (plan: VisiblePlan, mobile = false, index = 0) => {
+    const theme = getPlanTheme(plan.key, isDark);
     const useAnnual = plan.forceBilling ? plan.forceBilling === 'annual' : isAnnual;
     const amount = useAnnual ? plan.amountAnnual : plan.amount;
     const priceLabel = useAnnual ? `/yr` : `/mo`;
     const featureTexts = t(plan.featuresKey) as unknown as string[];
     const descText = t(plan.descKey) as unknown as string;
+    const isFocusedCard = !mobile || currentPage === index;
 
     return (
       <button
         key={plan.key}
         data-plan-card
         onClick={() => handleSelect(plan)}
-        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-300 ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl px-6 pb-6 pt-7' : 'rounded-3xl px-8 pb-7 pt-8 hover:-translate-y-2'} border-2 ${theme.borderClass} ${theme.cardClass}`}
+        className={`group relative flex cursor-pointer flex-col overflow-visible text-left transition-all duration-500 transform-gpu will-change-transform ${mobile ? 'min-w-[72vw] snap-center shrink-0 rounded-3xl px-6 pb-6 pt-7' : 'rounded-3xl px-8 pb-7 pt-8 hover:-translate-y-2 hover:scale-[1.015]'} border-2 ${theme.borderClass} ${theme.cardClass} ${mobile ? (isFocusedCard ? 'scale-[1.035] -translate-y-3 shadow-[0_34px_84px_-30px_rgba(15,23,42,0.48)]' : 'scale-[0.93] translate-y-3 opacity-80') : ''}`}
         style={plan.key === 'power' && !mobile
-          ? { background: 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
+          ? { background: isDark ? 'linear-gradient(#0b1018,#0b1018) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box' : 'linear-gradient(white,white) padding-box, linear-gradient(135deg,#F5A623,#F0C040) border-box', border: '2px solid transparent' }
           : undefined}
       >
+        {theme.overlayClass ? <div className={`pointer-events-none absolute inset-0 ${theme.overlayClass}`} /> : null}
         {plan.forceBilling ? (
           <div className={`absolute ${mobile ? 'top-0 left-1/2 -translate-x-1/2 rounded-b-2xl px-4 py-1.5' : '-top-3 left-6 rounded-full px-4 py-1.5'} bg-emerald-500 text-[10px] font-black uppercase tracking-[0.18em] text-white`}>
             {plan.forceBilling === 'annual' ? 'Cambia a anual' : 'Cambia a mensual'}
@@ -238,7 +269,7 @@ export default function UpgradePlanSelector() {
             <span className="text-[11px] font-black">{plan.creditsLabel}</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className={`${mobile ? 'text-5xl' : 'text-[48px]'} font-black leading-none text-slate-900 dark:text-white`}>
+            <span className={`${mobile ? 'text-5xl' : 'text-[48px]'} font-black leading-none ${theme.priceClass}`}>
               ${amount}
             </span>
             <span className="text-sm font-semibold text-slate-400">{priceLabel}</span>
@@ -254,13 +285,13 @@ export default function UpgradePlanSelector() {
           ) : null}
         </div>
 
-        <div className={`h-px ${plan.key === 'power' ? '' : plan.key === 'pro' ? 'bg-gradient-to-r from-transparent via-blue-200 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent'}`} style={plan.key === 'power' ? { background: 'linear-gradient(90deg,transparent,#F5A623,transparent)' } : undefined} />
+        <div className={`h-px ${theme.dividerClass}`} />
 
         <div className={`flex flex-1 flex-col ${mobile ? 'gap-2.5' : 'gap-3'} ${mobile ? 'py-5' : 'py-6'}`}>
           {featureTexts.map((feature, index) => (
             <div key={`${plan.key}-${index}`} className="flex items-start gap-2">
               <CheckIcon />
-              <span className={`${mobile ? 'text-[12.5px]' : 'text-[14px]'} leading-relaxed font-semibold text-slate-700 dark:text-slate-300`}>
+              <span className={`${mobile ? 'text-[12.5px]' : 'text-[14px]'} leading-relaxed font-semibold ${theme.featureClass}`}>
                 {feature}
               </span>
             </div>
@@ -268,7 +299,7 @@ export default function UpgradePlanSelector() {
         </div>
 
         <div className={`rounded-2xl px-5 py-3.5 ${theme.idealClass}`}>
-          <p className="mb-0.5 text-[9px] font-black uppercase tracking-wider opacity-60">Ideal para</p>
+          <p className={`mb-0.5 text-[9px] font-black uppercase tracking-wider opacity-60 ${theme.idealLabelClass}`}>Ideal para</p>
           <p className={`${mobile ? 'text-[12.5px]' : 'text-[13px]'} leading-relaxed font-bold`}>{descText}</p>
         </div>
 
@@ -285,28 +316,25 @@ export default function UpgradePlanSelector() {
 
   if (desktop) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] font-display">
-        <header className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-4">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-              <span className="material-symbols-rounded text-[20px] text-white">sim_card</span>
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-slate-900">Telsim</span>
+      <div className={`min-h-screen font-display ${isDark ? 'bg-background-dark' : 'bg-[#F0F4F8]'}`}>
+        <header className={`flex min-h-[72px] items-center justify-between px-8 py-4 ${isDark ? 'border-b border-slate-800 bg-slate-950' : 'border-b border-slate-100 bg-white'}`}>
+          <button onClick={() => navigate(-1)} className="flex items-center">
+            <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
           </button>
-          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+          <div className={`flex items-center gap-2 text-[12px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             <span>{phoneNumber || 'Cambiar plan'}</span>
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-8 py-12">
-          <div className="mb-10 text-center">
-            <h1 className="text-[36px] font-black tracking-tight text-slate-900">Elige tu nuevo plan</h1>
-            <p className="mt-2 text-[15px] font-medium text-slate-500">
+        <main className="mx-auto max-w-6xl px-8 py-8 xl:py-7">
+          <div className="mb-8 text-center">
+            <h1 className={`text-[36px] font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Elige tu nuevo plan</h1>
+            <p className={`mt-2 text-[15px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Plan actual: {currentPlanName} · {currentBilling === 'annual' ? 'Anual' : 'Mensual'} — El cambio es inmediato, sin días de prueba.
             </p>
           </div>
 
-          <div className="mb-10 flex justify-center">
+          <div className="mb-8 flex justify-center">
             <Toggle />
           </div>
 
@@ -350,9 +378,9 @@ export default function UpgradePlanSelector() {
           ref={scrollRef}
           onScroll={handleScroll}
           style={{ scrollPaddingInline: 'calc(50% - 36vw)' }}
-          className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[14vw] pb-4 pt-4"
+          className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[14vw] pb-6 pt-5 [perspective:1400px]"
         >
-          {visiblePlans.map((plan) => renderCard(plan, true))}
+          {visiblePlans.map((plan, index) => renderCard(plan, true, index))}
         </div>
 
         <div className="mt-3 flex justify-center gap-2">

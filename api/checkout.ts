@@ -257,7 +257,6 @@ export default async function handler(req: any, res: any) {
                 customer: customerId,
                 items: [{ price: priceId }],
                 default_payment_method: defaultPaymentMethod as string,
-                trial_period_days: 7,
                 metadata: { userId, phoneNumber: freeSlot.phone_number, planName, slot_id: freeSlot.slot_id, transactionType: 'NEW_SUB', isAnnual: isAnnual ? 'true' : 'false' }
               });
 
@@ -531,7 +530,6 @@ export default async function handler(req: any, res: any) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      subscription_data: { trial_period_days: 7 },
       success_url: `${origin}/#/onboarding/processing?session_id={CHECKOUT_SESSION_ID}&slot_id=${targetSlotId}&isUpgrade=${isUpgrade}`,
       cancel_url: `${origin}/#/dashboard/numbers`,
       metadata: {

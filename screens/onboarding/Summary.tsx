@@ -90,9 +90,13 @@ const Summary: React.FC = () => {
 
   const billingDate = useMemo(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 7);
+    if (isAnnual) {
+      date.setFullYear(date.getFullYear() + 1);
+    } else {
+      date.setMonth(date.getMonth() + 1);
+    }
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
-  }, []);
+  }, [isAnnual]);
 
   const handleNext = () => {
     if (isNavigating) return;
@@ -162,7 +166,7 @@ const Summary: React.FC = () => {
           ))}
         </div>
 
-        {/* Trial box */}
+        {/* Guarantee box */}
         <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-4">
           <div className="flex items-start gap-3 mb-3">
             <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" style={{ fontSize: '20px' }}>verified_user</span>
@@ -187,14 +191,10 @@ const Summary: React.FC = () => {
         <span>{t('onboarding.subtotal')} {isAnnual ? '(Anual)' : '(Mensual)'}</span>
         <span>${planDetails.price.toFixed(2)}</span>
       </div>
-      <div className="flex justify-between items-center text-emerald-600 text-[11px] font-black uppercase tracking-widest">
-        <span>{t('onboarding.trial_discount')}</span>
-        <span>-${planDetails.price.toFixed(2)}</span>
-      </div>
       <div className="my-1 h-px w-full bg-slate-200 dark:bg-slate-800" />
       <div className="flex justify-between items-center">
         <span className="text-slate-900 dark:text-white text-lg font-black uppercase">{t('onboarding.total_today')}</span>
-        <span className="text-slate-900 dark:text-white text-3xl font-black">$0.00</span>
+        <span className="text-slate-900 dark:text-white text-3xl font-black">${planDetails.price.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -204,11 +204,11 @@ const Summary: React.FC = () => {
   // ──────────────────────────────────────────────────────────────────────────
   if (desktop) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] font-display flex flex-col">
+      <div className="min-h-screen bg-[#F0F4F8] dark:bg-background-dark font-display flex flex-col">
         {/* Top nav */}
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+        <header className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
           <TelsimBrandLogo compact iconClassName="h-10 w-10 rounded-xl" textClassName="text-[1.65rem]" />
-          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400">
+          <div className="flex items-center gap-2 text-[12px] font-bold text-slate-400 dark:text-slate-500">
             <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
               <span className="text-white text-[10px]">✓</span>
             </span>
@@ -222,11 +222,11 @@ const Summary: React.FC = () => {
             <span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
               <span className="text-white text-[10px] font-black">3</span>
             </span>
-            <span className="text-slate-700 font-bold">Resumen</span>
+            <span className="text-slate-700 dark:text-slate-300 font-bold">Resumen</span>
           </div>
           <button
             onClick={() => !isNavigating && navigate(-1)}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors text-[12px] font-semibold"
+            className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors text-[12px] font-semibold"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
@@ -239,8 +239,8 @@ const Summary: React.FC = () => {
         <div className="flex-1 flex items-start justify-center px-8 py-12">
           <div className="w-full max-w-3xl">
             <div className="mb-8">
-              <h1 className="text-[30px] font-black text-slate-900 tracking-tight">{t('onboarding.review_subscription')}</h1>
-              <p className="text-slate-500 text-[14px] mt-1.5">{t('onboarding.confirm_details')}</p>
+              <h1 className="text-[30px] font-black text-slate-900 dark:text-white tracking-tight">{t('onboarding.review_subscription')}</h1>
+              <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-1.5">{t('onboarding.confirm_details')}</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6">
@@ -259,7 +259,7 @@ const Summary: React.FC = () => {
                 <button
                   onClick={handleNext}
                   disabled={isNavigating}
-                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-between px-5 disabled:opacity-70"
+                  className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-black text-[15px] h-14 rounded-2xl flex items-center justify-between px-5 disabled:opacity-70"
                 >
                   <span />
                   <span>{t('onboarding.start_free_trial')}</span>
@@ -273,9 +273,9 @@ const Summary: React.FC = () => {
                   {[
                     { icon: '🔒', text: 'Pago seguro con SSL 256-bit' },
                     { icon: '↩️', text: 'Cancela cuando quieras' },
-                    { icon: '🛡️', text: 'Sin cargos durante la prueba' },
+                    { icon: '🛡️', text: 'Garantía de satisfacción sujeta a revisión' },
                   ].map(item => (
-                    <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <div key={item.text} className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                       <span>{item.icon}</span><span>{item.text}</span>
                     </div>
                   ))}
@@ -322,7 +322,7 @@ const Summary: React.FC = () => {
 
         <div className="fixed bottom-0 z-30 w-full max-w-md bg-white/95 dark:bg-[#101622]/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 pb-10">
           <button onClick={handleNext} disabled={isNavigating}
-            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl shadow-button flex items-center justify-between px-2 disabled:opacity-70">
+            className="group w-full bg-primary hover:bg-blue-700 active:scale-[0.98] transition-all text-white font-bold h-16 rounded-2xl flex items-center justify-between px-2 disabled:opacity-70">
             <div className="w-12" />
             <span className="text-[17px] tracking-wide uppercase">{t('onboarding.start_free_trial')}</span>
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
