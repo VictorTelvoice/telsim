@@ -90,15 +90,15 @@ function getLocalAdminEmailTestDataForEvent(event: string): Record<string, unkno
     phone_number: '+56900000000',
     plan: 'Plan Pro',
     plan_name: 'Plan Pro',
-    amount: '$99.90',
-    monto: '$99.90',
+    amount: '$39.90',
+    monto: '$39.90',
     currency: 'USD',
     billing_type: 'Mensual',
     next_date: '31/12/2026',
     end_date: '31/12/2026',
     slot_id: 'A1',
-    limit: '1000',
-    monthly_limit: '1000',
+    limit: '400',
+    monthly_limit: '400',
   };
 
   switch (event) {

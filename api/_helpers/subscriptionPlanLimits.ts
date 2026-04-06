@@ -3,9 +3,9 @@
  */
 
 export const PLAN_MONTHLY_SMS_LIMITS: Record<string, number> = {
-  Starter: 200,
-  Pro: 1000,
-  Power: 5000,
+  Starter: 150,
+  Pro: 400,
+  Power: 1400,
 };
 
 function normalizePlanToken(planName: string | null | undefined): string {
@@ -24,11 +24,11 @@ export function monthlySmsLimitForPlan(
     if (Number.isFinite(n) && n > 0) return Math.round(n);
   }
   const p = normalizePlanToken(planName);
-  if (!p) return 200;
+  if (!p) return 150;
   if (p.includes('power')) return PLAN_MONTHLY_SMS_LIMITS.Power;
   if (p.includes('pro')) return PLAN_MONTHLY_SMS_LIMITS.Pro;
   if (p.includes('starter')) return PLAN_MONTHLY_SMS_LIMITS.Starter;
   const exact = Object.keys(PLAN_MONTHLY_SMS_LIMITS).find((k) => k.toLowerCase() === p);
   if (exact) return PLAN_MONTHLY_SMS_LIMITS[exact];
-  return 200;
+  return 150;
 }

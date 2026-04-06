@@ -25,16 +25,16 @@ const isMobileDeviceUA = (): boolean => {
 
 // ─── Plan pricing catalogue ───────────────────────────────────────────────────
 const PLAN_CATALOGUE: Record<string, { monthly: number; annual: number; limit: number }> = {
-  Starter: { monthly: 49.90, annual: 199, limit: 200 },
-  Pro:     { monthly: 99.90, annual: 399, limit: 1000 },
-  Power:   { monthly: 149.90, annual: 990, limit: 5000 }
+  Starter: { monthly: 19.90, annual: 199, limit: 150 },
+  Pro:     { monthly: 39.90, annual: 399, limit: 400 },
+  Power:   { monthly: 99.00, annual: 990, limit: 1400 }
 };
 
 const ActivationSuccess: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const [data, setData] = useState<ActivationData | null>(null);
   const [copied, setCopied] = useState(false);
   const [desktop, setDesktop] = useState(isDesktop());
@@ -252,9 +252,7 @@ const ActivationSuccess: React.FC = () => {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Plan</span>
                     </div>
-                    <p className="text-[20px] font-black uppercase tracking-tight mb-1" style={{ color: colors.accent }}>
-                      {t(`landing.pricing.${data.planName.toLowerCase()}.name`)}
-                    </p>
+                    <p className="text-[20px] font-black uppercase tracking-tight mb-1" style={{ color: colors.accent }}>{data.planName}</p>
                     <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{data.monthlyLimit} Créditos SMS / mes</p>
                   </div>
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5">

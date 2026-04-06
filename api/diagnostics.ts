@@ -88,9 +88,9 @@ export default async function handler(req: any, res: any) {
       }
 
       const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-        Starter: { monthly: 49.9, annual: 199 },
-        Pro: { monthly: 99.9, annual: 399 },
-        Power: { monthly: 149.9, annual: 990 },
+        Starter: { monthly: 19.9, annual: 199 },
+        Pro: { monthly: 39.9, annual: 399 },
+        Power: { monthly: 99, annual: 990 },
       };
       const planPrices = PLAN_PRICES[planName];
       if (!planPrices) {
@@ -107,7 +107,7 @@ export default async function handler(req: any, res: any) {
           slot_id: slotId,
           phone_number: slot.phone_number,
           plan_name: planName,
-          monthly_limit: ({ Starter: 200, Pro: 1000, Power: 5000 } as Record<string, number>)[planName] || 200,
+          monthly_limit: ({ Starter: 150, Pro: 400, Power: 1400 } as Record<string, number>)[planName] || 150,
           status: 'active',
           stripe_session_id: sessionId,
           amount: correctAmount,

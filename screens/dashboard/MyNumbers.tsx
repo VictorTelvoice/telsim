@@ -152,7 +152,7 @@ const MyNumbers: React.FC = () => {
                         label: slot?.label,
                         forwarding_active: slot?.forwarding_active || false,
                         actual_plan_name: subscription.plan_name || slot?.plan_type || 'Starter',
-                        monthly_limit: subscription.monthly_limit || 200,
+                        monthly_limit: subscription.monthly_limit || 150,
                         credits_used: subscription.credits_used || 0,
                         billing_type: subscription.billing_type || 'monthly',
                         subscription_created_at: subscription.created_at || null,
@@ -740,7 +740,7 @@ const MyNumbers: React.FC = () => {
                                                     </div>
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">SMS</p>
-                                                        <p className="text-[12px] font-black">{(slot.credits_used || 0)} / {(slot.monthly_limit || 200)}</p>
+                                                        <p className="text-[12px] font-black">{(slot.credits_used || 0)} / {(slot.monthly_limit || 150)}</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-50">Desde</p>

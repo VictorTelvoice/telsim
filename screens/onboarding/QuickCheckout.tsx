@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { STRIPE_PRICES } from '../../constants/stripePrices';
 import TelsimBrandLogo from '../../components/TelsimBrandLogo';
 
@@ -21,45 +20,44 @@ type PlanConfig = {
 const planMap: Record<string, PlanConfig> = {
   starter: {
     planName: 'Starter',
-    priceMonthly: 49.90,
+    priceMonthly: 19.90,
     priceAnnual: 199,
-    limit: 200,
+    limit: 150,
     stripePriceIdMonthly: STRIPE_PRICES.STARTER.MONTHLY,
     stripePriceIdAnnual: STRIPE_PRICES.STARTER.ANNUAL,
     features: [
       'Número SIM Real (no VoIP baratos)',
       'Notificaciones en tiempo real',
       'Soporte técnico vía Ticket',
-      '200 créditos SMS / mes',
+      '150 créditos SMS / mes',
     ],
   },
   pro: {
     planName: 'Pro',
-    priceMonthly: 99.90,
+    priceMonthly: 39.90,
     priceAnnual: 399,
-    limit: 1000,
+    limit: 400,
     stripePriceIdMonthly: STRIPE_PRICES.PRO.MONTHLY,
     stripePriceIdAnnual: STRIPE_PRICES.PRO.ANNUAL,
     features: [
       'Acceso a API, Webhooks y TelegramBot',
       'SMS 100% automatizados',
       'Soporte vía Ticket y Chat en vivo',
-      '1000 créditos SMS / mes',
+      '400 créditos SMS / mes',
     ],
   },
   power: {
     planName: 'Power',
-    priceMonthly: 149.90,
+    priceMonthly: 99.00,
     priceAnnual: 990,
-    limit: 5000,
+    limit: 1400,
     stripePriceIdMonthly: STRIPE_PRICES.POWER.MONTHLY,
     stripePriceIdAnnual: STRIPE_PRICES.POWER.ANNUAL,
     features: [
       'Seguridad y Control Empresarial',
       'Integraciones Personalizadas',
       'Soporte Prioritario 24/7',
-      'Incluye 2 agentes gratis',
-      '5000 créditos SMS / mes',
+      '1400 créditos SMS / mes',
     ],
   },
 };
@@ -67,7 +65,6 @@ const planMap: Record<string, PlanConfig> = {
 const QuickCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useLanguage();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -242,7 +239,7 @@ const QuickCheckout: React.FC = () => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className={`font-black text-white tracking-tight leading-none ${mobile ? 'text-3xl' : 'text-4xl'}`}>
-            {t(`landing.pricing.${plan.planName.toLowerCase()}.name`).toUpperCase()}
+            {plan.planName.toUpperCase()}
           </div>
           <div className="text-[10px] font-600 text-white/40 mt-1.5">
             {plan.limit} créditos SMS / mes · {isAnnual ? 'Facturación anual' : 'Facturación mensual'}

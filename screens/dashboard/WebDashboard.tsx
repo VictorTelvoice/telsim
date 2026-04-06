@@ -741,8 +741,8 @@ const WebDashboard: React.FC = () => {
     catch { return raw.toLowerCase(); }
   })();
   const planName = savedPlanId.charAt(0).toUpperCase() + savedPlanId.slice(1);
-  const PLAN_CREDITS: Record<string, number> = { starter: 200, pro: 1000, power: 5000 };
-  const planCredits = PLAN_CREDITS[savedPlanId] ?? 200;
+  const PLAN_CREDITS: Record<string, number> = { starter: 150, pro: 400, power: 1400 };
+  const planCredits = PLAN_CREDITS[savedPlanId] ?? 150;
   const totalLimit = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.monthly_limit || 0), 0) || 0) : 0;
   const totalUsed = Array.isArray(slots) ? (slots.reduce((acc, s) => acc + (s.activeSub?.credits_used || 0), 0) || 0) : 0;
 
@@ -2262,7 +2262,7 @@ const WebDashboard: React.FC = () => {
                       const sub = slot.activeSub;
                       const plan = (sub?.plan_name || slot.plan_type || 'starter').toLowerCase();
                       const ps = getWebPlanStyle(plan);
-                      const usagePct = Math.min(100, ((sub?.credits_used || 0) / (sub?.monthly_limit || 200)) * 100);
+                      const usagePct = Math.min(100, ((sub?.credits_used || 0) / (sub?.monthly_limit || 150)) * 100);
                       const msgsCnt = (messages || []).filter(m => m?.slot_id === slot.slot_id && !m.is_read).length;
 
                       return (
@@ -2288,7 +2288,7 @@ const WebDashboard: React.FC = () => {
                                 <div className="mt-2">
                                   <div className="flex justify-between text-[8px] font-black mb-1 uppercase opacity-80">
                                     <span className={ps.labelColor}>Consumo SMS</span>
-                                    <span className={ps.phoneColor}>{sub?.credits_used || 0} / {sub?.monthly_limit || 200}</span>
+                                    <span className={ps.phoneColor}>{sub?.credits_used || 0} / {sub?.monthly_limit || 150}</span>
                                   </div>
                                   <div className="h-1.5 w-32 bg-black/10 rounded-full overflow-hidden">
                                     <div className={`h-full ${plan === 'starter' ? 'bg-primary' : 'bg-white'}`} style={{ width: `${usagePct}%` }} />

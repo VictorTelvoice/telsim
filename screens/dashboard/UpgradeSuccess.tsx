@@ -10,15 +10,15 @@ const isMobileDeviceUA = (): boolean => {
 };
 
 const PLAN_CREDITS: Record<string, number> = {
-  Starter: 200,
-  Pro: 1000,
-  Power: 5000,
+  Starter: 150,
+  Pro: 400,
+  Power: 1400,
 };
 
 const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-  Starter: { monthly: 49.90, annual: 199 },
-  Pro:     { monthly: 99.90, annual: 399 },
-  Power:   { monthly: 149.90, annual: 990 },
+  Starter: { monthly: 19.90, annual: 199 },
+  Pro:     { monthly: 39.90, annual: 399 },
+  Power:   { monthly: 99.00, annual: 990 },
 };
 
 const PLAN_COLORS: Record<string, string> = {
