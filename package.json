@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test:email": "npx tsx test-email.ts",
     "test:api-local": "npx tsx scripts/run-local-tests.ts",
-    "serve:api": "npx tsx scripts/api-server.ts"
+    "serve:api": "npx tsx scripts/api-server.ts",
+    "db:replica": "npx tsx scripts/setup-full-replica.ts",
+    "db:sync": "npx tsx scripts/sync-replica-prod.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
@@ -19,6 +21,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.20.0",
     "better-sqlite3": "^12.9.0",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "framer-motion": "^12.34.3",
@@ -31,6 +34,7 @@
     "stripe": "^14.0.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

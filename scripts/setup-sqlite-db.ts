@@ -51,6 +51,14 @@ db.exec(`
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        action TEXT,
+        details TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Insertar cliente de prueba (GoAuth)
     INSERT INTO api_clients (id, name, secret_key_hash, status)
     VALUES ('edf64997-aa8b-4d9e-9a4d-8e9a8608bcaf', 'goauth', 'hash_test', 'active');

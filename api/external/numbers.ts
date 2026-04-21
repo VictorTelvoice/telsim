@@ -109,7 +109,7 @@ export default async function handler(req: any, res: any) {
         }
 
         // Lógica de liberación: restaurar el inventario al pool público (status = 'libre')
-        const { error: releaseError } = await db.releaseSlot(id);
+        const { error: releaseError } = await db.releaseSlot(id, clientId);
 
         if (releaseError) {
           return res.status(500).json({ error: 'Failed to release number back to inventory.' });
