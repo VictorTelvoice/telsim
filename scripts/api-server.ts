@@ -12,6 +12,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import numbersHandler from '../api/external/numbers.js';
 import userHandler from '../api/external/user.js';
+import skylineWebhookHandler from '../api/webhooks/skyline.js';
 import { getPool } from '../api/external/_lib/db.js';
 
 const app = express();
@@ -21,6 +22,10 @@ const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || 'super-secret-jwt-key-for-
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Soporte para los POST de Skyline que vienen como Form-Urlencoded
+app.use(express.text({ type: ['text/*', 'application/octet-stream'] })); // Soporte para POST de Skyline que vienen en raw (octet-stream)
+
+
 
 // Emulación de Vercel Request/Response en Express
 // Definido antes de los handlers para evitar ReferenceErrors
@@ -337,6 +342,7 @@ app.post('/api/manage', async (req, res) => {
 
 app.all('/api/external/user', vLink(userHandler));
 app.all('/api/external/numbers', vLink(numbersHandler));
+app.all('/api/webhooks/skyline', vLink(skylineWebhookHandler));
 
 // Health check para el dashboard
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.2' }));

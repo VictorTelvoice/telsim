@@ -1,0 +1,250 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+  password      String?
+
+  // Auth NextAuth
+  accounts      Account[]
+  sessions      Session[]
+
+  // Domain Telsim
+  stripeCustomerId String?
+  telegramEnabled  Boolean  @default(false)
+  telegramToken    String?
+  telegramChatId   String?
+  webhookUrl       String?
+  webhookActive    Boolean  @default(false)
+  apiSecretKey     String?
+  
+  onboardingStep   String?    @default("plan")
+  onboardingCompleted Boolean @default(false)
+  onboardingCheckoutSessionId String?
+
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+  smsLogs          SmsLog[]
+  slots            Slot[]
+  auditLogs        AuditLog[]
+  automationLogs   AutomationLog[]
+  externalMappings ExternalUserMapping[]
+  supportTickets   SupportTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Slot {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  slotId             String   @unique
+  phoneNumber        String
+  planType           String?
+  status             String   @default("libre") // libre, ocupado
+  country            String?
+  label              String?
+  forwardingActive   Boolean  @default(false)
+  forwardingChannel  String?
+  forwardingConfig   String?
+  
+  assignedToUser     User?    @relation(fields: [assignedTo], references: [id])
+  assignedTo         String?  @db.ObjectId
+
+  apiClient          ApiClient? @relation(fields: [apiClientId], references: [id])
+  apiClientId        String?    @db.ObjectId
+
+  subscriptions      Subscription[]
+  smsLogs            SmsLog[]
+  automationLogs     AutomationLog[]
+
+  reservationToken   String?
+  reservationExpires DateTime?
+  reservationUserId  String?    @db.ObjectId
+  reservationSessionId String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Subscription {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  stripeSubscriptionId String? @unique
+  phoneNumber        String?
+  planName           String
+  status             String
+  monthlyLimit       Int      @default(150)
+  creditsUsed        Int      @default(0)
+  billingType        String   @default("monthly")
+  
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @db.ObjectId
+
+  slot               Slot?    @relation(fields: [slotId], references: [id])
+  slotId             String?  @db.ObjectId
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SmsLog {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  sender             String
+  content            String
+  serviceName        String?
+  verificationCode   String?
+  isSpam             Boolean  @default(false)
+  isRead             Boolean  @default(false)
+  
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @db.ObjectId
+
+  slot               Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  slotId             String   @db.ObjectId
+
+  receivedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+}
+
+model ApiClient {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  status             String   @default("active")
+  
+  slots              Slot[]
+  externalMappings   ExternalUserMapping[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ExternalUserMapping {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  externalUserId     String
+
+  apiClient          ApiClient @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  apiClientId        String    @db.ObjectId
+
+  telsimUser         User      @relation(fields: [telsimUserId], references: [id], onDelete: Cascade)
+  telsimUserId       String    @db.ObjectId
+
+  @@unique([apiClientId, externalUserId])
+}
+
+model AuditLog {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  action             String
+  details            String?  @db.String
+  
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId             String?  @db.ObjectId
+
+  createdAt          DateTime @default(now())
+}
+
+model AutomationLog {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  status             String
+  payload            String?  @db.String
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @db.ObjectId
+
+  slot               Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  slotId             String   @db.ObjectId
+
+  createdAt          DateTime @default(now())
+}
+
+model Invoice {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  stripeInvoiceId    String   @unique
+  number             String?
+  amount             Int      // In cents
+  currency           String   @default("USD")
+  status             String
+  hostedInvoiceUrl   String?
+  invoicePdf         String?
+  
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @db.ObjectId
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SupportTicket {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject   String
+  category  String   @default("technical") // technical, billing, sales, account, other
+  status    String   @default("open") // open, pending, closed
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+
+  messages  SupportMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SupportMessage {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  content    String   @db.String
+  senderType String   @default("user") // user, admin
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId   String        @db.ObjectId
+
+  createdAt  DateTime @default(now())
+}
