@@ -1,0 +1,73 @@
+name: Deploy Telsim to Azure
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm install
+        working-directory: web
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Build Next.js App
+        run: npm run build
+        working-directory: web
+        env:
+          # Build-time env variables
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          # Agregar otros si es necesario
+
+      - name: Prepare Standalone Package
+        run: |
+          # Crear carpeta temporal de despliegue
+          mkdir -p deploy/web
+          
+          # Copiar archivos standalone (incluye node_modules optimizado)
+          cp -r web/.next/standalone/. deploy/
+          
+          # Copiar archivos estáticos y públicos al lugar que Next.js standalone espera
+          # En una estructura de subcarpeta, standalone/web/ es la raíz de la app
+          cp -r web/public deploy/web/public
+          cp -r web/.next/static deploy/web/.next/static
+          
+          # Comprimir el paquete
+          cd deploy && zip -r ../deploy.zip .
+          
+      - name: Deploy to Azure (PROD)
+        if: github.ref == 'refs/heads/main'
+        uses: azure/webapps-deploy@v3
+        with:
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./deploy.zip
+
+      - name: Deploy to Azure (DEV)
+        if: github.ref == 'refs/heads/develop'
+        uses: azure/webapps-deploy@v3
+        with:
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_DEV }}
+          package: ./deploy.zip
