@@ -349,7 +349,7 @@ const Landing: React.FC = () => {
   if (loading) return null;
 
   return (
-    <div className="text-slate-800 antialiased bg-[#F8FAFC] min-h-screen">
+    <div className="text-slate-800 antialiased bg-white min-h-screen">
       <style>{`
         .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
 
@@ -523,10 +523,10 @@ const Landing: React.FC = () => {
       `}</style>
 
       {/* NAV */}
-      <nav className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/50 transition-colors">
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 transition-colors">
         <div className="max-w-5xl mx-auto h-16 px-3 sm:px-6 flex items-center justify-between">
           <Link href="/">
-            <TelsimBrandLogo compact className="shrink-0" />
+            <TelsimBrandLogo compact forceLight className="shrink-0" />
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <button

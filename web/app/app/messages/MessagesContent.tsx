@@ -23,9 +23,23 @@ interface MessagesContentProps {
   initialData: any;
 }
 
+function formatRelativeTime(date: string | Date) {
+  const now = new Date();
+  const diff = now.getTime() - new Date(date).getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'Justo ahora';
+  if (minutes < 60) return `Hace ${minutes} min`;
+  if (hours < 24) return `Hace ${hours} h`;
+  return `Hace ${days} d`;
+}
+
 export default function MessagesContent({ initialData }: MessagesContentProps) {
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'otp' | 'others'>('otp');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'otp' | 'others'>('all');
   const [slotFilter, setSlotFilter] = useState('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -59,13 +73,17 @@ export default function MessagesContent({ initialData }: MessagesContentProps) {
       
       const code = extractCode(msg.content);
       const isOtp = !!code;
+      const matchesSlot = slotFilter === 'all' || msg.slotId === slotFilter;
+
+      if (typeFilter === 'spam' as any) {
+        return matchesSearch && matchesSlot && msg.isSpam;
+      }
+
       const matchesType = typeFilter === 'all' || 
         (typeFilter === 'otp' && isOtp) || 
         (typeFilter === 'others' && !isOtp);
 
-      const matchesSlot = slotFilter === 'all' || msg.slotId === slotFilter;
-
-      return matchesSearch && matchesType && matchesSlot;
+      return matchesSearch && matchesType && matchesSlot && !msg.isSpam;
     });
   }, [messages, search, typeFilter, slotFilter]);
 
@@ -100,7 +118,8 @@ export default function MessagesContent({ initialData }: MessagesContentProps) {
           <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl">
             <FilterButton active={typeFilter === 'all'} onClick={() => setTypeFilter('all')} label="Todos" />
             <FilterButton active={typeFilter === 'otp'} onClick={() => setTypeFilter('otp')} label="OTP" />
-            <FilterButton active={typeFilter === 'others'} onClick={() => setTypeFilter('others')} label="Otros" />
+            <FilterButton active={typeFilter === 'others'} onClick={() => setTypeFilter('others')} label="Genéricos" />
+            <FilterButton active={typeFilter === 'spam' as any} onClick={() => setTypeFilter('spam' as any)} label="Spam" />
           </div>
 
           {/* Refresh */}
@@ -161,8 +180,16 @@ function MessageCard({ msg, onCopy, isCopied, isDark, mounted }: any) {
   const code = extractCode(msg.content);
 
   return (
-    <div className="bg-[var(--card)] rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 flex flex-col gap-5 shadow-[var(--shadow)] hover:shadow-[var(--shadow-lg)] transition-all group overflow-hidden relative">
+    <div className={`bg-[var(--card)] rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 flex flex-col gap-5 shadow-[var(--shadow)] hover:shadow-[var(--shadow-lg)] transition-all group overflow-hidden relative ${msg.isSpam ? 'opacity-60 saturate-50' : ''}`}>
       <div className={`absolute top-0 right-0 w-32 h-32 opacity-[0.03] rounded-full -mr-16 -mt-16`} style={{ backgroundColor: service.color }} />
+      
+      {msg.isSpam && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+          <span className="px-3 py-1 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-rose-500/30">
+            Mensaje de Operador / Spam
+          </span>
+        </div>
+      )}
       
       {/* Header */}
       <div className="flex items-start justify-between relative z-10">
@@ -185,7 +212,7 @@ function MessageCard({ msg, onCopy, isCopied, isDark, mounted }: any) {
               <Circle size={4} className="fill-current" />
               <span className="flex items-center gap-1">
                 <Clock size={10} />
-                Justo ahora
+                {formatRelativeTime(msg.receivedAt || msg.createdAt)}
               </span>
             </div>
           </div>
@@ -195,7 +222,7 @@ function MessageCard({ msg, onCopy, isCopied, isDark, mounted }: any) {
         <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
           <Smartphone size={12} className="text-slate-600 dark:text-slate-400" />
           <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 tabular-nums tracking-tighter">
-            +56 9 **** ****
+            {msg.slot?.phoneNumber || '+56 9 **** ****'}
           </span>
         </div>
       </div>

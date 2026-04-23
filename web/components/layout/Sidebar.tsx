@@ -15,6 +15,9 @@ import {
   Bell
 } from 'lucide-react';
 import TelsimBrandLogo from '../TelsimBrandLogo';
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/app/dashboard' },
@@ -29,6 +32,9 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: stats } = useSWR('/api/user/stats', fetcher);
+
+  const activeLines = stats?.activeLines ?? 0;
 
   return (
     <aside className="hidden lg:flex w-72 flex-col bg-[var(--header-bg)] border-r border-slate-100 dark:border-slate-800/60 transition-all duration-400">
@@ -45,7 +51,9 @@ export default function Sidebar() {
             </div>
             <div>
                <p className="text-[9px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">Infraestructura IA</p>
-               <p className="text-xs font-black text-slate-900 dark:text-white leading-none">2 Líneas activas</p>
+               <p className="text-xs font-black text-slate-900 dark:text-white leading-none">
+                {activeLines} {activeLines === 1 ? 'Línea activa' : 'Líneas activas'}
+               </p>
             </div>
           </div>
         </div>

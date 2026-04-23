@@ -123,6 +123,17 @@ export function detectService(sender: string, content: string) {
 }
 
 export function extractCode(content: string): string | null {
-  const m = content.match(/\b(\d{4,8})\b/);
-  return m ? m[1] : null;
+  // Busca 4 a 8 dígitos seguidos, o con un espacio/guión en medio (ej: 123 456 o 123-456)
+  const m = content.match(/\b(\d{2,4}[\s-]?\d{2,4})\b/);
+  if (!m) return null;
+  
+  // Limpiamos espacios y guiones para retornar solo los números
+  const clean = m[1].replace(/[\s-]/g, '');
+  
+  // Verificamos que al final tengamos entre 4 y 8 dígitos
+  if (clean.length >= 4 && clean.length <= 8) {
+    return clean;
+  }
+  
+  return null;
 }

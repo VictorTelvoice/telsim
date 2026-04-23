@@ -20,13 +20,13 @@ export function applyStripeCheckoutBillingCompliance(sessionConfig: Record<strin
  * Country mapping for slots
  */
 export const ONBOARDING_ISO_TO_SLOT_COUNTRY_PATTERNS: Record<string, string[]> = {
-  CL: ['Chile'],
-  AR: ['Argentina'],
-  PE: ['Perú', 'Peru'],
-  MX: ['México', 'Mexico'],
-  CO: ['Colombia'],
-  BR: ['Brasil', 'Brazil'],
-  US: ['Estados Unidos', 'USA', 'United States', 'EE.UU.', 'EEUU'],
+  CL: ['Chile', 'CL', 'Ch'],
+  AR: ['Argentina', 'AR'],
+  PE: ['Perú', 'Peru', 'PE'],
+  MX: ['México', 'Mexico', 'MX'],
+  CO: ['Colombia', 'CO'],
+  BR: ['Brasil', 'Brazil', 'BR'],
+  US: ['Estados Unidos', 'USA', 'United States', 'EE.UU.', 'EEUU', 'US'],
 };
 
 export function isSupportedOnboardingCountryCode(iso: string): boolean {

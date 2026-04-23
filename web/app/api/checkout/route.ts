@@ -101,7 +101,10 @@ export async function POST(req: NextRequest) {
         const slotToReserve = await prisma.slot.findFirst({
           where: {
             status: 'libre',
-            assignedTo: null,
+            OR: [
+              { assignedTo: null },
+              { assignedTo: { isSet: false } as any }
+            ],
             ...(countryPatterns.length > 0 ? {
               country: { in: countryPatterns }
             } : {})

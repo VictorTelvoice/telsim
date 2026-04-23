@@ -145,16 +145,18 @@ export default function DashboardContent({ initialData }: DashboardContentProps)
           
           <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar">
             {messages && messages.length > 0 ? (
-              messages.map((msg: any) => (
-                <LiveFeedCard
-                  key={msg.id}
-                  msg={msg}
-                  onCopy={() => handleCopy(extractCode(msg.content) || msg.content, msg.id)}
-                  isCopied={copiedId === msg.id}
-                  isDark={isDark}
-                  mounted={mounted}
-                />
-              ))
+              messages
+                .filter((msg: any) => !msg.isSpam)
+                .map((msg: any) => (
+                  <LiveFeedCard
+                    key={msg.id}
+                    msg={msg}
+                    onCopy={() => handleCopy(extractCode(msg.content) || msg.content, msg.id)}
+                    isCopied={copiedId === msg.id}
+                    isDark={isDark}
+                    mounted={mounted}
+                  />
+                ))
             ) : (
               <div className="py-16 text-center bg-[var(--card)] rounded-[1.5rem] border border-slate-200 dark:border-slate-800">
                 <MessageSquare className="mx-auto mb-3 text-slate-300 dark:text-slate-700" size={32} />

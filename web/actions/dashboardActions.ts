@@ -32,7 +32,7 @@ export async function getDashboardData() {
   const recentMessages = await prisma.smsLog.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
-    take: 10
+    take: 50
   });
 
   // 4. Calculate total credits
@@ -75,8 +75,9 @@ export async function getMessagesPageData() {
     }),
     prisma.smsLog.findMany({
       where: { userId },
+      include: { slot: true },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 200
     })
   ]);
 
@@ -196,26 +197,38 @@ export async function getStatsData() {
     })
   ]);
 
-  // Build daily chart data (last 30 days)
+  // Build daily chart data (last 31 days to cover all timezones)
   const dailyMap: Record<string, number> = {};
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(since);
-    d.setDate(since.getDate() + i);
+  const today = new Date();
+  
+  // Generamos 31 días para estar seguros de cubrir el desfase UTC
+  for (let i = 30; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
     const key = d.toISOString().slice(0, 10);
     dailyMap[key] = 0;
   }
+
   for (const msg of allMessages) {
     const key = new Date(msg.createdAt).toISOString().slice(0, 10);
-    if (dailyMap[key] !== undefined) dailyMap[key]++;
+    if (dailyMap[key] !== undefined) {
+      dailyMap[key]++;
+    } else {
+      // Si por algún motivo el mensaje es "del futuro" (UTC), lo sumamos al último día disponible
+      const keys = Object.keys(dailyMap);
+      const lastKey = keys[keys.length - 1];
+      if (key > lastKey) dailyMap[lastKey]++;
+    }
   }
   const dailyChart = Object.entries(dailyMap).map(([date, count]) => ({ date, count }));
 
   // Per-slot breakdown
   const slotBreakdown = slots.map(slot => {
-    const msgCount = allMessages.filter(m => m.slotId === slot.slotId).length;
+    // IMPORTANTE: m.slotId es el ObjectId (id interno), slot.id es el mismo ObjectId
+    const msgCount = allMessages.filter(m => m.slotId === slot.id).length;
     const sub = slot.subscriptions[0];
     return {
-      slotId: slot.slotId,
+      slotId: slot.slotId, // Identificador externo (ej: Skyline:1)
       phoneNumber: slot.phoneNumber,
       label: slot.label,
       msgs30d: msgCount,

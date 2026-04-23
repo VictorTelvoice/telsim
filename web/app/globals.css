@@ -16,7 +16,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f1f5f9;
+  --background: #ffffff;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -27,7 +27,7 @@
   --muted-foreground: #475569;
   --primary: #1b3a8a;
   --header-bg: #ffffff;
-  --card-bg: #f8fafc;
+  --card-bg: #ffffff;
 }
 
 .dark {
@@ -61,6 +61,25 @@
   /* Ensure inputs have readable text in light mode */
   input, textarea, select {
     color: var(--foreground);
+  }
+
+  /* Global Pointer Cursor for all interactive elements */
+  button, 
+  a, 
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  label[for],
+  select {
+    cursor: pointer;
+  }
+
+  /* Prevent pointer on disabled elements */
+  button:disabled,
+  [role="button"]:disabled,
+  input:disabled {
+    cursor: not-allowed;
   }
 }
 
@@ -119,3 +138,4 @@
     box-shadow: 0 8px 32px -4px rgba(29,78,216,0.2);
   }
 }
+

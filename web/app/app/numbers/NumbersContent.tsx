@@ -22,6 +22,7 @@ import {
 import Link from 'next/link';
 import { updateSlotLabel, toggleForwarding, releaseNumber } from '@/actions/dashboardActions';
 import { useRouter } from 'next/navigation';
+import { getIsoCodeFromCountry, getCountryName } from '@/utils/phoneUtils';
 
 interface NumbersContentProps {
   initialData: {
@@ -144,6 +145,12 @@ export default function NumbersContent({ initialData }: NumbersContentProps) {
               key={slot.slotId} 
               slot={slot}
               isLoading={loadingId?.includes(slot.slotId)}
+              isEditing={editingId === slot.slotId}
+              labelDraft={labelDraft}
+              onEdit={() => { setEditingId(slot.slotId); setLabelDraft(slot.label || ''); }}
+              onSave={() => handleSaveLabel(slot.slotId)}
+              onCancel={() => setEditingId(null)}
+              onSetDraft={setLabelDraft}
               onToggleFwd={() => handleToggleFwd(slot.slotId, slot.forwardingActive)}
               onCopy={() => handleCopy(slot.phoneNumber, slot.slotId)}
               isCopied={copiedId === slot.slotId}
@@ -185,7 +192,7 @@ export default function NumbersContent({ initialData }: NumbersContentProps) {
   );
 }
 
-function SimCard({ slot, isLoading, onToggleFwd, onCopy, isCopied }: any) {
+function SimCard({ slot, isLoading, isEditing, labelDraft, onEdit, onSave, onCancel, onSetDraft, onToggleFwd, onCopy, isCopied }: any) {
   const plan = (slot.activeSubscription?.planName || 'starter').toLowerCase();
   const ps = getLegacyPlanStyle(plan);
   const usagePct = Math.min(100, ((slot.activeSubscription?.creditsUsed || 0) / (slot.activeSubscription?.monthlyLimit || 150)) * 100);
@@ -203,15 +210,40 @@ function SimCard({ slot, isLoading, onToggleFwd, onCopy, isCopied }: any) {
         <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-50 pointer-events-none" />
         
         <div className="flex items-start justify-between relative z-10">
-          <div>
+          <div className="flex-1 min-w-0 pr-4">
             <p className={`text-[8px] font-black uppercase tracking-[0.25em] opacity-60 ${ps.labelColor}`}>Red Telsim Online</p>
-            <h3 className={`text-sm font-black italic uppercase truncate max-w-[200px] ${ps.phoneColor}`}>
-              {slot.label || 'SIN ETIQUETA'}
-            </h3>
+            {isEditing ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input 
+                  autoFocus
+                  value={labelDraft}
+                  onChange={(e) => onSetDraft(e.target.value)}
+                  className="w-full px-2 py-1 bg-white/20 border border-white/30 rounded-lg text-xs font-black uppercase text-white outline-none focus:bg-white/30 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onSave();
+                    if (e.key === 'Escape') onCancel();
+                  }}
+                />
+                <button onClick={onSave} className="p-1 hover:scale-110 transition-transform text-white"><Check size={14} /></button>
+                <button onClick={onCancel} className="p-1 hover:scale-110 transition-transform text-white/70"><X size={14} /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group/label">
+                <h3 className={`text-sm font-black italic uppercase truncate ${ps.phoneColor}`}>
+                  {slot.label || 'SIN ETIQUETA'}
+                </h3>
+                <button 
+                  onClick={onEdit}
+                  className="opacity-0 group-hover/label:opacity-100 transition-opacity p-1"
+                >
+                  <Pencil size={12} className={`${ps.phoneColor} opacity-60 hover:opacity-100`} />
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-center gap-1">
              <div className="w-10 h-7 rounded-lg border-2 border-white/30 overflow-hidden bg-slate-200">
-                <img src={`https://flagcdn.com/w80/${(slot.region || 'cl').toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
+                <img src={`https://flagcdn.com/w80/${getIsoCodeFromCountry(slot.country).toLowerCase()}.png`} className="w-full h-full object-cover" alt="" />
              </div>
              <span className={`text-[10px] font-black font-mono ${ps.phoneColor}`}>#{slot.slotId.slice(-4).toUpperCase()}</span>
           </div>
@@ -278,7 +310,8 @@ function SimCard({ slot, isLoading, onToggleFwd, onCopy, isCopied }: any) {
 }
 
 function ListRow({ slot, isEditing, labelDraft, onEdit, onSave, onCancel, onSetDraft, isLoading }: any) {
-  const flag = REGION_FLAGS[slot.region?.toUpperCase() ?? ''] ?? '🌐';
+  const isoCode = getIsoCodeFromCountry(slot.country);
+  const flag = REGION_FLAGS[isoCode.toUpperCase()] ?? '🌐';
   
   return (
     <tr className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
@@ -308,7 +341,7 @@ function ListRow({ slot, isEditing, labelDraft, onEdit, onSave, onCancel, onSetD
       </td>
       <td className="px-6 py-4">
         <span className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-400 italic">
-          {flag} {slot.region || 'Desconocida'}
+          {flag} {getCountryName(slot.country)}
         </span>
       </td>
       <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-400">

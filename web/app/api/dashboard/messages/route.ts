@@ -11,8 +11,9 @@ export async function GET() {
   try {
     const messages = await prisma.smsLog.findMany({
       where: { userId: session.user.id },
+      include: { slot: true },
       orderBy: { createdAt: 'desc' },
-      take: 20
+      take: 300
     });
     
     return NextResponse.json(messages);

@@ -1,10 +1,12 @@
 import React from 'react';
+import Image from 'next/image';
 
 interface TelsimBrandLogoProps {
   className?: string;
   iconClassName?: string;
   textClassName?: string;
   compact?: boolean;
+  forceLight?: boolean;
 }
 
 const TelsimBrandLogo: React.FC<TelsimBrandLogoProps> = ({
@@ -12,13 +14,38 @@ const TelsimBrandLogo: React.FC<TelsimBrandLogoProps> = ({
   iconClassName = '',
   textClassName = '',
   compact = false,
+  forceLight = false,
 }) => {
+  const height = compact ? 52 : 64;
+
+  // Renderizado específico para el Landing (Usamos Next.js Image para mayor robustez)
+  if (forceLight) {
+    return (
+      <div className={`flex items-center ${className}`.trim()} style={{ height: `${height}px` }}>
+        <img
+          src="/logo-light.png"
+          alt="Telsim"
+          style={{ height: '100%', width: 'auto', display: 'block' }}
+          className={`object-contain ${iconClassName}`}
+        />
+      </div>
+    );
+  }
+
+  // Renderizado para el Dashboard
   return (
-    <div className={`flex items-center ${compact ? 'gap-[0.2rem]' : 'gap-1'} ${className}`.trim()}>
+    <div className={`flex items-center ${className}`.trim()} style={{ height: `${height}px` }}>
       <img
-        src="/telsim-isotipo.png"
+        src="/logo-dark.png"
         alt="Telsim"
-        className={`${compact ? 'h-9 w-28' : 'h-[3rem] w-[9rem]'} object-contain ${iconClassName}`.trim()}
+        className={`${iconClassName} object-contain hidden dark:block`}
+        style={{ height: '100%', width: 'auto' }}
+      />
+      <img
+        src="/logo-light.png"
+        alt="Telsim"
+        className={`${iconClassName} object-contain block dark:hidden`}
+        style={{ height: '100%', width: 'auto' }}
       />
     </div>
   );

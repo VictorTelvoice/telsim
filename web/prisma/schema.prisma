@@ -46,6 +46,7 @@ model User {
   automationLogs   AutomationLog[]
   externalMappings ExternalUserMapping[]
   supportTickets   SupportTicket[]
+  notifications    Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,6 +99,13 @@ model Slot {
   forwardingChannel  String?
   forwardingConfig   String?
   
+  // Skyline Hardware Mapping
+  deviceId           String?          @db.ObjectId
+  device             SkylineDevice?   @relation(fields: [deviceId], references: [id])
+  portNumber         String?          // Identificador de puerto (ej: 1, 16.1)
+  lastImsi           String?
+  lastSeenAt         DateTime?
+
   assignedToUser     User?    @relation(fields: [assignedTo], references: [id])
   assignedTo         String?  @db.ObjectId
 
@@ -247,4 +255,46 @@ model SupportMessage {
   ticketId   String        @db.ObjectId
 
   createdAt  DateTime @default(now())
+}
+
+model SkylineDevice {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  ipAddress   String
+  apiUser     String?
+  apiPass     String?
+  portCount   Int      @default(64)
+  status      String   @default("online")
+  
+  slots       Slot[]
+  
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SlotSyncLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  slotId      String?  @db.ObjectId
+  slotIdString String? // Fallback o ID lógico
+  eventType   String   // rotation, status_change, discovery
+  oldPhone    String?
+  newPhone    String?
+  oldImsi     String?
+  newImsi     String?
+  source      String   // cron, webhook, manual
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @db.ObjectId
+  title              String
+  message            String
+  type               String   // 'info', 'success', 'warning', 'error', 'sms'
+  read               Boolean  @default(false)
+  link               String?  // Ej: /app/messages?id=...
+  createdAt          DateTime @default(now())
+  
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
